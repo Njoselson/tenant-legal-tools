@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Knowledge Graph Input</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 900px;
+            margin: 20px auto;
+            padding: 0 15px;
+            background-color: #f8f9fa;
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 2px solid #e74c3c;
+            padding-bottom: 10px;
+            text-align: center;
+        }
+        .section {
+            background-color: #fff;
+            padding: 25px;
+            border-radius: 8px;
+            margin-bottom: 25px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            border: 1px solid #ecf0f1;
+        }
+        .section-title {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            font-size: 1.2em;
+            font-weight: bold;
+        }
+        .metadata-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .metadata-item {
+            display: flex;
+            flex-direction: column;
+        }
+        .metadata-item.full-width {
+            grid-column: 1 / -1;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #34495e;
+        }
+        input[type="url"], input[type="text"], textarea, select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #bdc3c7;
+            border-radius: 5px;
+            font-size: 1rem;
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);
+        }
+        select {
+            background-color: white;
+            cursor: pointer;
+        }
+        select option {
+            padding: 10px;
+        }
+        .select-description {
+            font-size: 0.85em;
+            color: #7f8c8d;
+            margin-top: 4px;
+        }
+        textarea {
+            min-height: 300px;
+            resize: vertical;
+        }
+        #process-btn {
+            display: block;
+            width: 100%;
+            background-color: #2ecc71;
+            color: white;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 5px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.3s ease, box-shadow 0.3s ease;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        #process-btn:hover:not(:disabled) {
+            background-color: #27ae60;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+        #process-btn:disabled {
+            background-color: #bdc3c7;
+            cursor: not-allowed;
+        }
+        #status-message {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 5px;
+            text-align: center;
+            font-weight: bold;
+        }
+        .status-loading {
+            background-color: #eaf5ff;
+            color: #3498db;
+            border: 1px solid #aed6f1;
+        }
+        .status-success {
+            background-color: #e8f8f5;
+            color: #2ecc71;
+            border: 1px solid #a9dfbf;
+        }
+        .status-error {
+            background-color: #fdedec;
+            color: #e74c3c;
+            border: 1px solid #f5b7b1;
+        }
+         nav {
+             margin-bottom: 20px;
+             text-align: center;
+             background: #34495e;
+             padding: 10px;
+             border-radius: 5px;
+         }
+         nav a {
+             color: white;
+             text-decoration: none;
+             margin: 0 15px;
+             font-weight: bold;
+         }
+         nav a:hover {
+             text-decoration: underline;
+         }
+        .input-divider {
+            text-align: center;
+            margin: 20px 0;
+            position: relative;
+        }
+        .input-divider::before {
+            content: "";
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: #bdc3c7;
+        }
+        .input-divider span {
+            background: #fff;
+            padding: 0 15px;
+            position: relative;
+            color: #7f8c8d;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>Knowledge Graph Input Processor</h1>
+     <nav>
+        <a href="/">Consultation Analyzer</a>
+        <a href="/kg-input">KG Input</a>
+        <a href="/kg-view">KG Viewer (Not Implemented)</a>
+    </nav>
+
+    <div class="section">
+        <div class="section-title">Source Information</div>
+        <div class="metadata-grid">
+            <div class="metadata-item">
+                <label for="source_type">Source Type</label>
+                <select id="source_type">
+                    <option value="">Select a type...</option>
+                    <option value="url">URL - Web page or PDF from the internet</option>
+                    <option value="file">File - Local document or file</option>
+                    <option value="internal">Internal - Clinic notes or internal documentation</option>
+                    <option value="manual">Manual - Manually entered text or citations</option>
+                </select>
+                <div class="select-description">The type of source you're adding to the knowledge graph</div>
+            </div>
+            <div class="metadata-item">
+                <label for="source_authority">Authority Level</label>
+                <select id="source_authority">
+                    <option value="">Select authority level...</option>
+                    <option value="binding_legal_authority">Binding Legal Authority - Statutes, published case law</option>
+                    <option value="persuasive_authority">Persuasive Authority - Unpublished cases, agency guidance</option>
+                    <option value="official_interpretive">Official Interpretive - Agency guides, treatises</option>
+                    <option value="reputable_secondary">Reputable Secondary - Law reviews, bar association materials</option>
+                    <option value="practical_self_help">Practical Self-Help - NGO guides, legal aid resources</option>
+                    <option value="informational_only">Informational Only - News, forums, non-expert sources</option>
+                </select>
+                <div class="select-description">The legal authority level of this source</div>
+            </div>
+            <div class="metadata-item">
+                <label for="document_type">Document Type</label>
+                <select id="document_type">
+                    <option value="">Select document type...</option>
+                    <option value="statute">Statute</option>
+                    <option value="regulation">Regulation</option>
+                    <option value="case_law">Case Law</option>
+                    <option value="agency_guidance">Agency Guidance</option>
+                    <option value="treatise">Treatise</option>
+                    <option value="law_review">Law Review</option>
+                    <option value="self_help_guide">Self-Help Guide</option>
+                    <option value="news_article">News Article</option>
+                </select>
+                <div class="select-description">The specific type of legal document</div>
+            </div>
+            <div class="metadata-item">
+                <label for="source_organization">Organization</label>
+                <input type="text" id="source_organization" placeholder="e.g., HUD, California BAR">
+                <div class="select-description">The organization that created or maintains this source</div>
+            </div>
+            <div class="metadata-item full-width">
+                <label for="source_title">Title</label>
+                <input type="text" id="source_title" placeholder="e.g., Know Your Rights on Repairs Questions">
+                <div class="select-description">A descriptive title for this source</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">Content</div>
+        <div style="margin-bottom: 20px;">
+            <label for="url_input">Enter URL to Scrape:</label>
+            <input type="url" id="url_input" placeholder="https://example.com/legal_resource">
+        </div>
+
+        <div class="input-divider">
+            <span>OR</span>
+        </div>
+
+        <div style="margin-bottom: 20px;">
+            <label for="text_input">Paste Legal Text:</label>
+            <textarea id="text_input" placeholder="Paste the full legal text here..."></textarea>
+        </div>
+
+        <button id="process-btn">Process Input and Add to KG</button>
+        <div id="status-message" style="display: none;"></div>
+    </div>
+
+    <script>
+        const urlInput = document.getElementById('url_input');
+        const textInput = document.getElementById('text_input');
+        const sourceOrganization = document.getElementById('source_organization');
+        const sourceType = document.getElementById('source_type');
+        const sourceAuthority = document.getElementById('source_authority');
+        const documentType = document.getElementById('document_type');
+        const sourceTitle = document.getElementById('source_title');
+        const processBtn = document.getElementById('process-btn');
+        const statusMessageDiv = document.getElementById('status-message');
+
+        // Update source type based on input method
+        urlInput.addEventListener('input', () => {
+            if (urlInput.value.trim()) {
+                textInput.disabled = true;
+                sourceType.value = 'url';
+            } else {
+                textInput.disabled = false;
+                if (!textInput.value.trim()) {
+                    sourceType.value = '';
+                }
+            }
+        });
+
+        textInput.addEventListener('input', () => {
+            if (textInput.value.trim()) {
+                urlInput.disabled = true;
+                sourceType.value = 'manual';
+            } else {
+                urlInput.disabled = false;
+                if (!urlInput.value.trim()) {
+                    sourceType.value = '';
+                }
+            }
+        });
+
+        processBtn.addEventListener('click', async () => {
+            if (processBtn.disabled) {
+                showStatus('Button already processing, ignoring click', 'error');
+                return;
+            }
+
+            const url = urlInput.value.trim();
+            const text = textInput.value.trim() || null;
+            const organization = sourceOrganization.value.trim();
+            const type = sourceType.value.trim();
+            const authority = sourceAuthority.value.trim();
+            const docType = documentType.value.trim();
+            const title = sourceTitle.value.trim();
+
+            const debugInfo = {
+                url,
+                text: text ? `${text.substring(0, 100)}...` : null,
+                organization,
+                type,
+                authority,
+                documentType: docType,
+                title
+            };
+
+            if (!url && !text) {
+                showStatus('Please provide either a URL or paste text.', 'error');
+                return;
+            }
+            if (url && text) {
+                showStatus('Please provide only one input source (either URL or text).', 'error');
+                return;
+            }
+            if (!type) {
+                showStatus('Please select a source type.', 'error');
+                return;
+            }
+            if (!authority) {
+                showStatus('Please select an authority level.', 'error');
+                return;
+            }
+            if (!title) {
+                showStatus('Please provide a title.', 'error');
+                return;
+            }
+
+            // Validate source type and authority values
+            const validSourceTypes = ['url', 'file', 'internal', 'manual'];
+            const validAuthorityTypes = [
+                'binding_legal_authority',
+                'persuasive_authority',
+                'official_interpretive',
+                'reputable_secondary',
+                'practical_self_help',
+                'informational_only'
+            ];
+            const validDocumentTypes = [
+                'statute',
+                'regulation',
+                'case_law',
+                'agency_guidance',
+                'treatise',
+                'law_review',
+                'self_help_guide',
+                'news_article'
+            ];
+
+            if (!validSourceTypes.includes(type)) {
+                showStatus(`Invalid source type: ${type}. Must be one of: ${validSourceTypes.join(', ')}`, 'error');
+                return;
+            }
+
+            if (!validAuthorityTypes.includes(authority)) {
+                showStatus(`Invalid authority level: ${authority}. Must be one of: ${validAuthorityTypes.join(', ')}`, 'error');
+                return;
+            }
+
+            if (docType && !validDocumentTypes.includes(docType)) {
+                showStatus(`Invalid document type: ${docType}. Must be one of: ${validDocumentTypes.join(', ')}`, 'error');
+                return;
+            }
+
+            const payload = {
+                text: textInput.value,
+                url: urlInput.value,
+                metadata: {
+                    source: url || 'manual_input',
+                    source_type: sourceType.value,
+                    authority: sourceAuthority.value,
+                    document_type: documentType.value || null,
+                    organization: sourceOrganization.value || null,
+                    title: sourceTitle.value,
+                    created_at: new Date().toISOString(),
+                    attributes: {}
+                }
+            };
+
+            // Log the payload for debugging
+            console.log('Sending payload:', JSON.stringify(payload, null, 2));
+
+            showStatus(`Processing input...\nDebug info:\n${JSON.stringify(debugInfo, null, 2)}`, 'loading');
+            processBtn.disabled = true;
+            processBtn.textContent = 'Processing...';
+
+            try {
+                const response = await fetch('/api/kg/process', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                let result;
+                try {
+                    result = await response.json();
+                    console.log('Server response:', result);  // Log the full response
+                } catch (jsonError) {
+                    console.error('JSON parsing error:', jsonError);
+                    showStatus(`Error parsing server response: ${jsonError.message}\nResponse status: ${response.status}`, 'error');
+                    return;
+                }
+
+                if (!response.ok) {
+                    let errorMessage = 'Unknown error';
+                    if (result.detail) {
+                        errorMessage = result.detail;
+                    } else if (result.errors) {
+                        errorMessage = result.errors.map(e => `${e.loc.join('.')}: ${e.msg}`).join('\n');
+                    } else if (typeof result === 'object') {
+                        errorMessage = JSON.stringify(result, null, 2);
+                    }
+                    console.error('Server error details:', result);  // Log error details
+                    showStatus(`Error (${response.status}): ${errorMessage}`, 'error');
+                    return;
+                }
+
+                showStatus(`Success! Response:\n${JSON.stringify(result, null, 2)}`, 'success');
+                resetForm();
+                
+            } catch (error) {
+                console.error('Request error:', error);
+                showStatus(`Error: ${error.message || JSON.stringify(error)}`, 'error');
+            } finally {
+                processBtn.disabled = false;
+                processBtn.textContent = 'Process Input and Add to KG';
+            }
+        });
+
+        function resetForm() {
+            urlInput.value = '';
+            textInput.value = '';
+            sourceOrganization.value = '';
+            sourceType.value = '';
+            sourceAuthority.value = '';
+            documentType.value = '';
+            sourceTitle.value = '';
+            
+            urlInput.disabled = false;
+            textInput.disabled = false;
+            sourceType.value = '';
+            sourceAuthority.value = '';
+            documentType.value = '';
+            sourceTitle.value = '';
+        }
+
+        function showStatus(message, type) {
+            statusMessageDiv.innerHTML = `<div class="status-${type}">${message}</div>`;
+            statusMessageDiv.style.display = 'block';
+            
+            if (type === 'success') {
+                setTimeout(() => {
+                    statusMessageDiv.style.display = 'none';
+                }, 10000);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            resetForm();
+        });
+    </script>
+</body>
+</html>

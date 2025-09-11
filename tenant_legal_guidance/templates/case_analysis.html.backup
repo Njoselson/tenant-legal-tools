@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tenant Case Analysis - Legal Guidance System</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://unpkg.com/cytoscape@3.26.0/dist/cytoscape.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .input-section {
+            margin-bottom: 30px;
+        }
+        textarea {
+            width: 100%;
+            height: 200px;
+            padding: 15px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            resize: vertical;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        button:disabled {
+            background-color: #bdc3c7;
+            cursor: not-allowed;
+        }
+        .loading {
+            text-align: center;
+            color: #7f8c8d;
+            font-style: italic;
+        }
+        .results {
+            margin-top: 30px;
+            display: none;
+        }
+        .section {
+            margin-bottom: 25px;
+            padding: 20px;
+            border-left: 4px solid #3498db;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+        }
+        .section h3 {
+            margin-top: 0;
+            color: #2c3e50;
+        }
+        .section ul {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+        .section li {
+            margin-bottom: 8px;
+        }
+        .example-section {
+            background-color: #e8f4fd;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            border-left: 4px solid #3498db;
+        }
+        .example-section h4 {
+            margin-top: 0;
+            color: #2c3e50;
+        }
+        .example-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .example-controls select {
+            flex: 1;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .example-controls button {
+            padding: 8px 15px;
+            font-size: 14px;
+            margin: 0;
+        }
+        .example-description {
+            background-color: white;
+            padding: 10px;
+            border-radius: 3px;
+            border: 1px solid #ddd;
+            margin-top: 10px;
+        }
+        .example-description p {
+            margin: 0;
+            color: #7f8c8d;
+            font-size: 14px;
+        }
+        
+        /* Graph Visualization Styles */
+        .graph-container {
+            margin: 20px 0;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            background: white;
+        }
+        .graph-header {
+            padding: 15px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #ddd;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .graph-controls {
+            display: flex;
+            gap: 10px;
+        }
+        .graph-controls button {
+            padding: 8px 15px;
+            font-size: 14px;
+            margin: 0;
+        }
+        #cy {
+            width: 100%;
+            height: 500px;
+            background: #fafafa;
+            border-radius: 8px;
+        }
+        
+        /* Citation Styles */
+        .citation {
+            background: #e8f4fd;
+            border-left: 3px solid #3498db;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 3px;
+        }
+        .citation-header {
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+        .citation-source {
+            color: #7f8c8d;
+            font-size: 14px;
+        }
+        .citation-meta {
+            font-size: 12px;
+            color: #95a5a6;
+            margin-top: 5px;
+        }
+        
+        /* Tabs */
+        .tabs {
+            display: flex;
+            border-bottom: 2px solid #ddd;
+            margin-bottom: 20px;
+        }
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            border: none;
+            background: none;
+            color: #7f8c8d;
+        }
+        .tab.active {
+            color: #3498db;
+            border-bottom: 2px solid #3498db;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        /* Tooltip Styles */
+        .graph-tooltip {
+            position: absolute;
+            pointer-events: none;
+            background: #fff;
+            border: 1px solid #3498db;
+            border-radius: 6px;
+            box-shadow: 0 2px 8px rgba(44,62,80,0.15);
+            padding: 12px 16px;
+            font-size: 14px;
+            color: #2c3e50;
+            z-index: 1000;
+            min-width: 220px;
+            max-width: 350px;
+            display: none;
+        }
+        .graph-tooltip .tooltip-title {
+            font-weight: bold;
+            margin-bottom: 4px;
+        }
+        .graph-tooltip .tooltip-meta {
+            color: #7f8c8d;
+            font-size: 12px;
+            margin-top: 6px;
+        }
+        .graph-tooltip .tooltip-link {
+            color: #2980b9;
+            text-decoration: underline;
+            cursor: pointer;
+        }
+        .node circle {
+            transition: stroke 0.2s, stroke-width 0.2s;
+        }
+        .node.highlighted circle {
+            stroke: #e67e22;
+            stroke-width: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏛️ Tenant Case Analysis</h1>
+        <p style="text-align: center; color: #7f8c8d; margin-bottom: 30px;">
+            Get legal guidance for your tenant case using our AI-powered analysis system
+        </p>
+
+        <div class="input-section">
+            <h3>📝 Describe Your Case</h3>
+            <p>Please describe your tenant situation in detail. Include information about:</p>
+            <ul>
+                <li>What happened (eviction notice, rent increase, repairs needed, etc.)</li>
+                <li>When it happened</li>
+                <li>What notices you received</li>
+                <li>Any court dates or legal actions</li>
+                <li>Your rent status (market rate, rent stabilized, etc.)</li>
+            </ul>
+
+            <div class="example-section">
+                <h4>💡 Try an Example Case:</h4>
+                <div class="example-controls">
+                    <select id="exampleSelect" onchange="updateExampleDescription()">
+                        <option value="">-- Select an example case --</option>
+                    </select>
+                    <button onclick="loadExampleCase()" id="loadExampleBtn" disabled>📋 Load Example</button>
+                </div>
+                <div id="exampleDescription" class="example-description" style="display: none;">
+                    <p id="exampleDescText"></p>
+                </div>
+            </div>
+
+            <textarea id="caseText" placeholder="Describe your tenant case here..."></textarea>
+            <button onclick="analyzeCase()" id="analyzeBtn">🔍 Analyze Case</button>
+        </div>
+
+        <div id="loading" class="loading" style="display: none;">
+            Analyzing your case... This may take a moment.
+        </div>
+
+        <div id="results" class="results">
+            <h2>📋 Legal Analysis Results</h2>
+            
+            <!-- Tabs -->
+            <div class="tabs">
+                <button class="tab active" onclick="showTab('analysis', event)">📋 Analysis</button>
+                <button class="tab" onclick="showTab('graph', event)">🕸️ Knowledge Graph</button>
+                <button class="tab" onclick="showTab('entities', event)">📚 Entities & Sources</button>
+            </div>
+            
+            <!-- Analysis Tab -->
+            <div id="analysis-tab" class="tab-content active">
+                <div class="section">
+                    <h3>📋 Case Summary</h3>
+                    <div id="caseSummary"></div>
+                </div>
+
+                <div class="section">
+                    <h3>⚖️ Legal Issues</h3>
+                    <ul id="legalIssues"></ul>
+                </div>
+
+                <div class="section">
+                    <h3>📜 Relevant Laws</h3>
+                    <ul id="relevantLaws"></ul>
+                </div>
+
+                <div class="section">
+                <h3>✅ Recommended Actions</h3>
+                <ul id="recommendedActions"></ul>
+            </div>
+
+            <div class="section">
+                <h3>📄 Evidence Needed</h3>
+                <ul id="evidenceNeeded"></ul>
+            </div>
+
+            <div class="section">
+                <h3>🏛️ Legal Resources</h3>
+                <ul id="legalResources"></ul>
+            </div>
+
+            <div class="section">
+                <h3>⚠️ Risk Assessment</h3>
+                <div id="riskAssessment"></div>
+            </div>
+
+            <div class="section">
+                <h3>🚀 Next Steps</h3>
+                <ul id="nextSteps"></ul>
+            </div>
+        </div>
+        
+        <!-- Graph Tab -->
+        <div id="graph-tab" class="tab-content">
+            <div class="graph-container">
+                <div class="graph-header">
+                    <h3>🕸️ Knowledge Graph Visualization</h3>
+                    <div class="graph-controls">
+                        <button onclick="resetGraph()">Reset View</button>
+                        <button onclick="zoomIn()">Zoom In</button>
+                        <button onclick="zoomOut()">Zoom Out</button>
+                    </div>
+                </div>
+                <div id="cy"></div>
+            </div>
+        </div>
+        
+        <!-- Entities Tab -->
+        <div id="entities-tab" class="tab-content">
+            <div class="section">
+                <h3>📚 Retrieved Entities & Sources</h3>
+                <div id="entitiesList"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let exampleCases = [];
+        window.addEventListener('load', loadExampleCases);
+
+        async function analyzeCase(forceRefresh = false) {
+            const caseText = document.getElementById('caseText').value.trim();
+            const select = document.getElementById('exampleSelect');
+            const exampleId = select && select.value ? select.value : null;
+            if (!caseText) {
+                alert('Please describe your case before analyzing.');
+                return;
+            }
+
+            // Check cache for example cases
+            if (exampleId && !forceRefresh) {
+                const cachedAnalysis = localStorage.getItem('analysis_' + exampleId);
+                const cachedEntities = localStorage.getItem('entities_' + exampleId);
+                if (cachedAnalysis && cachedEntities) {
+                    displayResults(JSON.parse(cachedAnalysis));
+                    createGraph(JSON.parse(cachedEntities));
+                    showTab('graph');
+                    showRefreshButton();
+                    return;
+                }
+            }
+
+            // Show loading state
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('results').style.display = 'none';
+            document.getElementById('analyzeBtn').disabled = true;
+            hideRefreshButton();
+
+            try {
+                const body = { case_text: caseText };
+                if (exampleId) body.example_id = exampleId;
+                const response = await fetch('/api/analyze-case', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(body)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                displayResults(data);
+                
+                // Fetch entities for graph
+                try {
+                    const entitiesResponse = await fetch('/api/retrieve-entities', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            case_text: caseText
+                        })
+                    });
+                    
+                    if (entitiesResponse.ok) {
+                        const entitiesData = await entitiesResponse.json();
+                        showTab('graph');
+                        setTimeout(() => {
+                            createGraph(entitiesData);
+                        }, 200);
+                        
+                        // Cache both analysis and entities
+                        if (exampleId) {
+                            localStorage.setItem('analysis_' + exampleId, JSON.stringify(data));
+                            localStorage.setItem('entities_' + exampleId, JSON.stringify(entitiesData));
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error fetching entities:', error);
+                    // Still show analysis even if entities fail
+                    showTab('analysis');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error analyzing case. Please try again.');
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('analyzeBtn').disabled = false;
+            }
+        }
+
+        function displayResults(data) {
+            // Display case summary
+            document.getElementById('caseSummary').textContent = data.case_summary || 'No summary available.';
+
+            // Display legal issues
+            const legalIssuesList = document.getElementById('legalIssues');
+            legalIssuesList.innerHTML = '';
+            if (data.legal_issues && data.legal_issues.length > 0) {
+                data.legal_issues.forEach(issue => {
+                    const li = document.createElement('li');
+                    li.textContent = issue;
+                    legalIssuesList.appendChild(li);
+                });
+            } else {
+                legalIssuesList.innerHTML = '<li>No specific legal issues identified.</li>';
+            }
+
+            // Display relevant laws
+            const relevantLawsList = document.getElementById('relevantLaws');
+            relevantLawsList.innerHTML = '';
+            if (data.relevant_laws && data.relevant_laws.length > 0) {
+                data.relevant_laws.forEach(law => {
+                    const li = document.createElement('li');
+                    li.textContent = law;
+                    relevantLawsList.appendChild(li);
+                });
+            } else {
+                relevantLawsList.innerHTML = '<li>No specific laws identified.</li>';
+            }
+
+            // Display recommended actions
+            const recommendedActionsList = document.getElementById('recommendedActions');
+            recommendedActionsList.innerHTML = '';
+            if (data.recommended_actions && data.recommended_actions.length > 0) {
+                data.recommended_actions.forEach(action => {
+                    const li = document.createElement('li');
+                    li.textContent = action;
+                    recommendedActionsList.appendChild(li);
+                });
+            } else {
+                recommendedActionsList.innerHTML = '<li>No specific actions recommended.</li>';
+            }
+
+            // Display evidence needed
+            const evidenceNeededList = document.getElementById('evidenceNeeded');
+            evidenceNeededList.innerHTML = '';
+            if (data.evidence_needed && data.evidence_needed.length > 0) {
+                data.evidence_needed.forEach(evidence => {
+                    const li = document.createElement('li');
+                    li.textContent = evidence;
+                    evidenceNeededList.appendChild(li);
+                });
+            } else {
+                evidenceNeededList.innerHTML = '<li>No specific evidence requirements identified.</li>';
+            }
+
+            // Display legal resources
+            const legalResourcesList = document.getElementById('legalResources');
+            legalResourcesList.innerHTML = '';
+            if (data.legal_resources && data.legal_resources.length > 0) {
+                data.legal_resources.forEach(resource => {
+                    const li = document.createElement('li');
+                    li.textContent = resource;
+                    legalResourcesList.appendChild(li);
+                });
+            } else {
+                legalResourcesList.innerHTML = '<li>No specific legal resources identified.</li>';
+            }
+
+            // Display risk assessment
+            document.getElementById('riskAssessment').textContent = data.risk_assessment || 'No risk assessment available.';
+
+            // Display next steps
+            const nextStepsList = document.getElementById('nextSteps');
+            nextStepsList.innerHTML = '';
+            if (data.next_steps && data.next_steps.length > 0) {
+                data.next_steps.forEach(step => {
+                    const li = document.createElement('li');
+                    li.textContent = step;
+                    nextStepsList.appendChild(li);
+                });
+            } else {
+                nextStepsList.innerHTML = '<li>No specific next steps identified.</li>';
+            }
+
+            // Show results
+            document.getElementById('results').style.display = 'block';
+            showRefreshButton(); // Show refresh button after analysis
+        }
+
+        function createGraph(data) {
+            const cyContainer = document.getElementById('cy');
+            if (!cyContainer) {
+                console.error('Cytoscape container #cy not found!');
+                return;
+            }
+            // Convert entities and relationships to Cytoscape format
+            const cyNodes = (data.entities || []).map(entity => ({
+                data: {
+                    id: entity.id,
+                    label: entity.name,
+                    type: entity.type,
+                    description: entity.description,
+                    source_metadata: entity.source_metadata || {}
+                }
+            }));
+            const cyEdges = (data.relationships || []).map((rel, i) => ({
+                data: {
+                    id: rel.source_id + '_' + rel.target_id + '_' + i,
+                    source: rel.source_id,
+                    target: rel.target_id,
+                    type: rel.type
+                }
+            }));
+            // Destroy previous instance if exists
+            if (window.cy && typeof window.cy.destroy === 'function') { window.cy.destroy(); }
+            window.cy = cytoscape({
+                container: document.getElementById('cy'),
+                elements: [ ...cyNodes, ...cyEdges ],
+                style: [
+                    {
+                        selector: 'node',
+                        style: {
+                            'background-color': '#3498db',
+                            'label': 'data(label)',
+                            'color': '#222',
+                            'text-valign': 'center',
+                            'text-halign': 'center',
+                            'font-size': '12px',
+                            'width': 30,
+                            'height': 30
+                        }
+                    },
+                    {
+                        selector: 'edge',
+                        style: {
+                            'width': 2,
+                            'line-color': '#bbb',
+                            'target-arrow-color': '#bbb',
+                            'target-arrow-shape': 'triangle',
+                            'curve-style': 'bezier'
+                        }
+                    },
+                    {
+                        selector: 'node:selected',
+                        style: {
+                            'background-color': '#e67e22',
+                            'border-width': 3,
+                            'border-color': '#e67e22'
+                        }
+                    }
+                ],
+                layout: {
+                    name: 'cose',
+                    animate: true,
+                    fit: true,
+                    padding: 40,
+                    randomize: true,
+                    componentSpacing: 100,
+                    nodeRepulsion: 4000,
+                    nodeOverlap: 20,
+                    idealEdgeLength: 100,
+                    edgeElasticity: 100,
+                    nestingFactor: 5,
+                    gravity: 80,
+                    numIter: 1000,
+                    initialTemp: 200,
+                    coolingFactor: 0.95,
+                    minTemp: 1.0,
+                    stop: function() {
+                        // Keep layout running for dynamic behavior
+                        setTimeout(() => {
+                            if (window.cy) {
+                                window.cy.layout({ name: 'cose', animate: true, fit: false }).run();
+                            }
+                        }, 1000);
+                    }
+                },
+                userZoomingEnabled: true,
+                userPanningEnabled: true,
+                boxSelectionEnabled: true
+            });
+            // Custom HTML tooltip
+            window.cy.on('tap', 'node', function(evt){
+                const d = this.data();
+                let meta = '';
+                const sm = d.source_metadata || {};
+                if (sm.source) {
+                    if (typeof sm.source === 'string' && (sm.source.startsWith('http://') || sm.source.startsWith('https://'))) {
+                        meta += `<div><strong>Source URL:</strong> <a href="${sm.source}" target="_blank" class="tooltip-link">${sm.source}</a></div>`;
+                    } else {
+                        meta += `<div><strong>Source:</strong> ${sm.source}</div>`;
+                    }
+                }
+                if (sm.organization) meta += `<div><strong>Organization:</strong> ${sm.organization}</div>`;
+                if (sm.title) meta += `<div><strong>Title:</strong> ${sm.title}</div>`;
+                if (sm.jurisdiction) meta += `<div><strong>Jurisdiction:</strong> ${sm.jurisdiction}</div>`;
+                if (sm.authority) meta += `<div><strong>Authority:</strong> ${sm.authority}</div>`;
+                if (sm.created_at) meta += `<div><strong>Created At:</strong> ${sm.created_at}</div>`;
+                if (sm.document_type) meta += `<div><strong>Document Type:</strong> ${sm.document_type}</div>`;
+                if (sm.cites && sm.cites.length) meta += `<div><strong>Cites:</strong> ${sm.cites.join(', ')}</div>`;
+                tooltip.innerHTML = `
+                    <div class="tooltip-title">${d.label} <span style="color:#95a5a6;font-size:12px;">(${d.type})</span></div>
+                    <div>${d.description || ''}</div>
+                    <div class="tooltip-meta">${meta}</div>
+                `;
+                tooltip.style.display = 'block';
+                // Position tooltip near mouse
+                const mouseX = evt.originalEvent ? evt.originalEvent.clientX : 0;
+                const mouseY = evt.originalEvent ? evt.originalEvent.clientY : 0;
+                const scrollY = window.scrollY || document.documentElement.scrollTop;
+                tooltip.style.left = (mouseX + 20) + 'px';
+                tooltip.style.top = (mouseY + scrollY - 20) + 'px';
+                evt.stopPropagation();
+            });
+            window.cy.on('tap', function(evt){
+                if (evt.target === window.cy) hideGraphTooltip();
+            });
+        }
+
+        function resetGraph() {
+            if (window.cy) {
+                window.cy.layout({ name: 'cose' }).run();
+                window.cy.fit();
+                window.cy.center();
+            }
+        }
+
+        function zoomIn() {
+            if (window.cy) {
+                window.cy.zoom(1.1);
+            }
+        }
+
+        function zoomOut() {
+            if (window.cy) {
+                window.cy.zoom(0.9);
+            }
+        }
+
+        async function loadExampleCases() {
+            try {
+                const response = await fetch('/api/example-cases');
+                if (response.ok) {
+                    const data = await response.json();
+                    exampleCases = data.cases;
+                    const select = document.getElementById('exampleSelect');
+                    select.innerHTML = '<option value="">-- Select an example case --</option>';
+                    exampleCases.forEach(case_item => {
+                        const option = document.createElement('option');
+                        option.value = case_item.id;
+                        option.textContent = case_item.title;
+                        select.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading example cases:', error);
+            }
+        }
+
+        function updateExampleDescription() {
+            const select = document.getElementById('exampleSelect');
+            const loadBtn = document.getElementById('loadExampleBtn');
+            const descDiv = document.getElementById('exampleDescription');
+            const descText = document.getElementById('exampleDescText');
+            if (select.value) {
+                const selectedCase = exampleCases.find(c => c.id === select.value);
+                if (selectedCase) {
+                    descText.textContent = selectedCase.description;
+                    descDiv.style.display = 'block';
+                    loadBtn.disabled = false;
+                }
+            } else {
+                descDiv.style.display = 'none';
+                loadBtn.disabled = true;
+            }
+        }
+
+        function loadExampleCase() {
+            const select = document.getElementById('exampleSelect');
+            if (select.value) {
+                const selectedCase = exampleCases.find(c => c.id === select.value);
+                if (selectedCase) {
+                    document.getElementById('caseText').value = selectedCase.case_text;
+                }
+            }
+        }
+
+        function showTab(tabName, evt) {
+            // Hide all tab contents
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            // Remove active class from all tabs
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            // Show selected tab content
+            const tabContent = document.getElementById(tabName + '-tab');
+            if (tabContent) {
+                tabContent.classList.add('active');
+            }
+            // Add active class to clicked tab if event is provided
+            if (evt && evt.target && evt.target.classList) {
+                evt.target.classList.add('active');
+            }
+        }
+
+        // Tooltip element (absolute, outside SVG)
+        let tooltip = document.getElementById('graphTooltip');
+        if (!tooltip) {
+            tooltip = document.createElement('div');
+            tooltip.id = 'graphTooltip';
+            tooltip.className = 'graph-tooltip';
+            document.body.appendChild(tooltip);
+        }
+        function hideGraphTooltip() {
+            tooltip.style.display = 'none';
+        }
+        // Hide tooltip on click elsewhere or ESC
+        document.addEventListener('click', hideGraphTooltip);
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') hideGraphTooltip();
+        });
+
+        function showRefreshButton() {
+            let btn = document.getElementById('refreshAnalysisBtn');
+            if (!btn) {
+                btn = document.createElement('button');
+                btn.id = 'refreshAnalysisBtn';
+                btn.textContent = '🔄 Refresh Analysis';
+                btn.style.marginLeft = '10px';
+                btn.onclick = function() {
+                    analyzeCase(true);
+                };
+                document.getElementById('analyzeBtn').after(btn);
+            }
+            btn.style.display = 'inline-block';
+        }
+        function hideRefreshButton() {
+            const btn = document.getElementById('refreshAnalysisBtn');
+            if (btn) btn.style.display = 'none';
+        }
+    </script>
+</body>
+</html> 

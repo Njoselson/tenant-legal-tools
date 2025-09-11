@@ -1,0 +1,580 @@
+<?xml version='1.0' encoding='utf-8'?>
+<graphml xmlns="http://graphml.graphdrawing.org/xmlns" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://graphml.graphdrawing.org/xmlns http://graphml.graphdrawing.org/xmlns/1.0/graphml.xsd"><key id="d12" for="edge" attr.name="key" attr.type="string"/>
+<key id="d11" for="edge" attr.name="id" attr.type="string"/>
+<key id="d10" for="edge" attr.name="conditions" attr.type="string"/>
+<key id="d9" for="edge" attr.name="weight" attr.type="double"/>
+<key id="d8" for="edge" attr.name="relationship_type" attr.type="string"/>
+<key id="d7" for="node" attr.name="attributes" attr.type="string"/>
+<key id="d6" for="node" attr.name="source_type" attr.type="string"/>
+<key id="d5" for="node" attr.name="source_reference" attr.type="string"/>
+<key id="d4" for="node" attr.name="jurisdiction_id" attr.type="string"/>
+<key id="d3" for="node" attr.name="description" attr.type="string"/>
+<key id="d2" for="node" attr.name="name" attr.type="string"/>
+<key id="d1" for="node" attr.name="entity_type" attr.type="string"/>
+<key id="d0" for="node" attr.name="id" attr.type="string"/>
+<graph edgedefault="directed"><node id="issue:lack_of_heat">
+  <data key="d0">issue:lack_of_heat</data>
+  <data key="d1">TENANT_ISSUE</data>
+  <data key="d2">Lack of heat</data>
+  <data key="d3">Immediately hazardous condition due to lack of heating</data>
+  <data key="d4">jurisdiction:nyc</data>
+  <data key="d5">[CHTU] FAQ "FAQ: HOW TO GET REPAIRS" (https://docs.google.com/document/d/1v3ntZjtWo6aq6WY1FJ7HUwvw5zcEdCFe/edit?tab=t.0)</data>
+  <data key="d6">PASTED_TEXT</data>
+  <data key="d7">{"severity": "C Violation", "response_time": "24 hours"}</data>
+</node>
+<node id="issue:lack_of_hot_water">
+  <data key="d0">issue:lack_of_hot_water</data>
+  <data key="d1">TENANT_ISSUE</data>
+  <data key="d2">Lack of hot water</data>
+  <data key="d3">Immediately hazardous condition due to lack of hot water</data>
+  <data key="d4">jurisdiction:nyc</data>
+  <data key="d5">[CHTU] FAQ "FAQ: HOW TO GET REPAIRS" (https://docs.google.com/document/d/1v3ntZjtWo6aq6WY1FJ7HUwvw5zcEdCFe/edit?tab=t.0)</data>
+  <data key="d6">PASTED_TEXT</data>
+  <data key="d7">{"severity": "C Violation", "response_time": "24 hours"}</data>
+</node>
+<node id="issue:minor_leaks">
+  <data key="d0">issue:minor_leaks</data>
+  <data key="d1">TENANT_ISSUE</data>
+  <data key="d2">Minor leaks</data>
+  <data key="d3">Non-hazardous condition such as minor leaks</data>
+  <data key="d4">jurisdiction:nyc</data>
+  <data key="d5">[CHTU] FAQ "FAQ: HOW TO GET REPAIRS" (https://docs.google.com/document/d/1v3ntZjtWo6aq6WY1FJ7HUwvw5zcEdCFe/edit?tab=t.0)</data>
+  <data key="d6">PASTED_TEXT</data>
+  <data key="d7">{"severity": "A Violation", "response_time": "90 days"}</data>
+</node>
+<node id="issue:peeling_paint">
+  <data key="d0">issue:peeling_paint</data>
+  <data key="d1">TENANT_ISSUE</data>
+  <data key="d2">Peeling paint</data>
+  <data key="d3">Non-hazardous condition such as chipping or peeling paint when no children under the age of six live in the home</data>
+  <data key="d4">jurisdiction:nyc</data>
+  <data key="d5">[CHTU] FAQ "FAQ: HOW TO GET REPAIRS" (https://docs.google.com/document/d/1v3ntZjtWo6aq6WY1FJ7HUwvw5zcEdCFe/edit?tab=t.0)</data>
+  <data key="d6">PASTED_TEXT</data>
+  <data key="d7">{"severity": "A Violation", "response_time": "90 days"}</data>
+</node>
+<node id="issue:rodents">
+  <data key="d0">issue:rodents</data>
+  <data key="d1">TENANT_ISSUE</data>
+  <data key="d2">Rodents</data>
+  <data key="d3">Hazardous condition such as rats/vermin</data>
+  <data key="d4">jurisdiction:nyc</data>
+  <data key="d5">[CHTU] FAQ "FAQ: HOW TO GET REPAIRS" (https://docs.google.com/document/d/1v3ntZjtWo6aq6WY1FJ7HUwvw5zcEdCFe/edit?tab=t.0)</data>
+  <data key="d6">PASTED_TEXT</data>
+  <data key="d7">{"severity": "B Violation", "response_time": "30 days"}</data>
+</node>
+<node id="remedy:rent_strike">
+  <data key="d0">remedy:rent_strike</data>
+  <data key="d1">REMEDY</data>
+  <data key="d2">Rent strike</data>
+  <data key="d3">Withholding rent to compel landlord to make necessary repairs</data>
+  <data key="d4">jurisdiction:nyc</data>
+  <data key="d5">[CHTU] FAQ "FAQ: HOW TO GET REPAIRS" (https://docs.google.com/document/d/1v3ntZjtWo6aq6WY1FJ7HUwvw5zcEdCFe/edit?tab=t.0)</data>
+  <data key="d6">PASTED_TEXT</data>
+  <data key="d7">{"effectiveness": "High when done as a group", "risk": "Potential court action and blacklisting"}</data>
+</node>
+<node id="remedy:emergency_repair_program">
+  <data key="d0">remedy:emergency_repair_program</data>
+  <data key="d1">REMEDY</data>
+  <data key="d2">Emergency Repair Program</data>
+  <data key="d3">HPD-initiated corrective action for emergency C violations</data>
+  <data key="d4">jurisdiction:nyc</data>
+  <data key="d5">[CHTU] FAQ "FAQ: HOW TO GET REPAIRS" (https://docs.google.com/document/d/1v3ntZjtWo6aq6WY1FJ7HUwvw5zcEdCFe/edit?tab=t.0)</data>
+  <data key="d6">PASTED_TEXT</data>
+  <data key="d7">{"trigger": "Landlord failure to comply with C violations"}</data>
+</node>
+<node id="legal_procedure:311_complaint">
+  <data key="d0">legal_procedure:311_complaint</data>
+  <data key="d1">LEGAL_PROCEDURE</data>
+  <data key="d2">311 Complaint</data>
+  <data key="d3">Filing a complaint via NYC's Citizen Service Center for repairs</data>
+  <data key="d4">jurisdiction:nyc</data>
+  <data key="d5">[CHTU] FAQ "FAQ: HOW TO GET REPAIRS" (https://docs.google.com/document/d/1v3ntZjtWo6aq6WY1FJ7HUwvw5zcEdCFe/edit?tab=t.0)</data>
+  <data key="d6">PASTED_TEXT</data>
+  <data key="d7">{"availability": "24/7", "contact": "(212) 504-4115 (TTY)"}</data>
+</node>
+<node id="legal_procedure:rent_reduction_application">
+  <data key="d0">legal_procedure:rent_reduction_application</data>
+  <data key="d1">LEGAL_PROCEDURE</data>
+  <data key="d2">Rent Reduction Application</data>
+  <data key="d3">Application for a rent reduction based upon decreased building-wide service</data>
+  <data key="d4">jurisdiction:nyc</data>
+  <data key="d5">[CHTU] FAQ "FAQ: HOW TO GET REPAIRS" (https://docs.google.com/document/d/1v3ntZjtWo6aq6WY1FJ7HUwvw5zcEdCFe/edit?tab=t.0)</data>
+  <data key="d6">PASTED_TEXT</data>
+  <data key="d7">{"submission": "Must be made to DHCR"}</data>
+</node>
+<node id="legal_procedure:housing_court">
+  <data key="d0">legal_procedure:housing_court</data>
+  <data key="d1">LEGAL_PROCEDURE</data>
+  <data key="d2">Housing Court</data>
+  <data key="d3">Legal venue for landlord-tenant disputes, including non-payment cases</data>
+  <data key="d4">jurisdiction:nyc</data>
+  <data key="d5">[CHTU] FAQ "FAQ: HOW TO GET REPAIRS" (https://docs.google.com/document/d/1v3ntZjtWo6aq6WY1FJ7HUwvw5zcEdCFe/edit?tab=t.0)</data>
+  <data key="d6">PASTED_TEXT</data>
+  <data key="d7">{"outcome_possibilities": ["Repair orders", "Rent payment orders"]}</data>
+</node>
+<node id="evidence_type:written_notice">
+  <data key="d0">evidence_type:written_notice</data>
+  <data key="d1">EVIDENCE_TYPE</data>
+  <data key="d2">Written notice</data>
+  <data key="d3">Documented communication to landlord regarding needed repairs</data>
+  <data key="d4">jurisdiction:nyc</data>
+  <data key="d5">[CHTU] FAQ "FAQ: HOW TO GET REPAIRS" (https://docs.google.com/document/d/1v3ntZjtWo6aq6WY1FJ7HUwvw5zcEdCFe/edit?tab=t.0)</data>
+  <data key="d6">PASTED_TEXT</data>
+  <data key="d7">{"delivery_method": "Certified mail", "importance": "Critical for legal defense"}</data>
+</node>
+<node id="evidence_type:311_record">
+  <data key="d0">evidence_type:311_record</data>
+  <data key="d1">EVIDENCE_TYPE</data>
+  <data key="d2">311 record</data>
+  <data key="d3">Documentation of complaints filed via 311</data>
+  <data key="d4">jurisdiction:nyc</data>
+  <data key="d5">[CHTU] FAQ "FAQ: HOW TO GET REPAIRS" (https://docs.google.com/document/d/1v3ntZjtWo6aq6WY1FJ7HUwvw5zcEdCFe/edit?tab=t.0)</data>
+  <data key="d6">PASTED_TEXT</data>
+  <data key="d7">{"use_case": "Supports claims of unresolved issues"}</data>
+</node>
+<node id="legal_concept:rent_abatement">
+  <data key="d0">legal_concept:rent_abatement</data>
+  <data key="d1">LEGAL_CONCEPT</data>
+  <data key="d2">Rent abatement</data>
+  <data key="d3">Reduction or withholding of rent due to unresolved repair issues</data>
+  <data key="d4">jurisdiction:nyc</data>
+  <data key="d5">[CHTU] FAQ "FAQ: HOW TO GET REPAIRS" (https://docs.google.com/document/d/1v3ntZjtWo6aq6WY1FJ7HUwvw5zcEdCFe/edit?tab=t.0)</data>
+  <data key="d6">PASTED_TEXT</data>
+  <data key="d7">{"risk": "Not guaranteed, potential for court-ordered payment"}</data>
+</node>
+<node id="legal_concept:tenant_blacklist">
+  <data key="d0">legal_concept:tenant_blacklist</data>
+  <data key="d1">LEGAL_CONCEPT</data>
+  <data key="d2">Tenant blacklist</data>
+  <data key="d3">Database of tenants who have been involved in rent withholding or other disputes</data>
+  <data key="d4">jurisdiction:nyc</data>
+  <data key="d5">[CHTU] FAQ "FAQ: HOW TO GET REPAIRS" (https://docs.google.com/document/d/1v3ntZjtWo6aq6WY1FJ7HUwvw5zcEdCFe/edit?tab=t.0)</data>
+  <data key="d6">PASTED_TEXT</data>
+  <data key="d7">{"compiled_by": "Office of Court Administration", "impact": "Difficulty securing future housing"}</data>
+</node>
+<node id="jurisdiction:nyc">
+  <data key="d0">jurisdiction:nyc</data>
+  <data key="d1">JURISDICTION</data>
+  <data key="d2">New York City</data>
+  <data key="d3">Jurisdiction covering NYC housing laws and regulations</data>
+  <data key="d4">jurisdiction:nyc</data>
+  <data key="d5">[CHTU] FAQ "FAQ: HOW TO GET REPAIRS" (https://docs.google.com/document/d/1v3ntZjtWo6aq6WY1FJ7HUwvw5zcEdCFe/edit?tab=t.0)</data>
+  <data key="d6">PASTED_TEXT</data>
+  <data key="d7">{}</data>
+</node>
+<node id="statute:nyc:hmc">
+  <data key="d0">statute:nyc:hmc</data>
+  <data key="d1">STATUTE</data>
+  <data key="d2">NYC Housing Maintenance Code</data>
+  <data key="d3">Laws requiring landlords to maintain essential services and make prompt repairs</data>
+  <data key="d4">jurisdiction:nyc</data>
+  <data key="d5">[Met Council on Housing] Guide "Getting Repairs" (https://www.metcouncilonhousing.org/help-answers/getting-repairs/)</data>
+  <data key="d6">PASTED_TEXT</data>
+  <data key="d7">{"topic": "repairs", "services": "heat, hot water, etc."}</data>
+</node>
+<node id="regulation:hcr:ra81">
+  <data key="d0">regulation:hcr:ra81</data>
+  <data key="d1">REGULATION</data>
+  <data key="d2">HCR Form RA-81</data>
+  <data key="d3">Application For A Rent Reduction Based Upon Decreased Service(s) – Individual Apartment</data>
+  <data key="d4">jurisdiction:nyc</data>
+  <data key="d5">[Met Council on Housing] Guide "Getting Repairs" (https://www.metcouncilonhousing.org/help-answers/getting-repairs/)</data>
+  <data key="d6">PASTED_TEXT</data>
+  <data key="d7">{"form_type": "individual apartment"}</data>
+</node>
+<node id="regulation:hcr:ra84">
+  <data key="d0">regulation:hcr:ra84</data>
+  <data key="d1">REGULATION</data>
+  <data key="d2">HCR Form RA-84</data>
+  <data key="d3">Application For A Rent Reduction Based Upon Decreased Building-Wide Service(s)</data>
+  <data key="d4">jurisdiction:nyc</data>
+  <data key="d5">[Met Council on Housing] Guide "Getting Repairs" (https://www.metcouncilonhousing.org/help-answers/getting-repairs/)</data>
+  <data key="d6">PASTED_TEXT</data>
+  <data key="d7">{"form_type": "building-wide"}</data>
+</node>
+<node id="legal_procedure:hp_action">
+  <data key="d0">legal_procedure:hp_action</data>
+  <data key="d1">LEGAL_PROCEDURE</data>
+  <data key="d2">HP Action</data>
+  <data key="d3">Lawsuit against landlords for failure to make repairs or provide essential services</data>
+  <data key="d4">jurisdiction:nyc</data>
+  <data key="d5">[Met Council on Housing] Guide "Getting Repairs" (https://www.metcouncilonhousing.org/help-answers/getting-repairs/)</data>
+  <data key="d6">PASTED_TEXT</data>
+  <data key="d7">{"court": "Housing Court"}</data>
+</node>
+<node id="remedy:rent_reduction">
+  <data key="d0">remedy:rent_reduction</data>
+  <data key="d1">REMEDY</data>
+  <data key="d2">Rent Reduction</data>
+  <data key="d3">Reduction in rent due to decreased services or lack of repairs</data>
+  <data key="d4">jurisdiction:nyc</data>
+  <data key="d5">[Met Council on Housing] Guide "Getting Repairs" (https://www.metcouncilonhousing.org/help-answers/getting-repairs/)</data>
+  <data key="d6">PASTED_TEXT</data>
+  <data key="d7">{"agency": "HCR"}</data>
+</node>
+<node id="remedy:rent_abatement">
+  <data key="d0">remedy:rent_abatement</data>
+  <data key="d1">REMEDY</data>
+  <data key="d2">Rent Abatement</data>
+  <data key="d3">Reduction in the amount of rent owed due to lack of repairs or essential services</data>
+  <data key="d4">jurisdiction:nyc</data>
+  <data key="d5">[Met Council on Housing] Guide "Getting Repairs" (https://www.metcouncilonhousing.org/help-answers/getting-repairs/)</data>
+  <data key="d6">PASTED_TEXT</data>
+  <data key="d7">{"requires_proof": true}</data>
+</node>
+<node id="evidence_type:letter_to_landlord">
+  <data key="d0">evidence_type:letter_to_landlord</data>
+  <data key="d1">EVIDENCE_TYPE</data>
+  <data key="d2">Letter to Landlord</data>
+  <data key="d3">Written request for repairs sent to the landlord</data>
+  <data key="d4">jurisdiction:nyc</data>
+  <data key="d5">[Met Council on Housing] Guide "Getting Repairs" (https://www.metcouncilonhousing.org/help-answers/getting-repairs/)</data>
+  <data key="d6">PASTED_TEXT</data>
+  <data key="d7">{"method": "certified mail"}</data>
+</node>
+<node id="evidence_type:inspection_checklist">
+  <data key="d0">evidence_type:inspection_checklist</data>
+  <data key="d1">EVIDENCE_TYPE</data>
+  <data key="d2">Tenants’ Inspection Checklist</data>
+  <data key="d3">Checklist of repairs needed in the apartment and building</data>
+  <data key="d4">jurisdiction:nyc</data>
+  <data key="d5">[Met Council on Housing] Guide "Getting Repairs" (https://www.metcouncilonhousing.org/help-answers/getting-repairs/)</data>
+  <data key="d6">PASTED_TEXT</data>
+  <data key="d7">{"languages": ["English", "Spanish", "Chinese"]}</data>
+</node>
+<node id="evidence_type:violation_report">
+  <data key="d0">evidence_type:violation_report</data>
+  <data key="d1">EVIDENCE_TYPE</data>
+  <data key="d2">Violation Report</data>
+  <data key="d3">Report from city agencies documenting violations</data>
+  <data key="d4">jurisdiction:nyc</data>
+  <data key="d5">[Met Council on Housing] Guide "Getting Repairs" (https://www.metcouncilonhousing.org/help-answers/getting-repairs/)</data>
+  <data key="d6">PASTED_TEXT</data>
+  <data key="d7">{"source": "HPD, DOB, DOH"}</data>
+</node>
+<node id="evidence_type:photos">
+  <data key="d0">evidence_type:photos</data>
+  <data key="d1">EVIDENCE_TYPE</data>
+  <data key="d2">Photos</data>
+  <data key="d3">Photographic evidence of violations</data>
+  <data key="d4">jurisdiction:nyc</data>
+  <data key="d5">[Met Council on Housing] Guide "Getting Repairs" (https://www.metcouncilonhousing.org/help-answers/getting-repairs/)</data>
+  <data key="d6">PASTED_TEXT</data>
+  <data key="d7">{}</data>
+</node>
+<node id="legal_concept:retaliation">
+  <data key="d0">legal_concept:retaliation</data>
+  <data key="d1">LEGAL_CONCEPT</data>
+  <data key="d2">Retaliation</data>
+  <data key="d3">Landlord's adverse action in response to tenant's request for repairs</data>
+  <data key="d4">jurisdiction:nyc</data>
+  <data key="d5">[Met Council on Housing] Guide "Getting Repairs" (https://www.metcouncilonhousing.org/help-answers/getting-repairs/)</data>
+  <data key="d6">PASTED_TEXT</data>
+  <data key="d7">{"protection": "new lease for a year"}</data>
+</node>
+<node id="statute:ny:rent_control">
+  <data key="d0">statute:ny:rent_control</data>
+  <data key="d1">STATUTE</data>
+  <data key="d2">Rent Control</data>
+  <data key="d3">Limits the rent an owner may charge for an apartment and restricts the right of the owner to evict tenants.</data>
+  <data key="d4">jurisdiction:ny</data>
+  <data key="d5">https://ag.ny.gov/publications/residential-tenants-rights-guide#lease</data>
+  <data key="d6">URL</data>
+  <data key="d7">{"applies_to": "Residential buildings constructed before February 1947", "counties": "New York City, Albany, Erie, Nassau, Rensselaer, Schenectady, Westchester"}</data>
+</node>
+<node id="statute:ny:rent_stabilization">
+  <data key="d0">statute:ny:rent_stabilization</data>
+  <data key="d1">STATUTE</data>
+  <data key="d2">Rent Stabilization</data>
+  <data key="d3">Regulates rent increases and lease renewals for certain apartments.</data>
+  <data key="d4">jurisdiction:ny</data>
+  <data key="d5">https://ag.ny.gov/publications/residential-tenants-rights-guide#lease</data>
+  <data key="d6">URL</data>
+  <data key="d7">{"applies_to": "Buildings built before January 1, 1974 with six or more units", "localities": "New York City, Nassau, Rockland, Westchester"}</data>
+</node>
+<node id="regulation:ny:9_nycrr_2525.6">
+  <data key="d0">regulation:ny:9_nycrr_2525.6</data>
+  <data key="d1">REGULATION</data>
+  <data key="d2">9 NYCRR § 2525.6</data>
+  <data key="d3">Regulates subletting in rent-stabilized apartments.</data>
+  <data key="d4">jurisdiction:ny</data>
+  <data key="d5">https://ag.ny.gov/publications/residential-tenants-rights-guide#lease</data>
+  <data key="d6">URL</data>
+  <data key="d7">{"topic": "Subletting", "conditions": "Prime tenant must maintain primary residence"}</data>
+</node>
+<node id="statute:ny:real_property_law_235_b">
+  <data key="d0">statute:ny:real_property_law_235_b</data>
+  <data key="d1">STATUTE</data>
+  <data key="d2">Real Property Law § 235-b</data>
+  <data key="d3">Warranty of habitability ensuring tenants have a livable, safe, and sanitary apartment.</data>
+  <data key="d4">jurisdiction:ny</data>
+  <data key="d5">https://ag.ny.gov/publications/residential-tenants-rights-guide#lease</data>
+  <data key="d6">URL</data>
+  <data key="d7">{"topic": "Habitability", "conditions": "Implied in every residential lease"}</data>
+</node>
+<node id="statute:ny:real_property_law_227_a">
+  <data key="d0">statute:ny:real_property_law_227_a</data>
+  <data key="d1">STATUTE</data>
+  <data key="d2">Real Property Law § 227-a</data>
+  <data key="d3">Allows senior citizens or individuals living with a disability to terminate leases under certain conditions.</data>
+  <data key="d4">jurisdiction:ny</data>
+  <data key="d5">https://ag.ny.gov/publications/residential-tenants-rights-guide#lease</data>
+  <data key="d6">URL</data>
+  <data key="d7">{"topic": "Lease termination", "conditions": "Medical certification required"}</data>
+</node>
+<node id="statute:ny:real_property_law_223_b">
+  <data key="d0">statute:ny:real_property_law_223_b</data>
+  <data key="d1">STATUTE</data>
+  <data key="d2">Real Property Law § 223-b</data>
+  <data key="d3">Protects tenants from retaliatory actions by landlords.</data>
+  <data key="d4">jurisdiction:ny</data>
+  <data key="d5">https://ag.ny.gov/publications/residential-tenants-rights-guide#lease</data>
+  <data key="d6">URL</data>
+  <data key="d7">{"topic": "Retaliation", "conditions": "Applies to all rentals except owner-occupied dwellings with fewer than four units"}</data>
+</node>
+<node id="statute:ny:multiple_dwelling_law_50_a">
+  <data key="d0">statute:ny:multiple_dwelling_law_50_a</data>
+  <data key="d1">STATUTE</data>
+  <data key="d2">Multiple Dwelling Law § 50-a</data>
+  <data key="d3">Requires self-locking doors and intercom systems in certain multiple dwellings.</data>
+  <data key="d4">jurisdiction:ny</data>
+  <data key="d5">https://ag.ny.gov/publications/residential-tenants-rights-guide#lease</data>
+  <data key="d6">URL</data>
+  <data key="d7">{"topic": "Safety", "conditions": "Applies to buildings built or converted after January 1, 1968"}</data>
+</node>
+<node id="statute:ny:real_property_law_233">
+  <data key="d0">statute:ny:real_property_law_233</data>
+  <data key="d1">STATUTE</data>
+  <data key="d2">Real Property Law § 233</data>
+  <data key="d3">Mobile Homeowner’s Bill of Rights governing manufactured and mobile home parks.</data>
+  <data key="d4">jurisdiction:ny</data>
+  <data key="d5">https://ag.ny.gov/publications/residential-tenants-rights-guide#lease</data>
+  <data key="d6">URL</data>
+  <data key="d7">{"topic": "Manufactured homes", "enforced_by": "DHCR"}</data>
+</node>
+<node id="statute:ny:real_property_law_227_f">
+  <data key="d0">statute:ny:real_property_law_227_f</data>
+  <data key="d1">STATUTE</data>
+  <data key="d2">Real Property Law § 227-f</data>
+  <data key="d3">Prohibits tenant blacklists and discrimination based on prior landlord-tenant cases.</data>
+  <data key="d4">jurisdiction:ny</data>
+  <data key="d5">https://ag.ny.gov/publications/residential-tenants-rights-guide#lease</data>
+  <data key="d6">URL</data>
+  <data key="d7">{"topic": "Tenant screening", "penalties": "Fines between $500-$1,000"}</data>
+</node>
+<node id="statute:ny:general_obligations_law_5_321">
+  <data key="d0">statute:ny:general_obligations_law_5_321</data>
+  <data key="d1">STATUTE</data>
+  <data key="d2">General Obligations Law § 5-321</data>
+  <data key="d3">Prohibits lease provisions exempting landlords from liability for injuries due to negligence.</data>
+  <data key="d4">jurisdiction:ny</data>
+  <data key="d5">https://ag.ny.gov/publications/residential-tenants-rights-guide#lease</data>
+  <data key="d6">URL</data>
+  <data key="d7">{"topic": "Lease provisions", "conditions": "Void as against public policy"}</data>
+</node>
+<node id="regulation:ny:dhcr">
+  <data key="d0">regulation:ny:dhcr</data>
+  <data key="d1">REGULATION</data>
+  <data key="d2">DHCR Regulations</data>
+  <data key="d3">Regulations enforced by the New York State Division of Housing and Community Renewal.</data>
+  <data key="d4">jurisdiction:nyc</data>
+  <data key="d5">[Attorney General] Guide "Residential tenants’ rights guide"</data>
+  <data key="d6">URL</data>
+  <data key="d7">{"covers": "Rent stabilization, rent control, tenant protections"}</data>
+</node>
+<node id="legal_concept:warranty_of_habitability">
+  <data key="d0">legal_concept:warranty_of_habitability</data>
+  <data key="d1">LEGAL_CONCEPT</data>
+  <data key="d2">Warranty of Habitability</data>
+  <data key="d3">Tenants have the right to a livable, safe, and sanitary apartment.</data>
+  <data key="d4">jurisdiction:nyc</data>
+  <data key="d5">[Attorney General] Guide "Residential tenants’ rights guide"</data>
+  <data key="d6">URL</data>
+  <data key="d7">{"basis": "Implied in every residential lease", "examples": "Failure to provide heat, hot water, or pest control"}</data>
+</node>
+<node id="tenant_issue:lack_of_heat">
+  <data key="d0">tenant_issue:lack_of_heat</data>
+  <data key="d1">TENANT_ISSUE</data>
+  <data key="d2">Lack of Heat</data>
+  <data key="d3">Landlord fails to provide adequate heat during the heating season.</data>
+  <data key="d4">jurisdiction:nyc</data>
+  <data key="d5">[Attorney General] Guide "Residential tenants’ rights guide"</data>
+  <data key="d6">URL</data>
+  <data key="d7">{"season": "October 1 to May 31", "required_temperature": "68\u00b0F during day, 55\u00b0F at night"}</data>
+</node>
+<node id="legal_procedure:eviction">
+  <data key="d0">legal_procedure:eviction</data>
+  <data key="d1">LEGAL_PROCEDURE</data>
+  <data key="d2">Eviction</data>
+  <data key="d3">Legal process to remove a tenant from the premises.</data>
+  <data key="d4">jurisdiction:nyc</data>
+  <data key="d5">[Attorney General] Guide "Residential tenants’ rights guide"</data>
+  <data key="d6">URL</data>
+  <data key="d7">{"grounds": "Non-payment, lease violations, holdover", "notice_required": "Yes, specific timelines vary"}</data>
+</node>
+<node id="statute:ny:real_property_law_226_b">
+  <data key="d0">statute:ny:real_property_law_226_b</data>
+  <data key="d1">STATUTE</data>
+  <data key="d2">Real Property Law § 226-b</data>
+  <data key="d3">Governs subletting and assignment of leases.</data>
+  <data key="d4">jurisdiction:nyc</data>
+  <data key="d5">[Attorney General] Guide "Residential tenants’ rights guide"</data>
+  <data key="d6">URL</data>
+  <data key="d7">{"rights": "Tenant rights to sublet with landlord consent", "notice_requirements": "Written request, landlord response within 30 days"}</data>
+</node>
+<edge source="issue:lack_of_heat" target="remedy:emergency_repair_program">
+  <data key="d8">ENABLES_REMEDY</data>
+  <data key="d9">1.0</data>
+  <data key="d10">Landlord fails to comply within 24 hours</data>
+  <data key="d11">ENABLES_REMEDY</data>
+</edge>
+<edge source="issue:lack_of_hot_water" target="remedy:emergency_repair_program">
+  <data key="d8">ENABLES_REMEDY</data>
+  <data key="d9">1.0</data>
+  <data key="d10">Landlord fails to comply within 24 hours</data>
+  <data key="d11">ENABLES_REMEDY</data>
+</edge>
+<edge source="issue:rodents" target="legal_procedure:311_complaint">
+  <data key="d8">REQUIRES_PROCEDURE</data>
+  <data key="d9">1.0</data>
+  <data key="d10">Landlord fails to address within 30 days</data>
+  <data key="d11">REQUIRES_PROCEDURE</data>
+</edge>
+<edge source="remedy:rent_strike" target="evidence_type:written_notice">
+  <data key="d8">REMEDY_REQUIRES_EVIDENCE</data>
+  <data key="d9">1.0</data>
+  <data key="d10">Must be sent prior to withholding rent</data>
+  <data key="d11">REMEDY_REQUIRES_EVIDENCE</data>
+</edge>
+<edge source="remedy:rent_strike" target="legal_procedure:housing_court">
+  <data key="d8">REQUIRES_PROCEDURE</data>
+  <data key="d9">1.0</data>
+  <data key="d10">If landlord files for non-payment</data>
+  <data key="d11">REQUIRES_PROCEDURE</data>
+</edge>
+<edge source="evidence_type:written_notice" target="issue:peeling_paint">
+  <data key="d8">EVIDENCE_SUPPORTS_ISSUE</data>
+  <data key="d9">1.0</data>
+  <data key="d10">Documents communication with landlord</data>
+  <data key="d11">EVIDENCE_SUPPORTS_ISSUE</data>
+</edge>
+<edge source="evidence_type:311_record" target="issue:lack_of_heat">
+  <data key="d8">EVIDENCE_SUPPORTS_ISSUE</data>
+  <data key="d9">1.0</data>
+  <data key="d10">Documents complaint history</data>
+  <data key="d11">EVIDENCE_SUPPORTS_ISSUE</data>
+</edge>
+<edge source="legal_concept:rent_abatement" target="legal_procedure:housing_court">
+  <data key="d8">RELATED_CONCEPT</data>
+  <data key="d9">1.0</data>
+  <data key="d10">Potential outcome of court case</data>
+  <data key="d11">RELATED_CONCEPT</data>
+</edge>
+<edge source="legal_concept:tenant_blacklist" target="remedy:rent_strike">
+  <data key="d8">RELATED_CONCEPT</data>
+  <data key="d9">1.0</data>
+  <data key="d10">Risk associated with rent withholding</data>
+  <data key="d11">RELATED_CONCEPT</data>
+</edge>
+<edge source="statute:nyc:hmc" target="jurisdiction:nyc">
+  <data key="d12">APPLIES_IN</data>
+  <data key="d8">APPLIES_IN</data>
+  <data key="d9">1.0</data>
+</edge>
+<edge source="regulation:hcr:ra81" target="remedy:rent_reduction">
+  <data key="d12">ENABLES_REMEDY</data>
+  <data key="d8">ENABLES_REMEDY</data>
+  <data key="d9">1.0</data>
+</edge>
+<edge source="regulation:hcr:ra84" target="remedy:rent_reduction">
+  <data key="d12">ENABLES_REMEDY</data>
+  <data key="d8">ENABLES_REMEDY</data>
+  <data key="d9">1.0</data>
+</edge>
+<edge source="legal_procedure:hp_action" target="remedy:rent_reduction">
+  <data key="d12">ENABLES_REMEDY</data>
+  <data key="d8">ENABLES_REMEDY</data>
+  <data key="d9">1.0</data>
+</edge>
+<edge source="remedy:rent_abatement" target="evidence_type:letter_to_landlord">
+  <data key="d12">REMEDY_REQUIRES_EVIDENCE</data>
+  <data key="d8">REMEDY_REQUIRES_EVIDENCE</data>
+  <data key="d9">1.0</data>
+</edge>
+<edge source="remedy:rent_abatement" target="evidence_type:photos">
+  <data key="d12">REMEDY_REQUIRES_EVIDENCE</data>
+  <data key="d8">REMEDY_REQUIRES_EVIDENCE</data>
+  <data key="d9">1.0</data>
+</edge>
+<edge source="evidence_type:letter_to_landlord" target="legal_procedure:hp_action">
+  <data key="d12">EVIDENCE_SUPPORTS_ISSUE</data>
+  <data key="d8">EVIDENCE_SUPPORTS_ISSUE</data>
+  <data key="d9">1.0</data>
+</edge>
+<edge source="evidence_type:inspection_checklist" target="legal_procedure:hp_action">
+  <data key="d12">EVIDENCE_SUPPORTS_ISSUE</data>
+  <data key="d8">EVIDENCE_SUPPORTS_ISSUE</data>
+  <data key="d9">1.0</data>
+</edge>
+<edge source="evidence_type:violation_report" target="legal_procedure:hp_action">
+  <data key="d12">EVIDENCE_SUPPORTS_ISSUE</data>
+  <data key="d8">EVIDENCE_SUPPORTS_ISSUE</data>
+  <data key="d9">1.0</data>
+</edge>
+<edge source="evidence_type:photos" target="legal_procedure:hp_action">
+  <data key="d12">EVIDENCE_SUPPORTS_ISSUE</data>
+  <data key="d8">EVIDENCE_SUPPORTS_ISSUE</data>
+  <data key="d9">1.0</data>
+</edge>
+<edge source="legal_concept:retaliation" target="statute:nyc:hmc">
+  <data key="d12">RELATED_CONCEPT</data>
+  <data key="d8">RELATED_CONCEPT</data>
+  <data key="d9">1.0</data>
+</edge>
+<edge source="statute:ny:rent_control" target="jurisdiction:nyc">
+  <data key="d12">APPLIES_IN</data>
+  <data key="d8">APPLIES_IN</data>
+  <data key="d9">1.0</data>
+</edge>
+<edge source="statute:ny:rent_stabilization" target="jurisdiction:nyc">
+  <data key="d12">APPLIES_IN</data>
+  <data key="d8">APPLIES_IN</data>
+  <data key="d9">1.0</data>
+</edge>
+<edge source="regulation:ny:9_nycrr_2525.6" target="statute:ny:rent_stabilization">
+  <data key="d12">INTERPRETS</data>
+  <data key="d8">INTERPRETS</data>
+  <data key="d9">1.0</data>
+  <data key="d10">Subletting in rent-stabilized apartments</data>
+</edge>
+<edge source="statute:ny:real_property_law_235_b" target="remedy:rent_reduction">
+  <data key="d12">ENABLES_REMEDY</data>
+  <data key="d8">ENABLES_REMEDY</data>
+  <data key="d9">1.0</data>
+</edge>
+<edge source="statute:ny:real_property_law_227_a" target="legal_procedure:eviction">
+  <data key="d12">REQUIRES_PROCEDURE</data>
+  <data key="d8">REQUIRES_PROCEDURE</data>
+  <data key="d9">1.0</data>
+</edge>
+<edge source="regulation:ny:dhcr" target="statute:ny:rent_stabilization">
+  <data key="d12">INTERPRETS</data>
+  <data key="d8">INTERPRETS</data>
+  <data key="d9">1.0</data>
+</edge>
+<edge source="legal_concept:warranty_of_habitability" target="statute:ny:real_property_law_235_b">
+  <data key="d12">RELATED_CONCEPT</data>
+  <data key="d8">RELATED_CONCEPT</data>
+  <data key="d9">1.0</data>
+</edge>
+<edge source="tenant_issue:lack_of_heat" target="statute:ny:real_property_law_235_b">
+  <data key="d12">VIOLATION_OF</data>
+  <data key="d8">VIOLATION_OF</data>
+  <data key="d9">1.0</data>
+</edge>
+<edge source="statute:ny:real_property_law_226_b" target="legal_procedure:eviction">
+  <data key="d12">REQUIRES_PROCEDURE</data>
+  <data key="d8">REQUIRES_PROCEDURE</data>
+  <data key="d9">1.0</data>
+</edge>
+</graph></graphml>

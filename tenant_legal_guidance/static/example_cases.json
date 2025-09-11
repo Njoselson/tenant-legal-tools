@@ -1,0 +1,40 @@
+{
+  "cases": [
+    {
+      "id": "rent_strike_foreclosure",
+      "title": "Rent Strike & Foreclosure Case",
+      "description": "Complex case involving rent stabilization, illegal evictions, ongoing rent strike, and landlord foreclosure",
+      "case_text": "245 Sullivan Pl is legally rent stabilized. New landlord pre-COVID bought out and illegally kicked out many residents. Lots of people moved in, market rate. We went on rent strike in Nov. 2023 (still going strong!). Several DHCR and court decisions in favor of rent stabilization. Landlord in foreclosure.\n\nThis year, the foreclosure judge assigned a receiver so we have new (temporary?) management and landlord. Rent strike continues. New landlord recently served rent striking tenants with 14-day notices, so we'll see them in court soon."
+    },
+    {
+      "id": "repair_retaliation",
+      "title": "Repair Request Retaliation",
+      "description": "Tenant facing retaliation after requesting repairs for habitability issues",
+      "case_text": "I've been living in my apartment for 3 years and recently requested repairs for a leaking ceiling and broken heating. The landlord ignored my requests for 2 months, then when I filed a complaint with DHCR, they served me with a 30-day notice claiming I violated my lease by having a pet (which I've had since I moved in). They also increased my rent by 15% despite the building being rent stabilized. I'm worried they're trying to evict me for requesting repairs."
+    },
+    {
+      "id": "illegal_rent_increase",
+      "title": "Illegal Rent Increase",
+      "description": "Rent stabilized tenant facing unlawful rent increases and harassment",
+      "case_text": "I live in a rent stabilized apartment and my landlord is trying to increase my rent by 25% claiming 'major capital improvements.' However, they haven't done any work in my building in years. They've also been sending me threatening letters and showing up unannounced to 'inspect' my apartment. When I refused to let them in without proper notice, they started calling me at all hours and banging on my door. I think they're trying to force me out to get market rate tenants."
+    },
+    {
+      "id": "eviction_notice",
+      "title": "Unlawful Eviction Notice",
+      "description": "Tenant served with eviction notice without proper cause or process",
+      "case_text": "I received a 14-day notice to vacate my apartment claiming I violated the lease by having unauthorized guests. The 'guests' were my elderly parents who stayed with me for 2 weeks while recovering from surgery. I notified the landlord in advance and they never objected. Now they're claiming this violates the lease terms. I've lived here for 5 years, always paid rent on time, and never had any issues before. The building is rent stabilized and I'm worried they want to get me out to raise the rent."
+    },
+    {
+      "id": "habitability_issues",
+      "title": "Severe Habitability Issues",
+      "description": "Tenant dealing with uninhabitable conditions and landlord neglect",
+      "case_text": "My apartment has become uninhabitable due to severe mold, broken windows, and no heat for the past 3 months. I've reported these issues to my landlord multiple times but they refuse to make repairs. The mold is causing health problems for my children and the lack of heat makes it impossible to live here safely. I've been withholding rent since December but the landlord is now threatening eviction. I don't know what to do - I can't afford to move but I can't keep living in these conditions."
+    },
+    {
+      "id": "lease_renewal_dispute",
+      "title": "Lease Renewal Dispute",
+      "description": "Rent stabilized tenant denied lease renewal without proper cause",
+      "case_text": "My rent stabilized lease expires next month and my landlord is refusing to offer me a renewal. They claim I violated the lease by subletting, but I never sublet - my roommate is on the original lease. They're also claiming I owe back rent, but I have receipts for all payments. I've lived here for 8 years and always been a good tenant. I think they want to get me out to renovate and charge market rate. What are my rights?"
+    }
+  ]
+} 

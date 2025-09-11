@@ -1,0 +1,43 @@
+{tenant_name}
+{tenant_address}
+{date}
+
+{landlord_name}
+{landlord_address}
+
+Dear {landlord_name},
+
+RE: Formal Demand for Repairs at {property_address}
+
+I am writing to formally request repairs for the following issues at my rental unit located at {property_address}:
+
+{repair_issues}
+
+These conditions violate {jurisdiction} housing codes and my rights as a tenant under the warranty of habitability. Specifically:
+
+{legal_citations}
+
+I previously notified you of these issues on {previous_notification_date}. As of today, these problems remain unresolved.
+
+Under {jurisdiction} law, landlords are required to maintain rental properties in habitable condition and make necessary repairs within a reasonable timeframe. I request that you address these issues within {deadline} days of receiving this letter.
+
+If these repairs are not completed by {deadline_date}, I will be forced to:
+
+1. File a complaint with {housing_authority}
+2. Exercise my rights under {jurisdiction} law, which may include:
+   - Withholding rent
+   - Repairing and deducting costs from rent
+   - Seeking legal remedies through housing court
+
+Please respond within {response_deadline} days to confirm when these repairs will be made. I can be reached at {tenant_phone} or {tenant_email}.
+
+I hope we can resolve this matter promptly and professionally.
+
+Sincerely,
+
+{tenant_name}
+
+CC: {cc_list}
+
+Documentation attached:
+{attachments} 

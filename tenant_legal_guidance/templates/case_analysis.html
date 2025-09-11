@@ -1,0 +1,1328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tenant Case Analysis - Legal Guidance System</title>
+    <!-- Use vis-network like kg-viewer -->
+    <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <!-- Use marked.js for proper markdown parsing -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f0f2f5;
+        }
+        
+        h1, h2, h3 {
+            color: #2c3e50;
+            margin-top: 0;
+        }
+        
+        .main-container {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .input-section {
+            background: white;
+            padding: 20px;
+            border-bottom: 2px solid #d1d9e6;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            flex-shrink: 0;
+        }
+        
+        .input-section h1 {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #2c3e50;
+        }
+        
+        .input-section p {
+            text-align: center;
+            color: #7f8c8d;
+            margin-bottom: 20px;
+        }
+        
+        .input-controls {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr;
+            gap: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .input-group {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .input-group h3 {
+            margin-bottom: 10px;
+            color: #2c3e50;
+            font-size: 16px;
+        }
+        
+        textarea {
+            width: 100%;
+            height: 120px;
+            padding: 15px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            resize: vertical;
+            font-family: inherit;
+        }
+        
+        .example-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .example-controls select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        .example-controls button {
+            padding: 8px 15px;
+            font-size: 14px;
+            margin: 0;
+        }
+        
+        .example-description {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 10px;
+            font-size: 14px;
+            color: #7f8c8d;
+        }
+        
+        .button-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        button {
+            background-color: #3498db;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: background-color 0.2s;
+        }
+        
+        button:hover {
+            background-color: #2980b9;
+        }
+        
+        button:disabled {
+            background-color: #bdc3c7;
+            cursor: not-allowed;
+        }
+        
+        /* Enhanced Loading State */
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px 20px;
+            background: white;
+            margin: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .loading.active {
+            display: block !important;
+        }
+        
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .loading-steps {
+            text-align: left;
+            max-width: 400px;
+            margin: 0 auto;
+        }
+        
+        .loading-step {
+            display: flex;
+            align-items: center;
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+            transition: all 0.3s ease;
+        }
+        
+        .loading-step.active {
+            background-color: #e8f4fd;
+            color: #2c3e50;
+        }
+        
+        .loading-step.completed {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        
+        .loading-step-icon {
+            width: 20px;
+            height: 20px;
+            margin-right: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .loading-step-text {
+            flex: 1;
+        }
+        
+        .results {
+            display: none;
+            flex: 1;
+            background: #f0f2f5;
+        }
+        
+        .results.active {
+            display: block;
+        }
+        
+        .tabs {
+            display: flex;
+            border-bottom: 2px solid #ddd;
+            background: white;
+            padding: 0 20px;
+            margin: 0;
+        }
+        
+        .tab {
+            padding: 15px 25px;
+            cursor: pointer;
+            border: none;
+            background: none;
+            color: #7f8c8d;
+            font-size: 16px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        
+        .tab.active {
+            color: #3498db;
+            border-bottom: 3px solid #3498b9;
+            background: #f8f9fa;
+        }
+        
+        .tab-content {
+            display: none;
+            min-height: calc(100vh - 200px);
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .analysis-content {
+            padding: 20px;
+            background: white;
+            margin: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border-left: 4px solid #3498db;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+        }
+        
+        .section h3 {
+            margin-top: 0;
+            color: #2c3e50;
+            font-size: 18px;
+        }
+        
+        .markdown-content {
+            line-height: 1.6;
+        }
+        
+        .markdown-content h1, .markdown-content h2, .markdown-content h3 {
+            color: #2c3e50;
+            margin-top: 20px;
+            margin-bottom: 10px;
+        }
+        
+        .markdown-content strong {
+            color: #2c3e50;
+            font-weight: bold;
+        }
+        
+        .markdown-content em {
+            font-style: italic;
+            color: #7f8c8d;
+        }
+        
+        .markdown-content ul, .markdown-content ol {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+        
+        .markdown-content li {
+            margin: 5px 0;
+        }
+        
+        .markdown-content blockquote {
+            border-left: 4px solid #3498db;
+            margin: 15px 0;
+            padding: 10px 15px;
+            background: #f8f9fa;
+            border-radius: 0 4px 4px 0;
+        }
+        
+        .markdown-content code {
+            background: #e9ecef;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+        }
+        
+        .markdown-content pre {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            border: 1px solid #ddd;
+        }
+        
+        .markdown-content pre code {
+            background: none;
+            padding: 0;
+        }
+        
+        /* Graph container with sidebar layout like kg-viewer */
+        .graph-container {
+            display: flex;
+            height: calc(100vh - 200px);
+            margin: 20px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            background: white;
+            overflow: hidden;
+        }
+        
+        #graph-vis {
+            flex: 1;
+            height: 100%;
+            background: #fafafa;
+        }
+        
+        #sidebar {
+            width: 350px;
+            flex-shrink: 0;
+            height: 100%;
+            overflow-y: auto;
+            background-color: #f8f9fa;
+            padding: 20px;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            border-left: 2px solid #d1d9e6;
+        }
+        
+        #details-panel {
+            background-color: #e9ecef;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            flex-shrink: 0;
+            max-height: 40%;
+            overflow-y: auto;
+        }
+        
+        #details-panel h3 {
+            margin-bottom: 10px;
+            padding-bottom: 5px;
+            border-bottom: 1px solid #ced4da;
+        }
+        
+        #details-panel p {
+            margin: 5px 0;
+            word-wrap: break-word;
+        }
+        
+        #details-panel code {
+            background-color: #d1d9e6;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-size: 0.9em;
+        }
+        
+        #details-panel a {
+            color: #3498db;
+            text-decoration: none;
+        }
+        
+        #details-panel a:hover {
+            text-decoration: underline;
+        }
+        
+        .entity-list {
+            flex: 1;
+            overflow-y: auto;
+        }
+        
+        .entity-card {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .entity-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .entity-name {
+            font-weight: bold;
+            color: #2c3e50;
+            font-size: 16px;
+        }
+        
+        .entity-type {
+            background: #3498db;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
+        .entity-description {
+            color: #7f8c8d;
+            margin: 8px 0;
+        }
+        
+        .source-metadata {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+        
+        .source-metadata strong {
+            color: #2c3e50;
+        }
+        
+        .source-metadata a {
+            color: #3498db;
+            text-decoration: none;
+        }
+        
+        .source-metadata a:hover {
+            text-decoration: underline;
+        }
+        
+        /* Debug styles */
+        .debug-info {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            z-index: 1000;
+            max-width: 300px;
+        }
+        
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .input-controls {
+                grid-template-columns: 1fr;
+                gap: 15px;
+            }
+            
+            .graph-container {
+                flex-direction: column;
+                height: auto;
+            }
+            
+            #sidebar {
+                width: 100%;
+                height: 300px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <!-- Input section at top -->
+        <div class="input-section">
+            <h1>🏛️ Tenant Case Analysis</h1>
+            <p>Get legal guidance for your tenant case using our AI-powered analysis system</p>
+            
+            <div class="input-controls">
+                <div class="input-group">
+                    <h3>📝 Describe Your Case</h3>
+                    <textarea id="caseText" placeholder="Describe your tenant case here... Include details about what happened, when, what notices you received, any court dates, and your rent status."></textarea>
+                </div>
+                
+                <div class="input-group">
+                    <h3>💡 Try an Example Case</h3>
+                    <div class="example-controls">
+                        <select id="exampleSelect" onchange="updateExampleDescription()">
+                            <option value="">-- Select an example case --</option>
+                        </select>
+                        <button onclick="loadExampleCase()" id="loadExampleBtn" disabled>📋 Load</button>
+                    </div>
+                    <div id="exampleDescription" class="example-description" style="display: none;">
+                        <p id="exampleDescText"></p>
+                    </div>
+                </div>
+                
+                <div class="input-group">
+                    <h3>🔍 Analysis</h3>
+                    <div class="button-group">
+                        <button onclick="analyzeCase()" id="analyzeBtn">Analyze Case</button>
+                        <button onclick="clearAnalysis()" id="clearBtn" style="background-color: #95a5a6;">Clear</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Enhanced Loading indicator -->
+        <div id="loading" class="loading">
+            <div class="loading-spinner"></div>
+            <h2>🔍 Analyzing your case...</h2>
+            <p>This may take a moment while we process your case and retrieve relevant legal information.</p>
+            
+            <div class="loading-steps">
+                <div class="loading-step" id="step1">
+                    <div class="loading-step-icon">⏳</div>
+                    <div class="loading-step-text">Extracting key legal terms...</div>
+                </div>
+                <div class="loading-step" id="step2">
+                    <div class="loading-step-icon">🔍</div>
+                    <div class="loading-step-text">Searching knowledge graph for relevant laws...</div>
+                </div>
+                <div class="loading-step" id="step3">
+                    <div class="loading-step-icon">🤖</div>
+                    <div class="loading-step-text">Generating legal analysis with AI...</div>
+                </div>
+                <div class="loading-step" id="step4">
+                    <div class="loading-step-icon">📋</div>
+                    <div class="loading-step-text">Formatting results...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results section -->
+        <div id="results" class="results">
+            <div class="tabs">
+                <button class="tab active" onclick="showTab('analysis', event)">📋 Legal Analysis</button>
+                <button class="tab" onclick="showTab('graph', event)">🕸️ Knowledge Graph</button>
+                <button class="tab" onclick="showTab('entities', event)">📚 Entities & Sources</button>
+            </div>
+            
+            <!-- Analysis Tab -->
+            <div id="analysis-tab" class="tab-content active">
+                <div class="analysis-content">
+                    <div class="section">
+                        <h3>📋 Case Summary</h3>
+                        <div id="caseSummary" class="markdown-content"></div>
+                    </div>
+
+                    <div class="section">
+                        <h3>⚖️ Legal Issues</h3>
+                        <div id="legalIssues" class="markdown-content"></div>
+                    </div>
+
+                    <div class="section">
+                        <h3>📜 Relevant Laws</h3>
+                        <div id="relevantLaws" class="markdown-content"></div>
+                    </div>
+
+                    <div class="section">
+                        <h3>✅ Recommended Actions</h3>
+                        <div id="recommendedActions" class="markdown-content"></div>
+                    </div>
+
+                    <div class="section">
+                        <h3>📄 Evidence Needed</h3>
+                        <div id="evidenceNeeded" class="markdown-content"></div>
+                    </div>
+
+                    <div class="section">
+                        <h3>🏛️ Legal Resources</h3>
+                        <div id="legalResources" class="markdown-content"></div>
+                    </div>
+
+                    <div class="section">
+                        <h3>⚠️ Risk Assessment</h3>
+                        <div id="riskAssessment" class="markdown-content"></div>
+                    </div>
+
+                    <div class="section">
+                        <h3>🚀 Next Steps</h3>
+                        <div id="nextSteps" class="markdown-content"></div>
+                    </div>
+                </div>
+            </div>
+        
+            <!-- Graph Tab with sidebar like kg-viewer -->
+            <div id="graph-tab" class="tab-content">
+                <div class="graph-container">
+                    <div id="graph-vis"></div>
+                    <div id="sidebar">
+                        <h3>Graph Details</h3>
+                        <div id="details-panel">
+                            <h3>Selection Details</h3>
+                            <p>Click on a node or edge to see details here.</p>
+                        </div>
+                        <div class="entity-list">
+                            <h3>Retrieved Entities</h3>
+                            <div id="entitiesList"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        
+            <!-- Entities Tab -->
+            <div id="entities-tab" class="tab-content">
+                <div class="analysis-content">
+                    <h2>📚 Retrieved Entities & Sources</h2>
+                    <div id="entitiesListFull"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Debug info -->
+    <div id="debugInfo" class="debug-info" style="display: none;">
+        <div>Status: <span id="debugStatus">Ready</span></div>
+        <div>Loading: <span id="debugLoading">false</span></div>
+        <div>API Call: <span id="debugApiCall">none</span></div>
+    </div>
+
+    <script>
+        let exampleCases = [];
+        let currentEntitiesData = null;
+        let network = null;
+        let graphData = { nodes: [], edges: [] };
+        let selectedNodeId = null;
+        let selectedEdgeId = null;
+        let loadingInterval = null;
+
+        // Debug function
+        function debugLog(message) {
+            console.log('[DEBUG]', message);
+            document.getElementById('debugStatus').textContent = message;
+        }
+
+        function showDebugInfo() {
+            document.getElementById('debugInfo').style.display = 'block';
+        }
+
+        // Configure marked.js for better markdown parsing
+        marked.setOptions({
+            breaks: true,
+            gfm: true,
+            sanitize: false,
+            smartLists: true,
+            smartypants: true
+        });
+
+        // Entity type styling like kg-viewer
+        const entityColors = {
+            'TENANT_ISSUE': '#e74c3c',
+            'STATUTE': '#2980b9',
+            'REGULATION': '#3498db',
+            'CASE': '#f1c40f',
+            'REMEDY': '#2ecc71',
+            'EVIDENCE_TYPE': '#9b59b6',
+            'LEGAL_PROCEDURE': '#e67e22',
+            'LEGAL_CONCEPT': '#1abc9c',
+            'JURISDICTION': '#7f8c8d',
+            'DEFAULT': '#bdc3c7'
+        };
+
+        const entityShapes = {
+            'TENANT_ISSUE': 'star',
+            'STATUTE': 'box',
+            'REGULATION': 'box',
+            'CASE': 'ellipse',
+            'REMEDY': 'diamond',
+            'EVIDENCE_TYPE': 'triangle',
+            'LEGAL_PROCEDURE': 'hexagon',
+            'LEGAL_CONCEPT': 'dot',
+            'JURISDICTION': 'square',
+            'DEFAULT': 'ellipse'
+        };
+
+        window.addEventListener('load', function() {
+            loadExampleCases();
+            showDebugInfo();
+            debugLog('Page loaded');
+        });
+
+        async function analyzeCase(forceRefresh = false) {
+            console.log('=== ANALYZE CASE START ===');
+            console.log('Force refresh:', forceRefresh);
+            const caseText = document.getElementById('caseText').value.trim();
+            const select = document.getElementById('exampleSelect');
+            const exampleId = select && select.value ? select.value : null;
+            
+            if (!caseText) {
+                alert('Please describe your case before analyzing.');
+                return;
+            }
+
+            debugLog('Starting analysis...');
+            console.log('Starting case analysis...', { caseText: caseText.substring(0, 100), exampleId });
+
+            // Check cache for example cases
+            if (exampleId && !forceRefresh) {
+                const cachedAnalysis = localStorage.getItem('analysis_' + exampleId);
+                const cachedEntities = localStorage.getItem('entities_' + exampleId);
+                if (cachedAnalysis && cachedEntities) {
+                    console.log('Using cached analysis');
+                    debugLog('Using cached analysis');
+                    displayResults(JSON.parse(cachedAnalysis));
+                    currentEntitiesData = JSON.parse(cachedEntities);
+                    showTab('graph');
+                    setTimeout(() => {
+                        createGraph(currentEntitiesData);
+                    }, 200);
+                    return;
+                }
+            }
+
+            // Show enhanced loading state
+            console.log('About to show loading state...');
+            debugLog('Showing loading state...');
+            showLoadingState();
+            document.getElementById('results').classList.remove('active');
+            document.getElementById('analyzeBtn').disabled = true;
+            hideRefreshButton();
+
+            try {
+                const body = { case_text: caseText };
+                if (exampleId) body.example_id = exampleId;
+                
+                console.log('Sending request to API...', body);
+                debugLog('Sending API request...');
+                document.getElementById('debugApiCall').textContent = 'in progress';
+                
+                const response = await fetch('/api/analyze-case', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(body)
+                });
+
+                console.log('API response status:', response.status);
+                debugLog(`API response: ${response.status}`);
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('API error:', errorText);
+                    throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+                }
+
+                const data = await response.json();
+                console.log('API response data:', data);
+                debugLog('API response received');
+                document.getElementById('debugApiCall').textContent = 'completed';
+                
+                displayResults(data);
+                
+                // Fetch entities for graph
+                try {
+                    console.log('Fetching entities...');
+                    debugLog('Fetching entities...');
+                    const entitiesResponse = await fetch('/api/retrieve-entities', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            case_text: caseText
+                        })
+                    });
+                    
+                    if (entitiesResponse.ok) {
+                        const entitiesData = await entitiesResponse.json();
+                        console.log('Entities data:', entitiesData);
+                        currentEntitiesData = entitiesData;
+                        showTab('graph');
+                        setTimeout(() => {
+                            createGraph(entitiesData);
+                        }, 200);
+                        
+                        // Cache both analysis and entities
+                        if (exampleId) {
+                            localStorage.setItem('analysis_' + exampleId, JSON.stringify(data));
+                            localStorage.setItem('entities_' + exampleId, JSON.stringify(entitiesData));
+                        }
+                    } else {
+                        console.error('Entities API error:', entitiesResponse.status);
+                    }
+                } catch (error) {
+                    console.error('Error fetching entities:', error);
+                    showTab('analysis');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                debugLog(`Error: ${error.message}`);
+                alert('Error analyzing case: ' + error.message);
+            } finally {
+                debugLog('Hiding loading state...');
+                hideLoadingState();
+                document.getElementById('analyzeBtn').disabled = false;
+                document.getElementById('debugApiCall').textContent = 'none';
+            }
+        }
+
+        function showLoadingState() {
+            console.log('Showing loading state...');
+            const loading = document.getElementById('loading');
+            if (!loading) {
+                console.error('Loading element not found!');
+                return;
+            }
+            loading.classList.add('active');
+            document.getElementById('debugLoading').textContent = 'true';
+            
+            // Animate loading steps
+            const steps = ['step1', 'step2', 'step3', 'step4'];
+            let currentStep = 0;
+            
+            // Clear any existing interval
+            if (loadingInterval) {
+                clearInterval(loadingInterval);
+            }
+            
+            loadingInterval = setInterval(() => {
+                if (currentStep < steps.length) {
+                    // Mark previous step as completed
+                    if (currentStep > 0) {
+                        document.getElementById(steps[currentStep - 1]).classList.add('completed');
+                        document.getElementById(steps[currentStep - 1]).querySelector('.loading-step-icon').textContent = '✅';
+                    }
+                    
+                    // Mark current step as active
+                    document.getElementById(steps[currentStep]).classList.add('active');
+                    document.getElementById(steps[currentStep]).querySelector('.loading-step-icon').textContent = '⏳';
+                    
+                    currentStep++;
+                } else {
+                    clearInterval(loadingInterval);
+                }
+            }, 2000); // Change step every 2 seconds
+        }
+
+        function hideLoadingState() {
+            console.log('Hiding loading state...');
+            const loading = document.getElementById('loading');
+            loading.classList.remove('active');
+            document.getElementById('debugLoading').textContent = 'false';
+            
+            // Clear interval
+            if (loadingInterval) {
+                clearInterval(loadingInterval);
+                loadingInterval = null;
+            }
+            
+            // Reset all steps
+            const steps = ['step1', 'step2', 'step3', 'step4'];
+            steps.forEach(stepId => {
+                const step = document.getElementById(stepId);
+                step.classList.remove('active', 'completed');
+                step.querySelector('.loading-step-icon').textContent = '⏳';
+            });
+        }
+
+        function displayResults(data) {
+            console.log('Displaying results:', data);
+            debugLog('Displaying results...');
+            
+            // Display case summary with proper markdown parsing
+            const caseSummaryDiv = document.getElementById('caseSummary');
+            if (!caseSummaryDiv) {
+                console.error('caseSummary element not found');
+                return;
+            }
+            if (data.case_summary_html) {
+                caseSummaryDiv.innerHTML = data.case_summary_html;
+            } else {
+                caseSummaryDiv.innerHTML = marked.parse(data.case_summary || 'No summary available.');
+            }
+
+            // Display all sections with proper markdown parsing
+            const sections = [
+                { elId: 'legalIssues', dataKey: 'legal_issues', htmlKey: 'legal_issues_html', fallback: 'No specific legal issues identified.' },
+                { elId: 'relevantLaws', dataKey: 'relevant_laws', htmlKey: 'relevant_laws_html', fallback: 'No specific laws identified.' },
+                { elId: 'recommendedActions', dataKey: 'recommended_actions', htmlKey: 'recommended_actions_html', fallback: 'No specific actions recommended.' },
+                { elId: 'evidenceNeeded', dataKey: 'evidence_needed', htmlKey: 'evidence_needed_html', fallback: 'No specific evidence requirements identified.' },
+                { elId: 'legalResources', dataKey: 'legal_resources', htmlKey: 'legal_resources_html', fallback: 'No specific legal resources identified.' },
+                { elId: 'nextSteps', dataKey: 'next_steps', htmlKey: 'next_steps_html', fallback: 'No specific next steps identified.' }
+            ];
+
+            sections.forEach(section => {
+                const div = document.getElementById(section.elId);
+                if (!div) {
+                    console.error(`Element with id "${section.elId}" not found`);
+                    return;
+                }
+                if (data[section.htmlKey]) {
+                    div.innerHTML = data[section.htmlKey];
+                } else if (data[section.dataKey]) {
+                    div.innerHTML = renderListItems(data[section.dataKey], section.fallback);
+                } else {
+                    div.innerHTML = `<p>${section.fallback}</p>`;
+                }
+            });
+
+            // Display risk assessment
+            const riskAssessmentDiv = document.getElementById('riskAssessment');
+            if (!riskAssessmentDiv) {
+                console.error('riskAssessment element not found');
+                return;
+            }
+            if (data.risk_assessment_html) {
+                riskAssessmentDiv.innerHTML = data.risk_assessment_html;
+            } else {
+                riskAssessmentDiv.innerHTML = marked.parse(data.risk_assessment || 'No risk assessment available.');
+            }
+
+            // Show results
+            document.getElementById('results').classList.add('active');
+            showRefreshButton();
+            debugLog('Results displayed');
+        }
+
+        function renderListItems(items, fallbackText) {
+            if (!items || items.length === 0) {
+                return `<p>${fallbackText}</p>`;
+            }
+            
+            let html = '<ul>';
+            items.forEach(item => {
+                const itemHtml = marked.parse(item);
+                html += `<li>${itemHtml}</li>`;
+            });
+            html += '</ul>';
+            return html;
+        }
+
+        function createGraph(data) {
+            console.log('Creating graph with data:', data);
+            const graphContainer = document.getElementById('graph-vis');
+            if (!graphContainer) {
+                console.error('Graph container not found!');
+                return;
+            }
+            
+            // Convert entities to vis-network format
+            const nodes = (data.entities || []).map(entity => {
+                const typeKey = (typeof entity.type === 'string' ? entity.type : String(entity.type)).toUpperCase();
+                return {
+                    id: entity.id,
+                    label: entity.name,
+                    title: `Type: ${entity.type}\nID: ${entity.id}`,
+                    shape: entityShapes[typeKey] || entityShapes.DEFAULT,
+                    color: entityColors[typeKey] || entityColors.DEFAULT,
+                    size: 20,
+                    originalData: entity
+                };
+            });
+            
+            const edges = (data.relationships || []).map((rel, i) => ({
+                id: `edge_${i}`,
+                from: rel.source_id,
+                to: rel.target_id,
+                label: rel.type || '',
+                title: `Type: ${rel.type}\nConditions: ${rel.conditions || 'N/A'}`,
+                arrows: 'to',
+                font: { align: 'top' },
+                color: '#848484',
+                width: 1,
+                originalData: rel
+            }));
+            
+            graphData = { nodes, edges };
+            
+            const options = {
+                nodes: {
+                    font: { size: 12, color: '#333' },
+                    borderWidth: 1,
+                    shapeProperties: {
+                        useBorderWithImage: true
+                    }
+                },
+                edges: {
+                    width: 1,
+                    color: '#848484',
+                    smooth: {
+                        type: 'continuous'
+                    },
+                    font: {
+                        size: 10,
+                        color: '#555',
+                        strokeWidth: 0
+                    }
+                },
+                physics: {
+                    enabled: true,
+                    solver: 'forceAtlas2Based',
+                    forceAtlas2Based: {
+                        gravitationalConstant: -50,
+                        centralGravity: 0.01,
+                        springLength: 100,
+                        springConstant: 0.08,
+                        avoidOverlap: 0.5
+                    },
+                    stabilization: { iterations: 150 }
+                },
+                interaction: {
+                    hover: true,
+                    tooltipDelay: 200
+                }
+            };
+
+            network = new vis.Network(graphContainer, graphData, options);
+
+            // Event listeners like kg-viewer
+            network.on("click", function (params) {
+                handleSelection(params);
+            });
+
+            network.on("stabilizationIterationsDone", function () {
+                console.log("Layout stabilization complete.");
+                network.stopSimulation();
+            });
+
+            // Display entities in sidebar
+            displayEntitiesInSidebar(data.entities || []);
+        }
+
+        function handleSelection(params) {
+            selectedNodeId = null;
+            selectedEdgeId = null;
+
+            if (params.nodes.length > 0) {
+                selectedNodeId = params.nodes[0];
+                const node = graphData.nodes.find(n => n.id === selectedNodeId);
+                displayNodeDetails(node);
+            } else if (params.edges.length > 0) {
+                selectedEdgeId = params.edges[0];
+                const edge = graphData.edges.find(e => e.id === selectedEdgeId);
+                displayEdgeDetails(edge);
+            } else {
+                displayDefaultDetails();
+            }
+        }
+
+        function displayNodeDetails(node) {
+            if (!node || !node.originalData) {
+                displayDefaultDetails();
+                return;
+            }
+            
+            const data = node.originalData;
+            const sourceMeta = data.source_metadata || {};
+            
+            let detailsHtml = `<h3>Entity Details: ${escapeHtml(data.name)}</h3>`;
+            detailsHtml += `<p><strong>ID:</strong> <code>${escapeHtml(data.id)}</code></p>`;
+            detailsHtml += `<p><strong>Type:</strong> ${escapeHtml(data.type)}</p>`;
+            
+            if (data.description) {
+                detailsHtml += `<p><strong>Description:</strong> ${escapeHtml(data.description)}</p>`;
+            }
+            
+            if (sourceMeta.source) {
+                const sourceText = sourceMeta.source.startsWith('http')
+                    ? `<a href="${escapeHtml(sourceMeta.source)}" target="_blank">${escapeHtml(sourceMeta.source)}</a>`
+                    : escapeHtml(sourceMeta.source);
+                detailsHtml += `<p><strong>Source:</strong> ${sourceText}</p>`;
+            }
+            
+            if (sourceMeta.organization) {
+                detailsHtml += `<p><strong>Organization:</strong> ${escapeHtml(sourceMeta.organization)}</p>`;
+            }
+            
+            if (sourceMeta.title) {
+                detailsHtml += `<p><strong>Title:</strong> ${escapeHtml(sourceMeta.title)}</p>`;
+            }
+            
+            if (sourceMeta.jurisdiction) {
+                detailsHtml += `<p><strong>Jurisdiction:</strong> ${escapeHtml(sourceMeta.jurisdiction)}</p>`;
+            }
+            
+            if (sourceMeta.authority) {
+                detailsHtml += `<p><strong>Authority:</strong> ${escapeHtml(sourceMeta.authority)}</p>`;
+            }
+            
+            if (sourceMeta.created_at) {
+                detailsHtml += `<p><strong>Created:</strong> ${escapeHtml(sourceMeta.created_at)}</p>`;
+            }
+            
+            if (sourceMeta.document_type) {
+                detailsHtml += `<p><strong>Document Type:</strong> ${escapeHtml(sourceMeta.document_type)}</p>`;
+            }
+            
+            if (sourceMeta.cites && sourceMeta.cites.length > 0) {
+                detailsHtml += `<p><strong>Cites:</strong> ${escapeHtml(sourceMeta.cites.join(', '))}</p>`;
+            }
+            
+            document.getElementById('details-panel').innerHTML = detailsHtml;
+        }
+
+        function displayEdgeDetails(edge) {
+            if (!edge || !edge.originalData) {
+                displayDefaultDetails();
+                return;
+            }
+            
+            const data = edge.originalData;
+            let detailsHtml = `<h3>Relationship Details</h3>`;
+            detailsHtml += `<p><strong>From:</strong> <code>${escapeHtml(data.source_id)}</code></p>`;
+            detailsHtml += `<p><strong>To:</strong> <code>${escapeHtml(data.target_id)}</code></p>`;
+            detailsHtml += `<p><strong>Type:</strong> ${escapeHtml(data.type)}</p>`;
+            
+            if (data.conditions) {
+                detailsHtml += `<p><strong>Conditions:</strong> ${escapeHtml(data.conditions)}</p>`;
+            }
+            
+            document.getElementById('details-panel').innerHTML = detailsHtml;
+        }
+
+        function displayDefaultDetails() {
+            document.getElementById('details-panel').innerHTML = '<h3>Selection Details</h3><p>Click on a node or edge to see details here.</p>';
+        }
+
+        function displayEntitiesInSidebar(entities) {
+            const entitiesList = document.getElementById('entitiesList');
+            if (!entities || entities.length === 0) {
+                entitiesList.innerHTML = '<p>No entities found for this case.</p>';
+                return;
+            }
+            
+            let html = '';
+            entities.forEach(entity => {
+                const sourceMeta = entity.source_metadata || {};
+                html += `
+                    <div class="entity-card">
+                        <div class="entity-header">
+                            <div class="entity-name">${entity.name}</div>
+                            <div class="entity-type">${entity.type}</div>
+                        </div>
+                        <div class="entity-description">${entity.description || 'No description available.'}</div>
+                        <div class="source-metadata">
+                            <strong>Source:</strong> ${sourceMeta.source || 'Unknown'}<br>
+                            <strong>Type:</strong> ${sourceMeta.source_type || 'Unknown'}<br>
+                            ${sourceMeta.organization ? `<strong>Organization:</strong> ${sourceMeta.organization}<br>` : ''}
+                            ${sourceMeta.title ? `<strong>Title:</strong> ${sourceMeta.title}<br>` : ''}
+                            ${sourceMeta.jurisdiction ? `<strong>Jurisdiction:</strong> ${sourceMeta.jurisdiction}<br>` : ''}
+                            ${sourceMeta.authority ? `<strong>Authority:</strong> ${sourceMeta.authority}<br>` : ''}
+                            ${sourceMeta.created_at ? `<strong>Created:</strong> ${sourceMeta.created_at}<br>` : ''}
+                            ${sourceMeta.document_type ? `<strong>Document Type:</strong> ${sourceMeta.document_type}<br>` : ''}
+                            ${sourceMeta.cites && sourceMeta.cites.length > 0 ? `<strong>Cites:</strong> ${sourceMeta.cites.join(', ')}<br>` : ''}
+                        </div>
+                    </div>
+                `;
+            });
+            
+            entitiesList.innerHTML = html;
+        }
+
+        function displayEntities(entities) {
+            const entitiesListFull = document.getElementById('entitiesListFull');
+            if (!entities || entities.length === 0) {
+                entitiesListFull.innerHTML = '<p>No entities found for this case.</p>';
+                return;
+            }
+            
+            let html = '';
+            entities.forEach(entity => {
+                const sourceMeta = entity.source_metadata || {};
+                html += `
+                    <div class="entity-card">
+                        <div class="entity-header">
+                            <div class="entity-name">${entity.name}</div>
+                            <div class="entity-type">${entity.type}</div>
+                        </div>
+                        <div class="entity-description">${entity.description || 'No description available.'}</div>
+                        <div class="source-metadata">
+                            <strong>Source:</strong> ${sourceMeta.source || 'Unknown'}<br>
+                            <strong>Type:</strong> ${sourceMeta.source_type || 'Unknown'}<br>
+                            ${sourceMeta.organization ? `<strong>Organization:</strong> ${sourceMeta.organization}<br>` : ''}
+                            ${sourceMeta.title ? `<strong>Title:</strong> ${sourceMeta.title}<br>` : ''}
+                            ${sourceMeta.jurisdiction ? `<strong>Jurisdiction:</strong> ${sourceMeta.jurisdiction}<br>` : ''}
+                            ${sourceMeta.authority ? `<strong>Authority:</strong> ${sourceMeta.authority}<br>` : ''}
+                            ${sourceMeta.created_at ? `<strong>Created:</strong> ${sourceMeta.created_at}<br>` : ''}
+                            ${sourceMeta.document_type ? `<strong>Document Type:</strong> ${sourceMeta.document_type}<br>` : ''}
+                            ${sourceMeta.cites && sourceMeta.cites.length > 0 ? `<strong>Cites:</strong> ${sourceMeta.cites.join(', ')}<br>` : ''}
+                        </div>
+                    </div>
+                `;
+            });
+            
+            entitiesListFull.innerHTML = html;
+        }
+
+        function showTab(tabName, evt) {
+            // Hide all tab contents
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            // Remove active class from all tabs
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            // Show selected tab content
+            const tabContent = document.getElementById(tabName + '-tab');
+            if (tabContent) {
+                tabContent.classList.add('active');
+            }
+            // Add active class to clicked tab if event is provided
+            if (evt && evt.target && evt.target.classList) {
+                evt.target.classList.add('active');
+            }
+            
+            // If switching to entities tab, populate it
+            if (tabName === 'entities' && currentEntitiesData) {
+                displayEntities(currentEntitiesData.entities || []);
+            }
+        }
+
+        function clearAnalysis() {
+            document.getElementById('caseText').value = '';
+            document.getElementById('exampleSelect').value = '';
+            document.getElementById('exampleDescription').style.display = 'none';
+            document.getElementById('results').classList.remove('active');
+            hideLoadingState();
+            hideRefreshButton();
+            debugLog('Analysis cleared');
+        }
+
+        async function loadExampleCases() {
+            try {
+                const response = await fetch('/api/example-cases');
+                if (response.ok) {
+                    const data = await response.json();
+                    exampleCases = data.cases;
+                    const select = document.getElementById('exampleSelect');
+                    select.innerHTML = '<option value="">-- Select an example case --</option>';
+                    exampleCases.forEach(case_item => {
+                        const option = document.createElement('option');
+                        option.value = case_item.id;
+                        option.textContent = case_item.title;
+                        select.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading example cases:', error);
+            }
+        }
+
+        function updateExampleDescription() {
+            const select = document.getElementById('exampleSelect');
+            const loadBtn = document.getElementById('loadExampleBtn');
+            const descDiv = document.getElementById('exampleDescription');
+            const descText = document.getElementById('exampleDescText');
+            if (select.value) {
+                const selectedCase = exampleCases.find(c => c.id === select.value);
+                if (selectedCase) {
+                    descText.textContent = selectedCase.description;
+                    descDiv.style.display = 'block';
+                    loadBtn.disabled = false;
+                }
+            } else {
+                descDiv.style.display = 'none';
+                loadBtn.disabled = true;
+            }
+        }
+
+        function loadExampleCase() {
+            const select = document.getElementById('exampleSelect');
+            if (select.value) {
+                const selectedCase = exampleCases.find(c => c.id === select.value);
+                if (selectedCase) {
+                    document.getElementById('caseText').value = selectedCase.case_text;
+                }
+            }
+        }
+
+        function showRefreshButton() {
+            let btn = document.getElementById('refreshAnalysisBtn');
+            if (!btn) {
+                btn = document.createElement('button');
+                btn.id = 'refreshAnalysisBtn';
+                btn.textContent = '🔄 Refresh Analysis';
+                btn.style.marginLeft = '10px';
+                btn.onclick = function() {
+                    analyzeCase(true);
+                };
+                document.getElementById('analyzeBtn').after(btn);
+            }
+            btn.style.display = 'inline-block';
+        }
+        
+        function hideRefreshButton() {
+            const btn = document.getElementById('refreshAnalysisBtn');
+            if (btn) btn.style.display = 'none';
+        }
+
+        function escapeHtml(unsafe) {
+            if (typeof unsafe !== 'string') return unsafe;
+            return unsafe
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+    </script>
+</body>
+</html>

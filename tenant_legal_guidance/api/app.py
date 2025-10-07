@@ -40,21 +40,6 @@ app.mount("/static", StaticFiles(directory=Path(__file__).parent.parent / "stati
 # Include API routes
 app.include_router(router)
 
-@app.get("/")
-async def home(request: Request):
-    """Serve the home page."""
-    return templates.TemplateResponse("index.html", {"request": request})
-
-@app.get("/kg-view")
-async def kg_view(request: Request):
-    """Serve the knowledge graph view page."""
-    return templates.TemplateResponse("kg_view.html", {"request": request})
-
-@app.get("/kg-input")
-async def kg_input(request: Request):
-    """Serve the knowledge graph input page."""
-    return templates.TemplateResponse("kg_input.html", {"request": request})
-
 @app.on_event("startup")
 async def startup_event():
     """Initialize services on startup."""

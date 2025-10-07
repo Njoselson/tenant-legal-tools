@@ -146,6 +146,45 @@
              text-decoration: underline;
          }
 
+        /* Actions panel */
+        #actions-panel {
+            background-color: #ffffff;
+            border: 1px solid #d1d9e6;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 16px;
+        }
+        #actions-panel h3 {
+            margin-top: 0;
+            font-size: 1.05rem;
+        }
+        .actions-row {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 8px;
+        }
+        .action-btn {
+            padding: 6px 10px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        .danger {
+            background-color: #e74c3c;
+            color: #fff;
+        }
+        .danger:disabled {
+            background-color: #f1a9a0;
+            cursor: not-allowed;
+        }
+        .hint {
+            color: #6c757d;
+            font-size: 0.85rem;
+            margin: 0;
+        }
+
     </style>
 </head>
 <body>
@@ -158,6 +197,15 @@
         <div id="graph-container"></div>
         <div id="sidebar">
             <h2>Graph Details & Chat</h2>
+            <div id="actions-panel">
+                <h3>Actions</h3>
+                <div class="actions-row">
+                    <button id="delete-node-btn" class="action-btn danger" disabled>Delete Node</button>
+                    <button id="delete-selected-btn" class="action-btn danger" disabled>Delete Selected</button>
+                    <button id="expand-btn" class="action-btn" disabled>Expand 1-hop</button>
+                </div>
+                <p class="hint">Tip: Hold Cmd/Ctrl or Shift to multi-select nodes.</p>
+            </div>
             <div id="details-panel">
                 <h3>Selection Details</h3>
                 <p>Click on a node or edge to see details here.</p>
@@ -180,11 +228,17 @@
         const chatLog = document.getElementById('chat-log');
         const chatInput = document.getElementById('chat-input');
         const sendBtn = document.getElementById('send-btn');
+        const deleteNodeBtn = document.getElementById('delete-node-btn');
+        const deleteSelectedBtn = document.getElementById('delete-selected-btn');
+        const expandBtn = document.getElementById('expand-btn');
 
         let network = null;
-        let graphData = { nodes: [], edges: [] }; // Store fetched data
+        let graphData = { nodes: [], edges: [] }; // raw arrays
+        let nodesDs = null; // vis DataSet for nodes
+        let edgesDs = null; // vis DataSet for edges
         let selectedNodeId = null;
         let selectedEdgeId = null;
+        let selectedNodeIds = new Set();
 
         // --- Entity Type Styling ---
         const entityColors = {
@@ -198,8 +252,6 @@
             LEGAL_CONCEPT: '#1abc9c', // Turquoise
             JURISDICTION: '#7f8c8d',  // Grey
             DEFAULT: '#bdc3c7',      // Light Grey
-            // Concept group styling
-            CONCEPT_GROUP: '#34495e'  // Dark blue for concept groups
         };
 
          const entityShapes = {
@@ -212,62 +264,56 @@
             LEGAL_PROCEDURE: 'hexagon',
             LEGAL_CONCEPT: 'dot',
             JURISDICTION: 'square',
-            DEFAULT: 'ellipse',
-            // Concept group shape
-            CONCEPT_GROUP: 'database'  // Database shape for concept groups
+            DEFAULT: 'ellipse'
          };
+
+        function normalizeTypeKey(typeStr) {
+            if (!typeStr) return 'DEFAULT';
+            const upper = String(typeStr).toUpperCase();
+            // Map stored lowercase values to visual keys
+            const map = {
+                'TENANT_ISSUE': 'TENANT_ISSUE', 'tenant_issue': 'TENANT_ISSUE',
+                'LAW': 'STATUTE', 'law': 'STATUTE', // visualize laws as STATUTE style
+                'REGULATION': 'REGULATION', 'regulation': 'REGULATION',
+                'COURT_CASE': 'CASE', 'court_case': 'CASE',
+                'REMEDY': 'REMEDY', 'remedy': 'REMEDY',
+                'EVIDENCE': 'EVIDENCE_TYPE', 'evidence': 'EVIDENCE_TYPE',
+                'LEGAL_PROCEDURE': 'LEGAL_PROCEDURE', 'legal_procedure': 'LEGAL_PROCEDURE',
+                'LEGAL_CONCEPT': 'LEGAL_CONCEPT', 'legal_concept': 'LEGAL_CONCEPT',
+                'JURISDICTION': 'JURISDICTION', 'jurisdiction': 'JURISDICTION'
+            };
+            return map[typeStr] || map[upper] || 'DEFAULT';
+        }
 
         // --- Vis.js Network Initialization ---
         async function initializeGraph() {
             try {
                 console.log("Fetching graph data...");
                 
-                // Fetch both graph data and concept groups
-                const [graphResponse, conceptGroupsResponse] = await Promise.all([
-                    fetch('/api/kg/graph-data'),
-                    fetch('/api/kg/concept-groups')
-                ]);
+                const graphResponse = await fetch('/api/kg/graph-data');
                 
                 if (!graphResponse.ok) {
                     throw new Error(`Graph data HTTP error! Status: ${graphResponse.status}`);
                 }
-                if (!conceptGroupsResponse.ok) {
-                    console.warn(`Concept groups HTTP error! Status: ${conceptGroupsResponse.status}`);
-                }
                 
                 const rawData = await graphResponse.json();
-                const conceptGroupsData = conceptGroupsResponse.ok ? await conceptGroupsResponse.json() : { concept_groups: [] };
                 
-                console.log(`Received ${rawData.nodes?.length} nodes, ${rawData.links?.length} links, ${conceptGroupsData.concept_groups?.length} concept groups.`);
+                console.log(`Received ${rawData.nodes?.length} nodes, ${rawData.links?.length} links.`);
 
                 // Process entity nodes for vis-network
                 const entityNodes = rawData.nodes.map(node => ({
                     id: node.id, // ID used by vis
                     label: node.name || node.id, // Display name or ID
-                    title: `Type: ${node.type}<br>ID: ${node.id}`, // Tooltip
-                    shape: entityShapes[node.type] || entityShapes.DEFAULT,
-                    color: entityColors[node.type] || entityColors.DEFAULT,
+                    title: `Type: ${node.type}<br>ID: ${node.id}`,
+                    shape: entityShapes[normalizeTypeKey(node.type)] || entityShapes.DEFAULT,
+                    color: entityColors[normalizeTypeKey(node.type)] || entityColors.DEFAULT,
                     size: 20, // Standard size for entities
                     // Store all original data for details panel
                     originalData: node
                 }));
 
-                // Process concept group nodes
-                const conceptGroupNodes = conceptGroupsData.concept_groups.map(group => ({
-                    id: `group_${group.id}`, // Prefix to avoid conflicts
-                    label: group.name,
-                    title: `Concept Group: ${group.name}<br>Type: ${group.group_type}<br>Similarity: ${(group.similarity_score * 100).toFixed(1)}%<br>Entities: ${group.entity_count}`,
-                    shape: entityShapes.CONCEPT_GROUP,
-                    color: entityColors.CONCEPT_GROUP,
-                    size: 30, // Larger size for concept groups
-                    borderWidth: 3, // Thicker border for emphasis
-                    font: { size: 14, bold: true }, // Larger, bold text
-                    // Store concept group data
-                    originalData: { ...group, isConceptGroup: true }
-                }));
-
                 // Combine all nodes
-                const nodes = [...entityNodes, ...conceptGroupNodes];
+                const nodes = [...entityNodes];
 
                 // Process entity relationships
                 const entityEdges = rawData.links.map((link, index) => ({
@@ -283,32 +329,8 @@
                     originalData: link
                 }));
 
-                // Create edges from entities to their concept groups
-                const conceptGroupEdges = [];
-                conceptGroupsData.concept_groups.forEach(group => {
-                    group.entities.forEach(entity => {
-                        conceptGroupEdges.push({
-                            id: `group_edge_${group.id}_${entity.id}`,
-                            from: entity.id,
-                            to: `group_${group.id}`,
-                            label: 'BELONGS_TO',
-                            title: `Entity belongs to concept group: ${group.name}`,
-                            arrows: 'to',
-                            font: { align: 'top', size: 10 },
-                            color: '#e74c3c', // Red color for group membership
-                            width: 2,
-                            dashes: true, // Dashed line to distinguish from regular relationships
-                            originalData: { 
-                                type: 'CONCEPT_GROUP_MEMBERSHIP',
-                                group: group,
-                                entity: entity
-                            }
-                        });
-                    });
-                });
-
                 // Combine all edges
-                const edges = [...entityEdges, ...conceptGroupEdges];
+                const edges = [...entityEdges];
 
                 graphData = { nodes, edges }; // Store processed data
 
@@ -346,19 +368,26 @@
                     },
                     interaction: {
                          hover: true, // Show tooltips on hover
-                         tooltipDelay: 200
+                         tooltipDelay: 200,
+                         multiselect: true,
+                         selectConnectedEdges: false,
+                         keyboard: { enabled: true, bindToWindow: true }
                      },
                      layout: {
                          // randomSeed: 2 // Uncomment for reproducible layout (useful for debugging)
                      }
                 };
 
-                network = new vis.Network(graphContainer, graphData, options);
+                // Use DataSets so we can mutate graph after deletions
+                nodesDs = new vis.DataSet(nodes);
+                edgesDs = new vis.DataSet(edges);
+                network = new vis.Network(graphContainer, { nodes: nodesDs, edges: edgesDs }, options);
 
                  // --- Event Listeners ---
-                 network.on("click", function (params) {
-                    handleSelection(params);
-                 });
+                 network.on("click", function (params) { handleSelection(params); });
+                 network.on("select", function () { handleSelection({ nodes: network.getSelectedNodes(), edges: network.getSelectedEdges() }); });
+                 network.on("deselectNode", function () { handleSelection({ nodes: network.getSelectedNodes(), edges: network.getSelectedEdges() }); });
+                 network.on("deselectEdge", function () { handleSelection({ nodes: network.getSelectedNodes(), edges: network.getSelectedEdges() }); });
 
                  network.on("stabilizationIterationsDone", function () {
                      console.log("Layout stabilization complete.");
@@ -376,20 +405,26 @@
 
         // --- Selection Handling ---
         function handleSelection(params) {
-             selectedNodeId = null; // Reset selections
-             selectedEdgeId = null;
+            selectedNodeId = null; // primary selected
+            selectedEdgeId = null;
+            selectedNodeIds = new Set(params.nodes || []);
 
-             if (params.nodes.length > 0) {
-                 selectedNodeId = params.nodes[0];
-                 const node = graphData.nodes.find(n => n.id === selectedNodeId);
-                 displayNodeDetails(node);
-             } else if (params.edges.length > 0) {
-                  selectedEdgeId = params.edges[0]; // Use the generated edge ID
-                  const edge = graphData.edges.find(e => e.id === selectedEdgeId);
-                  displayEdgeDetails(edge);
-             } else {
-                 displayDefaultDetails(); // Clicked on empty space
-             }
+            if (params.nodes && params.nodes.length > 0) {
+                selectedNodeId = params.nodes[params.nodes.length - 1];
+                const node = nodesDs ? nodesDs.get(selectedNodeId) : null;
+                if (params.nodes.length === 1) {
+                    displayNodeDetails(node);
+                } else {
+                    displayMultiSelectionDetails(params.nodes.length);
+                }
+            } else if (params.edges && params.edges.length > 0) {
+                 selectedEdgeId = params.edges[0];
+                 const edge = edgesDs ? edgesDs.get(selectedEdgeId) : null;
+                 displayEdgeDetails(edge);
+            } else {
+                displayDefaultDetails();
+            }
+            updateActionButtons();
         }
 
         function displayNodeDetails(node) {
@@ -399,28 +434,6 @@
             }
             const data = node.originalData;
             
-            // Check if this is a concept group
-            if (data.isConceptGroup) {
-                let detailsHtml = `<h3>Concept Group: ${escapeHtml(data.name)}</h3>`;
-                detailsHtml += `<p><strong>Group Type:</strong> ${escapeHtml(data.group_type)}</p>`;
-                detailsHtml += `<p><strong>Similarity Score:</strong> ${(data.similarity_score * 100).toFixed(1)}%</p>`;
-                detailsHtml += `<p><strong>Entity Count:</strong> ${data.entity_count}</p>`;
-                if (data.description) {
-                    detailsHtml += `<p><strong>Description:</strong> ${escapeHtml(data.description)}</p>`;
-                }
-                detailsHtml += `<p><strong>Entities in this group:</strong></p><ul>`;
-                data.entities.forEach(entity => {
-                    detailsHtml += `<li><strong>${escapeHtml(entity.name)}</strong> (${escapeHtml(entity.type)})`;
-                    if (entity.description) {
-                        detailsHtml += `: ${escapeHtml(entity.description)}`;
-                    }
-                    detailsHtml += `</li>`;
-                });
-                detailsHtml += `</ul>`;
-                detailsPanel.innerHTML = detailsHtml;
-                return;
-            }
-            
             // Regular entity display
             let detailsHtml = `<h3>Entity Details: ${escapeHtml(data.label || data.id)}</h3>`;
             detailsHtml += `<p><strong>ID:</strong> <code>${escapeHtml(data.id)}</code></p>`;
@@ -428,16 +441,40 @@
             if (data.description) {
                 detailsHtml += `<p><strong>Description:</strong> ${escapeHtml(data.description)}</p>`;
             }
-            if (data.jurisdiction_id) {
-                 detailsHtml += `<p><strong>Jurisdiction:</strong> <code>${escapeHtml(data.jurisdiction_id)}</code></p>`;
+            if (data.jurisdiction) {
+                 detailsHtml += `<p><strong>Jurisdiction:</strong> <code>${escapeHtml(data.jurisdiction)}</code></p>`;
             }
-             if (data.source_reference) {
-                 const sourceText = data.source_type === 'URL'
-                     ? `<a href="${escapeHtml(data.source_reference)}" target="_blank">${escapeHtml(data.source_reference)}</a>`
-                     : escapeHtml(data.source_reference);
-                 detailsHtml += `<p><strong>Source (${escapeHtml(data.source_type || 'N/A')}):</strong> ${sourceText}</p>`;
+            if (data.source_metadata) {
+                const sm = data.source_metadata;
+                const srcType = sm.source_type || 'N/A';
+                const src = sm.source || '';
+                const sourceText = (typeof src === 'string' && (src.startsWith('http://') || src.startsWith('https://')))
+                    ? `<a href="${escapeHtml(src)}" target="_blank">${escapeHtml(src)}</a>`
+                    : escapeHtml(String(src || ''));
+                detailsHtml += `<p><strong>Source (${escapeHtml(String(srcType))}):</strong> ${sourceText}</p>`;
+                if (sm.title) detailsHtml += `<p><strong>Title:</strong> ${escapeHtml(String(sm.title))}</p>`;
+                if (sm.organization) detailsHtml += `<p><strong>Organization:</strong> ${escapeHtml(String(sm.organization))}</p>`;
+                if (sm.created_at) detailsHtml += `<p><strong>Created:</strong> ${escapeHtml(String(sm.created_at))}</p>`;
             }
-             if (data.attributes && Object.keys(data.attributes).length > 0) {
+            if (typeof data.mentions_count === 'number') {
+                detailsHtml += `<p><strong>Mentions:</strong> ${data.mentions_count}</p>`;
+            }
+            if (Array.isArray(data.provenance) && data.provenance.length > 0) {
+                detailsHtml += `<p><strong>Provenance:</strong></p><ul>`;
+                (data.provenance.slice(0, 5)).forEach((p, i) => {
+                    const src = p && p.source ? p.source.source : '';
+                    const link = (typeof src === 'string' && (src.startsWith('http://') || src.startsWith('https://')))
+                        ? `<a href="${escapeHtml(src)}" target="_blank">${escapeHtml(src)}</a>`
+                        : escapeHtml(String(src || ''));
+                    const quote = p && p.quote ? escapeHtml(p.quote) : '';
+                    detailsHtml += `<li>${link}${quote ? `<div style="margin-top:4px;font-size:0.9em;color:#444;">“${quote}”</div>` : ''}</li>`;
+                });
+                if (data.provenance.length > 5) {
+                    detailsHtml += `<li>… and ${data.provenance.length - 5} more</li>`;
+                }
+                detailsHtml += `</ul>`;
+            }
+            if (data.attributes && Object.keys(data.attributes).length > 0) {
                  detailsHtml += `<p><strong>Attributes:</strong></p><ul>`;
                  for (const [key, value] of Object.entries(data.attributes)) {
                      detailsHtml += `<li><code>${escapeHtml(key)}</code>: ${escapeHtml(JSON.stringify(value))}</li>`;
@@ -447,50 +484,86 @@
             detailsPanel.innerHTML = detailsHtml;
         }
 
-         function displayEdgeDetails(edge) {
-             if (!edge || !edge.originalData) {
-                 displayDefaultDetails();
-                 return;
-             }
-              const data = edge.originalData;
-              
-              // Check if this is a concept group membership edge
-              if (data.type === 'CONCEPT_GROUP_MEMBERSHIP') {
-                  let detailsHtml = `<h3>Concept Group Membership</h3>`;
-                  detailsHtml += `<p><strong>Entity:</strong> ${escapeHtml(data.entity.name)} (${escapeHtml(data.entity.type)})</p>`;
-                  detailsHtml += `<p><strong>Concept Group:</strong> ${escapeHtml(data.group.name)}</p>`;
-                  detailsHtml += `<p><strong>Group Type:</strong> ${escapeHtml(data.group.group_type)}</p>`;
-                  detailsHtml += `<p><strong>Group Similarity:</strong> ${(data.group.similarity_score * 100).toFixed(1)}%</p>`;
-                  if (data.entity.description) {
-                      detailsHtml += `<p><strong>Entity Description:</strong> ${escapeHtml(data.entity.description)}</p>`;
-                  }
-                  if (data.group.description) {
-                      detailsHtml += `<p><strong>Group Description:</strong> ${escapeHtml(data.group.description)}</p>`;
-                  }
-                  detailsPanel.innerHTML = detailsHtml;
-                  return;
-              }
-              
-              // Regular relationship display
-              let detailsHtml = `<h3>Relationship Details</h3>`;
-              detailsHtml += `<p><strong>From:</strong> <code>${escapeHtml(data.source)}</code></p>`;
-              detailsHtml += `<p><strong>To:</strong> <code>${escapeHtml(data.target)}</code></p>`;
-              detailsHtml += `<p><strong>Type:</strong> ${escapeHtml(data.label)}</p>`;
-               if (data.conditions) {
-                 detailsHtml += `<p><strong>Conditions:</strong> ${escapeHtml(data.conditions)}</p>`;
-              }
-               if (data.attributes && Object.keys(data.attributes).length > 0) {
-                 detailsHtml += `<p><strong>Attributes:</strong></p><ul>`;
-                 for (const [key, value] of Object.entries(data.attributes)) {
-                     detailsHtml += `<li><code>${escapeHtml(key)}</code>: ${escapeHtml(JSON.stringify(value))}</li>`;
-                 }
-                 detailsHtml += `</ul>`;
-              }
-             detailsPanel.innerHTML = detailsHtml;
-         }
+        function displayMultiSelectionDetails(count) {
+            detailsPanel.innerHTML = `<h3>Multiple Selection</h3><p>${count} nodes selected.</p>`;
+        }
 
         function displayDefaultDetails() {
             detailsPanel.innerHTML = '<h3>Selection Details</h3><p>Click on a node or edge to see details here.</p>';
+        }
+
+        // --- Actions ---
+        function updateActionButtons() {
+            const count = selectedNodeIds.size;
+            deleteSelectedBtn.disabled = count === 0;
+            deleteNodeBtn.disabled = count !== 1;
+        }
+
+        deleteNodeBtn.addEventListener('click', async () => {
+            const ids = Array.from(selectedNodeIds);
+            if (ids.length !== 1) return;
+            await deleteNodes(ids);
+        });
+
+        deleteSelectedBtn.addEventListener('click', async () => {
+            const ids = Array.from(selectedNodeIds);
+            if (ids.length === 0) return;
+            await deleteNodes(ids);
+        });
+
+        async function deleteNodes(nodeIds) {
+            try {
+                // Filter out concept group nodes (front-end only constructs)
+                const entityIds = nodeIds.filter(id => {
+                    const n = nodesDs.get(id);
+                    return n && !(n.originalData && n.originalData.isConceptGroup);
+                });
+
+                if (entityIds.length === 0) {
+                    alert('No deletable entities selected. Concept groups cannot be deleted.');
+                    return;
+                }
+
+                const confirmMsg = entityIds.length === 1 ?
+                    `Delete node "${entityIds[0]}" and its relationships?` :
+                    `Delete ${entityIds.length} nodes and their relationships?`;
+                if (!confirm(confirmMsg)) return;
+
+                let response;
+                if (entityIds.length === 1) {
+                    response = await fetch(`/api/kg/entities/${encodeURIComponent(entityIds[0])}`, { method: 'DELETE' });
+                } else {
+                    response = await fetch('/api/kg/entities/delete-bulk', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ ids: entityIds })
+                    });
+                }
+                const result = await response.json();
+                if (!response.ok) {
+                    const msg = result && result.detail ? result.detail : 'Delete failed';
+                    throw new Error(msg);
+                }
+
+                // Remove nodes and incident edges from the visualization
+                const toRemove = new Set(entityIds);
+                // Remove edges first
+                const incidentEdges = edgesDs.get({ filter: e => toRemove.has(e.from) || toRemove.has(e.to) }).map(e => e.id);
+                if (incidentEdges.length) edgesDs.remove(incidentEdges);
+                // Remove nodes
+                nodesDs.remove(entityIds);
+
+                // Clear selection and details
+                selectedNodeIds.clear();
+                selectedNodeId = null;
+                selectedEdgeId = null;
+                network.unselectAll();
+                displayDefaultDetails();
+                updateActionButtons();
+            } catch (err) {
+                console.error('Delete error:', err);
+                alert(`Error: ${err.message || err}`);
+            }
         }
 
 
@@ -513,74 +586,4 @@
 
             try {
                 // --- Make the actual API call --- 
-                console.log(`Sending message: ${message}, Context ID: ${selectedNodeId || selectedEdgeId}`);
-                const apiResponse = await fetch('/api/kg/chat', {
-                    method: 'POST',
-                    headers: { 
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json'
-                    },
-                    // Send message and context (use node ID preferentially if both selected somehow)
-                    body: JSON.stringify({ 
-                        message: message, 
-                        context_id: selectedNodeId || null // Send selected node ID, or null
-                        // Note: We are not sending edge IDs to the context for now, as retrieving edge context is complex.
-                    })
-                });
-                
-                const result = await apiResponse.json(); // Try parsing JSON always
-
-                if (!apiResponse.ok) { 
-                     const errorDetail = result.detail || `Chat API Error: ${apiResponse.status}`;
-                     throw new Error(errorDetail);
-                }
-                
-                const botResponse = result.response || "Sorry, I received an empty response.";
-
-                // Remove loading indicator before adding actual response
-                 removeLoadingMessage();
-                appendChatMessage(botResponse, 'bot');
-
-            } catch (error) {
-                 console.error("Chat API error:", error);
-                 removeLoadingMessage(); // Remove loading indicator on error too
-                 appendChatMessage(`Error: ${error.message}`, 'bot', false, true); // Indicate error
-            }
-        }
-
-        function appendChatMessage(text, sender, isLoading = false, isError = false) {
-             const messageDiv = document.createElement('div');
-             messageDiv.classList.add('chat-message');
-             messageDiv.classList.add(sender === 'user' ? 'user-message' : 'bot-message');
-             if (isLoading) messageDiv.classList.add('loading-message'); // Add class for loading
-             if (isError) messageDiv.style.backgroundColor = '#fdedec'; // Error style
-
-             messageDiv.textContent = text;
-             chatLog.appendChild(messageDiv);
-             chatLog.scrollTop = chatLog.scrollHeight; // Scroll to bottom
-        }
-
-         function removeLoadingMessage() {
-             const loadingMsg = chatLog.querySelector('.loading-message');
-             if (loadingMsg) {
-                 loadingMsg.remove();
-             }
-         }
-
-        // --- Utility: HTML Escaping ---
-        function escapeHtml(unsafe) {
-            if (typeof unsafe !== 'string') return unsafe;
-            return unsafe
-                 .replace(/&/g, "&amp;")
-                 .replace(/</g, "&lt;")
-                 .replace(/>/g, "&gt;")
-                 .replace(/"/g, "&quot;")
-                 .replace(/'/g, "&#039;");
-        }
-
-        // --- Initial Load ---
-        document.addEventListener('DOMContentLoaded', initializeGraph);
-
-    </script>
-</body>
-</html>
+                console.log(`

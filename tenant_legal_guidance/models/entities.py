@@ -159,6 +159,15 @@ class LegalEntity(BaseModel):
         ...,
         description="Source and its authority level"
     )
+    # Multiple-source provenance
+    provenance: Optional[List[Dict]] = Field(
+        default=None,
+        description="Optional list of provenance records with quotes and per-source metadata"
+    )
+    mentions_count: Optional[int] = Field(
+        default=None,
+        description="How many times this entity was observed across sources"
+    )
     
     # Tenant-specific fields
     tenant_id: Optional[str] = None

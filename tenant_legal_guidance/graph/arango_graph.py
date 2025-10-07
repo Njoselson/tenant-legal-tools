@@ -38,6 +38,88 @@ class ArangoDBGraph:
 
         self.logger.info("Initialized ArangoDBGraph")
 
+    def delete_entity(self, entity_id: str) -> bool:
+        """Delete an entity by id and all incident edges. Returns True if deleted, False if not found.
+        The entity collection is inferred from the id prefix before ':'.
+        """
+        try:
+            if ':' in entity_id:
+                prefix = entity_id.split(':', 1)[0]
+                prefix_to_type = {
+                    'law': EntityType.LAW,
+                    'remedy': EntityType.REMEDY,
+                    'court_case': EntityType.COURT_CASE,
+                    'legal_procedure': EntityType.LEGAL_PROCEDURE,
+                    'damages': EntityType.DAMAGES,
+                    'legal_concept': EntityType.LEGAL_CONCEPT,
+                    'tenant_group': EntityType.TENANT_GROUP,
+                    'campaign': EntityType.CAMPAIGN,
+                    'tactic': EntityType.TACTIC,
+                    'tenant': EntityType.TENANT,
+                    'landlord': EntityType.LANDLORD,
+                    'legal_service': EntityType.LEGAL_SERVICE,
+                    'government_entity': EntityType.GOVERNMENT_ENTITY,
+                    'legal_outcome': EntityType.LEGAL_OUTCOME,
+                    'organizing_outcome': EntityType.ORGANIZING_OUTCOME,
+                    'tenant_issue': EntityType.TENANT_ISSUE,
+                    'event': EntityType.EVENT,
+                    'document': EntityType.DOCUMENT,
+                    'evidence': EntityType.EVIDENCE,
+                    'jurisdiction': EntityType.JURISDICTION,
+                }
+                et = prefix_to_type.get(prefix)
+                if et is None:
+                    self.logger.warning(f"Unknown entity prefix for delete: {entity_id}")
+                    return False
+                coll_name = self._get_collection_for_entity(et)
+            else:
+                # Fallback: find collection that has the key
+                coll_name = None
+                for et in EntityType:
+                    cn = self._get_collection_for_entity(et)
+                    if self.db.collection(cn).has(entity_id):
+                        coll_name = cn
+                        break
+                if coll_name is None:
+                    return False
+
+            coll = self.db.collection(coll_name)
+            if not coll.has(entity_id):
+                return False
+
+            # Remove incident edges across all edge collections
+            for rel_type in RelationshipType:
+                edge_coll = self.db.collection(self._get_collection_for_relationship(rel_type))
+                try:
+                    aql = """
+                    FOR e IN @@edge_coll
+                        FILTER e._from == CONCAT(@from_coll, '/', @key) OR e._to == CONCAT(@to_coll, '/', @key)
+                        REMOVE e IN @@edge_coll
+                    """
+                    bind_vars = {
+                        '@edge_coll': edge_coll.name,
+                        'from_coll': coll_name,
+                        'to_coll': coll_name,
+                        'key': entity_id,
+                    }
+                    self.db.aql.execute(aql, bind_vars=bind_vars)
+                except Exception as e:
+                    self.logger.warning(f"Failed removing edges for {entity_id} in {edge_coll.name}: {e}")
+
+            # Remove the vertex
+            coll.delete(entity_id)
+            return True
+        except Exception as e:
+            self.logger.error(f"Error deleting entity {entity_id}: {e}")
+            return False
+
+    def delete_entities(self, entity_ids: List[str]) -> Dict[str, bool]:
+        """Bulk delete entities by ids. Returns mapping id -> success flag."""
+        results: Dict[str, bool] = {}
+        for eid in entity_ids:
+            results[eid] = self.delete_entity(eid)
+        return results
+
     def _init_connection(self):
         """Initialize connection to ArangoDB with retry logic."""
         for attempt in range(self.max_retries):
@@ -391,6 +473,39 @@ class ArangoDBGraph:
                     return None
         return None
 
+    def find_entity_by_name(self, name: str, types: Optional[List[EntityType]] = None) -> Optional[LegalEntity]:
+        """Find an entity by exact name across collections. Optionally restrict by types.
+        Returns the first exact match found or None.
+        """
+        try:
+            search_types = types or list(EntityType)
+            for et in search_types:
+                coll_name = self._get_collection_for_entity(et)
+                if not self.db.has_collection(coll_name):
+                    continue
+                try:
+                    aql = """
+                    FOR doc IN @@coll
+                        FILTER doc.name == @name
+                        LIMIT 1
+                        RETURN doc
+                    """
+                    cursor = self.db.aql.execute(aql, bind_vars={"@coll": coll_name, "name": name})
+                    docs = list(cursor)
+                    if docs:
+                        return self._parse_entity_from_doc(docs[0], et)
+                except Exception as sub_err:
+                    self.logger.debug(f"Name lookup failed in {coll_name}: {sub_err}")
+                    continue
+            return None
+        except Exception as e:
+            self.logger.error(f"find_entity_by_name error: {e}")
+            return None
+
+    def find_entity_id_by_name(self, name: str, types: Optional[List[EntityType]] = None) -> Optional[str]:
+        ent = self.find_entity_by_name(name, types)
+        return ent.id if ent else None
+
     def _parse_entity_from_doc(self, data: Dict, entity_type: EntityType) -> LegalEntity:
         """Parse ArangoDB document into LegalEntity object."""
         # Extract source metadata from stored data
@@ -511,6 +626,137 @@ class ArangoDBGraph:
             collection.insert(doc)
             return True
 
+    def _select_canonical_source(self, existing_meta: Dict, new_meta: Dict) -> Dict:
+        """Choose canonical source metadata comparing authority then recency."""
+        try:
+            # Map SourceAuthority order (higher is better)
+            order = {
+                SourceAuthority.BINDING_LEGAL_AUTHORITY.value: 6,
+                SourceAuthority.PERSUASIVE_AUTHORITY.value: 5,
+                SourceAuthority.OFFICIAL_INTERPRETIVE.value: 4,
+                SourceAuthority.REPUTABLE_SECONDARY.value: 3,
+                SourceAuthority.PRACTICAL_SELF_HELP.value: 2,
+                SourceAuthority.INFORMATIONAL_ONLY.value: 1,
+            }
+            ex = existing_meta or {}
+            ne = new_meta or {}
+            ex_auth = ex.get("authority")
+            ne_auth = ne.get("authority")
+            ex_score = order.get(ex_auth if isinstance(ex_auth, str) else getattr(ex_auth, "value", None), 0)
+            ne_score = order.get(ne_auth if isinstance(ne_auth, str) else getattr(ne_auth, "value", None), 0)
+            if ne_score > ex_score:
+                return ne
+            if ne_score < ex_score:
+                return ex
+            # Tie-breaker: most recent created_at/processed_at
+            def _parse(dt):
+                try:
+                    if isinstance(dt, str):
+                        return datetime.fromisoformat(dt.replace('Z', '+00:00'))
+                except Exception:
+                    return None
+                return dt
+            ne_ts = _parse(ne.get("created_at")) or _parse(ne.get("processed_at"))
+            ex_ts = _parse(ex.get("created_at")) or _parse(ex.get("processed_at"))
+            if ne_ts and (not ex_ts or ne_ts > ex_ts):
+                return ne
+            return ex or ne
+        except Exception:
+            return new_meta or existing_meta
+
+    def upsert_entity_provenance(self, entity: LegalEntity, provenance_entry: Dict) -> bool:
+        """Upsert an entity; if it exists, merge provenance, mentions_count, and possibly canonical source.
+        Returns True if inserted or updated.
+        """
+        try:
+            coll_name = self._get_collection_for_entity(entity.entity_type)
+            coll = self.db.collection(coll_name)
+            if coll.has(entity.id):
+                doc = coll.get(entity.id)
+                # Merge description if missing or new has content and existing empty
+                if (not doc.get("description")) and entity.description:
+                    doc["description"] = entity.description
+                # Merge attributes (non-destructive)
+                if isinstance(entity.attributes, dict):
+                    for k, v in entity.attributes.items():
+                        if k not in doc:
+                            doc[k] = v
+                # Merge provenance list
+                prov_list = doc.get("provenance", []) or []
+                def _key(p):
+                    src = (p or {}).get("source", {})
+                    return f"{src.get('source')}::{(p or {}).get('quote','')[:64]}"
+                seen = { _key(p) for p in prov_list }
+                # Enrich provenance with stable id and length/anchor_url if possible
+                def _enrich(p: Dict) -> Dict:
+                    if not isinstance(p, dict):
+                        return p
+                    try:
+                        if 'provenance_id' not in p or not p.get('provenance_id'):
+                            src = (p.get('source') or {}).get('source') or ''
+                            q = (p.get('quote') or '')
+                            pid = f"prov:{abs(hash(src + '::' + q[:64]))}"
+                            p['provenance_id'] = pid
+                        if 'length' not in p and p.get('quote'):
+                            p['length'] = len(p.get('quote'))
+                        # Anchor URL: if source is URL and offset present, append as fragment for later use
+                        src_url = (p.get('source') or {}).get('source')
+                        if isinstance(src_url, str) and src_url.startswith(('http://','https://')) and p.get('offset') is not None:
+                            try:
+                                p['anchor_url'] = f"{src_url}#p={max(1, int(p.get('offset') or 0)//500)}"
+                            except Exception:
+                                p['anchor_url'] = src_url
+                    except Exception:
+                        pass
+                    return p
+                if provenance_entry and _key(provenance_entry) not in seen:
+                    prov_list.append(_enrich(provenance_entry))
+                # Backfill enrich existing ones
+                prov_list = [_enrich(p) for p in prov_list]
+                doc["provenance"] = prov_list
+                # Mentions count: unique sources
+                unique_sources = { (p.get("source", {}) or {}).get("source") for p in prov_list if isinstance(p, dict) }
+                doc["mentions_count"] = len({ s for s in unique_sources if s })
+                # Canonical source selection
+                existing_meta = doc.get("source_metadata") or {}
+                new_meta = entity.source_metadata.dict() if hasattr(entity.source_metadata, "dict") else entity.source_metadata
+                doc["source_metadata"] = self._select_canonical_source(existing_meta, new_meta)
+                coll.update(doc)
+                return True
+            else:
+                # New insert with provenance
+                base_inserted = self.add_entity(entity, overwrite=False)
+                if base_inserted:
+                    doc = coll.get(entity.id)
+                    if provenance_entry:
+                        # Enrich new provenance
+                        penr = provenance_entry
+                        try:
+                            src = (penr.get('source') or {}).get('source') or ''
+                            q = (penr.get('quote') or '')
+                            penr['provenance_id'] = penr.get('provenance_id') or f"prov:{abs(hash(src + '::' + q[:64]))}"
+                            if 'length' not in penr and penr.get('quote'):
+                                penr['length'] = len(penr.get('quote'))
+                            src_url = (penr.get('source') or {}).get('source')
+                            if isinstance(src_url, str) and src_url.startswith(('http://','https://')) and penr.get('offset') is not None:
+                                try:
+                                    penr['anchor_url'] = f"{src_url}#p={max(1, int(penr.get('offset') or 0)//500)}"
+                                except Exception:
+                                    penr['anchor_url'] = src_url
+                        except Exception:
+                            pass
+                        doc["provenance"] = [penr]
+                    else:
+                        doc["provenance"] = []
+                    unique_sources = { (provenance_entry or {}).get("source", {}).get("source") }
+                    doc["mentions_count"] = len({ s for s in unique_sources if s })
+                    coll.update(doc)
+                    return True
+                return False
+        except Exception as e:
+            self.logger.error(f"upsert_entity_provenance failed for {entity.id}: {e}")
+            return False
+
     def add_relationship(self, relationship: LegalRelationship) -> bool:
         """Add a relationship between entities. Returns True if added, False otherwise."""
         if not self.entity_exists(relationship.source_id):
@@ -540,6 +786,28 @@ class ArangoDBGraph:
         from_collection = self._get_collection_for_entity(source_entity.entity_type)
         to_collection = self._get_collection_for_entity(target_entity.entity_type)
         
+        # Deduplicate: skip if identical edge exists
+        try:
+            aql = """
+            FOR e IN @@edge
+                FILTER e._from == CONCAT(@from_coll, '/', @from_id) AND e._to == CONCAT(@to_coll, '/', @to_id) AND e.type == @type
+                LIMIT 1
+                RETURN e
+            """
+            cur = self.db.aql.execute(aql, bind_vars={
+                "@edge": self._get_collection_for_relationship(relationship.relationship_type),
+                "from_coll": from_collection,
+                "to_coll": to_collection,
+                "from_id": relationship.source_id,
+                "to_id": relationship.target_id,
+                "type": relationship.relationship_type.name,
+            })
+            if list(cur):
+                self.logger.debug("Skipping duplicate relationship insertion")
+                return False
+        except Exception as e:
+            self.logger.debug(f"Edge dedup check failed (continuing): {e}")
+
         # Create edge document
         edge_doc = {
             "_from": f"{from_collection}/{relationship.source_id}",
@@ -703,13 +971,163 @@ class ArangoDBGraph:
         except Exception as e:
             self.logger.error(f"Error getting all relationships: {e}")
             return []
-    
-    def get_concept_groups(self) -> List[Dict]:
-        """Get concept groups from the knowledge graph."""
-        # This is a placeholder - you would implement concept group retrieval
-        # based on your concept grouping service
-        return [] 
 
+    def _collection_for_entity_id(self, entity_id: str) -> Optional[str]:
+        """Infer vertex collection name from id prefix, or scan to find it."""
+        try:
+            if ':' in entity_id:
+                prefix = entity_id.split(':', 1)[0]
+                mapping = {
+                    'law': EntityType.LAW,
+                    'remedy': EntityType.REMEDY,
+                    'court_case': EntityType.COURT_CASE,
+                    'legal_procedure': EntityType.LEGAL_PROCEDURE,
+                    'damages': EntityType.DAMAGES,
+                    'legal_concept': EntityType.LEGAL_CONCEPT,
+                    'tenant_group': EntityType.TENANT_GROUP,
+                    'campaign': EntityType.CAMPAIGN,
+                    'tactic': EntityType.TACTIC,
+                    'tenant': EntityType.TENANT,
+                    'landlord': EntityType.LANDLORD,
+                    'legal_service': EntityType.LEGAL_SERVICE,
+                    'government_entity': EntityType.GOVERNMENT_ENTITY,
+                    'legal_outcome': EntityType.LEGAL_OUTCOME,
+                    'organizing_outcome': EntityType.ORGANIZING_OUTCOME,
+                    'tenant_issue': EntityType.TENANT_ISSUE,
+                    'event': EntityType.EVENT,
+                    'document': EntityType.DOCUMENT,
+                    'evidence': EntityType.EVIDENCE,
+                    'jurisdiction': EntityType.JURISDICTION,
+                }
+                et = mapping.get(prefix)
+                if et is not None:
+                    return self._get_collection_for_entity(et)
+            # Fallback scan
+            for et in EntityType:
+                cn = self._get_collection_for_entity(et)
+                if self.db.collection(cn).has(entity_id):
+                    return cn
+        except Exception:
+            pass
+        return None
+
+    def get_relationships_among(self, node_ids: List[str]) -> List[LegalRelationship]:
+        """Return relationships where both endpoints are within node_ids."""
+        try:
+            id_set = set(node_ids)
+            rels: List[LegalRelationship] = []
+            for rel_type in RelationshipType:
+                edge_name = self._get_collection_for_relationship(rel_type)
+                aql = """
+                FOR e IN @@edge
+                    LET from_id = SPLIT(e._from, '/')[1]
+                    LET to_id = SPLIT(e._to, '/')[1]
+                    FILTER from_id IN @ids AND to_id IN @ids
+                    RETURN { from_id, to_id, weight: e.weight, conditions: e.conditions }
+                """
+                cursor = self.db.aql.execute(aql, bind_vars={"@edge": edge_name, "ids": list(id_set)})
+                for row in cursor:
+                    rels.append(LegalRelationship(
+                        source_id=row["from_id"],
+                        target_id=row["to_id"],
+                        relationship_type=rel_type,
+                        conditions=row.get("conditions"),
+                        weight=row.get("weight", 1.0),
+                        attributes={}
+                    ))
+            return rels
+        except Exception as e:
+            self.logger.error(f"get_relationships_among error: {e}")
+            return []
+
+    def get_neighbors(self, node_ids: List[str], per_node_limit: int = 50, direction: str = "both") -> Tuple[List[LegalEntity], List[LegalRelationship]]:
+        """Get 1-hop neighbors and connecting relationships for the given node ids.
+        direction: 'out', 'in', or 'both'
+        """
+        try:
+            neighbors: Dict[str, LegalEntity] = {}
+            rels: List[LegalRelationship] = []
+            dir_filter_out = direction in ("out", "both")
+            dir_filter_in = direction in ("in", "both")
+
+            for nid in node_ids:
+                coll_name = self._collection_for_entity_id(nid)
+                if not coll_name:
+                    continue
+                # For each edge collection, find incident edges
+                for rel_type in RelationshipType:
+                    edge_name = self._get_collection_for_relationship(rel_type)
+                    # Outbound
+                    if dir_filter_out:
+                        aql_out = """
+                        FOR e IN @@edge
+                            FILTER e._from == CONCAT(@coll, '/', @key)
+                            LIMIT @limit
+                            RETURN e
+                        """
+                        cursor_out = self.db.aql.execute(aql_out, bind_vars={"@edge": edge_name, "coll": coll_name, "key": nid, "limit": per_node_limit})
+                        for e in cursor_out:
+                            to_id = e["_to"].split("/")[-1]
+                            rels.append(LegalRelationship(
+                                source_id=nid,
+                                target_id=to_id,
+                                relationship_type=rel_type,
+                                conditions=e.get("conditions"),
+                                weight=e.get("weight", 1.0),
+                                attributes={}
+                            ))
+                            # Fetch neighbor doc
+                            to_coll = e["_to"].split("/")[0]
+                            try:
+                                doc = self.db.collection(to_coll).get(to_id)
+                                # Infer entity type by collection name via reverse lookup
+                                et = None
+                                for t in EntityType:
+                                    if self._get_collection_for_entity(t) == to_coll:
+                                        et = t
+                                        break
+                                if et:
+                                    neighbors[to_id] = self._parse_entity_from_doc(doc, et)
+                            except Exception:
+                                pass
+                    # Inbound
+                    if dir_filter_in:
+                        aql_in = """
+                        FOR e IN @@edge
+                            FILTER e._to == CONCAT(@coll, '/', @key)
+                            LIMIT @limit
+                            RETURN e
+                        """
+                        cursor_in = self.db.aql.execute(aql_in, bind_vars={"@edge": edge_name, "coll": coll_name, "key": nid, "limit": per_node_limit})
+                        for e in cursor_in:
+                            from_id = e["_from"].split("/")[-1]
+                            rels.append(LegalRelationship(
+                                source_id=from_id,
+                                target_id=nid,
+                                relationship_type=rel_type,
+                                conditions=e.get("conditions"),
+                                weight=e.get("weight", 1.0),
+                                attributes={}
+                            ))
+                            # Fetch neighbor doc
+                            from_coll = e["_from"].split("/")[0]
+                            try:
+                                doc = self.db.collection(from_coll).get(from_id)
+                                et = None
+                                for t in EntityType:
+                                    if self._get_collection_for_entity(t) == from_coll:
+                                        et = t
+                                        break
+                                if et:
+                                    neighbors[from_id] = self._parse_entity_from_doc(doc, et)
+                            except Exception:
+                                pass
+            return list(neighbors.values()), rels
+        except Exception as e:
+            self.logger.error(f"get_neighbors error: {e}")
+            return [], []
+    
+    
     def _fallback_text_search(self, search_term: str, types: Optional[List[EntityType]], jurisdiction: Optional[str], limit: int) -> List[LegalEntity]:
         """Fallback search using AQL LIKE across all collections when ArangoSearch is unavailable."""
         try:
@@ -930,3 +1348,49 @@ class ArangoDBGraph:
         except Exception as e:
             self.logger.warning(f"compute_next_steps fallback used due to error: {e}")
         return steps
+
+    def build_legal_chains(self, issues: List[str], jurisdiction: Optional[str] = None, limit: int = 25) -> List[Dict]:
+        """Build explicit chains (issue -> law -> remedy -> procedure -> evidence) with citations via AQL traversal.
+        Returns a list of chains with nodes, edges, and source_metadata for citations.
+        """
+        try:
+            bind_vars: Dict[str, object] = {
+                "issues": issues or [],
+                "jurisdiction": jurisdiction,
+                "limit": limit,
+            }
+            aql = """
+            LET terms = @issues
+            LET j = @jurisdiction
+            FOR issue IN tenant_issues
+              FILTER LENGTH(terms) == 0 OR (
+                LIKE(LOWER(issue.name), LOWER(CONCAT('%', terms[0], '%')), true) OR
+                (LENGTH(terms) > 1 AND LIKE(LOWER(issue.name), LOWER(CONCAT('%', terms[1], '%')), true)) OR
+                (LENGTH(terms) > 2 AND LIKE(LOWER(issue.name), LOWER(CONCAT('%', terms[2], '%')), true))
+              )
+              FOR law IN INBOUND issue applies_to
+                FILTER !j OR law.jurisdiction == j
+                FOR remedy IN OUTBOUND law enables
+                  FOR proc IN OUTBOUND remedy available_via
+                  FOR ev IN OUTBOUND law requires
+                    LIMIT @limit
+                    RETURN {
+                      chain: [
+                        {type: "tenant_issue", id: issue._key, name: issue.name, cite: issue.source_metadata},
+                        {rel: "APPLIES_TO"},
+                        {type: "law", id: law._key, name: law.name, cite: law.source_metadata},
+                        {rel: "ENABLES"},
+                        {type: "remedy", id: remedy._key, name: remedy.name, cite: remedy.source_metadata},
+                        {rel: "AVAILABLE_VIA"},
+                        {type: "legal_procedure", id: proc._key, name: proc.name, cite: proc.source_metadata},
+                        {rel: "REQUIRES"},
+                        {type: "evidence", id: ev._key, name: ev.name, cite: ev.source_metadata}
+                      ],
+                      score: 1.0
+                    }
+            """
+            cursor = self.db.aql.execute(aql, bind_vars=bind_vars)
+            return list(cursor)
+        except Exception as e:
+            self.logger.error(f"Error building legal chains: {e}")
+            return []

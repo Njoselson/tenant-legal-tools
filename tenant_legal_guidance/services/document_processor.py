@@ -38,10 +38,38 @@ class DocumentProcessor:
         entities, relationship_map = self._deduplicate_entities(entities)
         relationships = self._update_relationship_references(relationships, relationship_map)
 
+        # Step 2.5: Semantic merge with existing KG (token/Jaccard similarity on name/description)
+        external_merge_map = self._semantic_merge_entities(entities)
+        if external_merge_map:
+            relationships = self._update_relationship_references(relationships, external_merge_map)
+
         # Step 3: Add entities to graph
         added_entities = []
         for entity in entities:
-            if self.knowledge_graph.add_entity(entity):
+            # Redirect to canonical id if semantic match found
+            target_id = external_merge_map.get(entity.id, entity.id)
+            if target_id != entity.id:
+                try:
+                    entity = type(entity)(**{**entity.dict(), "id": target_id})
+                except Exception:
+                    pass
+            # Build a simple provenance entry with a snippet from the original text if available
+            snippet = None
+            try:
+                if entity.name and text:
+                    idx = text.lower().find(entity.name.lower())
+                    if idx != -1:
+                        start = max(0, idx - 120)
+                        end = min(len(text), idx + len(entity.name) + 120)
+                        snippet = text[start:end]
+            except Exception:
+                pass
+            prov = {
+                "quote": snippet or None,
+                "offset": idx if 'idx' in locals() and idx >= 0 else None,
+                "source": entity.source_metadata.dict() if hasattr(entity.source_metadata, 'dict') else entity.source_metadata,
+            }
+            if self.knowledge_graph.upsert_entity_provenance(entity, prov):
                 added_entities.append(entity)
 
         # Step 4: Add relationships to graph
@@ -111,7 +139,10 @@ class DocumentProcessor:
             "2. Relationships (must use these exact types):\n"
             "   - VIOLATES: When an ACTOR violates a LAW\n"
             "   - ENABLES: When a LAW enables a REMEDY\n"
-            "   - AWARDS: When a REMEDY awards DAMAGES\n\n"
+            "   - AWARDS: When a REMEDY awards DAMAGES\n"
+            "   - APPLIES_TO: When a LAW applies to a TENANT_ISSUE\n"
+            "   - AVAILABLE_VIA: When a REMEDY is available via a LEGAL_PROCEDURE\n"
+            "   - REQUIRES: When a LAW requires EVIDENCE/DOCUMENT\n\n"
             "For each entity, include:\n"
             f"- Type (must be one of: [{types_list}])\n"
             "- Name\n"
@@ -141,7 +172,7 @@ class DocumentProcessor:
             "        {\n"
             "            \"source_id\": \"source_entity_name\",\n"
             "            \"target_id\": \"target_entity_name\",\n"
-            "            \"type\": \"VIOLATES|ENABLES|AWARDS\",\n"
+            "            \"type\": \"VIOLATES|ENABLES|AWARDS|APPLIES_TO|AVAILABLE_VIA|REQUIRES\",\n"
             "            \"attributes\": {\n"
             "                // Relationship attributes\n"
             "            }\n"
@@ -263,6 +294,9 @@ class DocumentProcessor:
         # Create a lookup map for entities by name
         entity_map = {entity.name: entity for entity in all_entities}
         
+        # Precompute invalid tokens equal to entity type names/values
+        invalid_tokens = set([et.name for et in EntityType] + [et.value for et in EntityType])
+        
         # Second pass: process relationships with full entity context
         for _, relationships in chunk_results:
             for rel_data in relationships:
@@ -270,8 +304,19 @@ class DocumentProcessor:
                     source_name = rel_data["source_id"]
                     target_name = rel_data["target_id"]
                     
+                    # Skip relationships that reference type tokens rather than entities
+                    if source_name in invalid_tokens or target_name in invalid_tokens:
+                        self.logger.debug(f"Skipping invalid relationship using type tokens: {source_name} -> {target_name}")
+                        continue
+                    
                     source_entity = entity_map.get(source_name)
                     target_entity = entity_map.get(target_name)
+                    
+                    # Fallback: resolve against existing KG by exact name
+                    if not source_entity:
+                        source_entity = self.knowledge_graph.find_entity_by_name(source_name)
+                    if not target_entity:
+                        target_entity = self.knowledge_graph.find_entity_by_name(target_name)
                     
                     if not source_entity or not target_entity:
                         self.logger.warning(
@@ -470,3 +515,61 @@ class DocumentProcessor:
         except Exception as e:
             self.logger.warning(f"Error converting document to entity: {e}")
             return None 
+
+    def _normalize_tokens(self, text: Optional[str]) -> List[str]:
+        if not text:
+            return []
+        try:
+            tokens = re.split(r"\W+", text.lower())
+            stop = {
+                "the","a","an","and","or","to","of","in","on","for","by","with","at","from","as","is","are","be","that","this","these","those","law","act","code","section","sec","§"
+            }
+            return [t for t in tokens if t and t not in stop]
+        except Exception:
+            return []
+
+    def _jaccard(self, a: List[str], b: List[str]) -> float:
+        if not a or not b:
+            return 0.0
+        sa, sb = set(a), set(b)
+        inter = len(sa & sb)
+        if inter == 0:
+            return 0.0
+        union = len(sa | sb)
+        return inter / union if union else 0.0
+
+    def _similarity_score(self, e_name: str, e_desc: Optional[str], c_name: str, c_desc: Optional[str]) -> float:
+        if not e_name or not c_name:
+            return 0.0
+        en = e_name.strip().lower()
+        cn = c_name.strip().lower()
+        if en == cn:
+            return 1.0
+        if en in cn or cn in en:
+            return 0.9
+        name_sim = self._jaccard(self._normalize_tokens(en), self._normalize_tokens(cn))
+        desc_sim = self._jaccard(self._normalize_tokens(e_desc or ""), self._normalize_tokens(c_desc or ""))
+        # Weighted emphasis on name
+        return 0.8 * name_sim + 0.2 * desc_sim
+
+    def _semantic_merge_entities(self, entities: List[LegalEntity]) -> Dict[str, str]:
+        """Try to map each incoming entity to an existing KG id using semantic similarity.
+        Returns a map of incoming_id -> existing_id.
+        """
+        merge_map: Dict[str, str] = {}
+        for ent in entities:
+            try:
+                # Limit search to same type for precision
+                candidates = self.knowledge_graph.search_entities_by_text(ent.name, types=[ent.entity_type], limit=20)
+                best_id = None
+                best_score = 0.0
+                for cand in candidates:
+                    score = self._similarity_score(ent.name, ent.description, cand.name, cand.description)
+                    if score > best_score:
+                        best_score = score
+                        best_id = cand.id
+                if best_id and best_score >= 0.8:
+                    merge_map[ent.id] = best_id
+            except Exception as e:
+                self.logger.debug(f"Semantic merge lookup failed for {ent.id}: {e}")
+        return merge_map 

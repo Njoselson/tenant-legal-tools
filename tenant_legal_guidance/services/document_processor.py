@@ -34,11 +34,52 @@ class DocumentProcessor:
         self.embeddings_svc = EmbeddingsService()
         self.vector_store = QdrantVectorStore()
 
-    async def ingest_document(self, text: str, metadata: SourceMetadata) -> Dict:
-        """Ingest a document and extract entities and relationships."""
+    async def ingest_document(self, text: str, metadata: SourceMetadata, force_reprocess: bool = False) -> Dict:
+        """Ingest a document and extract entities and relationships.
+        
+        Args:
+            text: Document text content
+            metadata: Source metadata
+            force_reprocess: If True, reprocess even if source has been seen before
+            
+        Returns:
+            Dict with ingestion results and statistics
+        """
         self.logger.info(
             f"Starting document ingestion from {metadata.source_type.name} source: {metadata.source}"
         )
+
+        # Step 0: Check if source has already been processed (idempotency)
+        locator = metadata.source or ""
+        kind = (metadata.source_type.name if hasattr(metadata.source_type, "name") else str(metadata.source_type or "URL")) or "URL"
+        
+        # Compute SHA256 of canonical text
+        canon_text = self.knowledge_graph._canonicalize_text(text or "")
+        text_sha = self.knowledge_graph._sha256(canon_text)
+        source_id_check = f"src:{text_sha}"
+        
+        if not force_reprocess:
+            # Check if this exact text has been processed before
+            try:
+                sources_coll = self.knowledge_graph.db.collection("sources")
+                if sources_coll.has(source_id_check):
+                    existing_source = sources_coll.get(source_id_check)
+                    self.logger.info(
+                        f"Source already processed (SHA256: {text_sha[:12]}...), skipping extraction. "
+                        f"Use force_reprocess=True to reprocess."
+                    )
+                    # Return early with existing data
+                    return {
+                        "status": "skipped",
+                        "reason": "already_processed",
+                        "source_id": source_id_check,
+                        "sha256": text_sha,
+                        "added_entities": 0,
+                        "added_relationships": 0,
+                        "chunk_count": 0,
+                    }
+            except Exception as e:
+                self.logger.debug(f"Error checking existing source: {e}")
 
         # Step 0.5: Register source + prepare chunks (now for Qdrant only)
         chunk_ids: List[str] = []
@@ -46,8 +87,6 @@ class DocumentProcessor:
         source_id: Optional[str] = None
         blob_id: Optional[str] = None
         try:
-            locator = metadata.source or ""
-            kind = (metadata.source_type.name if hasattr(metadata.source_type, "name") else str(metadata.source_type or "URL")) or "URL"
             reg = self.knowledge_graph.register_source_with_text(
                 locator=locator,
                 kind=kind,
@@ -622,19 +661,28 @@ Ensure array has exactly {len(batch)} objects."""
         """Get all entities from the knowledge graph for concept grouping."""
         all_entities = []
         
-        # Get entities from all collections
-        for entity_type in EntityType:
-            try:
-                collection = self.knowledge_graph.db.collection(
-                    self.knowledge_graph._get_collection_for_entity(entity_type)
-                )
-                for doc in collection.all():
-                    # Convert ArangoDB document back to LegalEntity
-                    entity = self._document_to_entity(doc, entity_type)
-                    if entity:
-                        all_entities.append(entity)
-            except Exception as e:
-                self.logger.warning(f"Error getting entities from {entity_type}: {e}")
+        # Get entities from normalized entities collection
+        try:
+            collection = self.knowledge_graph.db.collection("entities")
+            for doc in collection.all():
+                # Determine entity type from the type field
+                entity_type_str = doc.get("type")
+                if not entity_type_str:
+                    continue
+                
+                # Convert string to EntityType enum
+                try:
+                    entity_type = EntityType(entity_type_str)
+                except (ValueError, KeyError):
+                    self.logger.warning(f"Unknown entity type: {entity_type_str}")
+                    continue
+                
+                # Convert ArangoDB document back to LegalEntity
+                entity = self._document_to_entity(doc, entity_type)
+                if entity:
+                    all_entities.append(entity)
+        except Exception as e:
+            self.logger.warning(f"Error getting entities from entities collection: {e}")
         
         return all_entities
     

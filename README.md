@@ -125,6 +125,107 @@ curl -X POST "http://localhost:8000/analyze" \
      -d '{"situation": "My landlord is not fixing the heating system"}'
 ```
 
+## Data Ingestion
+
+The system provides a unified ingestion pipeline for legal documents with progress tracking, error recovery, and idempotency guarantees.
+
+### Quick Start: Re-ingesting Everything
+
+To completely reset and re-ingest all data:
+
+```bash
+# 1. Export current sources to manifest
+make build-manifest
+
+# 2. Reset database (removes all data)
+make db-reset
+
+# 3. Re-ingest from manifest
+make ingest-manifest MANIFEST=data/manifests/sources.jsonl
+```
+
+### Database Management
+
+```bash
+# Show database statistics
+make db-stats
+
+# Truncate all collections (keeps schema)
+make db-reset
+
+# Drop entire database (complete removal)
+make db-drop
+```
+
+### Ingestion Methods
+
+#### 1. From Manifest File (Recommended)
+
+Manifest files are JSONL format with rich metadata:
+
+```jsonl
+{"locator": "https://example.com/doc.pdf", "kind": "URL", "title": "NYC Tenant Guide", "jurisdiction": "NYC", "authority": "PRACTICAL_SELF_HELP", "tags": ["eviction", "rent_stabilization"]}
+```
+
+Ingest a manifest:
+
+```bash
+python -m tenant_legal_guidance.scripts.ingest \
+  --deepseek-key $DEEPSEEK_API_KEY \
+  --manifest data/manifests/sources.jsonl \
+  --archive data/archive \
+  --checkpoint data/checkpoint.json
+```
+
+#### 2. From URL List
+
+```bash
+python -m tenant_legal_guidance.scripts.ingest \
+  --deepseek-key $DEEPSEEK_API_KEY \
+  --urls urls.txt
+```
+
+#### 3. Re-ingest from Database
+
+```bash
+python -m tenant_legal_guidance.scripts.ingest \
+  --deepseek-key $DEEPSEEK_API_KEY \
+  --reingest-db
+```
+
+### Ingestion Features
+
+- **Idempotency**: Same text (by SHA256) won't be reprocessed
+- **Progress Tracking**: Progress bars with ETAs
+- **Error Recovery**: Checkpoint/resume support
+- **Parallel Processing**: Configurable concurrency (default: 3)
+- **Metadata Enrichment**: Auto-detect metadata from URL patterns
+- **Text Archival**: Store canonical text by SHA256 for audit
+
+### Manifest Building
+
+Extract sources from existing database:
+
+```bash
+python -m tenant_legal_guidance.scripts.build_manifest \
+  --output data/manifests/sources.jsonl \
+  --include-stats
+```
+
+### Metadata Schema
+
+Each source should have:
+
+- `locator`: URL or file path (required)
+- `title`: Document title
+- `jurisdiction`: NYC, NY State, Federal, etc.
+- `authority`: PRIMARY_LAW, BINDING_PRECEDENT, PRACTICAL_SELF_HELP, etc.
+- `document_type`: STATUTE, CASE_LAW, SELF_HELP_GUIDE, etc.
+- `organization`: Publishing organization
+- `tags`: Custom categorization tags
+
+See `tenant_legal_guidance/models/metadata_schemas.py` for details.
+
 ## Development
 
 ### Running Tests

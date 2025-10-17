@@ -226,36 +226,30 @@ async def get_graph_data(
             cursor_nodes = kg.db.aql.execute(aql, bind_vars=bind_vars)
             raw_nodes = list(cursor_nodes)
         except Exception as e:
-            logger.warning(f"Graph-data view query failed, fallback LIKE: {e}")
-            raw_nodes = []
+            logger.warning(f"Graph-data view query failed, fallback to entities collection: {e}")
+            # Fallback: Query the normalized entities collection directly
             term_like = f"%{q}%" if q else None
-            for et in EntityType:
-                coll_name = kg._get_collection_for_entity(et)
-                if not kg.db.has_collection(coll_name):
-                    continue
-                sub = """
-                FOR doc IN @@coll
-                    FILTER (@types == null OR doc.type IN @types)
-                    FILTER (@jurisdiction == null OR doc.jurisdiction == @jurisdiction)
-                """
-                if term_like:
-                    sub += "\n    FILTER LIKE(LOWER(doc.name), LOWER(@term), true) OR LIKE(LOWER(doc.description), LOWER(@term), true)"
-                sub += "\n    SORT doc._key ASC\n    LIMIT @offset, @limit\n    RETURN doc"
-                bvars = {
-                    "@coll": coll_name,
-                    "types": type_values,
-                    "jurisdiction": jurisdiction,
-                    "offset": eff_offset,
-                    "limit": limit,
-                }
-                if term_like:
-                    bvars["term"] = term_like
-                try:
-                    raw_nodes = list(kg.db.aql.execute(sub, bind_vars=bvars))
-                    if raw_nodes:
-                        break
-                except Exception:
-                    continue
+            sub = """
+            FOR doc IN entities
+                FILTER (@types == null OR doc.type IN @types)
+                FILTER (@jurisdiction == null OR doc.jurisdiction == @jurisdiction)
+            """
+            if term_like:
+                sub += "\n    FILTER LIKE(LOWER(doc.name), LOWER(@term), true) OR LIKE(LOWER(doc.description), LOWER(@term), true)"
+            sub += "\n    SORT doc._key ASC\n    LIMIT @offset, @limit\n    RETURN doc"
+            bvars = {
+                "types": type_values,
+                "jurisdiction": jurisdiction,
+                "offset": eff_offset,
+                "limit": limit,
+            }
+            if term_like:
+                bvars["term"] = term_like
+            try:
+                raw_nodes = list(kg.db.aql.execute(sub, bind_vars=bvars))
+            except Exception as fallback_err:
+                logger.error(f"Fallback query also failed: {fallback_err}")
+                raw_nodes = []
 
         nodes = []
         node_ids: List[str] = []
@@ -651,10 +645,24 @@ async def get_example_cases() -> Dict:
 @router.get("/api/health")
 async def health(system: TenantLegalSystem = Depends(get_system)) -> Dict:
     try:
-        counts = {}
-        for entity_type in EntityType:
-            coll = system.knowledge_graph.db.collection(system.knowledge_graph._get_collection_for_entity(entity_type))
-            counts[entity_type.value] = coll.count()
+        # Query normalized entities collection and group by type
+        kg = system.knowledge_graph
+        aql = """
+        FOR doc IN entities
+            COLLECT type = doc.type WITH COUNT INTO count
+            RETURN {type: type, count: count}
+        """
+        try:
+            results = list(kg.db.aql.execute(aql))
+            counts = {r["type"]: r["count"] for r in results}
+            # Ensure all entity types are present (with 0 count if missing)
+            for entity_type in EntityType:
+                if entity_type.value not in counts:
+                    counts[entity_type.value] = 0
+        except Exception as e:
+            logger.warning(f"Failed to get entity counts from entities collection: {e}")
+            counts = {et.value: 0 for et in EntityType}
+        
         return {"status": "ok", "entity_counts": counts}
     except Exception as e:
         logger.error(f"Health check failed: {e}")

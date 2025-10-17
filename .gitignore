@@ -45,4 +45,17 @@ logs/
 .env.local
 .env.development.local
 .env.test.local
-.env.production.local 
+.env.production.local
+
+# Ingestion artifacts (keep manifests, ignore generated files)
+data/archive/
+data/*_checkpoint.json
+data/*_report.json
+data/*_stats.json
+data/analysis_cache.sqlite
+data/*.graphml
+
+# Keep manifests version controlled (whitelist pattern)
+!data/manifests/
+!data/manifests/**/*.jsonl
+!data/manifests/**/*.md 

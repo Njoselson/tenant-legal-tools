@@ -21,7 +21,7 @@ RUN /root/.local/bin/uv venv && \
     . .venv/bin/activate && \
     /root/.local/bin/uv pip install --upgrade pip && \
     /root/.local/bin/uv pip install -e ".[dev]" && \
-    /root/.local/bin/uv add markdown && \
+    /root/.local/bin/uv add markdown pydantic-settings qdrant-client sentence-transformers && \
     /root/.local/bin/uv pip list
 
 # Expose the port the app runs on

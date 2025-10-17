@@ -9,12 +9,14 @@ services:
       - ARANGO_DB_NAME=tenant_legal_kg
       - ARANGO_USERNAME=root
       - ARANGO_PASSWORD=${ARANGO_PASSWORD}
+      - QDRANT_URL=http://qdrant:6333
     volumes:
       - ./logs:/app/logs
       - ./tenant_legal_guidance:/app/tenant_legal_guidance
       - ./data:/app/data
     depends_on:
       - arangodb
+      - qdrant
     logging:
       driver: "json-file"
       options:
@@ -38,6 +40,20 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  qdrant:
+    image: qdrant/qdrant:latest
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
 volumes:
   arangodb_data:
-  arangodb_apps_data: 
+  arangodb_apps_data:
+  qdrant_data: 

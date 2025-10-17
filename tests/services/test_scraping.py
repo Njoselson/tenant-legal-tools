@@ -5,11 +5,10 @@ import pytest
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 
-from tenant_legal_guidance.main import (
+from tenant_legal_guidance import (
     DeepSeekClient,
     LegalResourceProcessor,
     SourceType,
-    scrape_text_from_url,
     LegalEntity,
     LegalRelationship,
     EntityType,
@@ -17,6 +16,7 @@ from tenant_legal_guidance.main import (
     InputType,
     LegalDocument,
 )
+from tenant_legal_guidance.services.resource_processor import scrape_text_from_url
 
 # Load environment variables
 load_dotenv()

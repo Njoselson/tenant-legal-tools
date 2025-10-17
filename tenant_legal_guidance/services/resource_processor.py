@@ -230,3 +230,20 @@ class LegalResourceProcessor:
         # Create a hash of the text and type
         hash_input = f"{text}:{entity_type.value}"
         return hashlib.md5(hash_input.encode()).hexdigest()[:8] 
+
+
+# --- Backwards-compatible helper for tests ---
+def scrape_text_from_url(url: str, max_retries: int = 2, timeout: int = 10) -> Optional[str]:
+    """Simple helper to fetch page text with basic retries.
+
+    Provided for tests that import the function directly from this module.
+    Returns the raw response text on HTTP 200, otherwise None after retries.
+    """
+    for _ in range(max_retries):
+        try:
+            resp = requests.get(url, timeout=timeout)
+            if getattr(resp, "status_code", 0) == 200:
+                return getattr(resp, "text", None)
+        except Exception:
+            continue
+    return None

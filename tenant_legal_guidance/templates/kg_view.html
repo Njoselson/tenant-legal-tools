@@ -203,6 +203,17 @@
                     <button id="delete-node-btn" class="action-btn danger" disabled>Delete Node</button>
                     <button id="delete-selected-btn" class="action-btn danger" disabled>Delete Selected</button>
                     <button id="expand-btn" class="action-btn" disabled>Expand 1-hop</button>
+                    <button id="consolidate-btn" class="action-btn" disabled>Consolidate</button>
+                    <button id="consolidate-all-btn" class="action-btn">Consolidate All</button>
+                </div>
+                <div class="actions-row">
+                    <input id="filter-q" placeholder="Search q" style="flex:1; padding:6px; border:1px solid #ced4da; border-radius:6px;" />
+                    <input id="filter-types" placeholder="types (comma)" style="flex:1; padding:6px; border:1px solid #ced4da; border-radius:6px;" />
+                </div>
+                <div class="actions-row">
+                    <input id="filter-jurisdiction" placeholder="jurisdiction" style="flex:1; padding:6px; border:1px solid #ced4da; border-radius:6px;" />
+                    <button id="apply-filters-btn" class="action-btn">Apply Filters</button>
+                    <button id="load-more-btn" class="action-btn">Load More</button>
                 </div>
                 <p class="hint">Tip: Hold Cmd/Ctrl or Shift to multi-select nodes.</p>
             </div>
@@ -231,6 +242,8 @@
         const deleteNodeBtn = document.getElementById('delete-node-btn');
         const deleteSelectedBtn = document.getElementById('delete-selected-btn');
         const expandBtn = document.getElementById('expand-btn');
+        const consolidateBtn = document.getElementById('consolidate-btn');
+        const consolidateAllBtn = document.getElementById('consolidate-all-btn');
 
         let network = null;
         let graphData = { nodes: [], edges: [] }; // raw arrays
@@ -239,19 +252,22 @@
         let selectedNodeId = null;
         let selectedEdgeId = null;
         let selectedNodeIds = new Set();
+        let nextCursor = null;
+        let activeFilters = { q: null, types: null, jurisdiction: null };
 
         // --- Entity Type Styling ---
         const entityColors = {
-            TENANT_ISSUE: '#e74c3c', // Red
-            STATUTE: '#2980b9',      // Blue
-            REGULATION: '#3498db',   // Lighter Blue
-            CASE: '#f1c40f',         // Yellow
-            REMEDY: '#2ecc71',       // Green
-            EVIDENCE_TYPE: '#9b59b6',// Purple
-            LEGAL_PROCEDURE: '#e67e22',// Orange
-            LEGAL_CONCEPT: '#1abc9c', // Turquoise
-            JURISDICTION: '#7f8c8d',  // Grey
-            DEFAULT: '#bdc3c7',      // Light Grey
+            TENANT_ISSUE: '#e74c3c',
+            STATUTE: '#2980b9',
+            REGULATION: '#3498db',
+            CASE: '#f1c40f',
+            REMEDY: '#2ecc71',
+            EVIDENCE_TYPE: '#9b59b6',
+            LEGAL_PROCEDURE: '#e67e22',
+            LEGAL_CONCEPT: '#1abc9c',
+            JURISDICTION: '#7f8c8d',
+            TEXT_CHUNK: '#95a5a6',
+            DEFAULT: '#bdc3c7',
         };
 
          const entityShapes = {
@@ -264,23 +280,24 @@
             LEGAL_PROCEDURE: 'hexagon',
             LEGAL_CONCEPT: 'dot',
             JURISDICTION: 'square',
+            TEXT_CHUNK: 'box',
             DEFAULT: 'ellipse'
          };
 
         function normalizeTypeKey(typeStr) {
             if (!typeStr) return 'DEFAULT';
             const upper = String(typeStr).toUpperCase();
-            // Map stored lowercase values to visual keys
             const map = {
                 'TENANT_ISSUE': 'TENANT_ISSUE', 'tenant_issue': 'TENANT_ISSUE',
-                'LAW': 'STATUTE', 'law': 'STATUTE', // visualize laws as STATUTE style
+                'LAW': 'STATUTE', 'law': 'STATUTE',
                 'REGULATION': 'REGULATION', 'regulation': 'REGULATION',
                 'COURT_CASE': 'CASE', 'court_case': 'CASE',
                 'REMEDY': 'REMEDY', 'remedy': 'REMEDY',
                 'EVIDENCE': 'EVIDENCE_TYPE', 'evidence': 'EVIDENCE_TYPE',
                 'LEGAL_PROCEDURE': 'LEGAL_PROCEDURE', 'legal_procedure': 'LEGAL_PROCEDURE',
                 'LEGAL_CONCEPT': 'LEGAL_CONCEPT', 'legal_concept': 'LEGAL_CONCEPT',
-                'JURISDICTION': 'JURISDICTION', 'jurisdiction': 'JURISDICTION'
+                'JURISDICTION': 'JURISDICTION', 'jurisdiction': 'JURISDICTION',
+                'TEXT_CHUNK': 'TEXT_CHUNK', 'text_chunk': 'TEXT_CHUNK'
             };
             return map[typeStr] || map[upper] || 'DEFAULT';
         }
@@ -288,27 +305,32 @@
         // --- Vis.js Network Initialization ---
         async function initializeGraph() {
             try {
-                console.log("Fetching graph data...");
-                
-                const graphResponse = await fetch('/api/kg/graph-data');
+                console.log("Fetching graph data (first page)...");
+                nextCursor = null;
+                const params = new URLSearchParams();
+                params.set('limit', '200');
+                if (activeFilters.q) params.set('q', activeFilters.q);
+                if (activeFilters.types) params.set('types', activeFilters.types);
+                if (activeFilters.jurisdiction) params.set('jurisdiction', activeFilters.jurisdiction);
+                const graphResponse = await fetch(`/api/kg/graph-data?${params.toString()}`);
                 
                 if (!graphResponse.ok) {
                     throw new Error(`Graph data HTTP error! Status: ${graphResponse.status}`);
                 }
                 
                 const rawData = await graphResponse.json();
+                nextCursor = rawData.next_cursor ?? null;
                 
                 console.log(`Received ${rawData.nodes?.length} nodes, ${rawData.links?.length} links.`);
 
                 // Process entity nodes for vis-network
                 const entityNodes = rawData.nodes.map(node => ({
-                    id: node.id, // ID used by vis
-                    label: node.name || node.id, // Display name or ID
+                    id: node.id,
+                    label: node.label || node.name || node.id,
                     title: `Type: ${node.type}<br>ID: ${node.id}`,
                     shape: entityShapes[normalizeTypeKey(node.type)] || entityShapes.DEFAULT,
                     color: entityColors[normalizeTypeKey(node.type)] || entityColors.DEFAULT,
-                    size: 20, // Standard size for entities
-                    // Store all original data for details panel
+                    size: normalizeTypeKey(node.type) === 'TEXT_CHUNK' ? 12 : 20,
                     originalData: node
                 }));
 
@@ -317,15 +339,16 @@
 
                 // Process entity relationships
                 const entityEdges = rawData.links.map((link, index) => ({
-                    id: `edge_${index}`, // Create a unique edge ID
-                    from: link.source, // Use source ID
-                    to: link.target,   // Use target ID
-                    label: link.label || '', // Display relationship type
-                    title: `Type: ${link.label}<br>Conditions: ${link.conditions || 'N/A'}`, // Tooltip
+                    id: `edge_${index}`,
+                    from: link.source,
+                    to: link.target,
+                    label: link.label || '',
+                    title: `Type: ${link.label}<br>Conditions: ${link.conditions || 'N/A'}`,
                     arrows: 'to',
                     font: { align: 'top' },
-                    color: '#848484',
-                    width: 1,
+                    color: (link.label === 'MENTIONS') ? '#7f8c8d' : '#848484',
+                    dashes: (link.label === 'MENTIONS'),
+                    width: (link.label === 'MENTIONS') ? 1 : 1,
                     originalData: link
                 }));
 
@@ -399,7 +422,56 @@
 
             } catch (error) {
                 console.error("Error initializing graph:", error);
+                try { console.error("Graph data raw error:", error?.stack || error); } catch(e) {}
                 graphContainer.innerHTML = `<p style="color:red; padding: 20px;">Failed to load graph data: ${error.message}</p>`;
+            }
+        }
+
+        async function loadMore() {
+            try {
+                if (nextCursor == null) return;
+                const params = new URLSearchParams();
+                params.set('limit', '200');
+                params.set('cursor', String(nextCursor));
+                if (activeFilters.q) params.set('q', activeFilters.q);
+                if (activeFilters.types) params.set('types', activeFilters.types);
+                if (activeFilters.jurisdiction) params.set('jurisdiction', activeFilters.jurisdiction);
+                const resp = await fetch(`/api/kg/graph-data?${params.toString()}`);
+                const page = await resp.json();
+                if (!resp.ok) throw new Error(page && page.detail ? page.detail : 'Load more failed');
+                nextCursor = page.next_cursor ?? null;
+
+                const newNodes = page.nodes.map(node => ({
+                    id: node.id,
+                    label: node.label || node.name || node.id,
+                    title: `Type: ${node.type}<br>ID: ${node.id}`,
+                    shape: entityShapes[normalizeTypeKey(node.type)] || entityShapes.DEFAULT,
+                    color: entityColors[normalizeTypeKey(node.type)] || entityColors.DEFAULT,
+                    size: normalizeTypeKey(node.type) === 'TEXT_CHUNK' ? 12 : 20,
+                    originalData: node
+                }));
+                const newEdges = page.links.map((link, index) => ({
+                    id: `edge_more_${Date.now()}_${index}`,
+                    from: link.source,
+                    to: link.target,
+                    label: link.label || '',
+                    title: `Type: ${link.label}<br>Conditions: ${link.conditions || 'N/A'}`,
+                    arrows: 'to',
+                    font: { align: 'top' },
+                    color: (link.label === 'MENTIONS') ? '#7f8c8d' : '#848484',
+                    dashes: (link.label === 'MENTIONS'),
+                    width: (link.label === 'MENTIONS') ? 1 : 1,
+                    originalData: link
+                }));
+
+                // Insert into datasets while avoiding duplicate nodes
+                const existingIds = new Set(nodesDs.getIds());
+                const nodesToAdd = newNodes.filter(n => !existingIds.has(n.id));
+                if (nodesToAdd.length) nodesDs.add(nodesToAdd);
+                if (newEdges.length) edgesDs.add(newEdges);
+            } catch (err) {
+                console.error('Load more error:', err);
+                alert(`Error: ${err.message || err}`);
             }
         }
 
@@ -438,6 +510,17 @@
             let detailsHtml = `<h3>Entity Details: ${escapeHtml(data.label || data.id)}</h3>`;
             detailsHtml += `<p><strong>ID:</strong> <code>${escapeHtml(data.id)}</code></p>`;
             detailsHtml += `<p><strong>Type:</strong> ${escapeHtml(data.type)}</p>`;
+            if (normalizeTypeKey(data.type) === 'TEXT_CHUNK') {
+                const src = (data.source_metadata && data.source_metadata.source) ? String(data.source_metadata.source) : '';
+                const link = (src.startsWith('http://') || src.startsWith('https://')) ? `<a href="${escapeHtml(src)}" target="_blank">${escapeHtml(src)}</a>` : escapeHtml(src);
+                const text = (data.attributes && data.attributes.text) ? String(data.attributes.text) : '';
+                const snippet = text.length > 800 ? (text.slice(0, 800) + '…') : text;
+                detailsHtml += `<p><strong>Source:</strong> ${link}</p>`;
+                detailsHtml += `<p><strong>Chunk Index:</strong> ${escapeHtml(String(data.attributes && data.attributes.chunk_index || '0'))}</p>`;
+                detailsHtml += `<div style="margin-top:8px; padding:8px; background:#fff; border:1px solid #ddd; border-radius:6px; max-height:220px; overflow:auto;"><strong>Text:</strong><br><span style="white-space:pre-wrap;">${escapeHtml(snippet)}</span></div>`;
+                detailsPanel.innerHTML = detailsHtml;
+                return;
+            }
             if (data.description) {
                 detailsHtml += `<p><strong>Description:</strong> ${escapeHtml(data.description)}</p>`;
             }
@@ -497,6 +580,8 @@
             const count = selectedNodeIds.size;
             deleteSelectedBtn.disabled = count === 0;
             deleteNodeBtn.disabled = count !== 1;
+            expandBtn.disabled = count === 0;
+            consolidateBtn.disabled = count < 2;
         }
 
         deleteNodeBtn.addEventListener('click', async () => {
@@ -510,6 +595,45 @@
             if (ids.length === 0) return;
             await deleteNodes(ids);
         });
+
+        expandBtn.addEventListener('click', async () => {
+            const ids = Array.from(selectedNodeIds);
+            if (ids.length === 0) return;
+            await expandNeighbors(ids);
+        });
+
+        consolidateBtn.addEventListener('click', async () => {
+            const ids = Array.from(selectedNodeIds);
+            if (ids.length < 2) return;
+            await consolidateNodes(ids);
+        });
+
+        consolidateAllBtn.addEventListener('click', async () => {
+            try {
+                if (!confirm('Consolidate the entire graph (strict match)? This may merge close duplicates.')) return;
+                const resp = await fetch('/api/kg/consolidate-all', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ threshold: 0.97 })
+                });
+                const data = await resp.json();
+                if (!resp.ok) throw new Error(data && data.detail ? data.detail : 'Consolidate-all failed');
+                alert('Consolidate-all completed');
+                initializeGraph();
+            } catch (err) {
+                console.error('Consolidate-all error:', err);
+                alert(`Error: ${err.message || err}`);
+            }
+        });
+
+        // Filters & Load More
+        document.getElementById('apply-filters-btn').addEventListener('click', async () => {
+            activeFilters.q = (document.getElementById('filter-q').value || '').trim() || null;
+            activeFilters.types = (document.getElementById('filter-types').value || '').trim() || null;
+            activeFilters.jurisdiction = (document.getElementById('filter-jurisdiction').value || '').trim() || null;
+            await initializeGraph();
+        });
+        document.getElementById('load-more-btn').addEventListener('click', loadMore);
 
         async function deleteNodes(nodeIds) {
             try {
@@ -566,6 +690,41 @@
             }
         }
 
+        async function expandNeighbors(nodeIds) {
+            try {
+                const resp = await fetch('/api/kg/expand', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ node_ids: nodeIds })
+                });
+                const data = await resp.json();
+                if (!resp.ok) throw new Error(data && data.detail ? data.detail : 'Expand failed');
+                alert(`Expanded: ${data.expanded || 0} (examined ${data.examined || 0})`);
+                // Reload the graph to reflect expanded nodes/edges
+                initializeGraph();
+            } catch (err) {
+                console.error('Expand error:', err);
+                alert(`Error: ${err.message || err}`);
+            }
+        }
+
+        async function consolidateNodes(nodeIds) {
+            try {
+                const resp = await fetch('/api/kg/consolidate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ node_ids: nodeIds, threshold: 0.95 })
+                });
+                const data = await resp.json();
+                if (!resp.ok) throw new Error(data && data.detail ? data.detail : 'Consolidate failed');
+                alert(`Consolidated: ${data.merged || 0} (examined ${data.examined || 0})`);
+                // Reload the graph to reflect merged nodes/edges
+                initializeGraph();
+            } catch (err) {
+                console.error('Consolidate error:', err);
+                alert(`Error: ${err.message || err}`);
+            }
+        }
 
         // --- Chat Functionality (Placeholder) ---
         sendBtn.addEventListener('click', handleChatSend);
@@ -586,4 +745,66 @@
 
             try {
                 // --- Make the actual API call --- 
-                console.log(`
+                console.log(`Sending message: ${message}, Context ID: ${selectedNodeId || selectedEdgeId}`);
+                const apiResponse = await fetch('/api/kg/chat', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({ 
+                        message: message, 
+                        context_id: selectedNodeId || null
+                    })
+                });
+                let result = {};
+                try { result = await apiResponse.json(); } catch (e) { result = {}; }
+                if (!apiResponse.ok) { 
+                    const errorDetail = result.detail || `Chat API Error: ${apiResponse.status}`;
+                    throw new Error(errorDetail);
+                }
+                const botResponse = result.response || "Sorry, I received an empty response.";
+                removeLoadingMessage();
+                appendChatMessage(botResponse, 'bot');
+            } catch (error) {
+                console.error("Chat API error:", error);
+                removeLoadingMessage();
+                appendChatMessage(`Error: ${error.message}`, 'bot', false, true);
+            }
+        }
+
+        function appendChatMessage(text, sender, isLoading = false, isError = false) {
+            const messageDiv = document.createElement('div');
+            messageDiv.classList.add('chat-message');
+            messageDiv.classList.add(sender === 'user' ? 'user-message' : 'bot-message');
+            if (isLoading) messageDiv.classList.add('loading-message');
+            if (isError) messageDiv.style.backgroundColor = '#fdedec';
+            messageDiv.textContent = text;
+            chatLog.appendChild(messageDiv);
+            chatLog.scrollTop = chatLog.scrollHeight;
+        }
+
+        function removeLoadingMessage() {
+            const loadingMsg = chatLog.querySelector('.loading-message');
+            if (loadingMsg) {
+                loadingMsg.remove();
+            }
+        }
+
+        // --- Utility: HTML Escaping ---
+        function escapeHtml(unsafe) {
+            if (typeof unsafe !== 'string') return unsafe;
+            return unsafe
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        // --- Initial Load ---
+        document.addEventListener('DOMContentLoaded', initializeGraph);
+
+    </script>
+</body>
+</html>

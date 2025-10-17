@@ -19,8 +19,8 @@ tenant_legal_guidance/
 ├── tenant_legal_guidance/          # Main package directory
 │   ├── __init__.py                # Package initialization
 │   ├── main.py                    # Core functionality
-│   ├── app.py                     # FastAPI application
-│   └── arango_graph.py            # ArangoDB graph implementation
+│   ├── api/app.py                # FastAPI application (lifespan, DI)
+│   └── graph/arango_graph.py     # ArangoDB graph implementation
 ├── tests/                         # Test directory
 │   ├── test_scraping.py           # Scraping tests
 │   ├── test_arango_integration.py # ArangoDB integration tests
@@ -65,12 +65,12 @@ cp .env.example .env
 
 ## Configuration
 
-Create a `.env` file with the following variables:
+Create a `.env` file with the following variables (see `tenant_legal_guidance/config.py` for defaults):
 
 ```env
 DEEPSEEK_API_KEY=your_api_key_here
 ARANGO_HOST=http://localhost:8529
-ARANGO_DB=tenant_legal
+ARANGO_DB_NAME=tenant_legal_kg
 ARANGO_USERNAME=root
 ARANGO_PASSWORD=your_password_here
 ```
@@ -80,7 +80,7 @@ ARANGO_PASSWORD=your_password_here
 ### Running the API Server
 
 ```bash
-uv run uvicorn tenant_legal_guidance.app:app --reload
+uv run uvicorn tenant_legal_guidance.api.app:app --reload
 ```
 
 The API will be available at `http://localhost:8000`
@@ -89,6 +89,23 @@ The API will be available at `http://localhost:8000`
 
 - Swagger UI: `http://localhost:8000/docs`
 - ReDoc: `http://localhost:8000/redoc`
+
+### Testing dependency injection
+
+You can inject a fake system into `app.state` in tests to avoid heavy clients:
+
+```python
+from fastapi.testclient import TestClient
+from tenant_legal_guidance.api.app import app
+
+class FakeSystem:
+    ...
+
+app.state.system = FakeSystem()
+with TestClient(app) as c:
+    r = c.get("/api/health")
+    assert r.status_code == 200
+```
 
 ### Example API Usage
 

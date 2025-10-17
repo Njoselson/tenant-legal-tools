@@ -266,6 +266,66 @@
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
+        /* Citation badges and sources styling */
+        .markdown-content sup.cite {
+            background: #eef6ff;
+            color: #0b69c7;
+            border: 1px solid #cfe5ff;
+            border-radius: 6px;
+            padding: 1px 5px;
+            margin-left: 4px;
+            cursor: pointer;
+            font-weight: 600;
+            user-select: none;
+        }
+        .markdown-content sup.cite:hover {
+            background: #dff0ff;
+        }
+        .cite-tooltip {
+            position: fixed;
+            z-index: 1000;
+            max-width: 360px;
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+            border-radius: 8px;
+            padding: 10px 12px;
+        }
+        .cite-tooltip h4 {
+            margin: 0 0 6px 0;
+            font-size: 13px;
+        }
+        .cite-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+        }
+        .cite-actions a, .cite-actions button {
+            font-size: 12px;
+            padding: 4px 8px;
+            border-radius: 6px;
+            border: 1px solid #d1d5db;
+            background: #f9fafb;
+            cursor: pointer;
+        }
+        .authority-badge {
+            display: inline-block;
+            font-size: 11px;
+            padding: 2px 6px;
+            border-radius: 9999px;
+            border: 1px solid #e5e7eb;
+            background: #f3f4f6;
+            color: #374151;
+            margin-left: 6px;
+            vertical-align: middle;
+        }
+        .authority-binding_legal_authority { background: #eefbf2; color: #065f46; border-color: #bbf7d0; }
+        .authority-persuasive_authority { background: #eefbf2; color: #065f46; border-color: #bbf7d0; }
+        .authority-official_interpretive { background: #f0f9ff; color: #075985; border-color: #bae6fd; }
+        .authority-reputable_secondary { background: #fef3c7; color: #92400e; border-color: #fde68a; }
+        .authority-practical_self_help { background: #fef3c7; color: #92400e; border-color: #fde68a; }
+        .authority-informational_only { background: #f3f4f6; color: #374151; border-color: #e5e7eb; }
+        .sources-list li.highlight { background: #fffbeb; transition: background 0.5s ease; }
         
         .section {
             margin-bottom: 30px;
@@ -503,6 +563,217 @@
                 height: 300px;
             }
         }
+        
+        /* Proof Chains Styles */
+        .overall-strength {
+            margin-bottom: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        
+        .overall-strength.strong {
+            background: #d4edda;
+            color: #155724;
+            border: 2px solid #28a745;
+        }
+        
+        .overall-strength.moderate {
+            background: #fff3cd;
+            color: #856404;
+            border: 2px solid #ffc107;
+        }
+        
+        .overall-strength.weak {
+            background: #f8d7da;
+            color: #721c24;
+            border: 2px solid #dc3545;
+        }
+        
+        .proof-chain {
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            background: #f8f9fa;
+        }
+        
+        .proof-chain-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .proof-chain-issue {
+            font-size: 20px;
+            font-weight: bold;
+            color: #2c3e50;
+            text-transform: capitalize;
+        }
+        
+        .strength-badge {
+            padding: 5px 12px;
+            border-radius: 5px;
+            font-size: 14px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        
+        .strength-badge.strong {
+            background: #28a745;
+            color: white;
+        }
+        
+        .strength-badge.moderate {
+            background: #ffc107;
+            color: #000;
+        }
+        
+        .strength-badge.weak {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .proof-section {
+            margin-bottom: 15px;
+        }
+        
+        .proof-section-title {
+            font-weight: bold;
+            color: #495057;
+            margin-bottom: 8px;
+        }
+        
+        .evidence-list {
+            list-style: none;
+            padding-left: 0;
+        }
+        
+        .evidence-list li {
+            padding: 8px;
+            margin-bottom: 5px;
+            border-left: 3px solid #28a745;
+            padding-left: 12px;
+            background: white;
+        }
+        
+        .evidence-list.needed li {
+            border-left-color: #dc3545;
+        }
+        
+        .remedy-card {
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            padding: 15px;
+            margin-bottom: 10px;
+            background: white;
+        }
+        
+        .remedy-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .remedy-name {
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        
+        .probability-badge {
+            background: #007bff;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        .probability-bar {
+            height: 8px;
+            background: #e9ecef;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 10px;
+        }
+        
+        .probability-fill {
+            height: 100%;
+            transition: width 0.3s ease;
+        }
+        
+        .probability-fill.high {
+            background: linear-gradient(to right, #28a745, #20c997);
+        }
+        
+        .probability-fill.medium {
+            background: linear-gradient(to right, #ffc107, #ff9800);
+        }
+        
+        .probability-fill.low {
+            background: linear-gradient(to right, #dc3545, #ff6b6b);
+        }
+        
+        /* Priority Actions Styles */
+        .priority-action {
+            border-left: 4px solid;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+            background: white;
+        }
+        
+        .priority-action.critical {
+            border-left-color: #dc3545;
+            background: #fff5f5;
+        }
+        
+        .priority-action.high {
+            border-left-color: #ff6b6b;
+            background: #fff8f8;
+        }
+        
+        .priority-action.medium {
+            border-left-color: #ffc107;
+            background: #fffbf0;
+        }
+        
+        .priority-action.low {
+            border-left-color: #6c757d;
+            background: #f8f9fa;
+        }
+        
+        .priority-label {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-right: 10px;
+            text-transform: uppercase;
+        }
+        
+        .priority-label.critical {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .priority-label.high {
+            background: #ff6b6b;
+            color: white;
+        }
+        
+        .priority-label.medium {
+            background: #ffc107;
+            color: #000;
+        }
+        
+        .priority-label.low {
+            background: #6c757d;
+            color: white;
+        }
     </style>
 </head>
 <body>
@@ -582,6 +853,19 @@
                         <h3>📋 Case Summary</h3>
                         <div id="caseSummary" class="markdown-content"></div>
                     </div>
+                    
+                    <!-- Enhanced Analysis: Proof Chains (shown when available) -->
+                    <div id="proofChainsSection" class="section" style="display: none;">
+                        <h3>🔗 Legal Proof Chains</h3>
+                        <div id="overallStrength" class="overall-strength"></div>
+                        <div id="proofChains" class="proof-chains-container"></div>
+                    </div>
+                    
+                    <!-- Priority Actions (shown when available) -->
+                    <div id="priorityActionsSection" class="section" style="display: none;">
+                        <h3>🎯 Priority Actions</h3>
+                        <div id="priorityActions" class="priority-actions-container"></div>
+                    </div>
 
                     <div class="section">
                         <h3>⚖️ Legal Issues</h3>
@@ -616,6 +900,11 @@
                     <div class="section">
                         <h3>🚀 Next Steps</h3>
                         <div id="nextSteps" class="markdown-content"></div>
+                    </div>
+
+                    <div class="section">
+                        <h3>🔗 Sources</h3>
+                        <div id="sourcesPanel" class="markdown-content"></div>
                     </div>
                 </div>
             </div>
@@ -759,17 +1048,22 @@
             try {
                 const body = { case_text: caseText };
                 if (exampleId) body.example_id = exampleId;
+                body.force_refresh = !!forceRefresh;
                 
                 console.log('Sending request to API...', body);
                 debugLog('Sending API request...');
                 document.getElementById('debugApiCall').textContent = 'in progress';
                 
-                const response = await fetch('/api/analyze-case', {
+                // Use enhanced endpoint for better analysis with proof chains
+                const response = await fetch('/api/analyze-case-enhanced', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify(body)
+                    body: JSON.stringify({
+                        ...body,
+                        jurisdiction: 'NYC'  // Default to NYC for now
+                    })
                 });
 
                 console.log('API response status:', response.status);
@@ -894,17 +1188,167 @@
             });
         }
 
+        function displayProofChains(data) {
+            const section = document.getElementById('proofChainsSection');
+            const strengthDiv = document.getElementById('overallStrength');
+            const chainsDiv = document.getElementById('proofChains');
+            
+            if (!section || !strengthDiv || !chainsDiv) return;
+            
+            // Show section
+            section.style.display = 'block';
+            
+            // Display overall strength
+            const strength = data.overall_strength || 'Unknown';
+            strengthDiv.className = `overall-strength ${strength.toLowerCase()}`;
+            strengthDiv.textContent = `Overall Case Strength: ${strength}`;
+            
+            // Render each proof chain
+            let html = '';
+            data.proof_chains.forEach((chain, idx) => {
+                const issue = chain.issue.replace(/_/g, ' ');
+                html += `
+                    <div class="proof-chain">
+                        <div class="proof-chain-header">
+                            <span class="proof-chain-issue">${escapeHtml(issue)}</span>
+                            <span class="strength-badge ${chain.strength_assessment || 'weak'}">
+                                ${chain.strength_assessment || 'weak'} (${Math.round((chain.strength_score || 0) * 100)}%)
+                            </span>
+                        </div>
+                        
+                        ${chain.applicable_laws && chain.applicable_laws.length > 0 ? `
+                            <div class="proof-section">
+                                <div class="proof-section-title">📜 Applicable Laws:</div>
+                                <ul>
+                                    ${chain.applicable_laws.map(law => 
+                                        `<li><strong>${escapeHtml(law.name || '')}</strong>: ${escapeHtml(law.key_provision || '')} <sup class="cite">${law.citation || ''}</sup></li>`
+                                    ).join('')}
+                                </ul>
+                            </div>
+                        ` : ''}
+                        
+                        ${chain.evidence_present && chain.evidence_present.length > 0 ? `
+                            <div class="proof-section">
+                                <div class="proof-section-title">✅ Evidence Present:</div>
+                                <ul class="evidence-list">
+                                    ${chain.evidence_present.map(e => `<li>${escapeHtml(e)}</li>`).join('')}
+                                </ul>
+                            </div>
+                        ` : ''}
+                        
+                        ${chain.evidence_needed && chain.evidence_needed.length > 0 && chain.evidence_needed[0] !== 'Not found in sources' ? `
+                            <div class="proof-section">
+                                <div class="proof-section-title">❌ Evidence Needed:</div>
+                                <ul class="evidence-list needed">
+                                    ${chain.evidence_needed.map(e => `<li>${escapeHtml(e)}</li>`).join('')}
+                                </ul>
+                            </div>
+                        ` : ''}
+                        
+                        ${chain.remedies && chain.remedies.length > 0 ? `
+                            <div class="proof-section">
+                                <div class="proof-section-title">⚖️ Available Remedies:</div>
+                                ${chain.remedies.slice(0, 3).map(remedy => {
+                                    const prob = remedy.estimated_probability || 0;
+                                    const probClass = prob > 0.7 ? 'high' : prob > 0.4 ? 'medium' : 'low';
+                                    return `
+                                        <div class="remedy-card">
+                                            <div class="remedy-header">
+                                                <span class="remedy-name">${escapeHtml(remedy.name)}</span>
+                                                <span class="probability-badge">${Math.round(prob * 100)}% success rate</span>
+                                            </div>
+                                            <div class="probability-bar">
+                                                <div class="probability-fill ${probClass}" style="width: ${prob * 100}%"></div>
+                                            </div>
+                                            <div style="font-size: 14px; color: #666;">
+                                                ${escapeHtml(remedy.potential_outcome || '')}
+                                            </div>
+                                        </div>
+                                    `;
+                                }).join('')}
+                            </div>
+                        ` : ''}
+                        
+                        ${chain.reasoning ? `
+                            <div class="proof-section" style="font-size: 14px; color: #666; font-style: italic;">
+                                <strong>Analysis:</strong> ${escapeHtml(chain.reasoning)}
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            });
+            
+            chainsDiv.innerHTML = html;
+        }
+        
+        function displayPriorityActions(actions) {
+            const section = document.getElementById('priorityActionsSection');
+            const actionsDiv = document.getElementById('priorityActions');
+            
+            if (!section || !actionsDiv) return;
+            
+            // Show section
+            section.style.display = 'block';
+            
+            // Render actions
+            let html = '';
+            actions.forEach(action => {
+                const priority = action.priority || 'low';
+                html += `
+                    <div class="priority-action ${priority}">
+                        <div>
+                            <span class="priority-label ${priority}">${priority}</span>
+                            <strong>${escapeHtml(action.action || '')}</strong>
+                        </div>
+                        ${action.why ? `<div style="margin-top: 8px; font-size: 14px; color: #666;">
+                            <strong>Why:</strong> ${escapeHtml(action.why)}
+                        </div>` : ''}
+                        ${action.how ? `<div style="margin-top: 5px; font-size: 14px; color: #666;">
+                            <strong>How:</strong> ${escapeHtml(action.how)}
+                        </div>` : ''}
+                        ${action.deadline ? `<div style="margin-top: 5px; font-size: 13px; color: #999;">
+                            <strong>Deadline:</strong> ${escapeHtml(action.deadline)}
+                        </div>` : ''}
+                    </div>
+                `;
+            });
+            
+            actionsDiv.innerHTML = html;
+        }
+        
         function displayResults(data) {
             console.log('Displaying results:', data);
             debugLog('Displaying results...');
             
-            // Display case summary with proper markdown parsing
+            // Display enhanced proof chains if available
+            if (data.proof_chains && data.proof_chains.length > 0) {
+                displayProofChains(data);
+            }
+            
+            // Display priority actions if available
+            if (data.priority_actions && data.priority_actions.length > 0) {
+                displayPriorityActions(data.priority_actions);
+            }
+            
+            // Display case summary with proper markdown parsing (with optional inline citations)
             const caseSummaryDiv = document.getElementById('caseSummary');
             if (!caseSummaryDiv) {
                 console.error('caseSummary element not found');
                 return;
             }
-            if (data.case_summary_html) {
+            const renderCitationsSuperscripts = (text, citationsMap) => {
+                if (!text) return '';
+                // Replace [S#] with clickable superscripts
+                return text.replace(/\[(S\d+)\]/g, (m, id) => {
+                    const exists = citationsMap && citationsMap[id];
+                    return exists ? `<sup class="cite" data-cite="${id}">${id}</sup>` : `<sup>${id}</sup>`;
+                });
+            };
+            if (data.sections && data.sections.case_summary && data.sections.case_summary.length > 0) {
+                const cs = data.sections.case_summary[0];
+                const html = marked.parse(renderCitationsSuperscripts(cs.text || data.case_summary || 'No summary available.', data.citations));
+                caseSummaryDiv.innerHTML = html;
+            } else if (data.case_summary_html) {
                 caseSummaryDiv.innerHTML = data.case_summary_html;
             } else {
                 caseSummaryDiv.innerHTML = marked.parse(data.case_summary || 'No summary available.');
@@ -926,7 +1370,24 @@
                     console.error(`Element with id "${section.elId}" not found`);
                     return;
                 }
-                if (data[section.htmlKey]) {
+                // Prefer structured sections with citations when available
+                if (data.sections && data.sections[section.dataKey] && Array.isArray(data.sections[section.dataKey])) {
+                    const items = data.sections[section.dataKey];
+                    let html = '<ul>';
+                    items.forEach(it => {
+                        const text = typeof it === 'string' ? it : (it.text || '');
+                        const rendered = marked.parse(renderCitationsSuperscripts(text, data.citations));
+                        // Render citation badges
+                        let citesHtml = '';
+                        const cites = (typeof it === 'object' && Array.isArray(it.citations)) ? it.citations : [];
+                        if (cites.length > 0) {
+                            citesHtml = '<span class="citations">' + cites.map(cid => `<sup class="cite" data-cite="${cid}">${cid}</sup>`).join(' ') + '</span>';
+                        }
+                        html += `<li>${rendered} ${citesHtml}</li>`;
+                    });
+                    html += '</ul>';
+                    div.innerHTML = html;
+                } else if (data[section.htmlKey]) {
                     div.innerHTML = data[section.htmlKey];
                 } else if (data[section.dataKey]) {
                     div.innerHTML = renderListItems(data[section.dataKey], section.fallback);
@@ -941,10 +1402,127 @@
                 console.error('riskAssessment element not found');
                 return;
             }
-            if (data.risk_assessment_html) {
+            if (data.sections && data.sections.risk_assessment && data.sections.risk_assessment.length > 0) {
+                const ra = data.sections.risk_assessment[0];
+                const html = marked.parse(renderCitationsSuperscripts(ra.text || data.risk_assessment || 'No risk assessment available.', data.citations));
+                riskAssessmentDiv.innerHTML = html;
+            } else if (data.risk_assessment_html) {
                 riskAssessmentDiv.innerHTML = data.risk_assessment_html;
             } else {
                 riskAssessmentDiv.innerHTML = marked.parse(data.risk_assessment || 'No risk assessment available.');
+            }
+
+            // Build Sources panel if citations present
+            try {
+                const sourcesPanel = document.getElementById('sourcesPanel');
+                if (sourcesPanel && data.citations && Object.keys(data.citations).length > 0) {
+                    const authorityBadge = (auth) => {
+                        if (!auth) return '';
+                        const key = String(auth).toLowerCase();
+                        return `<span class="authority-badge authority-${key}">${auth}</span>`;
+                    };
+                    const domainFromUrl = (u) => {
+                        try { const url = new URL(u); return url.hostname.replace('www.', ''); } catch(e){ return ''; }
+                    };
+                    let shtml = '<h3>Sources</h3><ol class="sources-list">';
+                    Object.keys(data.citations).sort((a,b)=>{
+                        const ai = parseInt(a.replace('S','')) || 0;
+                        const bi = parseInt(b.replace('S','')) || 0;
+                        return ai - bi;
+                    }).forEach(id => {
+                        const c = data.citations[id] || {};
+                        const title = (c.title || c.entity_name || 'Source');
+                        const org = c.organization ? ` — ${c.organization}` : '';
+                        const jur = c.jurisdiction ? ` (${c.jurisdiction})` : '';
+                        const auth = c.authority || '';
+                        const url = c.anchor_url || c.source;
+                        const host = url ? domainFromUrl(url) : '';
+                        const openBtn = url ? `<a href="${url}" target="_blank" rel="noopener">Open ${host ? '('+host+')' : ''}</a>` : '';
+                        const quote = c.quote ? `<blockquote>${escapeHtml(c.quote)}</blockquote>` : '';
+                        shtml += `<li id="${id}">
+                            <div><strong>[${id}] ${escapeHtml(title)}</strong>${escapeHtml(org)}${escapeHtml(jur)} ${authorityBadge(auth)}</div>
+                            <div class="cite-actions">${openBtn}<button data-copy="${id}">Copy snippet</button></div>
+                            ${quote}
+                        </li>`;
+                    });
+                    shtml += '</ol>';
+                    sourcesPanel.innerHTML = shtml;
+                    // Wire copy buttons
+                    sourcesPanel.querySelectorAll('button[data-copy]').forEach(btn => {
+                        btn.addEventListener('click', () => {
+                            const id = btn.getAttribute('data-copy');
+                            const c = data.citations[id];
+                            const text = (c && c.quote) ? c.quote : (c && c.source) ? c.source : id;
+                            try { navigator.clipboard.writeText(text); } catch(e){}
+                        });
+                    });
+                }
+            } catch (e) {
+                console.warn('Failed to render sources panel', e);
+            }
+
+            // Wire up citation click handlers
+            try {
+                const buildTooltipHtml = (c, id) => {
+                    if (!c) return '';
+                    const title = c.title || c.entity_name || id;
+                    const org = c.organization ? ` — ${c.organization}` : '';
+                    const jur = c.jurisdiction ? ` (${c.jurisdiction})` : '';
+                    const auth = c.authority || '';
+                    const url = c.anchor_url || c.source;
+                    const host = url ? (function(u){try{return new URL(u).hostname.replace('www.','');}catch(e){return '';}})(url) : '';
+                    const quote = c.quote ? `<blockquote style="margin:8px 0 0 0;">${escapeHtml(c.quote)}</blockquote>` : '';
+                    const openLink = url ? `<a href="${url}" target="_blank" rel="noopener">Open ${host ? '('+host+')' : ''}</a>` : '';
+                    return `
+                        <h4>${escapeHtml(title)} ${org}${jur} ${auth ? `<span class=\"authority-badge authority-${String(auth).toLowerCase()}\">${escapeHtml(auth)}</span>` : ''}</h4>
+                        ${quote}
+                        <div class=\"cite-actions\">${openLink}<button data-action=\"copy\">Copy snippet</button></div>
+                    `;
+                };
+                let tooltipEl = null;
+                const removeTooltip = () => { if (tooltipEl && tooltipEl.parentNode) { tooltipEl.parentNode.removeChild(tooltipEl); tooltipEl = null; } };
+                document.addEventListener('scroll', removeTooltip, true);
+                document.querySelectorAll('sup.cite').forEach(el => {
+                    el.addEventListener('click', () => {
+                        const id = el.getAttribute('data-cite');
+                        const target = document.getElementById(id);
+                        if (target) {
+                            target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                            target.classList.add('highlight');
+                            setTimeout(()=> target.classList.remove('highlight'), 1500);
+                        }
+                    });
+                    el.addEventListener('mouseenter', () => {
+                        const id = el.getAttribute('data-cite');
+                        const c = data.citations ? data.citations[id] : null;
+                        if (!c) return;
+                        removeTooltip();
+                        tooltipEl = document.createElement('div');
+                        tooltipEl.className = 'cite-tooltip';
+                        tooltipEl.innerHTML = buildTooltipHtml(c, id);
+                        document.body.appendChild(tooltipEl);
+                        const rect = el.getBoundingClientRect();
+                        const top = rect.top + window.scrollY + rect.height + 6;
+                        const left = Math.min(rect.left + window.scrollX, window.scrollX + (window.innerWidth - tooltipEl.offsetWidth - 12));
+                        tooltipEl.style.top = `${top}px`;
+                        tooltipEl.style.left = `${left}px`;
+                        const copyBtn = tooltipEl.querySelector('button[data-action="copy"]');
+                        if (copyBtn) {
+                            copyBtn.addEventListener('click', (e) => {
+                                e.stopPropagation();
+                                const id2 = el.getAttribute('data-cite');
+                                const c2 = data.citations ? data.citations[id2] : null;
+                                const text = c2 && c2.quote ? c2.quote : '';
+                                try { navigator.clipboard.writeText(text); } catch(ex){}
+                            });
+                        }
+                    });
+                    el.addEventListener('mouseleave', () => {
+                        removeTooltip();
+                    });
+                });
+            } catch (e) {
+                console.warn('Failed to attach citation handlers', e);
             }
 
             // Show results

@@ -12,8 +12,12 @@ from datetime import datetime
 from tenant_legal_guidance.models.entities import EntityType, LegalEntity, SourceType, SourceMetadata
 from tenant_legal_guidance.models.relationships import LegalRelationship, RelationshipType
 from tenant_legal_guidance.services.deepseek import DeepSeekClient
+from tenant_legal_guidance.services.entity_consolidation import EntityConsolidationService
+from tenant_legal_guidance.services.embeddings import EmbeddingsService
+from tenant_legal_guidance.services.vector_store import QdrantVectorStore
 from tenant_legal_guidance.graph.arango_graph import ArangoDBGraph
 from tenant_legal_guidance.services.concept_grouping import ConceptGroupingService
+from tenant_legal_guidance.config import get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -24,12 +28,40 @@ class DocumentProcessor:
         self.knowledge_graph = knowledge_graph
         self.logger = logging.getLogger(__name__)
         self.concept_grouping = ConceptGroupingService()
+        self.consolidator = EntityConsolidationService(self.knowledge_graph, self.deepseek)
+        self.settings = get_settings()
+        # Initialize embeddings and vector store (required for chunk storage)
+        self.embeddings_svc = EmbeddingsService()
+        self.vector_store = QdrantVectorStore()
 
     async def ingest_document(self, text: str, metadata: SourceMetadata) -> Dict:
         """Ingest a document and extract entities and relationships."""
         self.logger.info(
             f"Starting document ingestion from {metadata.source_type.name} source: {metadata.source}"
         )
+
+        # Step 0.5: Register source + prepare chunks (now for Qdrant only)
+        chunk_ids: List[str] = []
+        chunk_docs: List[Dict] = []
+        source_id: Optional[str] = None
+        blob_id: Optional[str] = None
+        try:
+            locator = metadata.source or ""
+            kind = (metadata.source_type.name if hasattr(metadata.source_type, "name") else str(metadata.source_type or "URL")) or "URL"
+            reg = self.knowledge_graph.register_source_with_text(
+                locator=locator,
+                kind=kind,
+                full_text=text or "",
+                title=getattr(metadata, "title", None),
+                jurisdiction=getattr(metadata, "jurisdiction", None),
+                chunk_size=3500
+            )
+            source_id = reg.get("source_id")
+            blob_id = reg.get("blob_id")
+            chunk_ids = reg.get("chunk_ids", [])
+            chunk_docs = reg.get("chunk_docs", [])
+        except Exception as e:
+            self.logger.debug(f"register_source_with_text failed: {e}")
 
         # Step 1: Extract entities and relationships using LLM
         entities, relationships = await self._extract_structured_data(text, metadata)
@@ -39,7 +71,7 @@ class DocumentProcessor:
         relationships = self._update_relationship_references(relationships, relationship_map)
 
         # Step 2.5: Semantic merge with existing KG (token/Jaccard similarity on name/description)
-        external_merge_map = self._semantic_merge_entities(entities)
+        external_merge_map = await self._semantic_merge_entities(entities)
         if external_merge_map:
             relationships = self._update_relationship_references(relationships, external_merge_map)
 
@@ -53,24 +85,35 @@ class DocumentProcessor:
                     entity = type(entity)(**{**entity.dict(), "id": target_id})
                 except Exception:
                     pass
-            # Build a simple provenance entry with a snippet from the original text if available
-            snippet = None
+            # Build a provenance entry with a sentence-level quote from the source if available
+            quote_text, quote_offset = self._extract_best_quote(text or "", entity)
+            # Attach normalized provenance with hashed quote
+            attached = False
             try:
-                if entity.name and text:
-                    idx = text.lower().find(entity.name.lower())
-                    if idx != -1:
-                        start = max(0, idx - 120)
-                        end = min(len(text), idx + len(entity.name) + 120)
-                        snippet = text[start:end]
-            except Exception:
-                pass
-            prov = {
-                "quote": snippet or None,
-                "offset": idx if 'idx' in locals() and idx >= 0 else None,
-                "source": entity.source_metadata.dict() if hasattr(entity.source_metadata, 'dict') else entity.source_metadata,
-            }
-            if self.knowledge_graph.upsert_entity_provenance(entity, prov):
+                quote_id = None
+                if source_id is not None and quote_offset is not None and isinstance(quote_offset, int):
+                    # Map to a chunk heuristically using chunk offsets if available
+                    chunk_entity_id = None
+                    try:
+                        if chunk_ids:
+                            total_len = len(text or "") or 1
+                            per_chunk = max(1, total_len // max(1, len(chunk_ids)))
+                            idx = min(len(chunk_ids) - 1, max(0, (quote_offset // per_chunk)))
+                            chunk_entity_id = chunk_ids[idx]
+                    except Exception:
+                        chunk_entity_id = None
+                    quote_id = self.knowledge_graph.upsert_quote(source_id=source_id, start_offset=int(quote_offset), end_offset=int(quote_offset + len(quote_text or "")), quote_text=quote_text or "", chunk_entity_id=chunk_entity_id)
+                # Ensure entity stored, then attach provenance row
+                if self.knowledge_graph.add_entity(entity, overwrite=False) or True:
+                    attached = self.knowledge_graph.attach_provenance(subject_type="ENTITY", subject_id=entity.id, source_id=source_id or (entity.source_metadata.source if hasattr(entity.source_metadata, 'source') else (metadata.source or "")), quote_id=quote_id, citation=None)
+            except Exception as e:
+                self.logger.debug(f"attach_provenance failed: {e}")
+                attached = False
+
+            if attached:
                 added_entities.append(entity)
+                # Entity-chunk linkage now happens via Qdrant payload (entities list)
+                # and provenance/quotes in Arango
 
         # Step 4: Add relationships to graph
         added_relationships = []
@@ -86,15 +129,122 @@ class DocumentProcessor:
             # Group the newly added entities with similar existing ones
             concept_groups = self.concept_grouping.group_similar_concepts(all_entities)
 
+        # Step 6: Embed and persist chunks to Qdrant
+        chunk_count = 0
+        if chunk_docs and chunk_ids:
+            try:
+                self.logger.info(f"Embedding and persisting {len(chunk_docs)} chunks to Qdrant")
+                # Extract chunk texts
+                chunk_texts = [ch.get("text", "") for ch in chunk_docs]
+                
+                # Step 6.1: Enrich chunk metadata (optional, can fail gracefully)
+                enriched_metadata = []
+                try:
+                    self.logger.info("Enriching chunk metadata with LLM")
+                    enriched_metadata = await self._enrich_chunks_metadata_batch(
+                        chunk_texts, 
+                        getattr(metadata, "title", None) or locator,
+                        entity_ids=[e.id for e in added_entities]
+                    )
+                    self.logger.info(f"Enriched {len(enriched_metadata)} chunks")
+                except Exception as e:
+                    self.logger.warning(f"Chunk enrichment failed, continuing with basic metadata: {e}")
+                    enriched_metadata = [{"description": "", "proves": "", "references": ""} for _ in chunk_texts]
+                
+                # Compute embeddings
+                embeddings = self.embeddings_svc.embed(chunk_texts)
+                # Build payloads with entity refs
+                entity_ids = [e.id for e in added_entities]
+                payloads = []
+                for i, ch in enumerate(chunk_docs):
+                    enrichment = enriched_metadata[i] if i < len(enriched_metadata) else {}
+                    payloads.append({
+                        "chunk_id": chunk_ids[i],
+                        "source": locator,
+                        "source_type": kind,
+                        "doc_title": getattr(metadata, "title", None) or "",
+                        "jurisdiction": getattr(metadata, "jurisdiction", None) or "",
+                        "tags": [],  # Extract from metadata if available
+                        "entities": entity_ids,  # All entities from this doc
+                        "super_chunk_id": None,  # TODO: link super-chunks if needed
+                        "description": enrichment.get("description", ""),
+                        "proves": enrichment.get("proves", ""),
+                        "references": enrichment.get("references", ""),
+                        "text": ch.get("text", ""),
+                        "chunk_index": ch.get("chunk_index", i),
+                        "token_count": ch.get("token_count", 0),
+                    })
+                # Upsert to Qdrant
+                self.vector_store.upsert_chunks(chunk_ids, embeddings, payloads)
+                chunk_count = len(chunk_ids)
+                self.logger.info(f"Successfully persisted {chunk_count} chunks to Qdrant")
+            except Exception as e:
+                self.logger.error(f"Failed to persist chunks to Qdrant: {e}", exc_info=True)
+
         return {
             "status": "success",
             "added_entities": len(added_entities),
             "added_relationships": len(added_relationships),
+            "chunk_count": chunk_count,
             "entities": added_entities,
             "relationships": added_relationships,
             "concept_groups": concept_groups,
         }
 
+    async def _enrich_chunks_metadata_batch(self, chunk_texts: List[str], doc_title: str, 
+                                            entity_ids: List[str], batch_size: int = 5) -> List[Dict[str, str]]:
+        """Enrich chunks with LLM-generated metadata in batches."""
+        enriched = []
+        
+        # Process in batches to avoid overwhelming the LLM
+        for batch_start in range(0, len(chunk_texts), batch_size):
+            batch_end = min(batch_start + batch_size, len(chunk_texts))
+            batch = chunk_texts[batch_start:batch_end]
+            
+            # Build prompt for batch
+            chunks_text = ""
+            for idx, chunk_text in enumerate(batch):
+                chunks_text += f"\n--- Chunk {batch_start + idx + 1} ---\n{chunk_text[:600]}...\n"
+            
+            prompt = f"""Analyze these legal text chunks from "{doc_title}" and provide metadata for each.
+
+{chunks_text}
+
+For EACH chunk, provide:
+1. description: 1-sentence summary of what this chunk covers
+2. proves: What legal facts/claims this chunk establishes (or "N/A" if none)
+3. references: What laws/cases/entities it cites (or "N/A" if none)
+
+Return ONLY valid JSON array (no markdown):
+[
+  {{"description": "...", "proves": "...", "references": "..."}},
+  {{"description": "...", "proves": "...", "references": "..."}}
+]
+
+Ensure array has exactly {len(batch)} objects."""
+            
+            try:
+                response = await self.deepseek.chat_completion(prompt)
+                # Extract JSON array
+                json_match = re.search(r'\[[\s\S]*\]', response)
+                if json_match:
+                    batch_enriched = json.loads(json_match.group(0))
+                    if isinstance(batch_enriched, list) and len(batch_enriched) == len(batch):
+                        enriched.extend(batch_enriched)
+                    else:
+                        # Fallback for batch
+                        self.logger.warning(f"Batch enrichment returned wrong length, using defaults")
+                        enriched.extend([{"description": "", "proves": "", "references": ""} for _ in batch])
+                else:
+                    # Fallback for batch
+                    enriched.extend([{"description": "", "proves": "", "references": ""} for _ in batch])
+            except Exception as e:
+                self.logger.warning(f"Batch enrichment failed: {e}")
+                # Fallback for batch
+                enriched.extend([{"description": "", "proves": "", "references": ""} for _ in batch])
+        
+        return enriched
+    
     async def _process_chunk(self, chunk: str, chunk_num: int, total_chunks: int, metadata: SourceMetadata) -> Tuple[List[LegalEntity], List[Dict]]:
         """Process a single chunk of text."""
         self.logger.info(f"Processing chunk {chunk_num}/{total_chunks}")
@@ -319,10 +469,30 @@ class DocumentProcessor:
                         target_entity = self.knowledge_graph.find_entity_by_name(target_name)
                     
                     if not source_entity or not target_entity:
-                        self.logger.warning(
-                            f"Cannot add relationship: Source entity {source_name} or target entity {target_name} not found"
-                        )
-                        continue
+                        # Fuzzy fallback: try text search by name within same type constraints when possible
+                        try:
+                            src_guess = source_entity
+                            tgt_guess = target_entity
+                            if not src_guess:
+                                # Search broadly; let KG pick best matches
+                                candidates = self.knowledge_graph.search_entities_by_text(source_name, types=None, limit=5)
+                                src_guess = candidates[0] if candidates else None
+                            if not tgt_guess:
+                                candidates = self.knowledge_graph.search_entities_by_text(target_name, types=None, limit=5)
+                                tgt_guess = candidates[0] if candidates else None
+                            if src_guess and tgt_guess:
+                                source_entity = src_guess
+                                target_entity = tgt_guess
+                            else:
+                                self.logger.warning(
+                                    f"Cannot add relationship: Source entity {source_name} or target entity {target_name} not found"
+                                )
+                                continue
+                        except Exception as _:
+                            self.logger.warning(
+                                f"Cannot add relationship: Source entity {source_name} or target entity {target_name} not found"
+                            )
+                            continue
 
                     relationship = LegalRelationship(
                         source_id=source_entity.id,
@@ -500,16 +670,29 @@ class DocumentProcessor:
                 attributes=source_metadata.get("attributes", {})
             )
             
-            # Extract attributes (exclude special fields)
-            attributes = {k: v for k, v in doc.items() 
-                         if k not in ["_key", "type", "name", "description", "source_metadata"]}
-            
+            # Extract attributes (exclude special and derived fields that don't belong in attributes)
+            attributes = {k: v for k, v in doc.items()
+                         if k not in [
+                             "_key", "type", "name", "description", "source_metadata",
+                             "jurisdiction", "provenance", "mentions_count"
+                         ]}
+
+            # Pull provenance and mentions_count into top-level fields
+            provenance = doc.get("provenance")
+            mentions_count = doc.get("mentions_count")
+            try:
+                mentions_count = int(mentions_count) if mentions_count is not None else None
+            except Exception:
+                mentions_count = None
+
             return LegalEntity(
                 id=doc["_key"],
                 entity_type=entity_type,
                 name=doc.get("name", ""),
                 description=doc.get("description"),
                 source_metadata=metadata,
+                provenance=provenance if provenance is not None else None,
+                mentions_count=mentions_count,
                 attributes=attributes
             )
         except Exception as e:
@@ -543,33 +726,147 @@ class DocumentProcessor:
             return 0.0
         en = e_name.strip().lower()
         cn = c_name.strip().lower()
-        if en == cn:
-            return 1.0
-        if en in cn or cn in en:
-            return 0.9
         name_sim = self._jaccard(self._normalize_tokens(en), self._normalize_tokens(cn))
         desc_sim = self._jaccard(self._normalize_tokens(e_desc or ""), self._normalize_tokens(c_desc or ""))
-        # Weighted emphasis on name
-        return 0.8 * name_sim + 0.2 * desc_sim
+        # Weight names more, but include descriptions meaningfully
+        return 0.6 * name_sim + 0.4 * desc_sim
 
-    def _semantic_merge_entities(self, entities: List[LegalEntity]) -> Dict[str, str]:
+    async def _semantic_merge_entities(self, entities: List[LegalEntity]) -> Dict[str, str]:
         """Try to map each incoming entity to an existing KG id using semantic similarity.
         Returns a map of incoming_id -> existing_id.
         """
         merge_map: Dict[str, str] = {}
+        borderline_cases: List[Dict] = []  # collect for one LLM batch
         for ent in entities:
             try:
                 # Limit search to same type for precision
                 candidates = self.knowledge_graph.search_entities_by_text(ent.name, types=[ent.entity_type], limit=20)
                 best_id = None
                 best_score = 0.0
+                best_name = None
                 for cand in candidates:
                     score = self._similarity_score(ent.name, ent.description, cand.name, cand.description)
                     if score > best_score:
                         best_score = score
                         best_id = cand.id
-                if best_id and best_score >= 0.8:
+                        best_name = cand.name
+                if best_id and best_score >= 0.95:
+                    self.logger.info(f"[INGEST MERGE auto] '{ent.name}' -> '{best_name}' (score={best_score:.3f}) id={best_id}")
                     merge_map[ent.id] = best_id
+                elif best_id and 0.90 <= best_score < 0.95:
+                    # collect for LLM judge batch
+                    borderline_cases.append({
+                        "incoming_id": ent.id,
+                        "incoming_name": ent.name,
+                        "incoming_desc": ent.description or "",
+                        "candidate_id": best_id,
+                        "candidate_name": best_name or "",
+                        "candidate_desc": next((c.description for c in candidates if c.id == best_id), ""),
+                        "score": best_score,
+                        "entity_type": getattr(ent.entity_type, 'value', str(ent.entity_type))
+                    })
+                else:
+                    self.logger.info(f"[INGEST MERGE none] '{ent.name}' (best_score={best_score:.3f}) — no merge")
             except Exception as e:
                 self.logger.debug(f"Semantic merge lookup failed for {ent.id}: {e}")
-        return merge_map 
+        # Batch LLM judge borderline cases via consolidator service
+        if borderline_cases:
+            try:
+                cases = [
+                    {
+                        "key": f"{c['incoming_id']}|{c['candidate_id']}",
+                        "type": c.get("entity_type"),
+                        "incoming": {"name": c.get("incoming_name", ""), "desc": c.get("incoming_desc", "")},
+                        "candidate": {"name": c.get("candidate_name", ""), "desc": c.get("candidate_desc", "")},
+                        "similarity": round(float(c.get("score", 0.0)), 3),
+                    }
+                    for c in borderline_cases
+                ]
+                decisions = await self.consolidator.judge_cases(cases)
+                for case in borderline_cases:
+                    inc_id = case["incoming_id"]
+                    cand_id = case["candidate_id"]
+                    key = f"{inc_id}|{cand_id}"
+                    decision = decisions.get(key)
+                    if decision is True:
+                        self.logger.info(f"[INGEST MERGE judge=YES] '{case['incoming_name']}' -> '{case['candidate_name']}' (score={case['score']:.3f}) id={cand_id}")
+                        merge_map[inc_id] = cand_id
+                    else:
+                        self.logger.info(f"[INGEST MERGE judge=NO] '{case['incoming_name']}' x '{case['candidate_name']}' (score={case['score']:.3f})")
+            except Exception as e:
+                self.logger.warning(f"[INGEST MERGE judge] Failed: {e}")
+        return merge_map
+
+    # Removed inline LLM judge batch method in favor of EntityConsolidationService
+
+    def _extract_best_quote(self, text: str, entity: LegalEntity) -> tuple[str | None, int | None]:
+        """Extract a relevant quote for the given entity from the source text.
+        - Split into sentences; score sentences by alias/name match and token overlap.
+        - Avoid generic instruction sentences (e.g., 'call 311').
+        - Return best sentence (optionally extend with next sentence if too short).
+        """
+        try:
+            if not text or not entity or not entity.name:
+                return None, None
+            # Prepare aliases: name, acronym in parentheses, and uppercase acronym heuristic
+            aliases = {entity.name.strip()}
+            # Parenthetical acronym: e.g., "Department of Environmental Protection (DEP)"
+            m = re.search(r"\(([^)A-Za-z]*[A-Z]{2,}[^)]*)\)", entity.name)
+            if m:
+                aliases.add(m.group(1))
+            # Uppercase initials heuristic for government entities
+            name_tokens = [t for t in re.split(r"\W+", entity.name) if t]
+            if len(name_tokens) >= 2:
+                acro = ''.join([t[0].upper() for t in name_tokens if t[0].isalpha()])
+                if len(acro) >= 2:
+                    aliases.add(acro)
+            aliases_lower = {a.lower() for a in aliases}
+
+            # Banned phrases that are generic and not descriptive of an entity
+            banned_phrases = [
+                'call 311', 'from any phone', 'visit', 'hours', 'open monday', 'hotline', 'email',
+                'click here', 'terms of use', 'privacy policy'
+            ]
+
+            # Sentence split with spans
+            sentences = []
+            for m in re.finditer(r"[^.!?\n]+[.!?]", text):
+                s = m.group(0).strip()
+                if s:
+                    sentences.append((s, m.start()))
+            if not sentences:
+                return None, None
+
+            def score_sentence(s: str) -> float:
+                sl = s.lower()
+                # Penalize banned phrases
+                if any(bp in sl for bp in banned_phrases):
+                    return 0.0
+                # Hard match on aliases
+                if any(re.search(rf"\b{re.escape(a)}\b", sl) for a in aliases_lower):
+                    base = 1.0
+                else:
+                    base = 0.0
+                # Token overlap on name
+                name_tokens_norm = set(self._normalize_tokens(entity.name))
+                sent_tokens = set(self._normalize_tokens(s))
+                overlap = 0.0
+                if name_tokens_norm and sent_tokens:
+                    inter = len(name_tokens_norm & sent_tokens)
+                    overlap = inter / max(1, len(name_tokens_norm))
+                # Jurisdiction hint bonus
+                j_bonus = 0.1 if getattr(entity, 'attributes', {}).get('jurisdiction') and str(getattr(entity, 'attributes', {}).get('jurisdiction')).lower() in sl else 0.0
+                return base + 0.5 * overlap + j_bonus
+
+            best = max(sentences, key=lambda t: score_sentence(t[0]))
+            best_sentence, best_start = best
+            if score_sentence(best_sentence) <= 0.0:
+                return None, None
+            # If too short, try to append the next sentence for context
+            if len(best_sentence) < 80:
+                idx = sentences.index(best)
+                if idx + 1 < len(sentences):
+                    best_sentence = best_sentence + " " + sentences[idx + 1][0]
+            return best_sentence, int(best_start)
+        except Exception:
+            return None, None 

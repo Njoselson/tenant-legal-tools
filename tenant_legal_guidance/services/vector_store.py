@@ -1,4 +1,5 @@
 from typing import Any, Dict, List, Optional
+import uuid
 
 import numpy as np
 from qdrant_client import QdrantClient
@@ -27,7 +28,10 @@ class QdrantVectorStore:
             vec = embeddings[i].tolist()
             pl = dict(payloads[i])
             pl.setdefault("chunk_id", cid)
-            points.append(PointStruct(id=cid, vector=vec, payload=pl))
+            # Convert chunk_id to UUID for Qdrant compatibility
+            # Use UUID5 for deterministic, reproducible IDs
+            point_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, cid))
+            points.append(PointStruct(id=point_id, vector=vec, payload=pl))
         self.client.upsert(collection_name=self.collection, points=points)
 
     def search(self, query_embedding: np.ndarray, top_k: int = 20, filter_payload: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:

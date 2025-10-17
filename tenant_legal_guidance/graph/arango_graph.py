@@ -615,7 +615,8 @@ class ArangoDBGraph:
             safe_source = re.sub(r"\W+", "_", str(locator).lower()).strip("_")
             for ch in chunks:
                 idx = ch.get("chunk_index", 0)
-                chunk_ids.append(f"chunk:{safe_source}:{idx}")
+                # Use underscores instead of colons for Qdrant compatibility
+                chunk_ids.append(f"chunk_{safe_source}_{idx}")
             return {
                 "source_id": sid,
                 "blob_id": blob_id,
@@ -1712,10 +1713,11 @@ class ArangoDBGraph:
                 filters.append("doc.jurisdiction == @jurisdiction")
             filter_clause = (" AND " + " AND ".join(filters)) if filters else ""
 
+            # Use TOKENS for multi-word queries (matches any token) instead of PHRASE (exact match)
             aql = f"""
             FOR doc IN kg_entities_view
                 SEARCH ANALYZER(
-                    (PHRASE(doc.name, @term) OR PHRASE(doc.description, @term)){filter_clause}
+                    (TOKENS(@term, "text_en") ANY IN doc.name OR TOKENS(@term, "text_en") ANY IN doc.description){filter_clause}
                     , "text_en"
                 )
                 SORT BM25(doc) DESC, TFIDF(doc) DESC
@@ -1904,3 +1906,112 @@ class ArangoDBGraph:
         except Exception as e:
             self.logger.error(f"Error building legal chains: {e}")
             return []
+
+    def get_database_stats(self) -> Dict[str, int]:
+        """Get statistics about the database collections.
+        
+        Returns:
+            Dict mapping collection names to document counts
+        """
+        try:
+            stats = {}
+            
+            # Get all collection names
+            collections = self.db.collections()
+            
+            for collection_info in collections:
+                collection_name = collection_info['name']
+                
+                # Skip system collections
+                if collection_name.startswith('_'):
+                    continue
+                    
+                try:
+                    collection = self.db.collection(collection_name)
+                    stats[collection_name] = collection.count()
+                except Exception as e:
+                    self.logger.warning(f"Could not get count for collection {collection_name}: {e}")
+                    stats[collection_name] = -1
+            
+            return stats
+        except Exception as e:
+            self.logger.error(f"Error getting database stats: {e}")
+            return {}
+
+    def reset_database(self, confirm: bool = False) -> Dict[str, int]:
+        """Truncate all collections in the database (keeps schema, removes data).
+        
+        This is safer than dropping the database as it preserves collection structure
+        and indexes.
+        
+        Args:
+            confirm: Must be True to actually perform the operation (safety check)
+            
+        Returns:
+            Dict with counts of documents deleted per collection
+        """
+        if not confirm:
+            raise ValueError(
+                "reset_database requires confirm=True. This operation will delete all data!"
+            )
+        
+        try:
+            deleted_counts = {}
+            
+            # Get all collection names
+            collections = self.db.collections()
+            
+            for collection_info in collections:
+                collection_name = collection_info['name']
+                
+                # Skip system collections
+                if collection_name.startswith('_'):
+                    continue
+                    
+                try:
+                    collection = self.db.collection(collection_name)
+                    count_before = collection.count()
+                    collection.truncate()
+                    deleted_counts[collection_name] = count_before
+                    self.logger.info(f"Truncated collection {collection_name}: {count_before} documents removed")
+                except Exception as e:
+                    self.logger.error(f"Error truncating collection {collection_name}: {e}")
+                    deleted_counts[collection_name] = -1
+            
+            return deleted_counts
+        except Exception as e:
+            self.logger.error(f"Error resetting database: {e}")
+            raise
+
+    def drop_database(self, confirm: bool = False) -> bool:
+        """Drop the entire database (DESTRUCTIVE - cannot be undone).
+        
+        This completely removes the database including all collections, indexes,
+        and data. The database will need to be re-initialized after this operation.
+        
+        Args:
+            confirm: Must be True to actually perform the operation (safety check)
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        if not confirm:
+            raise ValueError(
+                "drop_database requires confirm=True. This operation will permanently delete the entire database!"
+            )
+        
+        try:
+            # Connect to _system database to drop our database
+            sys_db = self.client.db("_system", username=self.username, password=self.password)
+            
+            if sys_db.has_database(self.db_name):
+                self.logger.warning(f"Dropping database {self.db_name}...")
+                sys_db.delete_database(self.db_name)
+                self.logger.info(f"Database {self.db_name} dropped successfully")
+                return True
+            else:
+                self.logger.warning(f"Database {self.db_name} does not exist")
+                return False
+        except Exception as e:
+            self.logger.error(f"Error dropping database: {e}")
+            raise

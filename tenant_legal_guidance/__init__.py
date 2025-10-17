@@ -10,6 +10,7 @@ from tenant_legal_guidance.models.entities import EntityType, LegalEntity, Sourc
 from tenant_legal_guidance.models.relationships import LegalRelationship, RelationshipType
 from tenant_legal_guidance.models.documents import LegalDocument, InputType
 from tenant_legal_guidance.services.deepseek import DeepSeekClient
+from tenant_legal_guidance.services.resource_processor import LegalResourceProcessor
 from tenant_legal_guidance.graph.arango_graph import ArangoDBGraph
 from tenant_legal_guidance.utils.logging import setup_logging
 
@@ -22,6 +23,7 @@ __all__ = [
     'LegalDocument',
     'InputType',
     'DeepSeekClient',
+    'LegalResourceProcessor',
     'ArangoDBGraph',
     'setup_logging',
 ]

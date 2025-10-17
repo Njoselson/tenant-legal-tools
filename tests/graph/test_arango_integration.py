@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from dotenv import load_dotenv
 
-from tenant_legal_guidance.main import (
+from tenant_legal_guidance import (
     ArangoDBGraph,
     EntityType,
     LegalEntity,

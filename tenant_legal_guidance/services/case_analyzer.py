@@ -4,17 +4,64 @@ Case Analyzer Service - RAG-based legal analysis using knowledge graph
 """
 
 import logging
+import json
+import asyncio
 from typing import List, Dict, Any, Optional, Tuple
-from dataclasses import dataclass
+from dataclasses import dataclass, field, asdict
 from tenant_legal_guidance.graph.arango_graph import ArangoDBGraph
 from tenant_legal_guidance.services.deepseek import DeepSeekClient
+from tenant_legal_guidance.services.retrieval import HybridRetriever
 import re
 import markdown
-from tenant_legal_guidance.models.entities import EntityType
+from tenant_legal_guidance.models.entities import EntityType, LegalEntity
+
+@dataclass
+class RemedyOption:
+    """Represents a legal remedy with probability and requirements."""
+    name: str
+    legal_basis: List[str]  # Laws that enable it
+    requirements: List[str]  # What's needed to pursue
+    estimated_probability: float  # 0-1 win probability
+    potential_outcome: str  # "Up to 6 months rent reduction"
+    authority_level: str  # binding_legal_authority, etc.
+    jurisdiction_match: bool  # Does jurisdiction align?
+    sources: List[str] = field(default_factory=list)  # [S1, S2, ...]
+    reasoning: str = ""
+
+@dataclass
+class LegalProofChain:
+    """Represents a complete legal argument chain for an issue."""
+    issue: str  # "Landlord harassment"
+    applicable_laws: List[Dict]  # [{"name": "RSC §26-504", "text": "...", "source": "S3"}]
+    evidence_present: List[str]  # What tenant has
+    evidence_needed: List[str]  # What's missing
+    strength_score: float  # 0-1 based on evidence completeness
+    strength_assessment: str  # "strong", "moderate", "weak"
+    remedies: List[RemedyOption] = field(default_factory=list)
+    next_steps: List[Dict] = field(default_factory=list)  # [{"step": "...", "priority": "high", "why": "..."}]
+    reasoning: str = ""
+
+@dataclass
+class EnhancedLegalGuidance:
+    """Enhanced structured legal guidance with proof chains."""
+    case_summary: str
+    proof_chains: List[LegalProofChain]  # One per identified issue
+    overall_strength: str  # "Strong", "Moderate", "Weak"
+    priority_actions: List[Dict]  # Ranked by impact
+    risk_assessment: str
+    citations: Dict[str, Dict[str, Any]] = field(default_factory=dict)  # S1, S2, etc. with full metadata
+    
+    # Keep backward compatibility
+    legal_issues: List[str] = field(default_factory=list)
+    relevant_laws: List[str] = field(default_factory=list)
+    recommended_actions: List[str] = field(default_factory=list)
+    evidence_needed: List[str] = field(default_factory=list)
+    legal_resources: List[str] = field(default_factory=list)
+    next_steps: List[str] = field(default_factory=list)
 
 @dataclass
 class LegalGuidance:
-    """Structured legal guidance for a tenant case."""
+    """Structured legal guidance for a tenant case (legacy compatibility)."""
     case_summary: str
     legal_issues: List[str]
     relevant_laws: List[str]
@@ -34,7 +81,8 @@ class CaseAnalyzer:
         self.graph = graph
         self.llm_client = llm_client
         self.logger = logging.getLogger(__name__)
-        
+        # Initialize hybrid retriever (combines vector + entity search)
+        self.retriever = HybridRetriever(graph)
         # Initialize markdown converter
         self.md = markdown.Markdown(extensions=['nl2br', 'fenced_code', 'tables'])
     
@@ -74,33 +122,32 @@ class CaseAnalyzer:
         return found_terms
     
     def retrieve_relevant_entities(self, key_terms: List[str]) -> Dict[str, Any]:
-        """Retrieve relevant entities from the knowledge graph using ArangoSearch."""
-        entities = []
-        relationships = []
-        concept_groups = []
-
-        # Query per term and merge results (simple OR semantics)
-        seen_ids = set()
-        for term in key_terms:
-            term_results = self.graph.search_entities_by_text(term, limit=50)
-            for entity in term_results:
-                if entity.id not in seen_ids:
-                    entities.append(entity)
-                    seen_ids.add(entity.id)
-
-        self.logger.info(f"Found {len(entities)} relevant entities for terms: {key_terms}")
+        """Retrieve relevant entities and chunks using hybrid retrieval (vector + ArangoSearch + KG)."""
+        # Build query from key terms
+        query_text = " ".join(key_terms)
+        
+        # Use hybrid retriever (vector search + entity search + KG expansion)
+        results = self.retriever.retrieve(query_text, top_k_chunks=20, top_k_entities=50, expand_neighbors=True)
+        
+        chunks = results.get("chunks", [])
+        entities = results.get("entities", [])
+        
+        self.logger.info(f"Hybrid retrieval found {len(chunks)} chunks and {len(entities)} entities for terms: {key_terms}")
         
         # Retrieve relationships among the retrieved entities so the graph shows connections
+        relationships = []
         try:
+            seen_ids = {e.id for e in entities}
             if seen_ids:
                 relationships = self.graph.get_relationships_among(list(seen_ids))
         except Exception as e:
             self.logger.warning(f"Failed to fetch relationships among retrieved entities: {e}")
         
         return {
+            "chunks": chunks,
             "entities": entities,
             "relationships": relationships,
-            "concept_groups": concept_groups
+            "concept_groups": []
         }
     
     def format_context_for_llm(self, relevant_data: Dict[str, Any]) -> str:
@@ -133,9 +180,9 @@ class CaseAnalyzer:
         
         return "\n".join(context_parts)
 
-    def _build_sources_index(self, entities: List[Any], max_sources: int = 12) -> Tuple[str, Dict[str, Dict[str, Any]]]:
+    def _build_sources_index(self, entities: List[Any], chunks: List[Dict] = None, max_sources: int = 20) -> Tuple[str, Dict[str, Dict[str, Any]]]:
         """Create a numbered sources list and a map S# -> source details for prompting and UI.
-        Handles both LegalEntity objects and dicts from API calls.
+        Handles both LegalEntity objects, dicts from API calls, and chunk dicts from vector search.
         """
         sources_lines: List[str] = []
         citations_map: Dict[str, Dict[str, Any]] = {}
@@ -179,8 +226,25 @@ class CaseAnalyzer:
             except Exception:
                 return 0
 
-        # Collect candidate source entries (entity-level and provenance-level)
+        # Collect candidate source entries (entity-level, provenance-level, and chunks)
         candidates: List[Dict[str, Any]] = []
+        
+        # Add chunks first (high priority)
+        for chunk in (chunks or []):
+            candidates.append({
+                'entity_id': chunk.get('chunk_id'),
+                'entity_name': f"Chunk from {chunk.get('doc_title') or chunk.get('source', 'Unknown')}",
+                'source': chunk.get('source'),
+                'organization': None,
+                'title': chunk.get('doc_title'),
+                'jurisdiction': chunk.get('jurisdiction'),
+                'authority': 'reputable_secondary',  # Default for chunks
+                'quote': (chunk.get('text') or '')[:300],  # First 300 chars as quote
+                'provenance_id': None,
+                'anchor_url': chunk.get('source'),
+            })
+        
+        # Then add entities
         for ent in entities or []:
             name = getattr(ent, 'name', None) or (ent.get('name') if isinstance(ent, dict) else '')
             ent_id = getattr(ent, 'id', None) or (ent.get('id') if isinstance(ent, dict) else '')
@@ -485,6 +549,270 @@ class CaseAnalyzer:
         
         return f"<ul>{''.join(html_items)}</ul>"
     
+    async def extract_evidence_from_case(self, case_text: str) -> Dict[str, List[str]]:
+        """Extract evidence mentioned in the case text using LLM."""
+        prompt = f"""Extract all evidence mentioned in this tenant case:
+
+{case_text[:2000]}
+
+Return ONLY valid JSON (no markdown, no explanation):
+{{
+    "documents": ["lease agreement", "rent receipts"],
+    "photos": ["photos of mold in bathroom"],
+    "communications": ["text messages from landlord"],
+    "witnesses": ["neighbor testimony"],
+    "official_records": ["HPD complaint #12345"]
+}}
+
+If a category has no items, use an empty array []."""
+
+        try:
+            response = await self.llm_client.chat_completion(prompt)
+            # Try to parse JSON
+            json_match = re.search(r'\{[\s\S]*\}', response)
+            if json_match:
+                data = json.loads(json_match.group(0))
+                return {
+                    "documents": data.get("documents", []),
+                    "photos": data.get("photos", []),
+                    "communications": data.get("communications", []),
+                    "witnesses": data.get("witnesses", []),
+                    "official_records": data.get("official_records", [])
+                }
+        except Exception as e:
+            self.logger.warning(f"Failed to extract evidence: {e}")
+        
+        # Fallback: regex-based extraction
+        evidence = {
+            "documents": [],
+            "photos": [],
+            "communications": [],
+            "witnesses": [],
+            "official_records": []
+        }
+        
+        # Simple patterns
+        if re.search(r'\b(lease|contract|agreement)\b', case_text, re.I):
+            evidence["documents"].append("lease or rental agreement")
+        if re.search(r'\b(photo|picture|image)\b', case_text, re.I):
+            evidence["photos"].append("photographs")
+        if re.search(r'\b(text|email|letter|notice)\b', case_text, re.I):
+            evidence["communications"].append("written communications")
+        
+        return evidence
+    
+    def analyze_evidence_gaps(self, case_text: str, evidence_present: Dict[str, List[str]], 
+                             applicable_laws: List[LegalEntity], retrieved_chunks: List[Dict]) -> Dict:
+        """Analyze gaps between present evidence and required evidence."""
+        # Extract requirements from chunks and laws
+        requirements = {"critical": [], "helpful": []}
+        how_to_obtain = []
+        
+        # Look for evidence requirements in chunks
+        for chunk in retrieved_chunks:
+            chunk_text = chunk.get("text", "").lower()
+            # Look for requirement patterns
+            if "require" in chunk_text or "must" in chunk_text or "evidence" in chunk_text:
+                # Extract sentences mentioning evidence
+                for match in re.finditer(r'[^.!?]*(?:require|must|evidence|prove|show)[^.!?]*[.!?]', chunk_text, re.I):
+                    sent = match.group(0).strip()
+                    if len(sent) > 20:
+                        requirements["helpful"].append(sent)
+        
+        # Check what's present vs needed
+        all_present = []
+        for category, items in evidence_present.items():
+            all_present.extend(items)
+        
+        # Common critical requirements for tenant cases
+        critical_items = [
+            "Written notice from landlord",
+            "Rent payment records",
+            "Photographic evidence of conditions",
+            "Correspondence with landlord"
+        ]
+        
+        needed_critical = []
+        for item in critical_items:
+            # Check if tenant mentioned having this
+            item_lower = item.lower()
+            if not any(item_lower in p.lower() for p in all_present):
+                needed_critical.append(item)
+                how_to_obtain.append({
+                    "item": item,
+                    "method": self._get_obtaining_method(item)
+                })
+        
+        return {
+            "present": all_present,
+            "needed_critical": needed_critical,
+            "needed_helpful": [r[:200] for r in requirements["helpful"][:5]],  # Limit length
+            "how_to_obtain": how_to_obtain
+        }
+    
+    def _get_obtaining_method(self, evidence_item: str) -> str:
+        """Provide guidance on how to obtain specific evidence."""
+        item_lower = evidence_item.lower()
+        if "notice" in item_lower:
+            return "Request copy from landlord; check certified mail records; take photos of posted notices"
+        elif "rent" in item_lower and "payment" in item_lower:
+            return "Gather canceled checks, bank statements, receipts, money order stubs"
+        elif "photo" in item_lower:
+            return "Take timestamped photos/videos; use date-stamped camera app; document all issues"
+        elif "correspondence" in item_lower:
+            return "Save all emails, texts, letters; request repair logs from landlord"
+        elif "complaint" in item_lower or "hpd" in item_lower:
+            return "File online at hpd.nyc.gov; call 311; request inspection"
+        else:
+            return "Consult with legal aid or tenant advocacy organization for guidance"
+    
+    def rank_remedies(self, issue: str, entities: List[LegalEntity], chunks: List[Dict],
+                     evidence_strength: float, jurisdiction: Optional[str] = None) -> List[RemedyOption]:
+        """Score and rank remedies based on multiple factors."""
+        # Find remedy entities
+        remedy_entities = [e for e in entities if getattr(e.entity_type, 'value', str(e.entity_type)) == EntityType.REMEDY.value]
+        
+        if not remedy_entities:
+            return []
+        
+        authority_weights = {
+            'binding_legal_authority': 6,
+            'persuasive_authority': 5,
+            'official_interpretive': 4,
+            'reputable_secondary': 3,
+            'practical_self_help': 2,
+            'informational_only': 1,
+        }
+        
+        scored_remedies = []
+        for remedy in remedy_entities:
+            # Get authority level
+            authority_level = "informational_only"
+            if hasattr(remedy, 'source_metadata') and remedy.source_metadata:
+                if hasattr(remedy.source_metadata, 'authority'):
+                    authority_level = str(remedy.source_metadata.authority).lower()
+                elif isinstance(remedy.source_metadata, dict):
+                    authority_level = str(remedy.source_metadata.get('authority', 'informational_only')).lower()
+            
+            authority_weight = authority_weights.get(authority_level, 1) / 6.0  # Normalize to 0-1
+            
+            # Check jurisdiction match
+            remedy_jurisdiction = None
+            if hasattr(remedy, 'attributes') and remedy.attributes:
+                remedy_jurisdiction = remedy.attributes.get('jurisdiction')
+            elif hasattr(remedy, 'source_metadata') and remedy.source_metadata:
+                if hasattr(remedy.source_metadata, 'jurisdiction'):
+                    remedy_jurisdiction = remedy.source_metadata.jurisdiction
+                elif isinstance(remedy.source_metadata, dict):
+                    remedy_jurisdiction = remedy.source_metadata.get('jurisdiction')
+            
+            jurisdiction_match = False
+            if jurisdiction and remedy_jurisdiction:
+                jurisdiction_match = jurisdiction.lower() in str(remedy_jurisdiction).lower() or str(remedy_jurisdiction).lower() in jurisdiction.lower()
+            
+            # Retrieval score (if remedy was in top chunks)
+            retrieval_score = 0.5  # Default middle score
+            for idx, chunk in enumerate(chunks[:10]):
+                chunk_entities = chunk.get("entities", [])
+                if remedy.id in chunk_entities:
+                    retrieval_score = 1.0 - (idx / 10.0)  # Higher score for earlier chunks
+                    break
+            
+            # Calculate overall score
+            score = (
+                0.4 * evidence_strength +
+                0.3 * authority_weight +
+                0.2 * (1.0 if jurisdiction_match else 0.3) +  # Partial credit if no match
+                0.1 * retrieval_score
+            )
+            
+            # Determine estimated probability
+            estimated_probability = min(0.95, max(0.1, score))  # Cap between 10% and 95%
+            
+            # Find legal basis (laws that enable this remedy)
+            legal_basis = []
+            try:
+                # Get relationships where law ENABLES remedy
+                rels = self.graph.get_relationships_among([remedy.id] + [e.id for e in entities if getattr(e.entity_type, 'value', str(e.entity_type)) == EntityType.LAW.value])
+                for rel in rels:
+                    if rel.target_id == remedy.id and 'ENABLE' in str(rel.relationship_type):
+                        legal_basis.append(rel.source_id)
+            except Exception:
+                pass
+            
+            remedy_option = RemedyOption(
+                name=remedy.name,
+                legal_basis=legal_basis[:3] if legal_basis else ["General tenant rights"],
+                requirements=[],  # Will be filled by LLM in next steps
+                estimated_probability=estimated_probability,
+                potential_outcome=remedy.description or "Potential relief available",
+                authority_level=authority_level,
+                jurisdiction_match=jurisdiction_match,
+                reasoning=f"Score: {score:.2f} (evidence: {evidence_strength:.1f}, authority: {authority_level}, jurisdiction: {jurisdiction_match})"
+            )
+            
+            scored_remedies.append((score, remedy_option))
+        
+        # Sort by score descending
+        scored_remedies.sort(key=lambda x: x[0], reverse=True)
+        
+        return [remedy for _, remedy in scored_remedies[:10]]  # Top 10
+    
+    def generate_next_steps(self, proof_chains: List[LegalProofChain], 
+                           evidence_gaps: Dict) -> List[Dict]:
+        """Generate prioritized, actionable next steps."""
+        next_steps = []
+        
+        # Critical: Address evidence gaps first
+        for gap in evidence_gaps.get("needed_critical", [])[:3]:
+            how_to = next((h for h in evidence_gaps.get("how_to_obtain", []) if h["item"] == gap), None)
+            next_steps.append({
+                "priority": "critical",
+                "action": f"Obtain: {gap}",
+                "why": "Required evidence for legal claim",
+                "deadline": "ASAP",
+                "how": how_to["method"] if how_to else "Consult with legal aid",
+                "dependencies": []
+            })
+        
+        # High: File official complaints for strong cases
+        for chain in proof_chains:
+            if chain.strength_score > 0.6:
+                next_steps.append({
+                    "priority": "high",
+                    "action": f"File official complaint regarding {chain.issue}",
+                    "why": f"Strong evidence present (strength: {chain.strength_score:.1%})",
+                    "deadline": "Within 30 days to preserve rights",
+                    "how": "Contact HPD (311), file online, or visit tenant resource center",
+                    "dependencies": [f"Gather evidence for {chain.issue}"]
+                })
+        
+        # Medium: Pursue top remedies
+        for chain in proof_chains[:2]:  # Top 2 issues
+            if chain.remedies:
+                top_remedy = chain.remedies[0]
+                next_steps.append({
+                    "priority": "medium",
+                    "action": f"Pursue {top_remedy.name}",
+                    "why": f"{top_remedy.estimated_probability:.0%} estimated success rate",
+                    "deadline": "After filing complaint",
+                    "how": top_remedy.potential_outcome,
+                    "dependencies": ["File official complaint"]
+                })
+        
+        # Low: Gather additional helpful evidence
+        if evidence_gaps.get("needed_helpful"):
+            next_steps.append({
+                "priority": "low",
+                "action": "Gather additional documentation",
+                "why": "Strengthens case",
+                "deadline": "Ongoing",
+                "how": "Document all interactions, conditions, and issues",
+                "dependencies": []
+            })
+        
+        return next_steps[:10]  # Top 10 steps
+    
     async def analyze_case(self, case_text: str) -> LegalGuidance:
         """Main method to analyze a tenant case using RAG."""
         self.logger.info("Starting case analysis")
@@ -496,8 +824,11 @@ class CaseAnalyzer:
         # Step 2: Retrieve relevant entities from knowledge graph
         relevant_data = self.retrieve_relevant_entities(key_terms)
         
-        # Step 3: Build sources and format context for LLM
-        sources_text, citations_map = self._build_sources_index(relevant_data.get("entities", []))
+        # Step 3: Build sources and format context for LLM (including chunks!)
+        sources_text, citations_map = self._build_sources_index(
+            relevant_data.get("entities", []),
+            chunks=relevant_data.get("chunks", [])
+        )
         base_context = self.format_context_for_llm(relevant_data)
         context = base_context
         if sources_text:
@@ -555,3 +886,291 @@ class CaseAnalyzer:
         
         self.logger.info("Case analysis completed")
         return guidance
+    
+    async def analyze_case_enhanced(self, case_text: str, jurisdiction: Optional[str] = None) -> EnhancedLegalGuidance:
+        """Enhanced case analysis with multi-stage LLM prompting and proof chains."""
+        self.logger.info("Starting enhanced case analysis with proof chains")
+        
+        # Step 1: Extract key terms and retrieve context
+        key_terms = self.extract_key_terms(case_text)
+        self.logger.info(f"Extracted key terms: {key_terms}")
+        
+        # Step 2: Retrieve relevant entities and chunks
+        relevant_data = self.retrieve_relevant_entities(key_terms)
+        chunks = relevant_data.get("chunks", [])
+        entities = relevant_data.get("entities", [])
+        
+        # Step 3: Build sources index
+        sources_text, citations_map = self._build_sources_index(entities, chunks=chunks)
+        
+        # Step 4: Stage 1 - Identify Issues
+        issues = await self._identify_issues(case_text, sources_text)
+        self.logger.info(f"Identified {len(issues)} issues: {issues}")
+        
+        if not issues:
+            # Fallback to key terms
+            issues = key_terms[:3] if key_terms else ["general tenant rights"]
+        
+        # Step 5: Stage 2 - Analyze Each Issue (parallel)
+        proof_chains = []
+        issue_analyses = await asyncio.gather(*[
+            self._analyze_issue(issue, case_text, entities, chunks, sources_text, jurisdiction)
+            for issue in issues[:5]  # Limit to top 5 issues
+        ], return_exceptions=True)
+        
+        # Step 6: Extract evidence from case
+        evidence_present = await self.extract_evidence_from_case(case_text)
+        
+        # Build proof chains from issue analyses
+        for idx, issue in enumerate(issues[:5]):
+            if idx >= len(issue_analyses):
+                break
+                
+            analysis = issue_analyses[idx]
+            if isinstance(analysis, Exception):
+                self.logger.warning(f"Issue analysis failed for {issue}: {analysis}")
+                continue
+            
+            if not analysis:
+                continue
+            
+            # Calculate evidence strength
+            present_count = sum(len(v) for v in evidence_present.values())
+            needed_count = len(analysis.get("evidence_needed", []))
+            evidence_strength = min(1.0, present_count / max(1, needed_count)) if needed_count > 0 else 0.5
+            
+            # Determine strength assessment
+            if evidence_strength >= 0.7:
+                strength_assessment = "strong"
+            elif evidence_strength >= 0.4:
+                strength_assessment = "moderate"
+            else:
+                strength_assessment = "weak"
+            
+            # Rank remedies for this issue
+            ranked_remedies = self.rank_remedies(
+                issue, entities, chunks, evidence_strength, jurisdiction
+            )
+            
+            # Build proof chain
+            proof_chain = LegalProofChain(
+                issue=issue,
+                applicable_laws=analysis.get("applicable_laws", []),
+                evidence_present=analysis.get("evidence_present", []),
+                evidence_needed=analysis.get("evidence_needed", []),
+                strength_score=evidence_strength,
+                strength_assessment=strength_assessment,
+                remedies=ranked_remedies[:5],  # Top 5 remedies
+                next_steps=[],  # Will be filled below
+                reasoning=analysis.get("reasoning", "")
+            )
+            
+            proof_chains.append(proof_chain)
+        
+        # Step 7: Analyze evidence gaps
+        applicable_laws = [e for e in entities if getattr(e.entity_type, 'value', str(e.entity_type)) == EntityType.LAW.value]
+        evidence_gaps = self.analyze_evidence_gaps(case_text, evidence_present, applicable_laws, chunks)
+        
+        # Step 8: Generate next steps
+        priority_actions = self.generate_next_steps(proof_chains, evidence_gaps)
+        
+        # Step 9: Overall strength assessment
+        if proof_chains:
+            avg_strength = sum(c.strength_score for c in proof_chains) / len(proof_chains)
+            if avg_strength >= 0.7:
+                overall_strength = "Strong"
+            elif avg_strength >= 0.4:
+                overall_strength = "Moderate"
+            else:
+                overall_strength = "Weak"
+        else:
+            overall_strength = "Insufficient Data"
+        
+        # Step 10: Generate case summary
+        case_summary = await self._generate_case_summary(case_text, proof_chains, overall_strength, sources_text)
+        
+        # Step 11: Generate risk assessment
+        risk_assessment = await self._generate_risk_assessment(proof_chains, evidence_gaps, overall_strength)
+        
+        # Build backward-compatible fields
+        legal_issues = [pc.issue for pc in proof_chains]
+        relevant_laws = []
+        for pc in proof_chains:
+            for law in pc.applicable_laws:
+                if law.get("name"):
+                    relevant_laws.append(law["name"])
+        
+        recommended_actions = [action["action"] for action in priority_actions if action["priority"] in ["critical", "high"]]
+        evidence_needed_flat = list(set(evidence_gaps.get("needed_critical", [])))
+        next_steps_flat = [action["action"] for action in priority_actions]
+        
+        # Get legal resources from entities
+        legal_resources = [
+            e.name for e in entities 
+            if getattr(e.entity_type, 'value', str(e.entity_type)) in [EntityType.LEGAL_SERVICE.value, EntityType.GOVERNMENT_ENTITY.value]
+        ][:5]
+        
+        enhanced_guidance = EnhancedLegalGuidance(
+            case_summary=case_summary,
+            proof_chains=proof_chains,
+            overall_strength=overall_strength,
+            priority_actions=priority_actions,
+            risk_assessment=risk_assessment,
+            citations=citations_map,
+            legal_issues=legal_issues,
+            relevant_laws=relevant_laws[:10],
+            recommended_actions=recommended_actions[:10],
+            evidence_needed=evidence_needed_flat[:10],
+            legal_resources=legal_resources,
+            next_steps=next_steps_flat[:10]
+        )
+        
+        self.logger.info("Enhanced case analysis completed")
+        return enhanced_guidance
+    
+    async def _identify_issues(self, case_text: str, sources_text: str) -> List[str]:
+        """Stage 1: Identify legal issues in the case."""
+        prompt = f"""Identify all tenant legal issues in this case. Focus on specific, actionable legal issues.
+
+Case: {case_text[:1500]}
+
+Available Sources:
+{sources_text[:1000] if sources_text else "No specific sources available"}
+
+CRITICAL: Return ONLY a JSON array of issue names. Be specific and concrete.
+Example: ["harassment", "rent_overcharge", "failure_to_repair", "illegal_lockout"]
+
+Return JSON array:"""
+        
+        try:
+            response = await self.llm_client.chat_completion(prompt)
+            # Extract JSON array
+            json_match = re.search(r'\[[\s\S]*?\]', response)
+            if json_match:
+                issues = json.loads(json_match.group(0))
+                if isinstance(issues, list):
+                    return [str(i).lower().replace(" ", "_") for i in issues if i]
+        except Exception as e:
+            self.logger.warning(f"Failed to identify issues via LLM: {e}")
+        
+        # Fallback: use key terms
+        return []
+    
+    async def _analyze_issue(self, issue: str, case_text: str, entities: List, chunks: List[Dict],
+                             sources_text: str, jurisdiction: Optional[str]) -> Dict:
+        """Stage 2: Analyze a specific issue with grounding."""
+        # Filter sources relevant to this issue
+        issue_keywords = issue.replace("_", " ").split()
+        relevant_sources = []
+        source_lines = sources_text.split("\n") if sources_text else []
+        
+        for line in source_lines:
+            if any(kw in line.lower() for kw in issue_keywords):
+                relevant_sources.append(line)
+        
+        relevant_context = "\n".join(relevant_sources[:20]) if relevant_sources else sources_text[:2000]
+        
+        prompt = f"""Analyze the issue of "{issue}" in this tenant case using ONLY the provided sources.
+
+Case: {case_text[:1500]}
+
+Relevant Sources (cite using [S#]):
+{relevant_context}
+
+CRITICAL: 
+- Cite sources for every factual claim using [S#] notation
+- Only use laws/facts present in the provided sources
+- If information is missing, state "Not found in sources" rather than speculating
+
+Return ONLY valid JSON (no markdown):
+{{
+    "applicable_laws": [{{"name": "...", "citation": "S#", "key_provision": "..."}}],
+    "elements_required": ["element1", "element2"],
+    "evidence_present": ["evidence mentioned in case"],
+    "evidence_needed": ["missing evidence"],
+    "strength_assessment": "strong|moderate|weak",
+    "reasoning": "Brief explanation with citations [S#]"
+}}"""
+        
+        try:
+            response = await self.llm_client.chat_completion(prompt)
+            # Extract JSON
+            json_match = re.search(r'\{[\s\S]*\}', response)
+            if json_match:
+                data = json.loads(json_match.group(0))
+                return data
+        except Exception as e:
+            self.logger.warning(f"Failed to analyze issue {issue}: {e}")
+        
+        # Fallback: minimal structure
+        return {
+            "applicable_laws": [],
+            "elements_required": [],
+            "evidence_present": [],
+            "evidence_needed": ["Unable to analyze - insufficient information"],
+            "strength_assessment": "weak",
+            "reasoning": "Analysis failed"
+        }
+    
+    async def _generate_case_summary(self, case_text: str, proof_chains: List[LegalProofChain],
+                                     overall_strength: str, sources_text: str) -> str:
+        """Generate concise case summary with citations."""
+        issues_summary = ", ".join([pc.issue for pc in proof_chains[:3]])
+        
+        prompt = f"""Provide a 2-3 sentence case summary for this tenant legal matter.
+
+Case: {case_text[:1000]}
+
+Identified Issues: {issues_summary}
+Overall Case Strength: {overall_strength}
+
+Sources (cite with [S#]):
+{sources_text[:1000] if sources_text else "Limited sources"}
+
+Summary (cite sources):"""
+        
+        try:
+            response = await self.llm_client.chat_completion(prompt)
+            return response.strip()
+        except Exception as e:
+            self.logger.warning(f"Failed to generate summary: {e}")
+            return f"Tenant case involving {issues_summary}. Overall case strength: {overall_strength}."
+    
+    async def _generate_risk_assessment(self, proof_chains: List[LegalProofChain],
+                                        evidence_gaps: Dict, overall_strength: str) -> str:
+        """Generate risk assessment."""
+        if not proof_chains:
+            return "Insufficient information to assess risks. Consult with legal aid for evaluation."
+        
+        strengths = []
+        weaknesses = []
+        
+        for chain in proof_chains:
+            if chain.strength_score >= 0.6:
+                strengths.append(f"Strong evidence for {chain.issue}")
+            elif chain.strength_score <= 0.3:
+                weaknesses.append(f"Weak evidence for {chain.issue}")
+        
+        critical_gaps = evidence_gaps.get("needed_critical", [])
+        
+        risk_parts = []
+        
+        if strengths:
+            risk_parts.append(f"Strengths: {'; '.join(strengths[:3])}.")
+        
+        if weaknesses:
+            risk_parts.append(f"Weaknesses: {'; '.join(weaknesses[:3])}.")
+        
+        if critical_gaps:
+            risk_parts.append(f"Critical evidence needed: {', '.join(critical_gaps[:3])}.")
+        
+        risk_parts.append(f"Overall assessment: {overall_strength} case.")
+        
+        if overall_strength == "Strong":
+            risk_parts.append("Proceed with confidence but document everything.")
+        elif overall_strength == "Moderate":
+            risk_parts.append("Gather additional evidence before proceeding. Consult legal aid.")
+        else:
+            risk_parts.append("Significant challenges. Strongly recommend legal representation.")
+        
+        return " ".join(risk_parts)

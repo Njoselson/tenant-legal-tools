@@ -17,6 +17,7 @@ dependencies = [
     "uvicorn>=0.27.0",
     "python-multipart>=0.0.5",
     "pydantic>=2.6.1",
+    "pydantic-settings>=2.2.1",
     "spacy>=3.7.2",
     "networkx>=3.2.1",
     "beautifulsoup4>=4.12.2",
@@ -85,3 +86,8 @@ line-ending = "auto"
 
 [tool.hatch.metadata]
 allow-direct-references = true 
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28.1",
+]

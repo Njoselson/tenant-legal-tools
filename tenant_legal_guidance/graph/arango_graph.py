@@ -3,12 +3,16 @@ import os
 import time
 from typing import Dict, List, Optional, Tuple
 from datetime import datetime
+import re
+import hashlib
 
 import torch
 from arango import ArangoClient
 from torch_geometric.data import Data
 
 from tenant_legal_guidance.models.entities import EntityType, LegalEntity, SourceType, SourceAuthority
+from tenant_legal_guidance.config import get_settings
+from tenant_legal_guidance.utils.chunking import build_chunk_docs
 from tenant_legal_guidance.models.relationships import LegalRelationship, RelationshipType
 
 
@@ -184,6 +188,21 @@ class ArangoDBGraph:
     def _init_collections(self):
         """Initialize required collections in ArangoDB."""
         try:
+            # Normalized collections for collapsed graph/evidence stores
+            for name, is_edge in (
+                ("entities", False),
+                ("sources", False),
+                ("text_blobs", False),
+                ("quotes", False),
+                ("provenance", False),
+                ("edges", True),
+            ):
+                try:
+                    if not self.db.has_collection(name):
+                        self.db.create_collection(name, edge=is_edge)
+                        self.logger.info(f"Created collection: {name}")
+                except Exception:
+                    pass
             # Create vertex collections for all entity types
             vertex_collections = [
                 "actors",
@@ -218,7 +237,7 @@ class ArangoDBGraph:
                 "evidence",
                 
                 # Geographic and jurisdictional
-                "jurisdictions"
+                "jurisdictions",
             ]
 
             for collection in vertex_collections:
@@ -239,6 +258,8 @@ class ArangoDBGraph:
                 "provided_by",
                 "supported_by",
                 "results_in",
+                # Chunk -> Entity mention edges
+                "mentions",
             ]
 
             for collection in edge_collections:
@@ -278,6 +299,8 @@ class ArangoDBGraph:
                 except Exception:
                     pass
 
+            # text_chunks removed: now stored exclusively in Qdrant vector DB
+
             # Edge collection indexes
             for rel_type in RelationshipType:
                 edge_name = self._get_collection_for_relationship(rel_type)
@@ -300,6 +323,68 @@ class ArangoDBGraph:
                     })
                 except Exception:
                     pass
+                # Enforce uniqueness of edges by (_from, _to, type)
+                try:
+                    edges.add_index({
+                        "type": "persistent",
+                        "fields": ["_from", "_to", "type"],
+                        "name": "uniq_from_to_type",
+                        "unique": True,
+                        "sparse": False
+                    })
+                except Exception:
+                    # Ignore if already exists or not supported
+                    pass
+
+            # Normalized collections indexes
+            try:
+                if self.db.has_collection("entities"):
+                    ent = self.db.collection("entities")
+                    try:
+                        ent.add_index({"type": "persistent", "fields": ["type", "name"], "name": "idx_type_name"})
+                    except Exception:
+                        pass
+                    try:
+                        ent.add_index({"type": "persistent", "fields": ["jurisdiction"], "name": "idx_jurisdiction"})
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+            try:
+                if self.db.has_collection("edges"):
+                    gen_edges = self.db.collection("edges")
+                    try:
+                        gen_edges.add_index({"type": "persistent", "fields": ["_from", "type"], "name": "idx_from_type"})
+                    except Exception:
+                        pass
+                    try:
+                        gen_edges.add_index({"type": "persistent", "fields": ["_to"], "name": "idx_to"})
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+            try:
+                if self.db.has_collection("quotes"):
+                    q = self.db.collection("quotes")
+                    try:
+                        q.add_index({"type": "persistent", "fields": ["source_id", "start_offset", "end_offset"], "name": "idx_src_span"})
+                    except Exception:
+                        pass
+                    try:
+                        q.add_index({"type": "persistent", "fields": ["quote_sha256"], "name": "idx_quote_sha"})
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+            try:
+                if self.db.has_collection("text_blobs"):
+                    b = self.db.collection("text_blobs")
+                    try:
+                        b.add_index({"type": "persistent", "fields": ["sha256"], "name": "idx_blob_sha", "unique": True})
+                    except Exception:
+                        pass
+            except Exception:
+                pass
 
             self.logger.info("Initialized database indexes")
 
@@ -311,13 +396,11 @@ class ArangoDBGraph:
         """Create or update an ArangoSearch view over all entity collections."""
         try:
             view_name = "kg_entities_view"
-            # Build links for all vertex collections
+            # Build links for consolidated 'entities' only
+            # Text chunks are now stored exclusively in Qdrant vector DB
             links: Dict[str, Dict] = {}
-            for entity_type in EntityType:
-                coll_name = self._get_collection_for_entity(entity_type)
-                if not self.db.has_collection(coll_name):
-                    continue
-                links[coll_name] = {
+            if self.db.has_collection("entities"):
+                links["entities"] = {
                     "includeAllFields": False,
                     "fields": {
                         "name": {"analyzers": ["text_en"]},
@@ -395,9 +478,245 @@ class ArangoDBGraph:
         """Get the collection name for a relationship type."""
         return relationship_type.name.lower()
 
+    # --- Text chunk storage: REMOVED (now in Qdrant) ---
+    # Chunks are stored exclusively in Qdrant vector DB with embeddings
+    # Provenance links entities to chunks via quotes (offset-based) and Qdrant point IDs
+
+    # --- Normalized text + provenance APIs ---
+    def _canonicalize_text(self, text: Optional[str]) -> str:
+        if not text:
+            return ""
+        return str(text).replace("\r\n", "\n").replace("\r", "\n")
+
+    def _sha256(self, data: str) -> str:
+        return hashlib.sha256(data.encode("utf-8")).hexdigest()
+
+    def upsert_text_blob(self, text: str) -> str:
+        try:
+            canon = self._canonicalize_text(text)
+            sha = self._sha256(canon)
+            blob_id = f"t:{sha}"
+            coll = self.db.collection("text_blobs")
+            doc = {
+                "_key": blob_id,
+                "sha256": sha,
+                "text": canon,
+                "length": len(canon),
+                "encoding": "utf-8",
+                "created_at": datetime.utcnow().isoformat(),
+            }
+            if not coll.has(blob_id):
+                coll.insert(doc)
+            return blob_id
+        except Exception as e:
+            self.logger.error(f"upsert_text_blob failed: {e}")
+            return ""
+
+    def upsert_source(self, locator: str, kind: str, title: Optional[str] = None, jurisdiction: Optional[str] = None, sha256: Optional[str] = None) -> str:
+        try:
+            if not sha256:
+                sha256 = self._sha256(locator or "")
+            sid = f"src:{sha256}"
+            coll = self.db.collection("sources")
+            doc = {
+                "_key": sid,
+                "kind": kind,
+                "locator": locator,
+                "title": title,
+                "jurisdiction": jurisdiction,
+                "sha256": sha256,
+                "fetched_at": datetime.utcnow().isoformat(),
+                "meta": {},
+            }
+            if coll.has(sid):
+                coll.update(doc)
+            else:
+                coll.insert(doc)
+            return sid
+        except Exception as e:
+            self.logger.error(f"upsert_source failed for {locator}: {e}")
+            return ""
+
+    def ensure_text_entities(self, source_id: str, full_text: str, chunk_size: int = 3500) -> Dict[str, object]:
+        """DEPRECATED: legacy path that stored text as entities. Prefer register_source_with_text which uses text_chunks."""
+        try:
+            canon = self._canonicalize_text(full_text)
+            src_sha = source_id.split(":", 1)[1] if ":" in source_id else self._sha256(canon)
+            full_blob_id = self.upsert_text_blob(canon)
+            ent_coll = self.db.collection("entities")
+            textdoc_id = f"textdoc:{src_sha}"
+            doc = {
+                "_key": textdoc_id,
+                "type": "TEXT_DOCUMENT",
+                "name": f"Source {src_sha}",
+                "attributes": {"source_id": source_id, "blob_id": full_blob_id, "length": len(canon)},
+            }
+            if ent_coll.has(textdoc_id):
+                ent_coll.update(doc)
+            else:
+                ent_coll.insert(doc)
+            total_len = len(canon)
+            chunk_ids: List[str] = []
+            idx = 0
+            start = 0
+            step = max(1, int(chunk_size))
+            while start < total_len:
+                end = min(total_len, start + step)
+                chunk_text = canon[start:end]
+                blob_id = self.upsert_text_blob(chunk_text)
+                chunk_id = f"textchunk:{src_sha}:{idx}"
+                chunk_doc = {
+                    "_key": chunk_id,
+                    "type": "TEXT_CHUNK",
+                    "name": f"Chunk {idx} of {src_sha}",
+                    "attributes": {
+                        "chunk_index": idx,
+                        "blob_id": blob_id,
+                        "sha256": blob_id.split(":",1)[1] if ":" in blob_id else None,
+                        "start_offset": start,
+                        "end_offset": end,
+                        "source_id": source_id,
+                        "textdoc_id": textdoc_id,
+                    },
+                }
+                if ent_coll.has(chunk_id):
+                    ent_coll.update(chunk_doc)
+                else:
+                    ent_coll.insert(chunk_doc)
+                chunk_ids.append(chunk_id)
+                idx += 1
+                start = end
+            return {"textdoc_id": textdoc_id, "chunk_ids": chunk_ids, "total_length": total_len, "chunk_size": step, "src_sha": src_sha}
+        except Exception as e:
+            self.logger.error(f"ensure_text_entities failed for {source_id}: {e}")
+            return {"textdoc_id": "", "chunk_ids": [], "total_length": 0, "chunk_size": int(chunk_size), "src_sha": ""}
+
+    def register_source_with_text(self, locator: str, kind: str, full_text: str, title: Optional[str] = None, jurisdiction: Optional[str] = None, chunk_size: int = 3500) -> Dict[str, object]:
+        """Register source and prepare chunks for vector DB. Returns chunk docs (not persisted to Arango)."""
+        try:
+            canon = self._canonicalize_text(full_text)
+            sha = self._sha256(canon)
+            sid = self.upsert_source(locator=locator, kind=kind, title=title, jurisdiction=jurisdiction, sha256=sha)
+            # Store full text blob for audit/provenance
+            blob_id = self.upsert_text_blob(canon)
+            # Build chunk docs (caller will embed and persist to Qdrant)
+            settings = get_settings()
+            target = int(getattr(settings, "chunk_chars_target", chunk_size) or chunk_size)
+            overlap = int(getattr(settings, "chunk_overlap_chars", 0) or 0)
+            chunks = build_chunk_docs(
+                text=canon,
+                source=locator,
+                title=title,
+                target_chars=target,
+                overlap_chars=overlap,
+            )
+            # Generate stable chunk IDs (caller will use as Qdrant point IDs)
+            chunk_ids = []
+            safe_source = re.sub(r"\W+", "_", str(locator).lower()).strip("_")
+            for ch in chunks:
+                idx = ch.get("chunk_index", 0)
+                chunk_ids.append(f"chunk:{safe_source}:{idx}")
+            return {
+                "source_id": sid,
+                "blob_id": blob_id,
+                "chunk_docs": chunks,
+                "chunk_ids": chunk_ids,
+                "total_length": len(canon),
+                "chunk_size": target,
+                "src_sha": sha,
+            }
+        except Exception as e:
+            self.logger.error(f"register_source_with_text failed for {locator}: {e}")
+            return {"source_id": "", "blob_id": "", "chunk_docs": [], "chunk_ids": [], "total_length": 0, "chunk_size": int(chunk_size), "src_sha": ""}
+
+    def upsert_quote(self, source_id: str, start_offset: int, end_offset: int, quote_text: Optional[str] = None, chunk_entity_id: Optional[str] = None) -> str:
+        try:
+            src_sha = source_id.split(":", 1)[1] if ":" in source_id else ""
+            qid = f"q:{src_sha}:{int(start_offset)}:{int(end_offset)}"
+            qsha = self._sha256(self._canonicalize_text(quote_text or "")) if quote_text is not None else None
+            coll = self.db.collection("quotes")
+            doc = {
+                "_key": qid,
+                "source_id": source_id,
+                "quote_sha256": qsha,
+                "start_offset": int(start_offset),
+                "end_offset": int(end_offset),
+                "chunk_entity_id": chunk_entity_id,
+                "created_at": datetime.utcnow().isoformat(),
+            }
+            if coll.has(qid):
+                coll.update(doc)
+            else:
+                coll.insert(doc)
+            return qid
+        except Exception as e:
+            self.logger.error(f"upsert_quote failed: {e}")
+            return ""
+
+    def attach_provenance(self, subject_type: str, subject_id: str, source_id: str, quote_id: Optional[str] = None, citation: Optional[str] = None) -> bool:
+        try:
+            coll = self.db.collection("provenance")
+            base = f"{subject_type}:{subject_id}:{source_id}:{quote_id or ''}"
+            pid = f"prov:{self._sha256(base)}"
+            doc = {
+                "_key": pid,
+                "subject_type": subject_type,
+                "subject_id": subject_id,
+                "source_id": source_id,
+                "quote_id": quote_id,
+                "citation": citation,
+                "added_at": datetime.utcnow().isoformat(),
+            }
+            if coll.has(pid):
+                return False
+            coll.insert(doc)
+            if subject_type == "ENTITY":
+                try:
+                    ent = self.db.collection("entities")
+                    if ent.has(subject_id):
+                        cur = ent.get(subject_id)
+                        cur["mentions_count"] = int(cur.get("mentions_count", 0)) + 1
+                        ent.update(cur)
+                except Exception:
+                    pass
+            return True
+        except Exception as e:
+            self.logger.error(f"attach_provenance failed: {e}")
+            return False
+
+    def get_quote_snippet(self, quote_id: str) -> Optional[Dict[str, object]]:
+        try:
+            q = self.db.collection("quotes").get(quote_id)
+            if not q:
+                return None
+            source_id = q.get("source_id")
+            if not source_id:
+                return None
+            s = self.db.collection("sources").get(source_id)
+            if not s:
+                return None
+            sha = s.get("sha256")
+            if not sha:
+                return None
+            blob = self.db.collection("text_blobs").get(f"t:{sha}")
+            if not blob:
+                return None
+            text = blob.get("text") or ""
+            start = int(q.get("start_offset") or 0)
+            end = int(q.get("end_offset") or 0)
+            return {"text": text[start:end], "start_offset": start, "end_offset": end}
+        except Exception as e:
+            self.logger.error(f"get_quote_snippet failed: {e}")
+            return None
+
     def entity_exists(self, entity_id: str) -> bool:
-        """Check if an entity exists in the graph."""
-        # Search across all entity collections
+        """Check if an entity exists in consolidated 'entities' or legacy collections."""
+        try:
+            if self.db.has_collection("entities"):
+                if self.db.collection("entities").has(entity_id):
+                    return True
+        except Exception:
+            pass
         for entity_type in EntityType:
             collection = self.db.collection(self._get_collection_for_entity(entity_type))
             if collection.has(entity_id):
@@ -536,7 +855,7 @@ class ArangoDBGraph:
             "name": data.get("name", ""),
             "description": data.get("description", ""),
             "attributes": {k: v for k, v in data.items() 
-                        if k not in ["_key", "type", "name", "description", "source_metadata", "jurisdiction"]},
+                        if k not in ["_key", "type", "name", "description", "source_metadata", "jurisdiction", "provenance", "mentions_count"]},
             "source_metadata": {
                 "source": stored_metadata.get("source", data["_key"]),  # Use stored source or fallback
                 "source_type": stored_metadata.get("source_type", SourceType.INTERNAL),
@@ -552,11 +871,19 @@ class ArangoDBGraph:
                 "attributes": stored_metadata.get("attributes", {})
             }
         }
+        # Add provenance and mentions_count when present
+        if "provenance" in data:
+            entity_data["provenance"] = data.get("provenance") or []
+        if "mentions_count" in data:
+            try:
+                entity_data["mentions_count"] = int(data.get("mentions_count") or 0)
+            except Exception:
+                entity_data["mentions_count"] = 0
         return LegalEntity(**entity_data)
 
     def add_entity(self, entity: LegalEntity, overwrite: bool = False) -> bool:
-        """Add a legal entity to the knowledge graph. Returns True if added/updated, False if skipped."""
-        collection = self.db.collection(self._get_collection_for_entity(entity.entity_type))
+        """Add a legal entity to consolidated 'entities' collection."""
+        collection = self.db.collection("entities")
 
         # Convert source metadata to dict and handle datetime serialization
         source_metadata = entity.source_metadata.dict()
@@ -664,6 +991,25 @@ class ArangoDBGraph:
         except Exception:
             return new_meta or existing_meta
 
+    def _normalize_source_meta_dict(self, meta: Optional[Dict]) -> Dict:
+        """Ensure source metadata dict is JSON-serializable (enum values, ISO datetimes)."""
+        if not isinstance(meta, dict):
+            return {}
+        sm = dict(meta)
+        # Normalize enum-like fields to string values
+        auth = sm.get("authority")
+        if auth is not None and not isinstance(auth, str):
+            sm["authority"] = getattr(auth, "value", str(auth))
+        st = sm.get("source_type")
+        if st is not None and not isinstance(st, str):
+            sm["source_type"] = getattr(st, "value", str(st))
+        dt_keys = ("created_at", "processed_at", "last_updated")
+        for k in dt_keys:
+            v = sm.get(k)
+            if isinstance(v, datetime):
+                sm[k] = v.isoformat()
+        return sm
+
     def upsert_entity_provenance(self, entity: LegalEntity, provenance_entry: Dict) -> bool:
         """Upsert an entity; if it exists, merge provenance, mentions_count, and possibly canonical source.
         Returns True if inserted or updated.
@@ -672,7 +1018,7 @@ class ArangoDBGraph:
             coll_name = self._get_collection_for_entity(entity.entity_type)
             coll = self.db.collection(coll_name)
             if coll.has(entity.id):
-                doc = coll.get(entity.id)
+                doc = coll.get(entity.id) or {"_key": entity.id}
                 # Merge description if missing or new has content and existing empty
                 if (not doc.get("description")) and entity.description:
                     doc["description"] = entity.description
@@ -687,32 +1033,12 @@ class ArangoDBGraph:
                     src = (p or {}).get("source", {})
                     return f"{src.get('source')}::{(p or {}).get('quote','')[:64]}"
                 seen = { _key(p) for p in prov_list }
-                # Enrich provenance with stable id and length/anchor_url if possible
-                def _enrich(p: Dict) -> Dict:
-                    if not isinstance(p, dict):
-                        return p
-                    try:
-                        if 'provenance_id' not in p or not p.get('provenance_id'):
-                            src = (p.get('source') or {}).get('source') or ''
-                            q = (p.get('quote') or '')
-                            pid = f"prov:{abs(hash(src + '::' + q[:64]))}"
-                            p['provenance_id'] = pid
-                        if 'length' not in p and p.get('quote'):
-                            p['length'] = len(p.get('quote'))
-                        # Anchor URL: if source is URL and offset present, append as fragment for later use
-                        src_url = (p.get('source') or {}).get('source')
-                        if isinstance(src_url, str) and src_url.startswith(('http://','https://')) and p.get('offset') is not None:
-                            try:
-                                p['anchor_url'] = f"{src_url}#p={max(1, int(p.get('offset') or 0)//500)}"
-                            except Exception:
-                                p['anchor_url'] = src_url
-                    except Exception:
-                        pass
-                    return p
-                if provenance_entry and _key(provenance_entry) not in seen:
-                    prov_list.append(_enrich(provenance_entry))
-                # Backfill enrich existing ones
-                prov_list = [_enrich(p) for p in prov_list]
+                if provenance_entry:
+                    # Normalize nested source metadata for JSON safety
+                    if isinstance(provenance_entry.get("source"), dict):
+                        provenance_entry["source"] = self._normalize_source_meta_dict(provenance_entry["source"])
+                    if _key(provenance_entry) not in seen:
+                        prov_list.append(provenance_entry)
                 doc["provenance"] = prov_list
                 # Mentions count: unique sources
                 unique_sources = { (p.get("source", {}) or {}).get("source") for p in prov_list if isinstance(p, dict) }
@@ -720,6 +1046,8 @@ class ArangoDBGraph:
                 # Canonical source selection
                 existing_meta = doc.get("source_metadata") or {}
                 new_meta = entity.source_metadata.dict() if hasattr(entity.source_metadata, "dict") else entity.source_metadata
+                new_meta = self._normalize_source_meta_dict(new_meta)
+                existing_meta = self._normalize_source_meta_dict(existing_meta)
                 doc["source_metadata"] = self._select_canonical_source(existing_meta, new_meta)
                 coll.update(doc)
                 return True
@@ -727,30 +1055,16 @@ class ArangoDBGraph:
                 # New insert with provenance
                 base_inserted = self.add_entity(entity, overwrite=False)
                 if base_inserted:
-                    doc = coll.get(entity.id)
+                    prov = []
                     if provenance_entry:
-                        # Enrich new provenance
-                        penr = provenance_entry
-                        try:
-                            src = (penr.get('source') or {}).get('source') or ''
-                            q = (penr.get('quote') or '')
-                            penr['provenance_id'] = penr.get('provenance_id') or f"prov:{abs(hash(src + '::' + q[:64]))}"
-                            if 'length' not in penr and penr.get('quote'):
-                                penr['length'] = len(penr.get('quote'))
-                            src_url = (penr.get('source') or {}).get('source')
-                            if isinstance(src_url, str) and src_url.startswith(('http://','https://')) and penr.get('offset') is not None:
-                                try:
-                                    penr['anchor_url'] = f"{src_url}#p={max(1, int(penr.get('offset') or 0)//500)}"
-                                except Exception:
-                                    penr['anchor_url'] = src_url
-                        except Exception:
-                            pass
-                        doc["provenance"] = [penr]
-                    else:
-                        doc["provenance"] = []
-                    unique_sources = { (provenance_entry or {}).get("source", {}).get("source") }
-                    doc["mentions_count"] = len({ s for s in unique_sources if s })
-                    coll.update(doc)
+                        if isinstance(provenance_entry.get("source"), dict):
+                            provenance_entry["source"] = self._normalize_source_meta_dict(provenance_entry["source"])
+                        prov.append(provenance_entry)
+                    coll.update({
+                        "_key": entity.id,
+                        "provenance": prov,
+                        "mentions_count": len({ (provenance_entry or {}).get("source", {}).get("source") }) if provenance_entry else 0,
+                    })
                     return True
                 return False
         except Exception as e:
@@ -770,21 +1084,10 @@ class ArangoDBGraph:
             )
             return False
 
-        collection = self.db.collection(
-            self._get_collection_for_relationship(relationship.relationship_type)
-        )
-
-        # Get source and target entity types to determine collections
-        source_entity = self.get_entity(relationship.source_id)
-        target_entity = self.get_entity(relationship.target_id)
-        
-        if not source_entity or not target_entity:
-            self.logger.error("Could not determine entity types for relationship")
-            return False
-
-        # Format _from and _to with collection names
-        from_collection = self._get_collection_for_entity(source_entity.entity_type)
-        to_collection = self._get_collection_for_entity(target_entity.entity_type)
+        # Use consolidated collection
+        collection = self.db.collection("edges")
+        from_collection = "entities"
+        to_collection = "entities"
         
         # Deduplicate: skip if identical edge exists
         try:
@@ -795,7 +1098,6 @@ class ArangoDBGraph:
                 RETURN e
             """
             cur = self.db.aql.execute(aql, bind_vars={
-                "@edge": self._get_collection_for_relationship(relationship.relationship_type),
                 "from_coll": from_collection,
                 "to_coll": to_collection,
                 "from_id": relationship.source_id,
@@ -1126,6 +1428,214 @@ class ArangoDBGraph:
         except Exception as e:
             self.logger.error(f"get_neighbors error: {e}")
             return [], []
+
+    # --- Consolidation helpers ---
+    def _norm_tokens(self, text: Optional[str]) -> List[str]:
+        if not text:
+            return []
+        tokens = re.split(r"\W+", text.lower())
+        stop = {"the","a","an","and","or","to","of","in","on","for","by","with","at","from","as","is","are","be","that","this","these","those"}
+        return [t for t in tokens if t and t not in stop]
+
+    def _sim_score(self, name_a: str, desc_a: Optional[str], name_b: str, desc_b: Optional[str]) -> float:
+        if not name_a or not name_b:
+            return 0.0
+        a, b = name_a.strip().lower(), name_b.strip().lower()
+        if a == b:
+            return 1.0
+        if a in b or b in a:
+            return 0.95
+        sa, sb = set(self._norm_tokens(a)), set(self._norm_tokens(b))
+        name_sim = (len(sa & sb) / max(1, len(sa | sb))) if (sa or sb) else 0.0
+        da, db = set(self._norm_tokens(desc_a or "")), set(self._norm_tokens(desc_b or ""))
+        desc_sim = (len(da & db) / max(1, len(da | db))) if (da or db) else 0.0
+        return 0.8 * name_sim + 0.2 * desc_sim
+
+    def _merge_two_docs(self, coll_name: str, keep_id: str, drop_id: str) -> None:
+        coll = self.db.collection(coll_name)
+        keep = coll.get(keep_id)
+        drop = coll.get(drop_id)
+        if not keep or not drop:
+            return
+        # Merge description (prefer longer)
+        kdesc, ddesc = keep.get("description"), drop.get("description")
+        if (not kdesc) or (ddesc and len(str(ddesc)) > len(str(kdesc))):
+            keep["description"] = ddesc
+        # Merge attributes (non-destructive)
+        for k, v in drop.items():
+            if k in ["_key","_id","_rev","type","name","description","source_metadata","jurisdiction","provenance","mentions_count"]:
+                continue
+            if k not in keep:
+                keep[k] = v
+        # Merge provenance lists
+        kprov = (keep.get("provenance") or [])
+        dprov = (drop.get("provenance") or [])
+        def keyp(p):
+            s = (p or {}).get("source", {})
+            return f"{s.get('source')}::{(p or {}).get('quote','')[:64]}"
+        seen = { keyp(p) for p in kprov }
+        for p in dprov:
+            if keyp(p) not in seen:
+                kprov.append(p)
+        keep["provenance"] = kprov
+        # Mentions count recompute
+        uniq = { (p.get("source", {}) or {}).get("source") for p in kprov if isinstance(p, dict) }
+        keep["mentions_count"] = len({ s for s in uniq if s })
+        # Canonical source selection
+        keep_meta = keep.get("source_metadata") or {}
+        drop_meta = drop.get("source_metadata") or {}
+        keep["source_metadata"] = self._select_canonical_source(keep_meta, drop_meta)
+        coll.update(keep)
+
+        # Rewire edges from drop to keep
+        for rel_type in RelationshipType:
+            edge_name = self._get_collection_for_relationship(rel_type)
+            edges = self.db.collection(edge_name)
+            # Update outbound
+            aql_out = """
+            FOR e IN @@edge
+                FILTER e._from == CONCAT(@coll, '/', @drop)
+                UPDATE e WITH { _from: CONCAT(@coll, '/', @keep) } IN @@edge
+            """
+            self.db.aql.execute(aql_out, bind_vars={"@edge": edge_name, "coll": coll_name, "drop": drop_id, "keep": keep_id})
+            # Update inbound
+            aql_in = """
+            FOR e IN @@edge
+                FILTER e._to == CONCAT(@coll, '/', @drop)
+                UPDATE e WITH { _to: CONCAT(@coll, '/', @keep) } IN @@edge
+            """
+            self.db.aql.execute(aql_in, bind_vars={"@edge": edge_name, "coll": coll_name, "drop": drop_id, "keep": keep_id})
+        # Delete drop vertex
+        coll.delete(drop_id)
+
+    def consolidate_entities(self, node_ids: List[str], threshold: float = 0.95) -> Dict[str, int]:
+        """Merge near-duplicate entities among the given ids (same-type only), using strict similarity.
+        Returns counts of merged and examined pairs.
+        """
+        merged = 0
+        examined = 0
+        try:
+            # Group node ids by collection/type
+            type_to_ids: Dict[str, List[str]] = {}
+            for nid in node_ids:
+                coll = self._collection_for_entity_id(nid)
+                if not coll:
+                    continue
+                type_to_ids.setdefault(coll, []).append(nid)
+            for coll_name, ids in type_to_ids.items():
+                docs = []
+                coll = self.db.collection(coll_name)
+                for nid in ids:
+                    d = coll.get(nid)
+                    if d:
+                        docs.append(d)
+                # Compare all pairs within this collection
+                for i in range(len(docs)):
+                    for j in range(i+1, len(docs)):
+                        a, b = docs[i], docs[j]
+                        examined += 1
+                        score = self._sim_score(a.get("name",""), a.get("description"), b.get("name",""), b.get("description"))
+                        if score >= threshold:
+                            # Choose keep by authority then recency
+                            ka = a.get("source_metadata") or {}
+                            kb = b.get("source_metadata") or {}
+                            choose_a = self._select_canonical_source(kb, ka) == ka
+                            keep_id = a.get("_key") if choose_a else b.get("_key")
+                            drop_id = b.get("_key") if choose_a else a.get("_key")
+                            self._merge_two_docs(coll_name, keep_id, drop_id)
+                            merged += 1
+            return {"merged": merged, "examined": examined}
+        except Exception as e:
+            self.logger.error(f"consolidate_entities error: {e}")
+            return {"merged": merged, "examined": examined}
+
+    def consolidate_all_entities(self, threshold: float = 0.95, types: Optional[List[EntityType]] = None, judge_low: float = 0.90, judge_high: float = 0.95) -> Dict[str, object]:
+        """Scan the whole graph (optionally filtered by types) and consolidate near-duplicates per type.
+        Auto-merge when score >= threshold. Return borderline pairs in [judge_low, judge_high) for LLM judge.
+        Returns { collections: map of collection -> {merged, examined}, borderline: [ {coll, a_id, b_id, a_name, b_name, a_desc, b_desc, score} ] }.
+        """
+        results: Dict[str, Dict[str, int]] = {}
+        borderline: List[Dict[str, object]] = []
+        try:
+            target_types = types or list(EntityType)
+            self.logger.info(f"[CONSOLIDATE-ALL] Starting consolidate-all threshold={threshold} types={[t.value if hasattr(t,'value') else str(t) for t in target_types]}")
+            for et in target_types:
+                coll_name = self._get_collection_for_entity(et)
+                if not self.db.has_collection(coll_name):
+                    continue
+                coll = self.db.collection(coll_name)
+                docs = list(coll.all())
+                merged = 0
+                examined = 0
+                # Simple n^2 compare within collection; acceptable for small/medium graphs
+                i = 0
+                while i < len(docs):
+                    a = docs[i]
+                    j = i + 1
+                    while j < len(docs):
+                        b = docs[j]
+                        examined += 1
+                        score = self._sim_score(a.get("name",""), a.get("description"), b.get("name",""), b.get("description"))
+                        if score >= threshold:
+                            ka = a.get("source_metadata") or {}
+                            kb = b.get("source_metadata") or {}
+                            choose_a = self._select_canonical_source(kb, ka) == ka
+                            keep_id = a.get("_key") if choose_a else b.get("_key")
+                            drop_id = b.get("_key") if choose_a else a.get("_key")
+                            self.logger.info(f"[CONSOLIDATE-ALL] merge {coll_name}: '{a.get('name','')}' <-> '{b.get('name','')}' score={score:.3f} keep={keep_id} drop={drop_id}")
+                            self._merge_two_docs(coll_name, keep_id, drop_id)
+                            # Refresh docs list after deletion
+                            docs.pop(j if choose_a else i)
+                            merged += 1
+                            # Do not advance j; the list shrank
+                            continue
+                        elif judge_low <= score < judge_high:
+                            borderline.append({
+                                "coll": coll_name,
+                                "a_id": a.get("_key"),
+                                "b_id": b.get("_key"),
+                                "a_name": a.get("name",""),
+                                "b_name": b.get("name",""),
+                                "a_desc": a.get("description",""),
+                                "b_desc": b.get("description",""),
+                                "score": float(score)
+                            })
+                        j += 1
+                    i += 1
+                results[coll_name] = {"merged": merged, "examined": examined}
+                self.logger.info(f"[CONSOLIDATE-ALL] collection={coll_name} merged={merged} examined={examined}")
+            total_merged = sum(v.get('merged',0) for v in results.values())
+            total_examined = sum(v.get('examined',0) for v in results.values())
+            self.logger.info(f"[CONSOLIDATE-ALL] Completed merged_total={total_merged} examined_total={total_examined}")
+            return {"collections": results, "borderline": borderline}
+        except Exception as e:
+            self.logger.error(f"consolidate_all_entities error: {e}")
+            return {"collections": results, "borderline": borderline}
+
+    def merge_pair_auto(self, id_a: str, id_b: str) -> bool:
+        """Merge two entities (same collection/type). Chooses canonical by authority/recency and rewires edges.
+        Returns True if merged, False otherwise.
+        """
+        try:
+            coll_a = self._collection_for_entity_id(id_a)
+            coll_b = self._collection_for_entity_id(id_b)
+            if not coll_a or coll_a != coll_b:
+                return False
+            coll = self.db.collection(coll_a)
+            a = coll.get(id_a)
+            b = coll.get(id_b)
+            if not a or not b:
+                return False
+            ka = a.get("source_metadata") or {}
+            kb = b.get("source_metadata") or {}
+            choose_a = self._select_canonical_source(kb, ka) == ka
+            keep_id = id_a if choose_a else id_b
+            drop_id = id_b if choose_a else id_a
+            self._merge_two_docs(coll_a, keep_id, drop_id)
+            return True
+        except Exception as e:
+            self.logger.error(f"merge_pair_auto error: {e}")
+            return False
     
     
     def _fallback_text_search(self, search_term: str, types: Optional[List[EntityType]], jurisdiction: Optional[str], limit: int) -> List[LegalEntity]:

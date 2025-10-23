@@ -110,7 +110,9 @@ class RequestIdAndTimingMiddleware(BaseHTTPMiddleware):
         )
         return response
 
-    def _emit_log(self, level: int, message: str, request: Request, status_code: int, duration_ms: int) -> None:
+    def _emit_log(
+        self, level: int, message: str, request: Request, status_code: int, duration_ms: int
+    ) -> None:
         # Build a log record with extra fields so formatter can include them
         extra = {
             "request_id": getattr(request.state, "request_id", "-"),
@@ -120,5 +122,3 @@ class RequestIdAndTimingMiddleware(BaseHTTPMiddleware):
             "duration_ms": duration_ms,
         }
         self.access_logger.log(level, message, extra=extra)
-
-

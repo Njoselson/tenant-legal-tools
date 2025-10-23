@@ -284,16 +284,31 @@
         .cite-tooltip {
             position: fixed;
             z-index: 1000;
-            max-width: 360px;
+            max-width: 500px;
             background: #ffffff;
-            border: 1px solid #e5e7eb;
-            box-shadow: 0 8px 24px rgba(0,0,0,0.12);
-            border-radius: 8px;
-            padding: 10px 12px;
+            border: 2px solid #3b82f6;
+            box-shadow: 0 12px 32px rgba(0,0,0,0.2);
+            border-radius: 12px;
+            padding: 16px;
         }
         .cite-tooltip h4 {
-            margin: 0 0 6px 0;
+            margin: 0 0 10px 0;
+            font-size: 14px;
+            color: #1e40af;
+            font-weight: 600;
+        }
+        .cite-tooltip blockquote {
+            margin: 12px 0;
+            padding: 12px 16px;
+            background: #f0f9ff;
+            border-left: 4px solid #3b82f6;
+            border-radius: 0 6px 6px 0;
+            font-style: italic;
+            color: #1e40af;
             font-size: 13px;
+            line-height: 1.6;
+            max-height: 300px;
+            overflow-y: auto;
         }
         .cite-actions {
             display: flex;
@@ -378,6 +393,23 @@
             padding: 10px 15px;
             background: #f8f9fa;
             border-radius: 0 4px 4px 0;
+            display: block !important;
+            visibility: visible !important;
+        }
+        
+        /* Specific styles for source quotes */
+        .sources-list blockquote {
+            margin: 10px 0;
+            padding: 12px 16px;
+            background: #f0f7ff;
+            border-left: 4px solid #2563eb;
+            border-radius: 0 6px 6px 0;
+            font-style: italic;
+            color: #1e40af;
+            font-size: 14px;
+            line-height: 1.6;
+            display: block !important;
+            visibility: visible !important;
         }
         
         .markdown-content code {
@@ -659,6 +691,13 @@
             background: white;
         }
         
+        .evidence-list li.from-case {
+            background: #d1fae5;
+            border-left-color: #10b981;
+            border-left-width: 4px;
+            font-weight: 500;
+        }
+        
         .evidence-list.needed li {
             border-left-color: #dc3545;
         }
@@ -774,6 +813,355 @@
             background: #6c757d;
             color: white;
         }
+        
+        /* Law with Evidence Styles */
+        .law-with-evidence {
+            margin: 12px 0;
+            padding: 14px;
+            background: #f8fafc;
+            border-radius: 8px;
+            border-left: 4px solid #3b82f6;
+        }
+        
+        .law-header {
+            font-size: 15px;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+        
+        .case-application {
+            background: #fef3c7;
+            padding: 12px;
+            border-radius: 6px;
+            margin: 10px 0;
+            font-size: 14px;
+            border-left: 3px solid #f59e0b;
+        }
+        
+        .case-application strong {
+            color: #92400e;
+            font-size: 13px;
+        }
+        
+        .evidence-details {
+            margin-top: 10px;
+        }
+        
+        .evidence-toggle {
+            cursor: pointer;
+            font-size: 13px;
+            color: #3b82f6;
+            font-weight: 600;
+            padding: 6px 12px;
+            background: #eff6ff;
+            border-radius: 6px;
+            user-select: none;
+            display: inline-block;
+        }
+        
+        .evidence-toggle:hover {
+            background: #dbeafe;
+        }
+        
+        .law-quote {
+            margin: 12px 0;
+            padding: 14px;
+            background: #f0f9ff;
+            border-left: 3px solid #0ea5e9;
+            font-size: 13px;
+            font-style: italic;
+            color: #0c4a6e;
+            border-radius: 0 6px 6px 0;
+            line-height: 1.7;
+        }
+        
+        .source-link-inline {
+            font-size: 12px;
+            color: #3b82f6;
+            text-decoration: none;
+            display: inline-block;
+            margin-top: 8px;
+        }
+        
+        .source-link-inline:hover {
+            text-decoration: underline;
+        }
+        
+        /* Key Findings Section */
+        .key-findings-section {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 24px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+        }
+        
+        .key-findings-section h3 {
+            color: white;
+            margin-top: 0;
+        }
+        
+        .overall-strength-compact {
+            padding: 16px;
+            border-radius: 8px;
+            text-align: center;
+            font-size: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .overall-strength-compact.strong {
+            background: rgba(16, 185, 129, 0.2);
+            border: 2px solid #10b981;
+        }
+        
+        .overall-strength-compact.moderate {
+            background: rgba(251, 191, 36, 0.2);
+            border: 2px solid #fbbf24;
+        }
+        
+        .overall-strength-compact.weak {
+            background: rgba(239, 68, 68, 0.2);
+            border: 2px solid #ef4444;
+        }
+        
+        .issue-compact {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+        }
+        
+        .issue-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        
+        .issue-name {
+            font-weight: 600;
+            text-transform: capitalize;
+        }
+        
+        .strength-badge-mini {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        
+        .strength-badge-mini.strong { background: #10b981; }
+        .strength-badge-mini.moderate { background: #fbbf24; color: #000; }
+        .strength-badge-mini.weak { background: #ef4444; }
+        
+        .strength-bar {
+            height: 8px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        
+        .strength-fill {
+            height: 100%;
+            transition: width 0.5s ease;
+            border-radius: 4px;
+        }
+        
+        .strength-fill.strong { background: #10b981; }
+        .strength-fill.moderate { background: #fbbf24; }
+        .strength-fill.weak { background: #ef4444; }
+        
+        .priority-actions-compact {
+            margin-top: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 16px;
+            border-radius: 8px;
+        }
+        
+        .priority-actions-compact h4 {
+            margin-top: 0;
+            color: white;
+        }
+        
+        .priority-actions-compact ol {
+            margin: 8px 0 0 0;
+            padding-left: 24px;
+        }
+        
+        .priority-actions-compact li {
+            margin: 8px 0;
+            font-size: 16px;
+        }
+        
+        /* Evidence Trust Section */
+        .evidence-trust-section {
+            background: #f8fafc;
+            border: 2px solid #e2e8f0;
+        }
+        
+        .trust-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        }
+        
+        .stat-number {
+            font-size: 36px;
+            font-weight: bold;
+            color: #1e40af;
+            margin-bottom: 4px;
+        }
+        
+        .stat-label {
+            font-size: 14px;
+            color: #64748b;
+        }
+        
+        .source-card-compact {
+            background: white;
+            border-left: 4px solid #3b82f6;
+            padding: 16px;
+            margin-bottom: 16px;
+            border-radius: 0 8px 8px 0;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .source-header {
+            font-size: 14px;
+            margin-bottom: 8px;
+            color: #1e293b;
+        }
+        
+        .quote-preview {
+            font-size: 13px;
+            font-style: italic;
+            color: #475569;
+            background: #f1f5f9;
+            padding: 12px;
+            border-radius: 6px;
+            border-left: 3px solid #3b82f6;
+            margin: 8px 0;
+            display: block !important;
+        }
+        
+        .source-link {
+            font-size: 13px;
+            color: #3b82f6;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        
+        .source-link:hover {
+            text-decoration: underline;
+        }
+        
+        .show-all-sources-btn {
+            width: 100%;
+            padding: 12px;
+            background: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 16px;
+        }
+        
+        .show-all-sources-btn:hover {
+            background: #2563eb;
+        }
+        
+        /* Collapsible Sections */
+        .section.collapsible.collapsed .section-content {
+            display: none;
+        }
+        
+        .section.collapsible h3 {
+            cursor: pointer;
+            user-select: none;
+            display: flex;
+            align-items: center;
+        }
+        
+        .section.collapsible h3:hover {
+            background: #f8f9fa;
+            padding: 8px;
+            margin: -8px;
+            border-radius: 4px;
+        }
+        
+        .toggle-icon {
+            display: inline-block;
+            transition: transform 0.2s;
+            margin-right: 8px;
+            font-size: 14px;
+        }
+        
+        /* Proof Chain Accordions */
+        .proof-chain.accordion {
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            overflow: hidden;
+        }
+        
+        .proof-chain-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px;
+            background: #f8fafc;
+            cursor: pointer;
+            user-select: none;
+        }
+        
+        .proof-chain-header:hover {
+            background: #f1f5f9;
+        }
+        
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .proof-chain-content {
+            padding: 16px;
+            max-height: 2000px;
+            transition: max-height 0.3s ease, padding 0.3s ease;
+        }
+        
+        .proof-chain-content.collapsed {
+            max-height: 0;
+            padding: 0 16px;
+            overflow: hidden;
+        }
+        
+        /* Mobile Responsive */
+        @media (max-width: 768px) {
+            .trust-stats {
+                grid-template-columns: 1fr;
+            }
+            
+            .key-findings-section {
+                padding: 16px;
+            }
+            
+            .stat-number {
+                font-size: 28px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -844,6 +1232,7 @@
                 <button class="tab active" onclick="showTab('analysis', event)">📋 Legal Analysis</button>
                 <button class="tab" onclick="showTab('graph', event)">🕸️ Knowledge Graph</button>
                 <button class="tab" onclick="showTab('entities', event)">📚 Entities & Sources</button>
+                <button class="tab" onclick="showTab('debug', event)">🔍 Debug Info</button>
             </div>
             
             <!-- Analysis Tab -->
@@ -852,6 +1241,18 @@
                     <div class="section">
                         <h3>📋 Case Summary</h3>
                         <div id="caseSummary" class="markdown-content"></div>
+                    </div>
+                    
+                    <!-- NEW: Key Findings Section -->
+                    <div class="section key-findings-section" id="keyFindings" style="display: none;">
+                        <h3>⭐ Key Findings</h3>
+                        <div id="keyFindingsContent"></div>
+                    </div>
+                    
+                    <!-- NEW: Evidence & Trust Section -->
+                    <div class="section evidence-trust-section" id="evidenceTrust" style="display: none;">
+                        <h3>📖 Evidence & Legal Sources</h3>
+                        <div id="evidenceTrustContent"></div>
                     </div>
                     
                     <!-- Enhanced Analysis: Proof Chains (shown when available) -->
@@ -867,39 +1268,47 @@
                         <div id="priorityActions" class="priority-actions-container"></div>
                     </div>
 
-                    <div class="section">
-                        <h3>⚖️ Legal Issues</h3>
-                        <div id="legalIssues" class="markdown-content"></div>
-                    </div>
+                    <!-- Collapsible Full Analysis Section -->
+                    <div class="section collapsible collapsed" id="fullAnalysisSection">
+                        <h3 onclick="toggleSection('fullAnalysisSection')">
+                            <span class="toggle-icon">▶</span> Full Legal Analysis & Details
+                        </h3>
+                        <div class="section-content">
+                            <div class="section">
+                                <h3>⚖️ Legal Issues</h3>
+                                <div id="legalIssues" class="markdown-content"></div>
+                            </div>
 
-                    <div class="section">
-                        <h3>📜 Relevant Laws</h3>
-                        <div id="relevantLaws" class="markdown-content"></div>
-                    </div>
+                            <div class="section">
+                                <h3>📜 Relevant Laws</h3>
+                                <div id="relevantLaws" class="markdown-content"></div>
+                            </div>
 
-                    <div class="section">
-                        <h3>✅ Recommended Actions</h3>
-                        <div id="recommendedActions" class="markdown-content"></div>
-                    </div>
+                            <div class="section">
+                                <h3>✅ Recommended Actions</h3>
+                                <div id="recommendedActions" class="markdown-content"></div>
+                            </div>
 
-                    <div class="section">
-                        <h3>📄 Evidence Needed</h3>
-                        <div id="evidenceNeeded" class="markdown-content"></div>
-                    </div>
+                            <div class="section">
+                                <h3>📄 Evidence Needed</h3>
+                                <div id="evidenceNeeded" class="markdown-content"></div>
+                            </div>
 
-                    <div class="section">
-                        <h3>🏛️ Legal Resources</h3>
-                        <div id="legalResources" class="markdown-content"></div>
-                    </div>
+                            <div class="section">
+                                <h3>🏛️ Legal Resources</h3>
+                                <div id="legalResources" class="markdown-content"></div>
+                            </div>
 
-                    <div class="section">
-                        <h3>⚠️ Risk Assessment</h3>
-                        <div id="riskAssessment" class="markdown-content"></div>
-                    </div>
+                            <div class="section">
+                                <h3>⚠️ Risk Assessment</h3>
+                                <div id="riskAssessment" class="markdown-content"></div>
+                            </div>
 
-                    <div class="section">
-                        <h3>🚀 Next Steps</h3>
-                        <div id="nextSteps" class="markdown-content"></div>
+                            <div class="section">
+                                <h3>🚀 Next Steps</h3>
+                                <div id="nextSteps" class="markdown-content"></div>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="section">
@@ -934,6 +1343,34 @@
                     <div id="entitiesListFull"></div>
                 </div>
             </div>
+            
+            <!-- Debug Tab -->
+            <div id="debug-tab" class="tab-content">
+                <div class="analysis-content">
+                    <h2>🔍 Retrieval Debug Info</h2>
+                    <p style="color: #666;">This panel shows what was retrieved from the knowledge graph and vector store to generate the analysis.</p>
+                    
+                    <div class="section">
+                        <h3>📊 Vector Search Results (Qdrant)</h3>
+                        <div id="debugChunks"></div>
+                    </div>
+                    
+                    <div class="section">
+                        <h3>🗂️ Entity Search Results (ArangoDB)</h3>
+                        <div id="debugEntities"></div>
+                    </div>
+                    
+                    <div class="section">
+                        <h3>🔗 Citations Mapping</h3>
+                        <div id="debugCitations"></div>
+                    </div>
+                    
+                    <div class="section">
+                        <h3>📈 Retrieval Stats</h3>
+                        <div id="debugStats"></div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -947,6 +1384,7 @@
     <script>
         let exampleCases = [];
         let currentEntitiesData = null;
+        let currentDebugData = null;
         let network = null;
         let graphData = { nodes: [], edges: [] };
         let selectedNodeId = null;
@@ -999,16 +1437,33 @@
             'DEFAULT': 'ellipse'
         };
 
-        window.addEventListener('load', function() {
+        // Use DOMContentLoaded instead of load for faster initialization
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM Content Loaded - initializing...');
             loadExampleCases();
             showDebugInfo();
             debugLog('Page loaded');
         });
+        
+        // Also try on window load as backup
+        window.addEventListener('load', function() {
+            console.log('Window loaded');
+            // Check if dropdown is populated, if not try again
+            const select = document.getElementById('exampleSelect');
+            if (select && select.options.length <= 1) {
+                console.warn('Example cases not loaded, retrying...');
+                loadExampleCases();
+            }
+        });
 
+        // Store case text globally for evidence matching
+        let currentCaseText = '';
+        
         async function analyzeCase(forceRefresh = false) {
             console.log('=== ANALYZE CASE START ===');
             console.log('Force refresh:', forceRefresh);
             const caseText = document.getElementById('caseText').value.trim();
+            currentCaseText = caseText; // Store for evidence highlighting
             const select = document.getElementById('exampleSelect');
             const exampleId = select && select.value ? select.value : null;
             
@@ -1100,6 +1555,16 @@
                         const entitiesData = await entitiesResponse.json();
                         console.log('Entities data:', entitiesData);
                         currentEntitiesData = entitiesData;
+                        
+                        // Store debug data (combine entities response with chunks from hybrid search)
+                        currentDebugData = {
+                            retrievalData: entitiesData,
+                            analysisData: data
+                        };
+                        
+                        // Populate debug tab
+                        populateDebugPanel(currentDebugData);
+                        
                         showTab('graph');
                         setTimeout(() => {
                             createGraph(entitiesData);
@@ -1188,6 +1653,170 @@
             });
         }
 
+        function toggleSection(sectionId) {
+            const section = document.getElementById(sectionId);
+            if (!section) return;
+            
+            const isCollapsed = section.classList.contains('collapsed');
+            const icon = section.querySelector('.toggle-icon');
+            
+            if (isCollapsed) {
+                section.classList.remove('collapsed');
+                if (icon) icon.textContent = '▼';
+            } else {
+                section.classList.add('collapsed');
+                if (icon) icon.textContent = '▶';
+            }
+        }
+        
+        function toggleProofChain(idx) {
+            const content = document.getElementById(`proof-chain-${idx}`);
+            if (!content) return;
+            
+            const header = document.querySelector(`[onclick*="toggleProofChain(${idx})"]`);
+            const icon = header ? header.querySelector('.toggle-icon') : null;
+            
+            if (content.classList.contains('collapsed')) {
+                content.classList.remove('collapsed');
+                if (icon) icon.textContent = '▼';
+            } else {
+                content.classList.add('collapsed');
+                if (icon) icon.textContent = '▶';
+            }
+        }
+        
+        function displayKeyFindings(data) {
+            const keyFindingsSection = document.getElementById('keyFindings');
+            const keyFindingsContent = document.getElementById('keyFindingsContent');
+            
+            if (!keyFindingsContent || !data.proof_chains || data.proof_chains.length === 0) {
+                return;
+            }
+            
+            keyFindingsSection.style.display = 'block';
+            
+            const topIssues = data.proof_chains.slice(0, 3); // Top 3 only
+            const overallStrength = data.overall_strength || 'Unknown';
+            
+            let html = `
+                <div class="overall-strength-compact ${overallStrength.toLowerCase()}">
+                    <strong>Overall Case Strength:</strong> ${overallStrength}
+                </div>
+                <div class="top-issues">
+                    <h4 style="color: white; margin-bottom: 12px;">Primary Issues:</h4>
+            `;
+            
+            topIssues.forEach((chain, idx) => {
+                const issue = chain.issue.replace(/_/g, ' ');
+                const strength = chain.strength_assessment || 'weak';
+                const percentage = Math.round((chain.strength_score || 0) * 100);
+                
+                html += `
+                    <div class="issue-compact">
+                        <div class="issue-header">
+                            <span class="issue-name">${escapeHtml(issue)}</span>
+                            <span class="strength-badge-mini ${strength}">${strength} ${percentage}%</span>
+                        </div>
+                        <div class="strength-bar">
+                            <div class="strength-fill ${strength}" style="width: ${percentage}%"></div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            html += `</div>`;
+            
+            // Add top priority actions (max 3)
+            if (data.priority_actions && data.priority_actions.length > 0) {
+                html += `
+                    <div class="priority-actions-compact">
+                        <h4>Immediate Next Steps:</h4>
+                        <ol>
+                `;
+                data.priority_actions.slice(0, 3).forEach(action => {
+                    html += `<li><strong>${escapeHtml(action.action || '')}</strong></li>`;
+                });
+                html += `</ol></div>`;
+            }
+            
+            keyFindingsContent.innerHTML = html;
+        }
+        
+        function displayEvidenceTrust(data) {
+            const evidenceTrustSection = document.getElementById('evidenceTrust');
+            const evidenceTrustContent = document.getElementById('evidenceTrustContent');
+            
+            if (!evidenceTrustContent || !data.citations) {
+                return;
+            }
+            
+            evidenceTrustSection.style.display = 'block';
+            
+            const totalCitations = Object.keys(data.citations).length;
+            const withQuotes = Object.values(data.citations).filter(c => c.quote).length;
+            const quoteCoverage = totalCitations > 0 ? Math.round((withQuotes / totalCitations) * 100) : 0;
+            
+            console.log(`📊 Evidence Trust: ${totalCitations} sources, ${withQuotes} with quotes (${quoteCoverage}%)`);
+            
+            // Get top 3 citations with quotes
+            const topQuotes = Object.entries(data.citations)
+                .filter(([_, c]) => c.quote)
+                .slice(0, 3);
+            
+            let html = `
+                <div class="trust-stats">
+                    <div class="stat-card">
+                        <div class="stat-number">${totalCitations}</div>
+                        <div class="stat-label">Legal Sources</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">${withQuotes}</div>
+                        <div class="stat-label">With Direct Quotes</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">${quoteCoverage}%</div>
+                        <div class="stat-label">Quote Coverage</div>
+                    </div>
+                </div>
+                
+                <div class="top-sources">
+                    <h4>Key Legal Sources:</h4>
+            `;
+            
+            topQuotes.forEach(([id, c]) => {
+                const title = c.title || c.entity_name || 'Legal Source';
+                const quote = c.quote || '';
+                console.log(`  Rendering [${id}]: ${title} - quote length: ${quote.length}`);
+                
+                // Show more quote text (400 chars instead of 200)
+                const displayQuote = quote.length > 400 ? quote.substring(0, 400) + '...' : quote;
+                
+                html += `
+                    <div class="source-card-compact">
+                        <div class="source-header">
+                            <strong>[${id}]</strong> ${escapeHtml(title)}
+                        </div>
+                        <blockquote class="quote-preview">
+                            "${escapeHtml(displayQuote)}"
+                        </blockquote>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
+                            ${c.anchor_url ? `<a href="${c.anchor_url}" target="_blank" class="source-link">View Source →</a>` : ''}
+                            <span style="font-size: 11px; color: #64748b;">${quote.length} chars</span>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            html += `
+                </div>
+                <button class="show-all-sources-btn" onclick="showTab('debug'); setTimeout(() => window.scrollTo(0, document.body.scrollHeight), 100)">
+                    View All ${totalCitations} Sources in Debug Tab →
+                </button>
+            `;
+            
+            evidenceTrustContent.innerHTML = html;
+        }
+        
         function displayProofChains(data) {
             const section = document.getElementById('proofChainsSection');
             const strengthDiv = document.getElementById('overallStrength');
@@ -1203,35 +1832,76 @@
             strengthDiv.className = `overall-strength ${strength.toLowerCase()}`;
             strengthDiv.textContent = `Overall Case Strength: ${strength}`;
             
-            // Render each proof chain
+            // Render each proof chain as accordion
             let html = '';
             data.proof_chains.forEach((chain, idx) => {
                 const issue = chain.issue.replace(/_/g, ' ');
+                const isExpanded = idx === 0; // Only first one expanded
+                
                 html += `
-                    <div class="proof-chain">
-                        <div class="proof-chain-header">
-                            <span class="proof-chain-issue">${escapeHtml(issue)}</span>
+                    <div class="proof-chain accordion">
+                        <div class="proof-chain-header" onclick="toggleProofChain(${idx})">
+                            <div class="header-left">
+                                <span class="toggle-icon">${isExpanded ? '▼' : '▶'}</span>
+                                <span class="proof-chain-issue">${escapeHtml(issue)}</span>
+                            </div>
                             <span class="strength-badge ${chain.strength_assessment || 'weak'}">
                                 ${chain.strength_assessment || 'weak'} (${Math.round((chain.strength_score || 0) * 100)}%)
                             </span>
                         </div>
+                        <div class="proof-chain-content ${isExpanded ? '' : 'collapsed'}" id="proof-chain-${idx}">
                         
                         ${chain.applicable_laws && chain.applicable_laws.length > 0 ? `
                             <div class="proof-section">
                                 <div class="proof-section-title">📜 Applicable Laws:</div>
-                                <ul>
-                                    ${chain.applicable_laws.map(law => 
-                                        `<li><strong>${escapeHtml(law.name || '')}</strong>: ${escapeHtml(law.key_provision || '')} <sup class="cite">${law.citation || ''}</sup></li>`
-                                    ).join('')}
+                                <ul style="list-style: none; padding: 0;">
+                                    ${chain.applicable_laws.map(law => {
+                                        const citation = law.citation || '';
+                                        const cite = data.citations?.[citation];
+                                        const quote = cite?.quote || '';
+                                        const howApplies = law.how_it_applies_to_this_case || '';
+                                        
+                                        return `
+                                            <li class="law-with-evidence">
+                                                <div class="law-header">
+                                                    <strong>${escapeHtml(law.name || '')}</strong>: ${escapeHtml(law.key_provision || '')} 
+                                                    <sup class="cite" data-cite="${citation}">${citation}</sup>
+                                                </div>
+                                                ${howApplies ? `
+                                                    <div class="case-application">
+                                                        <strong>🎯 How this applies to your case:</strong><br>
+                                                        ${escapeHtml(howApplies)}
+                                                    </div>
+                                                ` : ''}
+                                                ${quote ? `
+                                                    <details class="evidence-details">
+                                                        <summary class="evidence-toggle">📖 Show Legal Text (${quote.length} chars)</summary>
+                                                        <blockquote class="law-quote">"${escapeHtml(quote)}"</blockquote>
+                                                        ${cite.anchor_url ? `<a href="${cite.anchor_url}" target="_blank" class="source-link-inline">Read full source →</a>` : ''}
+                                                    </details>
+                                                ` : ''}
+                                            </li>
+                                        `;
+                                    }).join('')}
                                 </ul>
                             </div>
                         ` : ''}
                         
                         ${chain.evidence_present && chain.evidence_present.length > 0 ? `
                             <div class="proof-section">
-                                <div class="proof-section-title">✅ Evidence Present:</div>
+                                <div class="proof-section-title">✅ Evidence Present in Your Case:</div>
                                 <ul class="evidence-list">
-                                    ${chain.evidence_present.map(e => `<li>${escapeHtml(e)}</li>`).join('')}
+                                    ${chain.evidence_present.map(e => {
+                                        // Check if this evidence item references case text
+                                        const lowerE = e.toLowerCase();
+                                        const fromCase = lowerE.includes('tenant mentioned') || 
+                                                         lowerE.includes('tenant stated') ||
+                                                         lowerE.includes('case shows') ||
+                                                         (currentCaseText && e.split(' ').slice(0,4).some(word => 
+                                                             word.length > 3 && currentCaseText.toLowerCase().includes(word.toLowerCase())
+                                                         ));
+                                        return `<li class="${fromCase ? 'from-case' : ''}">${fromCase ? '📋 ' : ''}${escapeHtml(e)}</li>`;
+                                    }).join('')}
                                 </ul>
                             </div>
                         ` : ''}
@@ -1274,6 +1944,7 @@
                                 <strong>Analysis:</strong> ${escapeHtml(chain.reasoning)}
                             </div>
                         ` : ''}
+                        </div>
                     </div>
                 `;
             });
@@ -1319,6 +1990,12 @@
         function displayResults(data) {
             console.log('Displaying results:', data);
             debugLog('Displaying results...');
+            
+            // NEW: Display Key Findings (top priority)
+            displayKeyFindings(data);
+            
+            // NEW: Display Evidence Trust Panel
+            displayEvidenceTrust(data);
             
             // Display enhanced proof chains if available
             if (data.proof_chains && data.proof_chains.length > 0) {
@@ -1416,6 +2093,12 @@
             try {
                 const sourcesPanel = document.getElementById('sourcesPanel');
                 if (sourcesPanel && data.citations && Object.keys(data.citations).length > 0) {
+                    console.log('🔍 Building Sources panel with', Object.keys(data.citations).length, 'citations');
+                    
+                    // Count citations with quotes
+                    const withQuotes = Object.values(data.citations).filter(c => c.quote).length;
+                    console.log('📝 Citations with quotes:', withQuotes);
+                    
                     const authorityBadge = (auth) => {
                         if (!auth) return '';
                         const key = String(auth).toLowerCase();
@@ -1439,6 +2122,11 @@
                         const host = url ? domainFromUrl(url) : '';
                         const openBtn = url ? `<a href="${url}" target="_blank" rel="noopener">Open ${host ? '('+host+')' : ''}</a>` : '';
                         const quote = c.quote ? `<blockquote>${escapeHtml(c.quote)}</blockquote>` : '';
+                        
+                        if (c.quote) {
+                            console.log(`  [${id}] has quote: ${c.quote.substring(0, 50)}...`);
+                        }
+                        
                         shtml += `<li id="${id}">
                             <div><strong>[${id}] ${escapeHtml(title)}</strong>${escapeHtml(org)}${escapeHtml(jur)} ${authorityBadge(auth)}</div>
                             <div class="cite-actions">${openBtn}<button data-copy="${id}">Copy snippet</button></div>
@@ -1447,6 +2135,7 @@
                     });
                     shtml += '</ol>';
                     sourcesPanel.innerHTML = shtml;
+                    console.log('✅ Sources panel HTML set, length:', shtml.length);
                     // Wire copy buttons
                     sourcesPanel.querySelectorAll('button[data-copy]').forEach(btn => {
                         btn.addEventListener('click', () => {
@@ -1471,12 +2160,20 @@
                     const auth = c.authority || '';
                     const url = c.anchor_url || c.source;
                     const host = url ? (function(u){try{return new URL(u).hostname.replace('www.','');}catch(e){return '';}})(url) : '';
-                    const quote = c.quote ? `<blockquote style="margin:8px 0 0 0;">${escapeHtml(c.quote)}</blockquote>` : '';
-                    const openLink = url ? `<a href="${url}" target="_blank" rel="noopener">Open ${host ? '('+host+')' : ''}</a>` : '';
+                    
+                    // Show quote prominently with label
+                    const quote = c.quote ? `
+                        <div style="margin: 10px 0;">
+                            <strong style="color: #3b82f6; font-size: 12px;">📜 Legal Text:</strong>
+                            <blockquote>${escapeHtml(c.quote)}</blockquote>
+                        </div>
+                    ` : '<div style="color: #64748b; font-style: italic; margin: 8px 0;">No quote available for this source.</div>';
+                    
+                    const openLink = url ? `<a href="${url}" target="_blank" rel="noopener" style="margin-right: 8px;">Open ${host ? '('+host+')' : ''}</a>` : '';
                     return `
                         <h4>${escapeHtml(title)} ${org}${jur} ${auth ? `<span class=\"authority-badge authority-${String(auth).toLowerCase()}\">${escapeHtml(auth)}</span>` : ''}</h4>
                         ${quote}
-                        <div class=\"cite-actions\">${openLink}<button data-action=\"copy\">Copy snippet</button></div>
+                        <div class=\"cite-actions\">${openLink}<button data-action=\"copy\">Copy quote</button></div>
                     `;
                 };
                 let tooltipEl = null;
@@ -1664,6 +2361,8 @@
             
             const data = node.originalData;
             const sourceMeta = data.source_metadata || {};
+            const provenance = data.provenance || [];
+            const mentionsCount = data.mentions_count || 0;
             
             let detailsHtml = `<h3>Entity Details: ${escapeHtml(data.name)}</h3>`;
             detailsHtml += `<p><strong>ID:</strong> <code>${escapeHtml(data.id)}</code></p>`;
@@ -1673,6 +2372,13 @@
                 detailsHtml += `<p><strong>Description:</strong> ${escapeHtml(data.description)}</p>`;
             }
             
+            // Display mentions count if entity appears in multiple sources
+            if (mentionsCount > 1) {
+                detailsHtml += `<p><strong>📚 Found in ${mentionsCount} sources</strong></p>`;
+            }
+            
+            // Display primary/canonical source
+            detailsHtml += `<h4 style="margin-top: 15px; color: #2c3e50;">Primary Source:</h4>`;
             if (sourceMeta.source) {
                 const sourceText = sourceMeta.source.startsWith('http')
                     ? `<a href="${escapeHtml(sourceMeta.source)}" target="_blank">${escapeHtml(sourceMeta.source)}</a>`
@@ -1706,6 +2412,35 @@
             
             if (sourceMeta.cites && sourceMeta.cites.length > 0) {
                 detailsHtml += `<p><strong>Cites:</strong> ${escapeHtml(sourceMeta.cites.join(', '))}</p>`;
+            }
+            
+            // Display all provenance sources if multiple sources exist
+            if (provenance && provenance.length > 1) {
+                detailsHtml += `<h4 style="margin-top: 15px; color: #2c3e50;">All Sources (${provenance.length}):</h4>`;
+                detailsHtml += `<ol style="padding-left: 20px; margin: 10px 0;">`;
+                provenance.forEach((prov, idx) => {
+                    const provSource = prov.source || {};
+                    const provSourceUrl = provSource.source || '';
+                    const provTitle = provSource.title || provSourceUrl;
+                    const provOrg = provSource.organization || '';
+                    const provQuote = prov.quote || '';
+                    
+                    detailsHtml += `<li style="margin-bottom: 10px; padding: 8px; background: #f8f9fa; border-radius: 4px;">`;
+                    if (provSourceUrl) {
+                        const sourceText = provSourceUrl.startsWith('http')
+                            ? `<a href="${escapeHtml(provSourceUrl)}" target="_blank">${escapeHtml(provTitle)}</a>`
+                            : escapeHtml(provTitle);
+                        detailsHtml += `<strong>${sourceText}</strong>`;
+                    }
+                    if (provOrg) {
+                        detailsHtml += ` <em>(${escapeHtml(provOrg)})</em>`;
+                    }
+                    if (provQuote) {
+                        detailsHtml += `<br><small style="color: #666;">"${escapeHtml(provQuote.substring(0, 100))}${provQuote.length > 100 ? '...' : ''}"</small>`;
+                    }
+                    detailsHtml += `</li>`;
+                });
+                detailsHtml += `</ol>`;
             }
             
             document.getElementById('details-panel').innerHTML = detailsHtml;
@@ -1744,23 +2479,25 @@
             let html = '';
             entities.forEach(entity => {
                 const sourceMeta = entity.source_metadata || {};
+                const mentionsCount = entity.mentions_count || 0;
+                const provenance = entity.provenance || [];
+                
                 html += `
                     <div class="entity-card">
                         <div class="entity-header">
                             <div class="entity-name">${entity.name}</div>
                             <div class="entity-type">${entity.type}</div>
                         </div>
+                        ${mentionsCount > 1 ? `<div style="background: #e8f4fd; padding: 4px 8px; margin: 8px 0; border-radius: 4px; font-size: 12px;"><strong>📚 Found in ${mentionsCount} sources</strong></div>` : ''}
                         <div class="entity-description">${entity.description || 'No description available.'}</div>
                         <div class="source-metadata">
-                            <strong>Source:</strong> ${sourceMeta.source || 'Unknown'}<br>
+                            <strong>Primary Source:</strong> ${sourceMeta.source || 'Unknown'}<br>
                             <strong>Type:</strong> ${sourceMeta.source_type || 'Unknown'}<br>
                             ${sourceMeta.organization ? `<strong>Organization:</strong> ${sourceMeta.organization}<br>` : ''}
                             ${sourceMeta.title ? `<strong>Title:</strong> ${sourceMeta.title}<br>` : ''}
                             ${sourceMeta.jurisdiction ? `<strong>Jurisdiction:</strong> ${sourceMeta.jurisdiction}<br>` : ''}
                             ${sourceMeta.authority ? `<strong>Authority:</strong> ${sourceMeta.authority}<br>` : ''}
-                            ${sourceMeta.created_at ? `<strong>Created:</strong> ${sourceMeta.created_at}<br>` : ''}
-                            ${sourceMeta.document_type ? `<strong>Document Type:</strong> ${sourceMeta.document_type}<br>` : ''}
-                            ${sourceMeta.cites && sourceMeta.cites.length > 0 ? `<strong>Cites:</strong> ${sourceMeta.cites.join(', ')}<br>` : ''}
+                            ${provenance.length > 1 ? `<strong>Additional sources:</strong> ${provenance.length - 1}<br>` : ''}
                         </div>
                     </div>
                 `;
@@ -1845,11 +2582,21 @@
 
         async function loadExampleCases() {
             try {
+                console.log('Fetching example cases from /api/example-cases...');
                 const response = await fetch('/api/example-cases');
+                console.log('Response status:', response.status);
+                
                 if (response.ok) {
                     const data = await response.json();
-                    exampleCases = data.cases;
+                    console.log('Example cases data:', data);
+                    exampleCases = data.cases || [];
+                    
                     const select = document.getElementById('exampleSelect');
+                    if (!select) {
+                        console.error('Could not find exampleSelect element!');
+                        return;
+                    }
+                    
                     select.innerHTML = '<option value="">-- Select an example case --</option>';
                     exampleCases.forEach(case_item => {
                         const option = document.createElement('option');
@@ -1857,6 +2604,9 @@
                         option.textContent = case_item.title;
                         select.appendChild(option);
                     });
+                    console.log(`Successfully loaded ${exampleCases.length} example cases`);
+                } else {
+                    console.error('Failed to fetch example cases, status:', response.status);
                 }
             } catch (error) {
                 console.error('Error loading example cases:', error);
@@ -1911,6 +2661,111 @@
             if (btn) btn.style.display = 'none';
         }
 
+        function populateDebugPanel(debugData) {
+            if (!debugData) return;
+            
+            const retrievalData = debugData.retrievalData || {};
+            const analysisData = debugData.analysisData || {};
+            
+            // Populate chunks section
+            const debugChunks = document.getElementById('debugChunks');
+            if (debugChunks) {
+                let chunksHtml = '<p><strong>No chunks retrieved yet. Chunks come from hybrid-search or are embedded in entity retrieval.</strong></p>';
+                if (retrievalData.entities && retrievalData.entities.length > 0) {
+                    chunksHtml = `<p style="color: #666;">Chunks are retrieved via vector search. Currently showing entity-based retrieval. For chunk details, check the Sources panel in the Analysis tab.</p>`;
+                }
+                debugChunks.innerHTML = chunksHtml;
+            }
+            
+            // Populate entities section
+            const debugEntities = document.getElementById('debugEntities');
+            if (debugEntities && retrievalData.entities) {
+                const entities = retrievalData.entities.slice(0, 10); // Top 10
+                let html = `<p><strong>Retrieved ${retrievalData.total_entities} entities total, showing top 10:</strong></p><table style="width:100%; border-collapse: collapse; margin-top: 10px;">
+                    <tr style="background: #f0f2f5; font-weight: bold;">
+                        <th style="padding: 8px; border: 1px solid #ddd;">Entity</th>
+                        <th style="padding: 8px; border: 1px solid #ddd;">Type</th>
+                        <th style="padding: 8px; border: 1px solid #ddd;">Description</th>
+                    </tr>`;
+                entities.forEach((e, i) => {
+                    html += `<tr style="border: 1px solid #ddd;">
+                        <td style="padding: 8px; border: 1px solid #ddd;"><code>${escapeHtml(e.id)}</code><br><strong>${escapeHtml(e.name)}</strong></td>
+                        <td style="padding: 8px; border: 1px solid #ddd;">${escapeHtml(e.type)}</td>
+                        <td style="padding: 8px; border: 1px solid #ddd;">${escapeHtml((e.description || '').substring(0, 100))}${e.description && e.description.length > 100 ? '...' : ''}</td>
+                    </tr>`;
+                });
+                html += '</table>';
+                debugEntities.innerHTML = html;
+            }
+            
+            // Populate citations mapping
+            const debugCitations = document.getElementById('debugCitations');
+            if (debugCitations && analysisData.citations) {
+                const citations = analysisData.citations;
+                let html = `<table style="width:100%; border-collapse: collapse;">
+                    <tr style="background: #f0f2f5; font-weight: bold;">
+                        <th style="padding: 8px; border: 1px solid #ddd;">ID</th>
+                        <th style="padding: 8px; border: 1px solid #ddd;">Type</th>
+                        <th style="padding: 8px; border: 1px solid #ddd;">Source</th>
+                        <th style="padding: 8px; border: 1px solid #ddd;">Has Quote?</th>
+                    </tr>`;
+                Object.keys(citations).sort((a,b) => {
+                    const ai = parseInt(a.replace('S','')) || 0;
+                    const bi = parseInt(b.replace('S','')) || 0;
+                    return ai - bi;
+                }).forEach(id => {
+                    const c = citations[id];
+                    const isChunk = c.entity_name && c.entity_name.includes('Chunk from');
+                    html += `<tr style="border: 1px solid #ddd;">
+                        <td style="padding: 8px; border: 1px solid #ddd;"><strong>${id}</strong></td>
+                        <td style="padding: 8px; border: 1px solid #ddd;">${isChunk ? 'Chunk' : 'Entity'}</td>
+                        <td style="padding: 8px; border: 1px solid #ddd;">${escapeHtml((c.title || c.entity_name || '').substring(0, 60))}</td>
+                        <td style="padding: 8px; border: 1px solid #ddd;">${c.quote ? '✅ Yes (' + c.quote.length + ' chars)' : '❌ No'}</td>
+                    </tr>`;
+                });
+                html += `</table>`;
+                debugCitations.innerHTML = html;
+            }
+            
+            // Populate stats
+            const debugStats = document.getElementById('debugStats');
+            if (debugStats) {
+                const citationCount = analysisData.citations ? Object.keys(analysisData.citations).length : 0;
+                const quotesCount = analysisData.citations ? Object.values(analysisData.citations).filter(c => c.quote).length : 0;
+                const proofChainCount = analysisData.proof_chains ? analysisData.proof_chains.length : 0;
+                
+                let html = `
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                        <div style="background: #f8f9fa; padding: 15px; border-radius: 5px;">
+                            <strong>Total Entities Retrieved:</strong><br>
+                            <span style="font-size: 24px; color: #3498db;">${retrievalData.total_entities || 0}</span>
+                        </div>
+                        <div style="background: #f8f9fa; padding: 15px; border-radius: 5px;">
+                            <strong>Total Relationships:</strong><br>
+                            <span style="font-size: 24px; color: #3498db;">${retrievalData.total_relationships || 0}</span>
+                        </div>
+                        <div style="background: #f8f9fa; padding: 15px; border-radius: 5px;">
+                            <strong>Total Citations:</strong><br>
+                            <span style="font-size: 24px; color: #2ecc71;">${citationCount}</span>
+                        </div>
+                        <div style="background: #f8f9fa; padding: 15px; border-radius: 5px;">
+                            <strong>Citations with Quotes:</strong><br>
+                            <span style="font-size: 24px; color: #2ecc71;">${quotesCount} / ${citationCount}</span>
+                        </div>
+                        <div style="background: #f8f9fa; padding: 15px; border-radius: 5px;">
+                            <strong>Proof Chains:</strong><br>
+                            <span style="font-size: 24px; color: #9b59b6;">${proofChainCount}</span>
+                        </div>
+                        <div style="background: #f8f9fa; padding: 15px; border-radius: 5px;">
+                            <strong>Key Terms:</strong><br>
+                            <span style="font-size: 16px; color: #555;">${(retrievalData.key_terms || []).join(', ')}</span>
+                        </div>
+                    </div>
+                `;
+                debugStats.innerHTML = html;
+            }
+        }
+        
         function escapeHtml(unsafe) {
             if (typeof unsafe !== 'string') return unsafe;
             return unsafe

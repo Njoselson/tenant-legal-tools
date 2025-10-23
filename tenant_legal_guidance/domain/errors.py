@@ -16,5 +16,3 @@ class ConflictError(DomainError):
 
 class ServiceUnavailable(DomainError):
     pass
-
-

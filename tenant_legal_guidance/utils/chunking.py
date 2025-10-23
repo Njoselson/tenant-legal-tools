@@ -63,37 +63,56 @@ def make_super_chunks(text: str, target_chars: int) -> List[Dict[str, Optional[s
 
 
 def recursive_char_chunks(text: str, target_chars: int, overlap_chars: int) -> List[str]:
-    """Split text into overlapping chunks by paragraphs, approximately target size.
-    Uses paragraphs and sentences to avoid breaking mid-idea.
+    """Simple recursive character splitter with overlap.
+
+    Tries to split at natural boundaries (sentences) but always ensures
+    chunks don't exceed target_chars.
     """
     text = text or ""
     if not text:
         return []
-    paras = re.split(r"\n\s*\n+", text)
+
+    # If text is smaller than target, return as-is
+    if len(text) <= target_chars:
+        return [text]
+
     chunks: List[str] = []
-    cur: List[str] = []
-    cur_len = 0
-    for p in paras:
-        p = p.strip()
-        if not p:
-            continue
-        if cur_len and (cur_len + len(p)) > target_chars:
-            chunks.append("\n\n".join(cur))
-            if overlap_chars > 0 and chunks[-1]:
-                tail = chunks[-1][-overlap_chars:]
-                cur = [tail]
-                cur_len = len(tail)
-            else:
-                cur = []
-                cur_len = 0
-        cur.append(p)
-        cur_len += len(p)
-    if cur:
-        chunks.append("\n\n".join(cur))
+    start = 0
+
+    while start < len(text):
+        # Calculate end position
+        end = start + target_chars
+
+        # If we're not at the end of the text, try to break at a sentence
+        if end < len(text):
+            # Look for sentence boundary in the last 20% of the chunk
+            search_start = int(end - target_chars * 0.2)
+            chunk_segment = text[search_start:end]
+
+            # Find last sentence boundary
+            last_period = max(
+                chunk_segment.rfind(". "),
+                chunk_segment.rfind("! "),
+                chunk_segment.rfind("? "),
+                chunk_segment.rfind("\n"),
+            )
+
+            if last_period != -1:
+                # Adjust end to sentence boundary
+                end = search_start + last_period + 2  # +2 to include ". "
+
+        # Extract chunk
+        chunks.append(text[start:end].strip())
+
+        # Move start position with overlap
+        start = end - overlap_chars if overlap_chars > 0 else end
+
     return chunks
 
 
-def build_chunk_docs(text: str, source: str, title: Optional[str], target_chars: int, overlap_chars: int) -> List[Dict[str, object]]:
+def build_chunk_docs(
+    text: str, source: str, title: Optional[str], target_chars: int, overlap_chars: int
+) -> List[Dict[str, object]]:
     """Create chunk dicts for persistence to Arango/Qdrant."""
     result: List[Dict[str, object]] = []
     supers = make_super_chunks(text, target_chars * 3)  # ~3x chunk target for super
@@ -103,13 +122,13 @@ def build_chunk_docs(text: str, source: str, title: Optional[str], target_chars:
         body = sec.get("body") or ""
         atomic = recursive_char_chunks(body, target_chars, overlap_chars)
         for i, ch in enumerate(atomic):
-            result.append({
-                "chunk_index": len(result),
-                "text": ch,
-                "token_count": naive_token_estimate(ch),
-                "title": sec_title,
-                "section": f"{si}",
-            })
+            result.append(
+                {
+                    "chunk_index": len(result),
+                    "text": ch,
+                    "token_count": naive_token_estimate(ch),
+                    "title": sec_title,
+                    "section": f"{si}",
+                }
+            )
     return result
-
-

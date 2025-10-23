@@ -1,5 +1,6 @@
 from enum import Enum
 from typing import Optional
+
 from pydantic import BaseModel
 
 
@@ -12,4 +13,4 @@ class InputType(Enum):
 class LegalDocument(BaseModel):
     content: str
     source: Optional[str] = None
-    type: InputType 
+    type: InputType

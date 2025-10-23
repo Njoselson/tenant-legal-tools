@@ -20,7 +20,7 @@ class FakeAQL:
         # Emulate LIMIT @offset, @limit over the docs
         offset = int((bind_vars or {}).get("offset", 0))
         limit = int((bind_vars or {}).get("limit", len(self.docs)))
-        return FakeCursor(self.docs[offset:offset + limit])
+        return FakeCursor(self.docs[offset : offset + limit])
 
 
 class FakeDB:
@@ -52,14 +52,16 @@ def make_fake_system_with_docs(num_docs: int = 5):
     # Prepare synthetic node docs
     docs = []
     for i in range(num_docs):
-        docs.append({
-            "_key": f"law:{i}",
-            "type": "law",
-            "name": f"Law {i}",
-            "description": f"Desc {i}",
-            "jurisdiction": "NYC" if i % 2 == 0 else "SF",
-            "source_metadata": {},
-        })
+        docs.append(
+            {
+                "_key": f"law:{i}",
+                "type": "law",
+                "name": f"Law {i}",
+                "description": f"Desc {i}",
+                "jurisdiction": "NYC" if i % 2 == 0 else "SF",
+                "source_metadata": {},
+            }
+        )
 
     class FakeKG:
         def __init__(self):
@@ -83,11 +85,15 @@ async def test_graph_data_pagination_basic():
     assert len(result1["nodes"]) == 3
     assert result1["next_cursor"] == 3
     # Page 2
-    result2 = await routes.get_graph_data(system=system, cursor=str(result1["next_cursor"]), limit=3)
+    result2 = await routes.get_graph_data(
+        system=system, cursor=str(result1["next_cursor"]), limit=3
+    )
     assert len(result2["nodes"]) == 3
     assert result2["next_cursor"] == 6
     # Page 3
-    result3 = await routes.get_graph_data(system=system, cursor=str(result2["next_cursor"]), limit=3)
+    result3 = await routes.get_graph_data(
+        system=system, cursor=str(result2["next_cursor"]), limit=3
+    )
     assert len(result3["nodes"]) == 1
     assert result3.get("next_cursor") is None
 
@@ -105,8 +111,10 @@ def test_edge_unique_index_created():
         fdb.register_collection(rel.name.lower(), coll)
     # has_collection should report True for all edges
     original_has = fdb.has_collection
+
     def patched_has(name: str) -> bool:
         return True if name in fdb._collections else original_has(name)
+
     fdb.has_collection = patched_has  # type: ignore
 
     graph.db = fdb
@@ -117,6 +125,7 @@ def test_edge_unique_index_created():
     # Verify each edge collection received a unique index on (_from,_to,type)
     for rel in RelationshipType:
         coll = fdb.collection(rel.name.lower())
-        assert any(idx.get("unique") is True and idx.get("fields") == ["_from", "_to", "type"] for idx in coll.added_indexes)
-
-
+        assert any(
+            idx.get("unique") is True and idx.get("fields") == ["_from", "_to", "type"]
+            for idx in coll.added_indexes
+        )

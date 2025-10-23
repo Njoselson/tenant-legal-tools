@@ -1,4 +1,5 @@
 import json
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -59,5 +60,3 @@ def test_health_search_contract(client, monkeypatch):
     assert resp.status_code == 200
     body = resp.json()
     assert set(["status", "analyzers_ok", "view_ok", "fallback_ok"]).issubset(body.keys())
-
-

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import os
+
 from tenant_legal_guidance.graph.arango_graph import ArangoDBGraph
 
 if __name__ == "__main__":
@@ -12,4 +13,4 @@ if __name__ == "__main__":
     results = graph.migrate_types_to_values()
     print("Type migration summary:")
     for coll, count in results.items():
-        print(f"  {coll}: {count}") 
+        print(f"  {coll}: {count}")

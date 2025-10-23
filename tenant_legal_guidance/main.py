@@ -10,6 +10,7 @@ from pathlib import Path
 
 import uvicorn
 
+
 # Configure logging
 def setup_logging():
     # Create logs directory if it doesn't exist
@@ -40,22 +41,19 @@ def setup_logging():
 
     return root_logger
 
+
 def main():
     """Main entry point for the application."""
     # Initialize logging
     logger = setup_logging()
     logger.info("Starting Tenant Legal Guidance System")
-    
+
     # Get port from environment or use default
     port = int(os.getenv("PORT", "8000"))
-    
+
     # Run the FastAPI application
-    uvicorn.run(
-        "tenant_legal_guidance.api.app:app",
-        host="0.0.0.0",
-        port=port,
-        reload=True
-    )
+    uvicorn.run("tenant_legal_guidance.api.app:app", host="0.0.0.0", port=port, reload=True)
+
 
 if __name__ == "__main__":
     main()

@@ -26,8 +26,12 @@ class EmbeddingsService:
             arr = np.array(cached["vectors"], dtype=np.float32)
             if arr.shape[0] == len(texts):
                 return arr
-        vectors = self.model.encode(texts, batch_size=batch_size, show_progress_bar=False, convert_to_numpy=True, normalize_embeddings=True)
+        vectors = self.model.encode(
+            texts,
+            batch_size=batch_size,
+            show_progress_bar=False,
+            convert_to_numpy=True,
+            normalize_embeddings=True,
+        )
         set_cached_analysis(key, {"vectors": vectors.tolist()})
         return vectors
-
-

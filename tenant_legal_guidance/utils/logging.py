@@ -29,9 +29,7 @@ def setup_logging():
     log_filename = f"logs/tenant_legal_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
 
     # Create formatters
-    file_formatter = logging.Formatter(
-        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-    )
+    file_formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
     if JsonRequestLogFormatter:
         console_formatter = JsonRequestLogFormatter()
     else:
@@ -49,11 +47,11 @@ def setup_logging():
     # Configure root logger
     root_logger = logging.getLogger()
     root_logger.setLevel(logging.DEBUG)  # Capture all levels
-    
+
     # Remove any existing handlers to avoid duplicate logs
     for handler in root_logger.handlers[:]:
         root_logger.removeHandler(handler)
-    
+
     root_logger.addHandler(file_handler)
     root_logger.addHandler(console_handler)
     # Add request context filter for request_id propagation if available
@@ -70,7 +68,7 @@ def setup_logging():
         "tenant_legal_guidance.graph",
         "tenant_legal_guidance.access",
     ]
-    
+
     for logger_name in loggers:
         logger = logging.getLogger(logger_name)
         logger.setLevel(logging.DEBUG)
@@ -79,4 +77,4 @@ def setup_logging():
         logger.addHandler(file_handler)
         logger.addHandler(console_handler)
 
-    return root_logger 
+    return root_logger

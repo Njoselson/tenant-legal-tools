@@ -1,19 +1,20 @@
 from enum import Enum, auto
 from typing import Dict, Optional
+
 from pydantic import BaseModel, Field, field_validator
 
 
 class RelationshipType(Enum):
     VIOLATES = auto()  # ACTOR -> LAW
-    ENABLES = auto()   # LAW -> REMEDY
-    AWARDS = auto()    # REMEDY -> DAMAGES
+    ENABLES = auto()  # LAW -> REMEDY
+    AWARDS = auto()  # REMEDY -> DAMAGES
     APPLIES_TO = auto()  # LAW -> TENANT_ISSUE
-    PROHIBITS = auto()   # LAW -> landlord action concept
-    REQUIRES = auto()    # LAW -> EVIDENCE/DOCUMENT
+    PROHIBITS = auto()  # LAW -> landlord action concept
+    REQUIRES = auto()  # LAW -> EVIDENCE/DOCUMENT
     AVAILABLE_VIA = auto()  # REMEDY -> LEGAL_PROCEDURE
-    FILED_IN = auto()    # CASE/PROCEDURE -> JURISDICTION
-    PROVIDED_BY = auto() # LEGAL_SERVICE -> TENANT
-    SUPPORTED_BY = auto() # TACTIC/REMEDY -> TENANT_GROUP/LEGAL_SERVICE
+    FILED_IN = auto()  # CASE/PROCEDURE -> JURISDICTION
+    PROVIDED_BY = auto()  # LEGAL_SERVICE -> TENANT
+    SUPPORTED_BY = auto()  # TACTIC/REMEDY -> TENANT_GROUP/LEGAL_SERVICE
     RESULTS_IN = auto()  # TACTIC/REMEDY -> OUTCOME
 
 
@@ -48,4 +49,4 @@ class LegalRelationship(BaseModel):
                     raise ValueError(
                         f"Invalid value '{v}' for relationship_type. Allowed: {[e.name for e in RelationshipType]}"
                     )
-        return v 
+        return v

@@ -7,7 +7,7 @@ Finds document/resource links and returns structured metadata suitable for inges
 import logging
 import re
 from dataclasses import dataclass
-from typing import List, Optional, Dict
+from typing import Dict, List, Optional
 from urllib.parse import urljoin, urlparse
 
 import requests
@@ -19,10 +19,13 @@ from urllib3.util.retry import Retry
 @dataclass
 class ResourceLink:
     """Represents a discovered resource link/document from the CHTU page."""
+
     title: str
     url: str
     category: Optional[str] = None
-    doc_type: Optional[str] = None  # flyer|handbook|brochure|guide|presentation|fact_sheet|form|video|zine|other
+    doc_type: Optional[str] = (
+        None  # flyer|handbook|brochure|guide|presentation|fact_sheet|form|video|zine|other
+    )
     file_ext: Optional[str] = None  # pdf|doc|html|...
 
 
@@ -50,8 +53,15 @@ class CHTUScraper:
 
         # Common navigation labels to ignore
         self._nav_labels = {
-            "about", "press", "get involved", "attend an event", "join our mailing list",
-            "donate", "committees", "resources", "contact",
+            "about",
+            "press",
+            "get involved",
+            "attend an event",
+            "join our mailing list",
+            "donate",
+            "committees",
+            "resources",
+            "contact",
         }
 
     def fetch(self) -> str:
@@ -91,7 +101,9 @@ class CHTUScraper:
                     txt = el.get_text(" ", strip=True)
                     if txt:
                         # Clean trailing guidance like '- click here for more'
-                        current_category = re.sub(r"\s*-\s*click here for more\s*", "", txt, flags=re.I)
+                        current_category = re.sub(
+                            r"\s*-\s*click here for more\s*", "", txt, flags=re.I
+                        )
                     continue
 
                 if name == "a":
@@ -203,5 +215,3 @@ class CHTUScraper:
             return bool(link.category) or (link.doc_type != "other")
         # External domains are likely resources in this context
         return True
-
-

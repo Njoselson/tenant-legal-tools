@@ -53,7 +53,9 @@ class AppSettings(BaseSettings):
     qdrant_collection: str = Field(default="legal_chunks", alias="QDRANT_COLLECTION")
 
     # Embedding model
-    embedding_model_name: str = Field(default="sentence-transformers/all-MiniLM-L6-v2", alias="EMBEDDING_MODEL_NAME")
+    embedding_model_name: str = Field(
+        default="sentence-transformers/all-MiniLM-L6-v2", alias="EMBEDDING_MODEL_NAME"
+    )
 
     # Chunking defaults
     chunk_chars_target: int = Field(default=3000, alias="CHUNK_CHARS_TARGET")
@@ -71,5 +73,3 @@ def get_settings() -> AppSettings:
     instance is used in app lifespan and imported modules.
     """
     return AppSettings()  # type: ignore[arg-type]
-
-

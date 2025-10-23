@@ -1,11 +1,13 @@
-from enum import Enum, auto
-from typing import Dict, List, Optional, Literal
-from pydantic import BaseModel, Field, field_validator
 from datetime import datetime
+from enum import Enum, auto
+from typing import Dict, List, Literal, Optional
+
+from pydantic import BaseModel, Field, field_validator
 
 
 class EntityType(str, Enum):
     """Types of legal and organizing entities in the knowledge graph."""
+
     # Legal entities
     LAW = "law"  # Legal statute, regulation, or case law
     REMEDY = "remedy"  # Available legal remedies
@@ -13,35 +15,37 @@ class EntityType(str, Enum):
     LEGAL_PROCEDURE = "legal_procedure"  # Court processes, administrative procedures
     DAMAGES = "damages"  # Monetary compensation or penalties
     LEGAL_CONCEPT = "legal_concept"  # Legal concepts and principles
-    
+
     # Organizing entities
     TENANT_GROUP = "tenant_group"  # Associations, unions, block groups
     CAMPAIGN = "campaign"  # Specific organizing campaigns
     TACTIC = "tactic"  # Rent strikes, protests, lobbying, direct action
-    
+
     # Parties
     TENANT = "tenant"  # Individual or family tenants
     LANDLORD = "landlord"  # Property owners, management companies
     LEGAL_SERVICE = "legal_service"  # Legal aid, attorneys, law firms
     GOVERNMENT_ENTITY = "government_entity"  # Housing authorities, courts, agencies
-    
+
     # Outcomes
     LEGAL_OUTCOME = "legal_outcome"  # Court decisions, settlements, legal victories
     ORGANIZING_OUTCOME = "organizing_outcome"  # Policy changes, building wins, power building
-    
+
     # Issues and events
     TENANT_ISSUE = "tenant_issue"  # Housing problems, violations
     EVENT = "event"  # Specific incidents, violations, filings
-    
+
     # Documentation and evidence
     DOCUMENT = "document"  # Legal documents, evidence
     EVIDENCE = "evidence"  # Proof, documentation
-    
+
     # Geographic and jurisdictional
     JURISDICTION = "jurisdiction"  # Geographic areas, court systems
 
+
 class SourceType(str, Enum):
     """Types of sources in the knowledge graph."""
+
     URL = "url"  # Online resources (web pages, PDFs, etc.)
     FILE = "file"  # Local files
     INTERNAL = "internal"  # Internal knowledge (clinic notes, etc.)
@@ -50,6 +54,7 @@ class SourceType(str, Enum):
 
 class SourceAuthority(str, Enum):
     """Authority level of legal sources (ordered by trustworthiness)."""
+
     BINDING_LEGAL_AUTHORITY = "binding_legal_authority"  # Statutes, published case law
     PERSUASIVE_AUTHORITY = "persuasive_authority"  # Unpublished cases, agency guidance
     OFFICIAL_INTERPRETIVE = "official_interpretive"  # Agency guides, treatises
@@ -60,6 +65,7 @@ class SourceAuthority(str, Enum):
 
 class LegalDocumentType(str, Enum):
     """Specific types of legal documents."""
+
     STATUTE = "statute"
     REGULATION = "regulation"
     CASE_LAW = "case_law"
@@ -72,50 +78,39 @@ class LegalDocumentType(str, Enum):
 
 class SourceMetadata(BaseModel):
     """Enhanced metadata for a source document with authority tracking."""
+
     source: str = Field(..., description="Original source identifier (URL, file path, etc.)")
     source_type: SourceType
     authority: SourceAuthority = Field(
         default=SourceAuthority.INFORMATIONAL_ONLY,
-        description="Legal authority level of this source"
+        description="Legal authority level of this source",
     )
     document_type: Optional[LegalDocumentType] = Field(
-        None,
-        description="Specific type of legal document"
+        None, description="Specific type of legal document"
     )
-    
+
     # Provenance fields
     organization: Optional[str] = Field(
-        None,
-        description="Publishing organization (e.g., 'HUD', 'California BAR')"
+        None, description="Publishing organization (e.g., 'HUD', 'California BAR')"
     )
     title: Optional[str] = Field(None, description="Document title")
     jurisdiction: Optional[str] = Field(
-        None,
-        description="Applicable jurisdiction (e.g., '9th Circuit', 'NYC')"
+        None, description="Applicable jurisdiction (e.g., '9th Circuit', 'NYC')"
     )
-    
+
     # Timestamps
     created_at: Optional[datetime] = Field(
-        None,
-        description="When the source was originally published"
+        None, description="When the source was originally published"
     )
-    processed_at: Optional[datetime] = Field(
-        None,
-        description="When we processed this source"
-    )
-    last_updated: Optional[datetime] = Field(
-        None,
-        description="When the source was last updated"
-    )
-    
+    processed_at: Optional[datetime] = Field(None, description="When we processed this source")
+    last_updated: Optional[datetime] = Field(None, description="When the source was last updated")
+
     # Relationships
     cites: Optional[List[str]] = Field(
-        default_factory=list,
-        description="List of sources this document references"
+        default_factory=list, description="List of sources this document references"
     )
     attributes: Dict[str, str] = Field(
-        default_factory=dict,
-        description="Additional metadata key-value pairs"
+        default_factory=dict, description="Additional metadata key-value pairs"
     )
 
     @field_validator("authority", mode="before")
@@ -140,7 +135,7 @@ class SourceMetadata(BaseModel):
     def validate_datetime(cls, v):
         if isinstance(v, str):
             try:
-                return datetime.fromisoformat(v.replace('Z', '+00:00'))
+                return datetime.fromisoformat(v.replace("Z", "+00:00"))
             except ValueError:
                 raise ValueError(f"Invalid datetime format: {v}")
         return v
@@ -148,27 +143,23 @@ class SourceMetadata(BaseModel):
 
 class LegalEntity(BaseModel):
     """Enhanced legal entity model with source authority awareness."""
+
     id: str = Field(
-        ...,
-        description="Unique identifier (e.g., 'tenant:john_doe_123', 'union:la_tenants')"
+        ..., description="Unique identifier (e.g., 'tenant:john_doe_123', 'union:la_tenants')"
     )
     entity_type: EntityType
     name: str = Field(..., description="Human-readable name")
     description: Optional[str] = None
-    source_metadata: SourceMetadata = Field(
-        ...,
-        description="Source and its authority level"
-    )
+    source_metadata: SourceMetadata = Field(..., description="Source and its authority level")
     # Multiple-source provenance
     provenance: Optional[List[Dict]] = Field(
         default=None,
-        description="Optional list of provenance records with quotes and per-source metadata"
+        description="Optional list of provenance records with quotes and per-source metadata",
     )
     mentions_count: Optional[int] = Field(
-        default=None,
-        description="How many times this entity was observed across sources"
+        default=None, description="How many times this entity was observed across sources"
     )
-    
+
     # Tenant-specific fields
     tenant_id: Optional[str] = None
     building_id: Optional[str] = None
@@ -178,22 +169,19 @@ class LegalEntity(BaseModel):
     rent_stabilized: Optional[bool] = None
     household_size: Optional[int] = None
     income_level: Optional[str] = None
-    
+
     # Building-specific fields
     building_type: Optional[str] = None
     total_units: Optional[int] = None
     occupied_units: Optional[int] = None
     year_built: Optional[int] = None
     building_class: Optional[str] = None
-    
+
     # Legal process fields
     effective_date: Optional[datetime] = None
     process: Optional[str] = None
     success_rate: Optional[float] = Field(
-        None,
-        ge=0,
-        le=1,
-        description="Estimated success rate (0.0-1.0)"
+        None, ge=0, le=1, description="Estimated success rate (0.0-1.0)"
     )
     evidence_required: Optional[List[str]] = None
     attributes: Dict[str, str] = Field(default_factory=dict)
@@ -220,7 +208,7 @@ class LegalEntity(BaseModel):
     def validate_datetime(cls, v):
         if isinstance(v, str):
             try:
-                return datetime.fromisoformat(v.replace('Z', '+00:00'))
+                return datetime.fromisoformat(v.replace("Z", "+00:00"))
             except ValueError:
                 raise ValueError(f"Invalid datetime format: {v}")
         return v

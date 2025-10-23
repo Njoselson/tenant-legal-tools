@@ -42,68 +42,72 @@ Usage:
 
 import argparse
 import asyncio
+import hashlib
 import json
 import logging
 import sys
-from pathlib import Path
-from typing import List, Dict, Any, Optional, Set
 from datetime import datetime
-import hashlib
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Set
 
 import aiohttp
 from tqdm import tqdm
 
-from tenant_legal_guidance.services.tenant_system import TenantLegalSystem
-from tenant_legal_guidance.services.resource_processor import LegalResourceProcessor
 from tenant_legal_guidance.models.metadata_schemas import (
     ManifestEntry,
     enrich_manifest_entry,
     manifest_entry_to_source_metadata,
-    validate_metadata_completeness
+    validate_metadata_completeness,
 )
+from tenant_legal_guidance.services.resource_processor import LegalResourceProcessor
+from tenant_legal_guidance.services.tenant_system import TenantLegalSystem
 
 
 class IngestionCheckpoint:
     """Manage ingestion checkpoints for resume support."""
-    
+
     def __init__(self, checkpoint_path: Optional[Path] = None):
         self.checkpoint_path = checkpoint_path
         self.processed: Set[str] = set()
         self.failed: Set[str] = set()
-        
+
         if checkpoint_path and checkpoint_path.exists():
             self.load()
-    
+
     def load(self):
         """Load checkpoint from file."""
         if self.checkpoint_path and self.checkpoint_path.exists():
-            with self.checkpoint_path.open('r') as f:
+            with self.checkpoint_path.open("r") as f:
                 data = json.load(f)
-                self.processed = set(data.get('processed', []))
-                self.failed = set(data.get('failed', []))
-    
+                self.processed = set(data.get("processed", []))
+                self.failed = set(data.get("failed", []))
+
     def save(self):
         """Save checkpoint to file."""
         if self.checkpoint_path:
-            with self.checkpoint_path.open('w') as f:
-                json.dump({
-                    'processed': list(self.processed),
-                    'failed': list(self.failed),
-                    'last_updated': datetime.utcnow().isoformat()
-                }, f, indent=2)
-    
+            with self.checkpoint_path.open("w") as f:
+                json.dump(
+                    {
+                        "processed": list(self.processed),
+                        "failed": list(self.failed),
+                        "last_updated": datetime.utcnow().isoformat(),
+                    },
+                    f,
+                    indent=2,
+                )
+
     def mark_processed(self, locator: str):
         """Mark a source as successfully processed."""
         self.processed.add(locator)
         if self.checkpoint_path:
             self.save()
-    
+
     def mark_failed(self, locator: str):
         """Mark a source as failed."""
         self.failed.add(locator)
         if self.checkpoint_path:
             self.save()
-    
+
     def should_skip(self, locator: str) -> bool:
         """Check if a source should be skipped."""
         return locator in self.processed
@@ -111,7 +115,7 @@ class IngestionCheckpoint:
 
 class IngestionStats:
     """Track ingestion statistics."""
-    
+
     def __init__(self):
         self.total = 0
         self.processed = 0
@@ -121,61 +125,57 @@ class IngestionStats:
         self.added_relationships = 0
         self.errors: List[Dict[str, str]] = []
         self.start_time = datetime.utcnow()
-    
+
     def add_success(self, result: Dict[str, Any]):
         """Record a successful ingestion."""
         self.processed += 1
-        self.added_entities += result.get('added_entities', 0)
-        self.added_relationships += result.get('added_relationships', 0)
-    
+        self.added_entities += result.get("added_entities", 0)
+        self.added_relationships += result.get("added_relationships", 0)
+
     def add_skip(self):
         """Record a skipped source."""
         self.skipped += 1
-    
+
     def add_failure(self, locator: str, error: str):
         """Record a failed ingestion."""
         self.failed += 1
-        self.errors.append({
-            'locator': locator,
-            'error': str(error),
-            'timestamp': datetime.utcnow().isoformat()
-        })
-    
+        self.errors.append(
+            {"locator": locator, "error": str(error), "timestamp": datetime.utcnow().isoformat()}
+        )
+
     def summary(self) -> Dict[str, Any]:
         """Get summary statistics."""
         elapsed = (datetime.utcnow() - self.start_time).total_seconds()
         return {
-            'total': self.total,
-            'processed': self.processed,
-            'skipped': self.skipped,
-            'failed': self.failed,
-            'added_entities': self.added_entities,
-            'added_relationships': self.added_relationships,
-            'elapsed_seconds': elapsed,
-            'avg_per_source': elapsed / max(1, self.processed),
-            'errors': self.errors
+            "total": self.total,
+            "processed": self.processed,
+            "skipped": self.skipped,
+            "failed": self.failed,
+            "added_entities": self.added_entities,
+            "added_relationships": self.added_relationships,
+            "elapsed_seconds": elapsed,
+            "avg_per_source": elapsed / max(1, self.processed),
+            "errors": self.errors,
         }
 
 
 async def fetch_text(
-    session: aiohttp.ClientSession,
-    locator: str,
-    resource_processor: LegalResourceProcessor
+    session: aiohttp.ClientSession, locator: str, resource_processor: LegalResourceProcessor
 ) -> Optional[str]:
     """
     Fetch text from a URL.
-    
+
     Args:
         session: aiohttp session
         locator: URL to fetch
         resource_processor: Resource processor for PDF/HTML extraction
-        
+
     Returns:
         Extracted text or None if failed
     """
     try:
         # Try PDF extraction first
-        if locator.lower().endswith('.pdf'):
+        if locator.lower().endswith(".pdf"):
             return resource_processor.scrape_text_from_pdf(locator)
         else:
             return resource_processor.scrape_text_from_url(locator)
@@ -187,22 +187,22 @@ async def fetch_text(
 def archive_text(text: str, archive_dir: Path, knowledge_graph: Any) -> str:
     """
     Archive canonical text by SHA256.
-    
+
     Args:
         text: Text to archive
         archive_dir: Directory to store archives
         knowledge_graph: Graph instance for canonicalization
-        
+
     Returns:
         SHA256 hash of the text
     """
     canon = knowledge_graph._canonicalize_text(text)
     sha = knowledge_graph._sha256(canon)
-    
+
     archive_path = archive_dir / f"{sha}.txt"
     if not archive_path.exists():
-        archive_path.write_text(canon, encoding='utf-8')
-    
+        archive_path.write_text(canon, encoding="utf-8")
+
     return sha
 
 
@@ -215,11 +215,11 @@ async def ingest_entry(
     checkpoint: Optional[IngestionCheckpoint],
     stats: IngestionStats,
     skip_existing: bool = False,
-    pbar: Optional[tqdm] = None
+    pbar: Optional[tqdm] = None,
 ) -> bool:
     """
     Ingest a single manifest entry.
-    
+
     Args:
         system: TenantLegalSystem instance
         entry: Manifest entry to ingest
@@ -230,13 +230,13 @@ async def ingest_entry(
         stats: Statistics tracker
         skip_existing: Whether to skip already-processed sources
         pbar: Optional progress bar
-        
+
     Returns:
         True if successful, False otherwise
     """
     logger = logging.getLogger(__name__)
     locator = entry.locator
-    
+
     try:
         # Check checkpoint
         if checkpoint and checkpoint.should_skip(locator):
@@ -246,18 +246,18 @@ async def ingest_entry(
                 if pbar:
                     pbar.update(1)
                 return True
-        
+
         # Enrich metadata from URL patterns
         entry = enrich_manifest_entry(entry)
-        
+
         # Convert to SourceMetadata
         metadata = manifest_entry_to_source_metadata(entry)
-        
+
         # Validate metadata
         warnings = validate_metadata_completeness(metadata)
         if warnings:
             logger.warning(f"Metadata warnings for {locator}: {', '.join(warnings)}")
-        
+
         # Fetch text
         text = await fetch_text(session, locator, resource_processor)
         if not text or len(text.strip()) < 100:
@@ -269,16 +269,16 @@ async def ingest_entry(
             if pbar:
                 pbar.update(1)
             return False
-        
+
         # Archive text if requested
         if archive_dir:
             sha = archive_text(text, archive_dir, system.knowledge_graph)
             logger.debug(f"Archived text as {sha}.txt")
-        
+
         # Ingest document
         result = await system.document_processor.ingest_document(text=text, metadata=metadata)
-        
-        if result.get('status') == 'success':
+
+        if result.get("status") == "success":
             logger.info(
                 f"✓ Ingested '{entry.title or locator}' → "
                 f"+{result.get('added_entities', 0)} entities, "
@@ -291,7 +291,7 @@ async def ingest_entry(
                 pbar.update(1)
             return True
         else:
-            error_msg = result.get('error', 'Unknown error')
+            error_msg = result.get("error", "Unknown error")
             logger.error(f"✗ Failed to ingest {locator}: {error_msg}")
             stats.add_failure(locator, error_msg)
             if checkpoint:
@@ -299,7 +299,7 @@ async def ingest_entry(
             if pbar:
                 pbar.update(1)
             return False
-    
+
     except Exception as e:
         logger.error(f"✗ Exception ingesting {locator}: {e}", exc_info=True)
         stats.add_failure(locator, str(e))
@@ -316,11 +316,11 @@ async def process_manifest(
     concurrency: int,
     archive_dir: Optional[Path],
     checkpoint_path: Optional[Path],
-    skip_existing: bool
+    skip_existing: bool,
 ) -> IngestionStats:
     """
     Process a manifest file.
-    
+
     Args:
         system: TenantLegalSystem instance
         manifest_path: Path to manifest file
@@ -328,15 +328,15 @@ async def process_manifest(
         archive_dir: Directory for text archives
         checkpoint_path: Path to checkpoint file
         skip_existing: Whether to skip already-processed sources
-        
+
     Returns:
         IngestionStats with results
     """
     logger = logging.getLogger(__name__)
-    
+
     # Load manifest entries
     entries: List[ManifestEntry] = []
-    with manifest_path.open('r', encoding='utf-8') as f:
+    with manifest_path.open("r", encoding="utf-8") as f:
         for line_num, line in enumerate(f, start=1):
             line = line.strip()
             if not line:
@@ -347,35 +347,42 @@ async def process_manifest(
                 entries.append(entry)
             except Exception as e:
                 logger.warning(f"Skipping invalid entry at line {line_num}: {e}")
-    
+
     logger.info(f"Loaded {len(entries)} entries from {manifest_path}")
-    
+
     # Initialize checkpoint and stats
     checkpoint = IngestionCheckpoint(checkpoint_path) if checkpoint_path else None
     stats = IngestionStats()
     stats.total = len(entries)
-    
+
     # Create archive directory if needed
     if archive_dir:
         archive_dir.mkdir(parents=True, exist_ok=True)
-    
+
     # Process with concurrency control
     resource_processor = LegalResourceProcessor(system.deepseek)
     semaphore = asyncio.Semaphore(concurrency)
-    
+
     async def process_with_semaphore(entry: ManifestEntry) -> bool:
         async with semaphore:
             async with aiohttp.ClientSession() as session:
                 return await ingest_entry(
-                    system, entry, session, resource_processor,
-                    archive_dir, checkpoint, stats, skip_existing, pbar
+                    system,
+                    entry,
+                    session,
+                    resource_processor,
+                    archive_dir,
+                    checkpoint,
+                    stats,
+                    skip_existing,
+                    pbar,
                 )
-    
+
     # Process with progress bar
     with tqdm(total=len(entries), desc="Ingesting", unit="doc") as pbar:
         tasks = [process_with_semaphore(entry) for entry in entries]
         await asyncio.gather(*tasks)
-    
+
     return stats
 
 
@@ -383,124 +390,101 @@ def main():
     parser = argparse.ArgumentParser(
         description="Unified ingestion CLI for legal documents",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog=__doc__
+        epilog=__doc__,
     )
-    
-    # Required
+
+    # Optional (will read from .env if not provided)
     parser.add_argument(
         "--deepseek-key",
-        required=True,
-        help="DeepSeek API key"
+        required=False,
+        default=None,
+        help="DeepSeek API key (defaults to DEEPSEEK_API_KEY from .env)",
     )
-    
+
     # Input sources (mutually exclusive)
     input_group = parser.add_mutually_exclusive_group(required=True)
+    input_group.add_argument("--manifest", type=Path, help="Path to manifest JSONL file")
+    input_group.add_argument("--urls", type=Path, help="Path to file with URLs (one per line)")
     input_group.add_argument(
-        "--manifest",
-        type=Path,
-        help="Path to manifest JSONL file"
+        "--reingest-db", action="store_true", help="Re-ingest all sources from existing database"
     )
-    input_group.add_argument(
-        "--urls",
-        type=Path,
-        help="Path to file with URLs (one per line)"
-    )
-    input_group.add_argument(
-        "--reingest-db",
-        action="store_true",
-        help="Re-ingest all sources from existing database"
-    )
-    
+
     # Options
     parser.add_argument(
-        "--concurrency",
-        type=int,
-        default=3,
-        help="Number of concurrent requests (default: 3)"
+        "--concurrency", type=int, default=3, help="Number of concurrent requests (default: 3)"
     )
-    
+
     parser.add_argument(
-        "--archive",
-        type=Path,
-        help="Directory to archive canonical text by SHA256"
+        "--archive", type=Path, help="Directory to archive canonical text by SHA256"
     )
-    
-    parser.add_argument(
-        "--checkpoint",
-        type=Path,
-        help="Checkpoint file for resume support"
-    )
-    
+
+    parser.add_argument("--checkpoint", type=Path, help="Checkpoint file for resume support")
+
     parser.add_argument(
         "--skip-existing",
         action="store_true",
-        help="Skip sources that have been processed (requires checkpoint)"
+        help="Skip sources that have been processed (requires checkpoint)",
     )
-    
-    parser.add_argument(
-        "--report",
-        type=Path,
-        help="Output report file (JSON)"
-    )
-    
+
+    parser.add_argument("--report", type=Path, help="Output report file (JSON)")
+
     args = parser.parse_args()
-    
+
     # Configure logging
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(levelname)s - %(message)s'
-    )
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
     logger = logging.getLogger(__name__)
-    
+
     try:
         # Initialize system
         logger.info("Initializing TenantLegalSystem...")
         system = TenantLegalSystem(deepseek_api_key=args.deepseek_key)
-        
+
         # Determine manifest path
         manifest_path = args.manifest
-        
+
         if args.urls:
             # Convert URL list to temporary manifest
             logger.info(f"Converting URL list to manifest...")
             manifest_path = Path("temp_manifest.jsonl")
-            with args.urls.open('r') as f_in, manifest_path.open('w') as f_out:
+            with args.urls.open("r") as f_in, manifest_path.open("w") as f_out:
                 for line in f_in:
                     url = line.strip()
-                    if url and url.startswith('http'):
+                    if url and url.startswith("http"):
                         entry = {"locator": url, "kind": "URL"}
-                        f_out.write(json.dumps(entry) + '\n')
-        
+                        f_out.write(json.dumps(entry) + "\n")
+
         elif args.reingest_db:
             # Build manifest from DB
             logger.info("Building manifest from database...")
             from tenant_legal_guidance.scripts.build_manifest import extract_sources_from_db
-            
+
             manifest_path = Path("db_reingest_manifest.jsonl")
             sources = extract_sources_from_db(system.knowledge_graph)
-            
-            with manifest_path.open('w') as f:
+
+            with manifest_path.open("w") as f:
                 for entry in sources:
-                    f.write(json.dumps(entry) + '\n')
-            
+                    f.write(json.dumps(entry) + "\n")
+
             logger.info(f"Created temporary manifest with {len(sources)} sources")
-        
+
         # Process manifest
         logger.info(f"Processing manifest: {manifest_path}")
-        stats = asyncio.run(process_manifest(
-            system=system,
-            manifest_path=manifest_path,
-            concurrency=args.concurrency,
-            archive_dir=args.archive,
-            checkpoint_path=args.checkpoint,
-            skip_existing=args.skip_existing
-        ))
-        
+        stats = asyncio.run(
+            process_manifest(
+                system=system,
+                manifest_path=manifest_path,
+                concurrency=args.concurrency,
+                archive_dir=args.archive,
+                checkpoint_path=args.checkpoint,
+                skip_existing=args.skip_existing,
+            )
+        )
+
         # Print summary
         summary = stats.summary()
-        print("\n" + "="*60)
+        print("\n" + "=" * 60)
         print("INGESTION SUMMARY")
-        print("="*60)
+        print("=" * 60)
         print(f"  Total sources:        {summary['total']}")
         print(f"  Processed:            {summary['processed']}")
         print(f"  Skipped:              {summary['skipped']}")
@@ -508,23 +492,23 @@ def main():
         print(f"  Added entities:       {summary['added_entities']}")
         print(f"  Added relationships:  {summary['added_relationships']}")
         print(f"  Elapsed time:         {summary['elapsed_seconds']:.1f}s")
-        if summary['processed'] > 0:
+        if summary["processed"] > 0:
             print(f"  Avg per source:       {summary['avg_per_source']:.1f}s")
-        print("="*60 + "\n")
-        
+        print("=" * 60 + "\n")
+
         # Write report if requested
         if args.report:
-            with args.report.open('w') as f:
+            with args.report.open("w") as f:
                 json.dump(summary, f, indent=2)
             logger.info(f"Report written to {args.report}")
-        
+
         # Clean up temporary files
         if args.urls or args.reingest_db:
             if manifest_path.exists():
                 manifest_path.unlink()
-        
-        return 0 if summary['failed'] == 0 else 1
-    
+
+        return 0 if summary["failed"] == 0 else 1
+
     except KeyboardInterrupt:
         logger.info("\nAborted by user.")
         return 1
@@ -535,4 +519,3 @@ def main():
 
 if __name__ == "__main__":
     sys.exit(main())
-

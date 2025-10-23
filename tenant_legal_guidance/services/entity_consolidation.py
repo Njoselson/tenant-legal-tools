@@ -1,11 +1,11 @@
 import json
 import logging
 import re
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Optional, Tuple
 
 from tenant_legal_guidance.graph.arango_graph import ArangoDBGraph
-from tenant_legal_guidance.services.deepseek import DeepSeekClient
 from tenant_legal_guidance.models.entities import EntityType
+from tenant_legal_guidance.services.deepseek import DeepSeekClient
 
 
 class EntityConsolidationService:
@@ -41,7 +41,7 @@ class EntityConsolidationService:
             "You are a strict entity deduplication judge for a legal knowledge graph.\n"
             "For each case, decide if the incoming entity and the candidate are the SAME concept.\n"
             "Use names and descriptions; be conservative if ambiguous.\n"
-            "Respond with ONLY valid JSON: {\"decisions\": [{\"key\": string, \"merge\": true|false, \"reason\": string} ...]}\n\n"
+            'Respond with ONLY valid JSON: {"decisions": [{"key": string, "merge": true|false, "reason": string} ...]}\n\n'
             f"INPUT:\n{json.dumps(payload, ensure_ascii=False)}"
         )
 
@@ -79,7 +79,7 @@ class EntityConsolidationService:
 
         cases = [
             {
-                "key": f"{b.get('a_id','')}|{b.get('b_id','')}",
+                "key": f"{b.get('a_id', '')}|{b.get('b_id', '')}",
                 "type": next((k for k in collections.keys() if k == b.get("coll")), b.get("coll")),
                 "incoming": {"name": b.get("a_name", ""), "desc": b.get("a_desc", "")},
                 "candidate": {"name": b.get("b_name", ""), "desc": b.get("b_desc", "")},
@@ -106,9 +106,7 @@ class EntityConsolidationService:
                 continue
 
         # Also return normalized decisions as a list for compatibility
-        decisions_list = [
-            {"key": k, "merge": bool(v)} for k, v in decisions_map.items()
-        ]
+        decisions_list = [{"key": k, "merge": bool(v)} for k, v in decisions_map.items()]
         return {"judge_merged": judge_merged, "decisions": decisions_list}
 
     async def consolidate_all(
@@ -163,6 +161,9 @@ class EntityConsolidationService:
             f"[CONSOLIDATE-ALL SERVICE] threshold={judge_high:.3f} band=({judge_low:.3f},{judge_high:.3f}) borderline={len(borderline)} judge_merged={judge_merged}"
         )
 
-        return {"status": "ok", "collections": collections, "borderline_count": len(borderline), "judge_merged": judge_merged}
-
-
+        return {
+            "status": "ok",
+            "collections": collections,
+            "borderline_count": len(borderline),
+            "judge_merged": judge_merged,
+        }

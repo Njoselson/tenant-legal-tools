@@ -1,10 +1,13 @@
 import os
-import pytest
 from unittest.mock import MagicMock, patch
+
+import pytest
 from fastapi.testclient import TestClient
+
 from tenant_legal_guidance.api.app import app
 from tenant_legal_guidance.services.deepseek import DeepSeekClient
 from tenant_legal_guidance.services.tenant_system import TenantLegalSystem
+
 
 @pytest.fixture
 def mock_response():
@@ -28,10 +31,11 @@ def mock_response():
     """
     return mock
 
+
 @pytest.fixture
 def deepseek_client():
     """Create a test instance of DeepSeekClient."""
-    return DeepSeekClient("test_api_key") 
+    return DeepSeekClient("test_api_key")
 
 
 @pytest.fixture
@@ -43,9 +47,9 @@ def client_with_fake_system(monkeypatch):
             resp = client_with_fake_system.get("/api/health")
             assert resp.status_code == 200
     """
+
     class FakeSystem(TenantLegalSystem):
-        def __init__(self):
-            ...
+        def __init__(self): ...
 
     fake_system = FakeSystem()
 

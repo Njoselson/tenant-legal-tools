@@ -7,14 +7,14 @@ from dotenv import load_dotenv
 
 from tenant_legal_guidance import (
     DeepSeekClient,
-    LegalResourceProcessor,
-    SourceType,
-    LegalEntity,
-    LegalRelationship,
     EntityType,
-    RelationshipType,
     InputType,
     LegalDocument,
+    LegalEntity,
+    LegalRelationship,
+    LegalResourceProcessor,
+    RelationshipType,
+    SourceType,
 )
 from tenant_legal_guidance.services.resource_processor import scrape_text_from_url
 
@@ -98,10 +98,12 @@ def test_process_text(legal_processor):
         "laws": ["Rent Control Law"],
         "evidence": ["Temperature logs"],
         "remedies": ["Rent Reduction"],
-        "concepts": ["Warranty of habitability"]
+        "concepts": ["Warranty of habitability"],
     }
 
-    with patch.object(legal_processor.deepseek, "extract_legal_concepts", return_value=mock_response):
+    with patch.object(
+        legal_processor.deepseek, "extract_legal_concepts", return_value=mock_response
+    ):
         text = "Landlords must follow rent control regulations."
         result = legal_processor.process_input(text)
 
@@ -175,18 +177,20 @@ async def test_process_input_text(legal_processor):
         "laws": ["NYC HMC § 27-2029: Heat Requirements"],
         "evidence": ["Temperature logs"],
         "remedies": ["Rent abatement"],
-        "concepts": ["Warranty of habitability"]
+        "concepts": ["Warranty of habitability"],
     }
-    
-    with patch.object(legal_processor.deepseek, "extract_legal_concepts", return_value=mock_concepts):
+
+    with patch.object(
+        legal_processor.deepseek, "extract_legal_concepts", return_value=mock_concepts
+    ):
         result = await legal_processor.process_input("Sample legal text")
-        
+
         # Check entities
         assert len(result["entities"]) == 3  # 1 law + 1 evidence + 1 remedy
         assert any(e.entity_type == EntityType.LAW for e in result["entities"])
         assert any(e.entity_type == EntityType.DAMAGES for e in result["entities"])
         assert any(e.entity_type == EntityType.REMEDY for e in result["entities"])
-        
+
         # Check relationships
         assert len(result["relationships"]) == 2
         assert any(r.relationship_type == RelationshipType.ENABLES for r in result["relationships"])
@@ -200,18 +204,18 @@ async def test_process_input_document(legal_processor):
         "laws": ["NYC HMC § 27-2029: Heat Requirements"],
         "evidence": ["Temperature logs"],
         "remedies": ["Rent abatement"],
-        "concepts": ["Warranty of habitability"]
+        "concepts": ["Warranty of habitability"],
     }
-    
+
     doc = LegalDocument(
-        content="Sample legal text",
-        source="https://example.com/law",
-        type=InputType.WEBSITE
+        content="Sample legal text", source="https://example.com/law", type=InputType.WEBSITE
     )
-    
-    with patch.object(legal_processor.deepseek, "extract_legal_concepts", return_value=mock_concepts):
+
+    with patch.object(
+        legal_processor.deepseek, "extract_legal_concepts", return_value=mock_concepts
+    ):
         result = await legal_processor.process_input(doc)
-        
+
         # Check source information is preserved
         assert all(e.source_reference == "https://example.com/law" for e in result["entities"])
         assert all(e.source_type == SourceType.URL for e in result["entities"])
@@ -224,24 +228,32 @@ async def test_process_website(legal_processor, mock_response):
         "laws": ["NYC HMC § 27-2029: Heat Requirements"],
         "evidence": ["Temperature logs"],
         "remedies": ["Rent abatement"],
-        "concepts": ["Warranty of habitability"]
+        "concepts": ["Warranty of habitability"],
     }
-    
-    with patch("requests.get", return_value=mock_response), \
-         patch.object(legal_processor.deepseek, "extract_legal_concepts", return_value=mock_concepts):
+
+    with (
+        patch("requests.get", return_value=mock_response),
+        patch.object(
+            legal_processor.deepseek, "extract_legal_concepts", return_value=mock_concepts
+        ),
+    ):
         result = await legal_processor.process_website("https://example.com/housing-rights")
-        
+
         # Check entities and relationships
         assert len(result["entities"]) > 0
         assert len(result["relationships"]) > 0
-        assert all(e.source_reference == "https://example.com/housing-rights" for e in result["entities"])
+        assert all(
+            e.source_reference == "https://example.com/housing-rights" for e in result["entities"]
+        )
 
 
 def test_scraping_with_retries():
     """Test scraping with retry mechanism."""
     mock_responses = [
         MagicMock(status_code=500),  # First attempt fails
-        MagicMock(status_code=200, text="<html><body>Success</body></html>"),  # Second attempt succeeds
+        MagicMock(
+            status_code=200, text="<html><body>Success</body></html>"
+        ),  # Second attempt succeeds
     ]
 
     with patch("requests.get", side_effect=mock_responses):

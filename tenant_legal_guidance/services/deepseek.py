@@ -1,10 +1,10 @@
 import json
 import logging
 import re
+import ssl
 from typing import Dict, List
 
 import aiohttp
-import ssl
 
 
 class DeepSeekClient:
@@ -44,7 +44,7 @@ class DeepSeekClient:
                     f"{self.base_url}/chat/completions",
                     headers=self.headers,
                     json=payload,
-                    ssl=self.ssl_context
+                    ssl=self.ssl_context,
                 ) as response:
                     response.raise_for_status()
                     response_data = await response.json()
@@ -209,4 +209,4 @@ class DeepSeekClient:
 
         cleaned_string = json_string.strip()
         self.logger.debug(f"Returning cleaned string: {cleaned_string[:200]}...")
-        return cleaned_string 
+        return cleaned_string

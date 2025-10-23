@@ -2,7 +2,13 @@ from datetime import datetime
 from unittest.mock import MagicMock
 
 from tenant_legal_guidance.graph.arango_graph import ArangoDBGraph
-from tenant_legal_guidance.models.entities import LegalEntity, EntityType, SourceType, SourceMetadata, SourceAuthority
+from tenant_legal_guidance.models.entities import (
+    EntityType,
+    LegalEntity,
+    SourceAuthority,
+    SourceMetadata,
+    SourceType,
+)
 
 
 def make_entity(eid: str, etype: EntityType, name: str, meta: SourceMetadata | None = None):
@@ -27,7 +33,9 @@ def test_upsert_entity_provenance_merges_provenance_and_mentions(monkeypatch):
     g = object.__new__(ArangoDBGraph)
     # Minimal logger and db stubs
     g.logger = MagicMock()
-    g._get_collection_for_entity = ArangoDBGraph._get_collection_for_entity.__get__(g, ArangoDBGraph)
+    g._get_collection_for_entity = ArangoDBGraph._get_collection_for_entity.__get__(
+        g, ArangoDBGraph
+    )
     # Patch collections
     coll = MagicMock()
     coll.has.return_value = True
@@ -56,4 +64,3 @@ def test_upsert_entity_provenance_merges_provenance_and_mentions(monkeypatch):
     # Canonical source should be chosen by authority/recency logic
     sm = called.get("source_metadata", {})
     assert sm.get("source") in {"s1", "s2"}
-

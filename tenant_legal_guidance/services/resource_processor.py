@@ -28,7 +28,7 @@ class LegalResourceProcessor:
         """Initialize the processor with a DeepSeek client."""
         self.deepseek = deepseek_client
         self.logger = logging.getLogger(__name__)
-        
+
         # Configure requests session with retry strategy
         self.session = requests.Session()
         retry_strategy = Retry(
@@ -43,80 +43,86 @@ class LegalResourceProcessor:
     def scrape_text_from_url(self, url: str) -> Optional[str]:
         """Scrape text content from a URL with anti-bot measures handling."""
         self.logger.info(f"Attempting to scrape text from URL: {url}")
-        
+
         # Define multiple user agents to rotate
         user_agents = [
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-            'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:89.0) Gecko/20100101 Firefox/89.0',
-            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:89.0) Gecko/20100101 Firefox/89.0'
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:89.0) Gecko/20100101 Firefox/89.0",
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:89.0) Gecko/20100101 Firefox/89.0",
         ]
-        
+
         # Define headers that mimic a real browser
         headers = {
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-            'Accept-Language': 'en-US,en;q=0.5',
-            'Accept-Encoding': 'gzip, deflate',
-            'DNT': '1',
-            'Connection': 'keep-alive',
-            'Upgrade-Insecure-Requests': '1',
-            'Sec-Fetch-Dest': 'document',
-            'Sec-Fetch-Mode': 'navigate',
-            'Sec-Fetch-Site': 'none',
-            'Cache-Control': 'max-age=0'
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.5",
+            "Accept-Encoding": "gzip, deflate",
+            "DNT": "1",
+            "Connection": "keep-alive",
+            "Upgrade-Insecure-Requests": "1",
+            "Sec-Fetch-Dest": "document",
+            "Sec-Fetch-Mode": "navigate",
+            "Sec-Fetch-Site": "none",
+            "Cache-Control": "max-age=0",
         }
-        
+
         # Try different approaches
         for attempt, user_agent in enumerate(user_agents):
             try:
                 self.logger.info(f"Attempt {attempt + 1} with User-Agent: {user_agent[:50]}...")
-                
+
                 # Update headers with current user agent
-                headers['User-Agent'] = user_agent
-                
+                headers["User-Agent"] = user_agent
+
                 # Try with different approaches
                 for verify_ssl in [True, False]:
                     try:
                         response = self.session.get(
-                            url, 
-                            headers=headers, 
-                            verify=verify_ssl, 
+                            url,
+                            headers=headers,
+                            verify=verify_ssl,
                             timeout=30,
-                            allow_redirects=True
+                            allow_redirects=True,
                         )
                         response.raise_for_status()
-                        
+
                         # Parse with BeautifulSoup
-                        soup = BeautifulSoup(response.text, 'html.parser')
-                        
+                        soup = BeautifulSoup(response.text, "html.parser")
+
                         # Remove script, style, and other non-content elements
-                        for element in soup(["script", "style", "nav", "header", "footer", "aside"]):
+                        for element in soup(
+                            ["script", "style", "nav", "header", "footer", "aside"]
+                        ):
                             element.decompose()
-                        
+
                         # Get text and clean it up
                         text = soup.get_text()
-                        
+
                         # Clean up whitespace
                         lines = (line.strip() for line in text.splitlines())
                         chunks = (phrase.strip() for line in lines for phrase in line.split("  "))
-                        text = ' '.join(chunk for chunk in chunks if chunk)
-                        
+                        text = " ".join(chunk for chunk in chunks if chunk)
+
                         # Check if we got meaningful content
                         if len(text.strip()) > 100:  # At least 100 characters of content
-                            self.logger.info(f"Successfully scraped {len(text)} characters from {url}")
+                            self.logger.info(
+                                f"Successfully scraped {len(text)} characters from {url}"
+                            )
                             return text
                         else:
-                            self.logger.warning(f"Scraped content too short ({len(text)} chars), trying next approach")
-                            
+                            self.logger.warning(
+                                f"Scraped content too short ({len(text)} chars), trying next approach"
+                            )
+
                     except Exception as e:
                         self.logger.debug(f"SSL verify={verify_ssl} failed: {str(e)}")
                         continue
-                        
+
             except Exception as e:
                 self.logger.warning(f"Attempt {attempt + 1} failed: {str(e)}")
                 continue
-        
+
         self.logger.error(f"All scraping attempts failed for {url}")
         return None
 
@@ -176,7 +182,7 @@ class LegalResourceProcessor:
                 entity_type=EntityType.LAW,
                 name=law,
                 source_reference=source_ref,
-                source_type=source_type
+                source_type=source_type,
             )
             entities.append(entity)
 
@@ -187,7 +193,7 @@ class LegalResourceProcessor:
                 entity_type=EntityType.DAMAGES,
                 name=evidence,
                 source_reference=source_ref,
-                source_type=source_type
+                source_type=source_type,
             )
             entities.append(entity)
 
@@ -198,7 +204,7 @@ class LegalResourceProcessor:
                 entity_type=EntityType.REMEDY,
                 name=remedy,
                 source_reference=source_ref,
-                source_type=source_type
+                source_type=source_type,
             )
             entities.append(entity)
 
@@ -208,7 +214,7 @@ class LegalResourceProcessor:
                 relationship = LegalRelationship(
                     source_id=law.id,
                     target_id=remedy.id,
-                    relationship_type=RelationshipType.ENABLES
+                    relationship_type=RelationshipType.ENABLES,
                 )
                 relationships.append(relationship)
 
@@ -216,20 +222,17 @@ class LegalResourceProcessor:
                 relationship = LegalRelationship(
                     source_id=law.id,
                     target_id=damages.id,
-                    relationship_type=RelationshipType.AWARDS
+                    relationship_type=RelationshipType.AWARDS,
                 )
                 relationships.append(relationship)
 
-        return {
-            "entities": entities,
-            "relationships": relationships
-        }
+        return {"entities": entities, "relationships": relationships}
 
     def _generate_entity_id(self, text: str, entity_type: EntityType) -> str:
         """Generate a unique ID for an entity based on its text and type."""
         # Create a hash of the text and type
         hash_input = f"{text}:{entity_type.value}"
-        return hashlib.md5(hash_input.encode()).hexdigest()[:8] 
+        return hashlib.md5(hash_input.encode()).hexdigest()[:8]
 
 
 # --- Backwards-compatible helper for tests ---

@@ -1,19 +1,24 @@
+import hashlib
 import logging
 import os
-import time
-from typing import Dict, List, Optional, Tuple
-from datetime import datetime
 import re
-import hashlib
+import time
+from datetime import datetime
+from typing import Dict, List, Optional, Tuple
 
 import torch
 from arango import ArangoClient
 from torch_geometric.data import Data
 
-from tenant_legal_guidance.models.entities import EntityType, LegalEntity, SourceType, SourceAuthority
 from tenant_legal_guidance.config import get_settings
-from tenant_legal_guidance.utils.chunking import build_chunk_docs
+from tenant_legal_guidance.models.entities import (
+    EntityType,
+    LegalEntity,
+    SourceAuthority,
+    SourceType,
+)
 from tenant_legal_guidance.models.relationships import LegalRelationship, RelationshipType
+from tenant_legal_guidance.utils.chunking import build_chunk_docs
 
 
 class ArangoDBGraph:
@@ -26,13 +31,14 @@ class ArangoDBGraph:
         max_retries: int = 3,
         retry_delay: int = 2,
     ):
-        # Use environment variables with fallback to default values
-        self.host = host or os.getenv("ARANGO_HOST", "http://localhost:8529")
-        self.db_name = db_name or os.getenv("ARANGO_DB_NAME", "tenant_legal_kg")
-        self.username = username or os.getenv("ARANGO_USERNAME", "root")
-        self.password = password or os.getenv("ARANGO_PASSWORD", "")
-        self.max_retries = max_retries
-        self.retry_delay = retry_delay
+        # Use pydantic settings to read .env file, with fallback to provided args
+        settings = get_settings()
+        self.host = host or settings.arango_host
+        self.db_name = db_name or settings.arango_db_name
+        self.username = username or settings.arango_username
+        self.password = password or settings.arango_password
+        self.max_retries = max_retries or settings.arango_max_retries
+        self.retry_delay = retry_delay or settings.arango_retry_delay
 
         self.logger = logging.getLogger(__name__)
         self.logger.info(f"Initializing ArangoDB connection to {self.host}")
@@ -47,29 +53,29 @@ class ArangoDBGraph:
         The entity collection is inferred from the id prefix before ':'.
         """
         try:
-            if ':' in entity_id:
-                prefix = entity_id.split(':', 1)[0]
+            if ":" in entity_id:
+                prefix = entity_id.split(":", 1)[0]
                 prefix_to_type = {
-                    'law': EntityType.LAW,
-                    'remedy': EntityType.REMEDY,
-                    'court_case': EntityType.COURT_CASE,
-                    'legal_procedure': EntityType.LEGAL_PROCEDURE,
-                    'damages': EntityType.DAMAGES,
-                    'legal_concept': EntityType.LEGAL_CONCEPT,
-                    'tenant_group': EntityType.TENANT_GROUP,
-                    'campaign': EntityType.CAMPAIGN,
-                    'tactic': EntityType.TACTIC,
-                    'tenant': EntityType.TENANT,
-                    'landlord': EntityType.LANDLORD,
-                    'legal_service': EntityType.LEGAL_SERVICE,
-                    'government_entity': EntityType.GOVERNMENT_ENTITY,
-                    'legal_outcome': EntityType.LEGAL_OUTCOME,
-                    'organizing_outcome': EntityType.ORGANIZING_OUTCOME,
-                    'tenant_issue': EntityType.TENANT_ISSUE,
-                    'event': EntityType.EVENT,
-                    'document': EntityType.DOCUMENT,
-                    'evidence': EntityType.EVIDENCE,
-                    'jurisdiction': EntityType.JURISDICTION,
+                    "law": EntityType.LAW,
+                    "remedy": EntityType.REMEDY,
+                    "court_case": EntityType.COURT_CASE,
+                    "legal_procedure": EntityType.LEGAL_PROCEDURE,
+                    "damages": EntityType.DAMAGES,
+                    "legal_concept": EntityType.LEGAL_CONCEPT,
+                    "tenant_group": EntityType.TENANT_GROUP,
+                    "campaign": EntityType.CAMPAIGN,
+                    "tactic": EntityType.TACTIC,
+                    "tenant": EntityType.TENANT,
+                    "landlord": EntityType.LANDLORD,
+                    "legal_service": EntityType.LEGAL_SERVICE,
+                    "government_entity": EntityType.GOVERNMENT_ENTITY,
+                    "legal_outcome": EntityType.LEGAL_OUTCOME,
+                    "organizing_outcome": EntityType.ORGANIZING_OUTCOME,
+                    "tenant_issue": EntityType.TENANT_ISSUE,
+                    "event": EntityType.EVENT,
+                    "document": EntityType.DOCUMENT,
+                    "evidence": EntityType.EVIDENCE,
+                    "jurisdiction": EntityType.JURISDICTION,
                 }
                 et = prefix_to_type.get(prefix)
                 if et is None:
@@ -101,14 +107,16 @@ class ArangoDBGraph:
                         REMOVE e IN @@edge_coll
                     """
                     bind_vars = {
-                        '@edge_coll': edge_coll.name,
-                        'from_coll': coll_name,
-                        'to_coll': coll_name,
-                        'key': entity_id,
+                        "@edge_coll": edge_coll.name,
+                        "from_coll": coll_name,
+                        "to_coll": coll_name,
+                        "key": entity_id,
                     }
                     self.db.aql.execute(aql, bind_vars=bind_vars)
                 except Exception as e:
-                    self.logger.warning(f"Failed removing edges for {entity_id} in {edge_coll.name}: {e}")
+                    self.logger.warning(
+                        f"Failed removing edges for {entity_id} in {edge_coll.name}: {e}"
+                    )
 
             # Remove the vertex
             coll.delete(entity_id)
@@ -146,7 +154,7 @@ class ArangoDBGraph:
                                 "username": self.username,
                                 "password": self.password,
                                 "active": True,
-                                "extra": {"is_superuser": True}
+                                "extra": {"is_superuser": True},
                             }
                         ],
                     )
@@ -207,35 +215,29 @@ class ArangoDBGraph:
             vertex_collections = [
                 "actors",
                 "laws",
-                "remedies", 
+                "remedies",
                 "court_cases",
                 "legal_procedures",
                 "damages",
                 "legal_concepts",
-                
                 # Organizing entities
                 "tenant_groups",
                 "campaigns",
                 "tactics",
-                
                 # Parties
                 "tenants",
                 "landlords",
                 "legal_services",
                 "government_entities",
-                
                 # Outcomes
                 "legal_outcomes",
                 "organizing_outcomes",
-                
                 # Issues and events
                 "tenant_issues",
                 "events",
-                
                 # Documentation and evidence
                 "documents",
                 "evidence",
-                
                 # Geographic and jurisdictional
                 "jurisdictions",
             ]
@@ -282,20 +284,20 @@ class ArangoDBGraph:
                 coll = self.db.collection(coll_name)
                 # Index on type and name for dedupe/lookups
                 try:
-                    coll.add_index({
-                        "type": "persistent",
-                        "fields": ["type", "name"],
-                        "name": "idx_type_name"
-                    })
+                    coll.add_index(
+                        {"type": "persistent", "fields": ["type", "name"], "name": "idx_type_name"}
+                    )
                 except Exception:
                     pass
                 # Index on jurisdiction to speed filtering
                 try:
-                    coll.add_index({
-                        "type": "persistent",
-                        "fields": ["jurisdiction"],
-                        "name": "idx_jurisdiction"
-                    })
+                    coll.add_index(
+                        {
+                            "type": "persistent",
+                            "fields": ["jurisdiction"],
+                            "name": "idx_jurisdiction",
+                        }
+                    )
                 except Exception:
                     pass
 
@@ -308,30 +310,26 @@ class ArangoDBGraph:
                     continue
                 edges = self.db.collection(edge_name)
                 try:
-                    edges.add_index({
-                        "type": "persistent",
-                        "fields": ["_from", "type"],
-                        "name": "idx_from_type"
-                    })
+                    edges.add_index(
+                        {"type": "persistent", "fields": ["_from", "type"], "name": "idx_from_type"}
+                    )
                 except Exception:
                     pass
                 try:
-                    edges.add_index({
-                        "type": "persistent",
-                        "fields": ["_to"],
-                        "name": "idx_to"
-                    })
+                    edges.add_index({"type": "persistent", "fields": ["_to"], "name": "idx_to"})
                 except Exception:
                     pass
                 # Enforce uniqueness of edges by (_from, _to, type)
                 try:
-                    edges.add_index({
-                        "type": "persistent",
-                        "fields": ["_from", "_to", "type"],
-                        "name": "uniq_from_to_type",
-                        "unique": True,
-                        "sparse": False
-                    })
+                    edges.add_index(
+                        {
+                            "type": "persistent",
+                            "fields": ["_from", "_to", "type"],
+                            "name": "uniq_from_to_type",
+                            "unique": True,
+                            "sparse": False,
+                        }
+                    )
                 except Exception:
                     # Ignore if already exists or not supported
                     pass
@@ -341,11 +339,23 @@ class ArangoDBGraph:
                 if self.db.has_collection("entities"):
                     ent = self.db.collection("entities")
                     try:
-                        ent.add_index({"type": "persistent", "fields": ["type", "name"], "name": "idx_type_name"})
+                        ent.add_index(
+                            {
+                                "type": "persistent",
+                                "fields": ["type", "name"],
+                                "name": "idx_type_name",
+                            }
+                        )
                     except Exception:
                         pass
                     try:
-                        ent.add_index({"type": "persistent", "fields": ["jurisdiction"], "name": "idx_jurisdiction"})
+                        ent.add_index(
+                            {
+                                "type": "persistent",
+                                "fields": ["jurisdiction"],
+                                "name": "idx_jurisdiction",
+                            }
+                        )
                     except Exception:
                         pass
             except Exception:
@@ -354,11 +364,19 @@ class ArangoDBGraph:
                 if self.db.has_collection("edges"):
                     gen_edges = self.db.collection("edges")
                     try:
-                        gen_edges.add_index({"type": "persistent", "fields": ["_from", "type"], "name": "idx_from_type"})
+                        gen_edges.add_index(
+                            {
+                                "type": "persistent",
+                                "fields": ["_from", "type"],
+                                "name": "idx_from_type",
+                            }
+                        )
                     except Exception:
                         pass
                     try:
-                        gen_edges.add_index({"type": "persistent", "fields": ["_to"], "name": "idx_to"})
+                        gen_edges.add_index(
+                            {"type": "persistent", "fields": ["_to"], "name": "idx_to"}
+                        )
                     except Exception:
                         pass
             except Exception:
@@ -367,11 +385,23 @@ class ArangoDBGraph:
                 if self.db.has_collection("quotes"):
                     q = self.db.collection("quotes")
                     try:
-                        q.add_index({"type": "persistent", "fields": ["source_id", "start_offset", "end_offset"], "name": "idx_src_span"})
+                        q.add_index(
+                            {
+                                "type": "persistent",
+                                "fields": ["source_id", "start_offset", "end_offset"],
+                                "name": "idx_src_span",
+                            }
+                        )
                     except Exception:
                         pass
                     try:
-                        q.add_index({"type": "persistent", "fields": ["quote_sha256"], "name": "idx_quote_sha"})
+                        q.add_index(
+                            {
+                                "type": "persistent",
+                                "fields": ["quote_sha256"],
+                                "name": "idx_quote_sha",
+                            }
+                        )
                     except Exception:
                         pass
             except Exception:
@@ -380,7 +410,14 @@ class ArangoDBGraph:
                 if self.db.has_collection("text_blobs"):
                     b = self.db.collection("text_blobs")
                     try:
-                        b.add_index({"type": "persistent", "fields": ["sha256"], "name": "idx_blob_sha", "unique": True})
+                        b.add_index(
+                            {
+                                "type": "persistent",
+                                "fields": ["sha256"],
+                                "name": "idx_blob_sha",
+                                "unique": True,
+                            }
+                        )
                     except Exception:
                         pass
             except Exception:
@@ -406,8 +443,8 @@ class ArangoDBGraph:
                         "name": {"analyzers": ["text_en"]},
                         "description": {"analyzers": ["text_en"]},
                         "type": {"analyzers": ["identity"]},
-                        "jurisdiction": {"analyzers": ["identity"]}
-                    }
+                        "jurisdiction": {"analyzers": ["identity"]},
+                    },
                 }
 
             # Try to get the view; if it doesn't exist, create it
@@ -417,10 +454,14 @@ class ArangoDBGraph:
             except Exception:
                 # Fallback creation path compatible with older drivers
                 try:
-                    view = self.db.create_view(view_name, view_type="arangosearch", properties={"links": links})
+                    view = self.db.create_view(
+                        view_name, view_type="arangosearch", properties={"links": links}
+                    )
                     self.logger.info(f"Created ArangoSearch view: {view_name}")
                 except Exception as create_err:
-                    self.logger.warning(f"Failed creating ArangoSearch view '{view_name}': {create_err}")
+                    self.logger.warning(
+                        f"Failed creating ArangoSearch view '{view_name}': {create_err}"
+                    )
                     return
 
             # Update properties (if possible) to ensure links are current
@@ -445,32 +486,26 @@ class ArangoDBGraph:
             EntityType.LEGAL_PROCEDURE: "legal_procedures",
             EntityType.DAMAGES: "damages",
             EntityType.LEGAL_CONCEPT: "legal_concepts",
-            
             # Organizing entities
             EntityType.TENANT_GROUP: "tenant_groups",
             EntityType.CAMPAIGN: "campaigns",
             EntityType.TACTIC: "tactics",
-            
             # Parties
             EntityType.TENANT: "tenants",
             EntityType.LANDLORD: "landlords",
             EntityType.LEGAL_SERVICE: "legal_services",
             EntityType.GOVERNMENT_ENTITY: "government_entities",
-            
             # Outcomes
             EntityType.LEGAL_OUTCOME: "legal_outcomes",
             EntityType.ORGANIZING_OUTCOME: "organizing_outcomes",
-            
             # Issues and events
             EntityType.TENANT_ISSUE: "tenant_issues",
             EntityType.EVENT: "events",
-            
             # Documentation and evidence
             EntityType.DOCUMENT: "documents",
             EntityType.EVIDENCE: "evidence",
-            
             # Geographic and jurisdictional
-            EntityType.JURISDICTION: "jurisdictions"
+            EntityType.JURISDICTION: "jurisdictions",
         }
         return collection_map[entity_type]
 
@@ -512,7 +547,14 @@ class ArangoDBGraph:
             self.logger.error(f"upsert_text_blob failed: {e}")
             return ""
 
-    def upsert_source(self, locator: str, kind: str, title: Optional[str] = None, jurisdiction: Optional[str] = None, sha256: Optional[str] = None) -> str:
+    def upsert_source(
+        self,
+        locator: str,
+        kind: str,
+        title: Optional[str] = None,
+        jurisdiction: Optional[str] = None,
+        sha256: Optional[str] = None,
+    ) -> str:
         try:
             if not sha256:
                 sha256 = self._sha256(locator or "")
@@ -537,7 +579,9 @@ class ArangoDBGraph:
             self.logger.error(f"upsert_source failed for {locator}: {e}")
             return ""
 
-    def ensure_text_entities(self, source_id: str, full_text: str, chunk_size: int = 3500) -> Dict[str, object]:
+    def ensure_text_entities(
+        self, source_id: str, full_text: str, chunk_size: int = 3500
+    ) -> Dict[str, object]:
         """DEPRECATED: legacy path that stored text as entities. Prefer register_source_with_text which uses text_chunks."""
         try:
             canon = self._canonicalize_text(full_text)
@@ -549,7 +593,11 @@ class ArangoDBGraph:
                 "_key": textdoc_id,
                 "type": "TEXT_DOCUMENT",
                 "name": f"Source {src_sha}",
-                "attributes": {"source_id": source_id, "blob_id": full_blob_id, "length": len(canon)},
+                "attributes": {
+                    "source_id": source_id,
+                    "blob_id": full_blob_id,
+                    "length": len(canon),
+                },
             }
             if ent_coll.has(textdoc_id):
                 ent_coll.update(doc)
@@ -572,7 +620,7 @@ class ArangoDBGraph:
                     "attributes": {
                         "chunk_index": idx,
                         "blob_id": blob_id,
-                        "sha256": blob_id.split(":",1)[1] if ":" in blob_id else None,
+                        "sha256": blob_id.split(":", 1)[1] if ":" in blob_id else None,
                         "start_offset": start,
                         "end_offset": end,
                         "source_id": source_id,
@@ -586,17 +634,39 @@ class ArangoDBGraph:
                 chunk_ids.append(chunk_id)
                 idx += 1
                 start = end
-            return {"textdoc_id": textdoc_id, "chunk_ids": chunk_ids, "total_length": total_len, "chunk_size": step, "src_sha": src_sha}
+            return {
+                "textdoc_id": textdoc_id,
+                "chunk_ids": chunk_ids,
+                "total_length": total_len,
+                "chunk_size": step,
+                "src_sha": src_sha,
+            }
         except Exception as e:
             self.logger.error(f"ensure_text_entities failed for {source_id}: {e}")
-            return {"textdoc_id": "", "chunk_ids": [], "total_length": 0, "chunk_size": int(chunk_size), "src_sha": ""}
+            return {
+                "textdoc_id": "",
+                "chunk_ids": [],
+                "total_length": 0,
+                "chunk_size": int(chunk_size),
+                "src_sha": "",
+            }
 
-    def register_source_with_text(self, locator: str, kind: str, full_text: str, title: Optional[str] = None, jurisdiction: Optional[str] = None, chunk_size: int = 3500) -> Dict[str, object]:
+    def register_source_with_text(
+        self,
+        locator: str,
+        kind: str,
+        full_text: str,
+        title: Optional[str] = None,
+        jurisdiction: Optional[str] = None,
+        chunk_size: int = 3500,
+    ) -> Dict[str, object]:
         """Register source and prepare chunks for vector DB. Returns chunk docs (not persisted to Arango)."""
         try:
             canon = self._canonicalize_text(full_text)
             sha = self._sha256(canon)
-            sid = self.upsert_source(locator=locator, kind=kind, title=title, jurisdiction=jurisdiction, sha256=sha)
+            sid = self.upsert_source(
+                locator=locator, kind=kind, title=title, jurisdiction=jurisdiction, sha256=sha
+            )
             # Store full text blob for audit/provenance
             blob_id = self.upsert_text_blob(canon)
             # Build chunk docs (caller will embed and persist to Qdrant)
@@ -628,13 +698,32 @@ class ArangoDBGraph:
             }
         except Exception as e:
             self.logger.error(f"register_source_with_text failed for {locator}: {e}")
-            return {"source_id": "", "blob_id": "", "chunk_docs": [], "chunk_ids": [], "total_length": 0, "chunk_size": int(chunk_size), "src_sha": ""}
+            return {
+                "source_id": "",
+                "blob_id": "",
+                "chunk_docs": [],
+                "chunk_ids": [],
+                "total_length": 0,
+                "chunk_size": int(chunk_size),
+                "src_sha": "",
+            }
 
-    def upsert_quote(self, source_id: str, start_offset: int, end_offset: int, quote_text: Optional[str] = None, chunk_entity_id: Optional[str] = None) -> str:
+    def upsert_quote(
+        self,
+        source_id: str,
+        start_offset: int,
+        end_offset: int,
+        quote_text: Optional[str] = None,
+        chunk_entity_id: Optional[str] = None,
+    ) -> str:
         try:
             src_sha = source_id.split(":", 1)[1] if ":" in source_id else ""
             qid = f"q:{src_sha}:{int(start_offset)}:{int(end_offset)}"
-            qsha = self._sha256(self._canonicalize_text(quote_text or "")) if quote_text is not None else None
+            qsha = (
+                self._sha256(self._canonicalize_text(quote_text or ""))
+                if quote_text is not None
+                else None
+            )
             coll = self.db.collection("quotes")
             doc = {
                 "_key": qid,
@@ -654,7 +743,14 @@ class ArangoDBGraph:
             self.logger.error(f"upsert_quote failed: {e}")
             return ""
 
-    def attach_provenance(self, subject_type: str, subject_id: str, source_id: str, quote_id: Optional[str] = None, citation: Optional[str] = None) -> bool:
+    def attach_provenance(
+        self,
+        subject_type: str,
+        subject_id: str,
+        source_id: str,
+        quote_id: Optional[str] = None,
+        citation: Optional[str] = None,
+    ) -> bool:
         try:
             coll = self.db.collection("provenance")
             base = f"{subject_type}:{subject_id}:{source_id}:{quote_id or ''}"
@@ -727,43 +823,37 @@ class ArangoDBGraph:
     def get_entity(self, entity_id: str) -> Optional[LegalEntity]:
         """Retrieve an entity by its ID."""
         # Extract entity type from ID prefix for efficient lookup
-        if ':' in entity_id:
-            type_prefix = entity_id.split(':', 1)[0]
+        if ":" in entity_id:
+            type_prefix = entity_id.split(":", 1)[0]
             # Map prefix to entity type
             prefix_to_type = {
                 # Legal entities
-                'law': EntityType.LAW,
-                'remedy': EntityType.REMEDY,
-                'court_case': EntityType.COURT_CASE,
-                'legal_procedure': EntityType.LEGAL_PROCEDURE,
-                'damages': EntityType.DAMAGES,
-                'legal_concept': EntityType.LEGAL_CONCEPT,
-                
+                "law": EntityType.LAW,
+                "remedy": EntityType.REMEDY,
+                "court_case": EntityType.COURT_CASE,
+                "legal_procedure": EntityType.LEGAL_PROCEDURE,
+                "damages": EntityType.DAMAGES,
+                "legal_concept": EntityType.LEGAL_CONCEPT,
                 # Organizing entities
-                'tenant_group': EntityType.TENANT_GROUP,
-                'campaign': EntityType.CAMPAIGN,
-                'tactic': EntityType.TACTIC,
-                
+                "tenant_group": EntityType.TENANT_GROUP,
+                "campaign": EntityType.CAMPAIGN,
+                "tactic": EntityType.TACTIC,
                 # Parties
-                'tenant': EntityType.TENANT,
-                'landlord': EntityType.LANDLORD,
-                'legal_service': EntityType.LEGAL_SERVICE,
-                'government_entity': EntityType.GOVERNMENT_ENTITY,
-                
+                "tenant": EntityType.TENANT,
+                "landlord": EntityType.LANDLORD,
+                "legal_service": EntityType.LEGAL_SERVICE,
+                "government_entity": EntityType.GOVERNMENT_ENTITY,
                 # Outcomes
-                'legal_outcome': EntityType.LEGAL_OUTCOME,
-                'organizing_outcome': EntityType.ORGANIZING_OUTCOME,
-                
+                "legal_outcome": EntityType.LEGAL_OUTCOME,
+                "organizing_outcome": EntityType.ORGANIZING_OUTCOME,
                 # Issues and events
-                'tenant_issue': EntityType.TENANT_ISSUE,
-                'event': EntityType.EVENT,
-                
+                "tenant_issue": EntityType.TENANT_ISSUE,
+                "event": EntityType.EVENT,
                 # Documentation and evidence
-                'document': EntityType.DOCUMENT,
-                'evidence': EntityType.EVIDENCE,
-                
+                "document": EntityType.DOCUMENT,
+                "evidence": EntityType.EVIDENCE,
                 # Geographic and jurisdictional
-                'jurisdiction': EntityType.JURISDICTION
+                "jurisdiction": EntityType.JURISDICTION,
             }
             entity_type = prefix_to_type.get(type_prefix)
             if entity_type:
@@ -777,9 +867,11 @@ class ArangoDBGraph:
                             f"Error retrieving or parsing entity {entity_id}: {e}", exc_info=True
                         )
                         return None
-        
+
         # Fallback: search across all collections if prefix doesn't match expected pattern
-        self.logger.warning(f"Entity ID {entity_id} doesn't follow expected prefix pattern, falling back to full search")
+        self.logger.warning(
+            f"Entity ID {entity_id} doesn't follow expected prefix pattern, falling back to full search"
+        )
         for entity_type in EntityType:
             collection = self.db.collection(self._get_collection_for_entity(entity_type))
             if collection.has(entity_id):
@@ -793,7 +885,9 @@ class ArangoDBGraph:
                     return None
         return None
 
-    def find_entity_by_name(self, name: str, types: Optional[List[EntityType]] = None) -> Optional[LegalEntity]:
+    def find_entity_by_name(
+        self, name: str, types: Optional[List[EntityType]] = None
+    ) -> Optional[LegalEntity]:
         """Find an entity by exact name across collections. Optionally restrict by types.
         Returns the first exact match found or None.
         """
@@ -822,7 +916,9 @@ class ArangoDBGraph:
             self.logger.error(f"find_entity_by_name error: {e}")
             return None
 
-    def find_entity_id_by_name(self, name: str, types: Optional[List[EntityType]] = None) -> Optional[str]:
+    def find_entity_id_by_name(
+        self, name: str, types: Optional[List[EntityType]] = None
+    ) -> Optional[str]:
         ent = self.find_entity_by_name(name, types)
         return ent.id if ent else None
 
@@ -830,11 +926,11 @@ class ArangoDBGraph:
         """Parse ArangoDB document into LegalEntity object."""
         # Extract source metadata from stored data
         stored_metadata = data.get("source_metadata", {})
-        
+
         # Validate and clean entity type
         stored_type = data.get("type", "")
         valid_entity_type = entity_type.name  # Default to the collection's entity type
-        
+
         # Try to validate the stored type
         if stored_type:
             try:
@@ -846,19 +942,36 @@ class ArangoDBGraph:
                     valid_entity_type = EntityType(stored_type).value
                 except ValueError:
                     # If stored type is invalid, log it and use the collection's entity type
-                    self.logger.warning(f"Invalid entity type '{stored_type}' for entity {data.get('_key', 'unknown')}, using {entity_type.name}")
+                    self.logger.warning(
+                        f"Invalid entity type '{stored_type}' for entity {data.get('_key', 'unknown')}, using {entity_type.name}"
+                    )
                     valid_entity_type = entity_type.value
-        
+
         # Map ArangoDB document to LegalEntity fields
         entity_data = {
             "id": data["_key"],  # Use _key as id
             "entity_type": valid_entity_type,
             "name": data.get("name", ""),
             "description": data.get("description", ""),
-            "attributes": {k: v for k, v in data.items() 
-                        if k not in ["_key", "type", "name", "description", "source_metadata", "jurisdiction", "provenance", "mentions_count"]},
+            "attributes": {
+                k: v
+                for k, v in data.items()
+                if k
+                not in [
+                    "_key",
+                    "type",
+                    "name",
+                    "description",
+                    "source_metadata",
+                    "jurisdiction",
+                    "provenance",
+                    "mentions_count",
+                ]
+            },
             "source_metadata": {
-                "source": stored_metadata.get("source", data["_key"]),  # Use stored source or fallback
+                "source": stored_metadata.get(
+                    "source", data["_key"]
+                ),  # Use stored source or fallback
                 "source_type": stored_metadata.get("source_type", SourceType.INTERNAL),
                 "authority": stored_metadata.get("authority", SourceAuthority.INFORMATIONAL_ONLY),
                 "document_type": stored_metadata.get("document_type"),
@@ -869,8 +982,8 @@ class ArangoDBGraph:
                 "processed_at": stored_metadata.get("processed_at"),
                 "last_updated": stored_metadata.get("last_updated"),
                 "cites": stored_metadata.get("cites", []),
-                "attributes": stored_metadata.get("attributes", {})
-            }
+                "attributes": stored_metadata.get("attributes", {}),
+            },
         }
         # Add provenance and mentions_count when present
         if "provenance" in data:
@@ -888,7 +1001,7 @@ class ArangoDBGraph:
 
         # Convert source metadata to dict and handle datetime serialization
         source_metadata = entity.source_metadata.dict()
-        for field in ['created_at', 'processed_at', 'last_updated']:
+        for field in ["created_at", "processed_at", "last_updated"]:
             if field in source_metadata and source_metadata[field]:
                 if isinstance(source_metadata[field], datetime):
                     source_metadata[field] = source_metadata[field].isoformat()
@@ -900,28 +1013,38 @@ class ArangoDBGraph:
                     source_metadata[field] = str(source_metadata[field])
 
         # Ensure required fields are present
-        if 'source' not in source_metadata or not source_metadata['source']:
-            source_metadata['source'] = entity.id
+        if "source" not in source_metadata or not source_metadata["source"]:
+            source_metadata["source"] = entity.id
 
         # Validation: id prefix must match entity_type value
-        expected_prefix = entity.entity_type.value if hasattr(entity.entity_type, 'value') else str(entity.entity_type)
-        if ':' in entity.id:
-            prefix = entity.id.split(':', 1)[0]
+        expected_prefix = (
+            entity.entity_type.value
+            if hasattr(entity.entity_type, "value")
+            else str(entity.entity_type)
+        )
+        if ":" in entity.id:
+            prefix = entity.id.split(":", 1)[0]
             if prefix != expected_prefix:
-                self.logger.warning(f"Entity id prefix/type mismatch: id='{entity.id}' vs type='{expected_prefix}'.")
+                self.logger.warning(
+                    f"Entity id prefix/type mismatch: id='{entity.id}' vs type='{expected_prefix}'."
+                )
 
         # Promote jurisdiction to top-level field when available
         top_level_jurisdiction: Optional[str] = None
         # Prefer explicit top-level in attributes if present
-        if isinstance(entity.attributes, dict) and 'jurisdiction' in entity.attributes:
-            top_level_jurisdiction = str(entity.attributes.get('jurisdiction'))
-        elif source_metadata.get('jurisdiction'):
-            top_level_jurisdiction = str(source_metadata.get('jurisdiction'))
+        if isinstance(entity.attributes, dict) and "jurisdiction" in entity.attributes:
+            top_level_jurisdiction = str(entity.attributes.get("jurisdiction"))
+        elif source_metadata.get("jurisdiction"):
+            top_level_jurisdiction = str(source_metadata.get("jurisdiction"))
 
         # Prepare document with required fields
         doc = {
             "_key": entity.id,
-            "type": (entity.entity_type.value if hasattr(entity.entity_type, 'value') else str(entity.entity_type)).lower(),
+            "type": (
+                entity.entity_type.value
+                if hasattr(entity.entity_type, "value")
+                else str(entity.entity_type)
+            ).lower(),
             "name": entity.name,
             "description": entity.description,
             "source_metadata": source_metadata,
@@ -932,11 +1055,17 @@ class ArangoDBGraph:
 
         # Auto-populate URL for evidence/document entities from source when available
         try:
-            etype_value = entity.entity_type.value if hasattr(entity.entity_type, 'value') else str(entity.entity_type).lower()
-            source_str = source_metadata.get('source') if isinstance(source_metadata, dict) else None
-            if isinstance(source_str, str) and source_str.startswith(('http://', 'https://')):
-                if etype_value in ('evidence', 'document') and not doc.get('url'):
-                    doc['url'] = source_str
+            etype_value = (
+                entity.entity_type.value
+                if hasattr(entity.entity_type, "value")
+                else str(entity.entity_type).lower()
+            )
+            source_str = (
+                source_metadata.get("source") if isinstance(source_metadata, dict) else None
+            )
+            if isinstance(source_str, str) and source_str.startswith(("http://", "https://")):
+                if etype_value in ("evidence", "document") and not doc.get("url"):
+                    doc["url"] = source_str
         except Exception:
             # Non-fatal; continue without url
             pass
@@ -970,20 +1099,26 @@ class ArangoDBGraph:
             ne = new_meta or {}
             ex_auth = ex.get("authority")
             ne_auth = ne.get("authority")
-            ex_score = order.get(ex_auth if isinstance(ex_auth, str) else getattr(ex_auth, "value", None), 0)
-            ne_score = order.get(ne_auth if isinstance(ne_auth, str) else getattr(ne_auth, "value", None), 0)
+            ex_score = order.get(
+                ex_auth if isinstance(ex_auth, str) else getattr(ex_auth, "value", None), 0
+            )
+            ne_score = order.get(
+                ne_auth if isinstance(ne_auth, str) else getattr(ne_auth, "value", None), 0
+            )
             if ne_score > ex_score:
                 return ne
             if ne_score < ex_score:
                 return ex
+
             # Tie-breaker: most recent created_at/processed_at
             def _parse(dt):
                 try:
                     if isinstance(dt, str):
-                        return datetime.fromisoformat(dt.replace('Z', '+00:00'))
+                        return datetime.fromisoformat(dt.replace("Z", "+00:00"))
                 except Exception:
                     return None
                 return dt
+
             ne_ts = _parse(ne.get("created_at")) or _parse(ne.get("processed_at"))
             ex_ts = _parse(ex.get("created_at")) or _parse(ex.get("processed_at"))
             if ne_ts and (not ex_ts or ne_ts > ex_ts):
@@ -1030,23 +1165,35 @@ class ArangoDBGraph:
                             doc[k] = v
                 # Merge provenance list
                 prov_list = doc.get("provenance", []) or []
+
                 def _key(p):
                     src = (p or {}).get("source", {})
-                    return f"{src.get('source')}::{(p or {}).get('quote','')[:64]}"
-                seen = { _key(p) for p in prov_list }
+                    return f"{src.get('source')}::{(p or {}).get('quote', '')[:64]}"
+
+                seen = {_key(p) for p in prov_list}
                 if provenance_entry:
                     # Normalize nested source metadata for JSON safety
                     if isinstance(provenance_entry.get("source"), dict):
-                        provenance_entry["source"] = self._normalize_source_meta_dict(provenance_entry["source"])
+                        provenance_entry["source"] = self._normalize_source_meta_dict(
+                            provenance_entry["source"]
+                        )
                     if _key(provenance_entry) not in seen:
                         prov_list.append(provenance_entry)
                 doc["provenance"] = prov_list
                 # Mentions count: unique sources
-                unique_sources = { (p.get("source", {}) or {}).get("source") for p in prov_list if isinstance(p, dict) }
-                doc["mentions_count"] = len({ s for s in unique_sources if s })
+                unique_sources = {
+                    (p.get("source", {}) or {}).get("source")
+                    for p in prov_list
+                    if isinstance(p, dict)
+                }
+                doc["mentions_count"] = len({s for s in unique_sources if s})
                 # Canonical source selection
                 existing_meta = doc.get("source_metadata") or {}
-                new_meta = entity.source_metadata.dict() if hasattr(entity.source_metadata, "dict") else entity.source_metadata
+                new_meta = (
+                    entity.source_metadata.dict()
+                    if hasattr(entity.source_metadata, "dict")
+                    else entity.source_metadata
+                )
                 new_meta = self._normalize_source_meta_dict(new_meta)
                 existing_meta = self._normalize_source_meta_dict(existing_meta)
                 doc["source_metadata"] = self._select_canonical_source(existing_meta, new_meta)
@@ -1059,13 +1206,21 @@ class ArangoDBGraph:
                     prov = []
                     if provenance_entry:
                         if isinstance(provenance_entry.get("source"), dict):
-                            provenance_entry["source"] = self._normalize_source_meta_dict(provenance_entry["source"])
+                            provenance_entry["source"] = self._normalize_source_meta_dict(
+                                provenance_entry["source"]
+                            )
                         prov.append(provenance_entry)
-                    coll.update({
-                        "_key": entity.id,
-                        "provenance": prov,
-                        "mentions_count": len({ (provenance_entry or {}).get("source", {}).get("source") }) if provenance_entry else 0,
-                    })
+                    coll.update(
+                        {
+                            "_key": entity.id,
+                            "provenance": prov,
+                            "mentions_count": (
+                                len({(provenance_entry or {}).get("source", {}).get("source")})
+                                if provenance_entry
+                                else 0
+                            ),
+                        }
+                    )
                     return True
                 return False
         except Exception as e:
@@ -1089,7 +1244,7 @@ class ArangoDBGraph:
         collection = self.db.collection("edges")
         from_collection = "entities"
         to_collection = "entities"
-        
+
         # Deduplicate: skip if identical edge exists
         try:
             aql = """
@@ -1098,13 +1253,16 @@ class ArangoDBGraph:
                 LIMIT 1
                 RETURN e
             """
-            cur = self.db.aql.execute(aql, bind_vars={
-                "from_coll": from_collection,
-                "to_coll": to_collection,
-                "from_id": relationship.source_id,
-                "to_id": relationship.target_id,
-                "type": relationship.relationship_type.name,
-            })
+            cur = self.db.aql.execute(
+                aql,
+                bind_vars={
+                    "from_coll": from_collection,
+                    "to_coll": to_collection,
+                    "from_id": relationship.source_id,
+                    "to_id": relationship.target_id,
+                    "type": relationship.relationship_type.name,
+                },
+            )
             if list(cur):
                 self.logger.debug("Skipping duplicate relationship insertion")
                 return False
@@ -1161,7 +1319,7 @@ class ArangoDBGraph:
                     # Extract entity IDs from _from and _to paths
                     source_id = doc["_from"].split("/")[-1]
                     target_id = doc["_to"].split("/")[-1]
-                    
+
                     if source_id in node_mapping and target_id in node_mapping:
                         source_idx = node_mapping[source_id]
                         target_idx = node_mapping[target_id]
@@ -1176,7 +1334,9 @@ class ArangoDBGraph:
                             f"Target: {target_id} (in mapping: {target_id in node_mapping})"
                         )
                 except Exception as e:
-                    self.logger.error(f"Error processing edge {doc.get('_from', 'unknown')} -> {doc.get('_to', 'unknown')}: {e}")
+                    self.logger.error(
+                        f"Error processing edge {doc.get('_from', 'unknown')} -> {doc.get('_to', 'unknown')}: {e}"
+                    )
                     continue
 
         # Convert to tensors
@@ -1186,7 +1346,9 @@ class ArangoDBGraph:
         else:
             # No edges found, create empty tensors
             edge_index = torch.empty((2, 0), dtype=torch.long)
-            edge_attr = torch.empty((0, len(RelationshipType) + 1), dtype=torch.float)  # +1 for weight
+            edge_attr = torch.empty(
+                (0, len(RelationshipType) + 1), dtype=torch.float
+            )  # +1 for weight
 
         return Data(x=x, edge_index=edge_index, edge_attr=edge_attr)
 
@@ -1246,13 +1408,15 @@ class ArangoDBGraph:
                         entity = self._parse_entity_from_doc(doc, entity_type)
                         entities.append(entity)
                     except Exception as entity_error:
-                        self.logger.warning(f"Error parsing entity {doc.get('_key', 'unknown')}: {entity_error}")
+                        self.logger.warning(
+                            f"Error parsing entity {doc.get('_key', 'unknown')}: {entity_error}"
+                        )
                         continue  # Skip this entity and continue with others
             return entities
         except Exception as e:
             self.logger.error(f"Error getting all entities: {e}")
             return []
-    
+
     def get_all_relationships(self) -> List[LegalRelationship]:
         """Get all relationships from the knowledge graph."""
         relationships = []
@@ -1267,7 +1431,7 @@ class ArangoDBGraph:
                         relationship_type=rel_type,
                         conditions=doc.get("conditions", []),
                         weight=doc.get("weight", 1.0),
-                        attributes=doc.get("attributes", {})
+                        attributes=doc.get("attributes", {}),
                     )
                     relationships.append(relationship)
             return relationships
@@ -1278,29 +1442,29 @@ class ArangoDBGraph:
     def _collection_for_entity_id(self, entity_id: str) -> Optional[str]:
         """Infer vertex collection name from id prefix, or scan to find it."""
         try:
-            if ':' in entity_id:
-                prefix = entity_id.split(':', 1)[0]
+            if ":" in entity_id:
+                prefix = entity_id.split(":", 1)[0]
                 mapping = {
-                    'law': EntityType.LAW,
-                    'remedy': EntityType.REMEDY,
-                    'court_case': EntityType.COURT_CASE,
-                    'legal_procedure': EntityType.LEGAL_PROCEDURE,
-                    'damages': EntityType.DAMAGES,
-                    'legal_concept': EntityType.LEGAL_CONCEPT,
-                    'tenant_group': EntityType.TENANT_GROUP,
-                    'campaign': EntityType.CAMPAIGN,
-                    'tactic': EntityType.TACTIC,
-                    'tenant': EntityType.TENANT,
-                    'landlord': EntityType.LANDLORD,
-                    'legal_service': EntityType.LEGAL_SERVICE,
-                    'government_entity': EntityType.GOVERNMENT_ENTITY,
-                    'legal_outcome': EntityType.LEGAL_OUTCOME,
-                    'organizing_outcome': EntityType.ORGANIZING_OUTCOME,
-                    'tenant_issue': EntityType.TENANT_ISSUE,
-                    'event': EntityType.EVENT,
-                    'document': EntityType.DOCUMENT,
-                    'evidence': EntityType.EVIDENCE,
-                    'jurisdiction': EntityType.JURISDICTION,
+                    "law": EntityType.LAW,
+                    "remedy": EntityType.REMEDY,
+                    "court_case": EntityType.COURT_CASE,
+                    "legal_procedure": EntityType.LEGAL_PROCEDURE,
+                    "damages": EntityType.DAMAGES,
+                    "legal_concept": EntityType.LEGAL_CONCEPT,
+                    "tenant_group": EntityType.TENANT_GROUP,
+                    "campaign": EntityType.CAMPAIGN,
+                    "tactic": EntityType.TACTIC,
+                    "tenant": EntityType.TENANT,
+                    "landlord": EntityType.LANDLORD,
+                    "legal_service": EntityType.LEGAL_SERVICE,
+                    "government_entity": EntityType.GOVERNMENT_ENTITY,
+                    "legal_outcome": EntityType.LEGAL_OUTCOME,
+                    "organizing_outcome": EntityType.ORGANIZING_OUTCOME,
+                    "tenant_issue": EntityType.TENANT_ISSUE,
+                    "event": EntityType.EVENT,
+                    "document": EntityType.DOCUMENT,
+                    "evidence": EntityType.EVIDENCE,
+                    "jurisdiction": EntityType.JURISDICTION,
                 }
                 et = mapping.get(prefix)
                 if et is not None:
@@ -1319,31 +1483,52 @@ class ArangoDBGraph:
         try:
             id_set = set(node_ids)
             rels: List[LegalRelationship] = []
-            for rel_type in RelationshipType:
-                edge_name = self._get_collection_for_relationship(rel_type)
-                aql = """
-                FOR e IN @@edge
-                    LET from_id = SPLIT(e._from, '/')[1]
-                    LET to_id = SPLIT(e._to, '/')[1]
-                    FILTER from_id IN @ids AND to_id IN @ids
-                    RETURN { from_id, to_id, weight: e.weight, conditions: e.conditions }
-                """
-                cursor = self.db.aql.execute(aql, bind_vars={"@edge": edge_name, "ids": list(id_set)})
-                for row in cursor:
-                    rels.append(LegalRelationship(
+
+            # Query the generic edges collection (where relationships are actually stored)
+            aql = """
+            FOR e IN edges
+                LET from_id = SPLIT(e._from, '/')[1]
+                LET to_id = SPLIT(e._to, '/')[1]
+                FILTER from_id IN @ids AND to_id IN @ids
+                RETURN { 
+                    from_id, 
+                    to_id, 
+                    type: e.type, 
+                    weight: e.weight, 
+                    conditions: e.conditions,
+                    attributes: e.attributes
+                }
+            """
+            cursor = self.db.aql.execute(aql, bind_vars={"ids": list(id_set)})
+            for row in cursor:
+                # Parse relationship type from string
+                try:
+                    rel_type = RelationshipType[row.get("type", "UNKNOWN")]
+                except (KeyError, ValueError):
+                    rel_type = (
+                        RelationshipType.UNKNOWN
+                        if hasattr(RelationshipType, "UNKNOWN")
+                        else list(RelationshipType)[0]
+                    )
+
+                rels.append(
+                    LegalRelationship(
                         source_id=row["from_id"],
                         target_id=row["to_id"],
                         relationship_type=rel_type,
                         conditions=row.get("conditions"),
                         weight=row.get("weight", 1.0),
-                        attributes={}
-                    ))
+                        attributes=row.get("attributes") or {},
+                    )
+                )
             return rels
         except Exception as e:
             self.logger.error(f"get_relationships_among error: {e}")
             return []
 
-    def get_neighbors(self, node_ids: List[str], per_node_limit: int = 50, direction: str = "both") -> Tuple[List[LegalEntity], List[LegalRelationship]]:
+    def get_neighbors(
+        self, node_ids: List[str], per_node_limit: int = 50, direction: str = "both"
+    ) -> Tuple[List[LegalEntity], List[LegalRelationship]]:
         """Get 1-hop neighbors and connecting relationships for the given node ids.
         direction: 'out', 'in', or 'both'
         """
@@ -1368,17 +1553,27 @@ class ArangoDBGraph:
                             LIMIT @limit
                             RETURN e
                         """
-                        cursor_out = self.db.aql.execute(aql_out, bind_vars={"@edge": edge_name, "coll": coll_name, "key": nid, "limit": per_node_limit})
+                        cursor_out = self.db.aql.execute(
+                            aql_out,
+                            bind_vars={
+                                "@edge": edge_name,
+                                "coll": coll_name,
+                                "key": nid,
+                                "limit": per_node_limit,
+                            },
+                        )
                         for e in cursor_out:
                             to_id = e["_to"].split("/")[-1]
-                            rels.append(LegalRelationship(
-                                source_id=nid,
-                                target_id=to_id,
-                                relationship_type=rel_type,
-                                conditions=e.get("conditions"),
-                                weight=e.get("weight", 1.0),
-                                attributes={}
-                            ))
+                            rels.append(
+                                LegalRelationship(
+                                    source_id=nid,
+                                    target_id=to_id,
+                                    relationship_type=rel_type,
+                                    conditions=e.get("conditions"),
+                                    weight=e.get("weight", 1.0),
+                                    attributes={},
+                                )
+                            )
                             # Fetch neighbor doc
                             to_coll = e["_to"].split("/")[0]
                             try:
@@ -1401,17 +1596,27 @@ class ArangoDBGraph:
                             LIMIT @limit
                             RETURN e
                         """
-                        cursor_in = self.db.aql.execute(aql_in, bind_vars={"@edge": edge_name, "coll": coll_name, "key": nid, "limit": per_node_limit})
+                        cursor_in = self.db.aql.execute(
+                            aql_in,
+                            bind_vars={
+                                "@edge": edge_name,
+                                "coll": coll_name,
+                                "key": nid,
+                                "limit": per_node_limit,
+                            },
+                        )
                         for e in cursor_in:
                             from_id = e["_from"].split("/")[-1]
-                            rels.append(LegalRelationship(
-                                source_id=from_id,
-                                target_id=nid,
-                                relationship_type=rel_type,
-                                conditions=e.get("conditions"),
-                                weight=e.get("weight", 1.0),
-                                attributes={}
-                            ))
+                            rels.append(
+                                LegalRelationship(
+                                    source_id=from_id,
+                                    target_id=nid,
+                                    relationship_type=rel_type,
+                                    conditions=e.get("conditions"),
+                                    weight=e.get("weight", 1.0),
+                                    attributes={},
+                                )
+                            )
                             # Fetch neighbor doc
                             from_coll = e["_from"].split("/")[0]
                             try:
@@ -1435,10 +1640,35 @@ class ArangoDBGraph:
         if not text:
             return []
         tokens = re.split(r"\W+", text.lower())
-        stop = {"the","a","an","and","or","to","of","in","on","for","by","with","at","from","as","is","are","be","that","this","these","those"}
+        stop = {
+            "the",
+            "a",
+            "an",
+            "and",
+            "or",
+            "to",
+            "of",
+            "in",
+            "on",
+            "for",
+            "by",
+            "with",
+            "at",
+            "from",
+            "as",
+            "is",
+            "are",
+            "be",
+            "that",
+            "this",
+            "these",
+            "those",
+        }
         return [t for t in tokens if t and t not in stop]
 
-    def _sim_score(self, name_a: str, desc_a: Optional[str], name_b: str, desc_b: Optional[str]) -> float:
+    def _sim_score(
+        self, name_a: str, desc_a: Optional[str], name_b: str, desc_b: Optional[str]
+    ) -> float:
         if not name_a or not name_b:
             return 0.0
         a, b = name_a.strip().lower(), name_b.strip().lower()
@@ -1464,24 +1694,37 @@ class ArangoDBGraph:
             keep["description"] = ddesc
         # Merge attributes (non-destructive)
         for k, v in drop.items():
-            if k in ["_key","_id","_rev","type","name","description","source_metadata","jurisdiction","provenance","mentions_count"]:
+            if k in [
+                "_key",
+                "_id",
+                "_rev",
+                "type",
+                "name",
+                "description",
+                "source_metadata",
+                "jurisdiction",
+                "provenance",
+                "mentions_count",
+            ]:
                 continue
             if k not in keep:
                 keep[k] = v
         # Merge provenance lists
-        kprov = (keep.get("provenance") or [])
-        dprov = (drop.get("provenance") or [])
+        kprov = keep.get("provenance") or []
+        dprov = drop.get("provenance") or []
+
         def keyp(p):
             s = (p or {}).get("source", {})
-            return f"{s.get('source')}::{(p or {}).get('quote','')[:64]}"
-        seen = { keyp(p) for p in kprov }
+            return f"{s.get('source')}::{(p or {}).get('quote', '')[:64]}"
+
+        seen = {keyp(p) for p in kprov}
         for p in dprov:
             if keyp(p) not in seen:
                 kprov.append(p)
         keep["provenance"] = kprov
         # Mentions count recompute
-        uniq = { (p.get("source", {}) or {}).get("source") for p in kprov if isinstance(p, dict) }
-        keep["mentions_count"] = len({ s for s in uniq if s })
+        uniq = {(p.get("source", {}) or {}).get("source") for p in kprov if isinstance(p, dict)}
+        keep["mentions_count"] = len({s for s in uniq if s})
         # Canonical source selection
         keep_meta = keep.get("source_metadata") or {}
         drop_meta = drop.get("source_metadata") or {}
@@ -1498,14 +1741,20 @@ class ArangoDBGraph:
                 FILTER e._from == CONCAT(@coll, '/', @drop)
                 UPDATE e WITH { _from: CONCAT(@coll, '/', @keep) } IN @@edge
             """
-            self.db.aql.execute(aql_out, bind_vars={"@edge": edge_name, "coll": coll_name, "drop": drop_id, "keep": keep_id})
+            self.db.aql.execute(
+                aql_out,
+                bind_vars={"@edge": edge_name, "coll": coll_name, "drop": drop_id, "keep": keep_id},
+            )
             # Update inbound
             aql_in = """
             FOR e IN @@edge
                 FILTER e._to == CONCAT(@coll, '/', @drop)
                 UPDATE e WITH { _to: CONCAT(@coll, '/', @keep) } IN @@edge
             """
-            self.db.aql.execute(aql_in, bind_vars={"@edge": edge_name, "coll": coll_name, "drop": drop_id, "keep": keep_id})
+            self.db.aql.execute(
+                aql_in,
+                bind_vars={"@edge": edge_name, "coll": coll_name, "drop": drop_id, "keep": keep_id},
+            )
         # Delete drop vertex
         coll.delete(drop_id)
 
@@ -1532,10 +1781,15 @@ class ArangoDBGraph:
                         docs.append(d)
                 # Compare all pairs within this collection
                 for i in range(len(docs)):
-                    for j in range(i+1, len(docs)):
+                    for j in range(i + 1, len(docs)):
                         a, b = docs[i], docs[j]
                         examined += 1
-                        score = self._sim_score(a.get("name",""), a.get("description"), b.get("name",""), b.get("description"))
+                        score = self._sim_score(
+                            a.get("name", ""),
+                            a.get("description"),
+                            b.get("name", ""),
+                            b.get("description"),
+                        )
                         if score >= threshold:
                             # Choose keep by authority then recency
                             ka = a.get("source_metadata") or {}
@@ -1550,7 +1804,13 @@ class ArangoDBGraph:
             self.logger.error(f"consolidate_entities error: {e}")
             return {"merged": merged, "examined": examined}
 
-    def consolidate_all_entities(self, threshold: float = 0.95, types: Optional[List[EntityType]] = None, judge_low: float = 0.90, judge_high: float = 0.95) -> Dict[str, object]:
+    def consolidate_all_entities(
+        self,
+        threshold: float = 0.95,
+        types: Optional[List[EntityType]] = None,
+        judge_low: float = 0.90,
+        judge_high: float = 0.95,
+    ) -> Dict[str, object]:
         """Scan the whole graph (optionally filtered by types) and consolidate near-duplicates per type.
         Auto-merge when score >= threshold. Return borderline pairs in [judge_low, judge_high) for LLM judge.
         Returns { collections: map of collection -> {merged, examined}, borderline: [ {coll, a_id, b_id, a_name, b_name, a_desc, b_desc, score} ] }.
@@ -1559,7 +1819,9 @@ class ArangoDBGraph:
         borderline: List[Dict[str, object]] = []
         try:
             target_types = types or list(EntityType)
-            self.logger.info(f"[CONSOLIDATE-ALL] Starting consolidate-all threshold={threshold} types={[t.value if hasattr(t,'value') else str(t) for t in target_types]}")
+            self.logger.info(
+                f"[CONSOLIDATE-ALL] Starting consolidate-all threshold={threshold} types={[t.value if hasattr(t, 'value') else str(t) for t in target_types]}"
+            )
             for et in target_types:
                 coll_name = self._get_collection_for_entity(et)
                 if not self.db.has_collection(coll_name):
@@ -1576,14 +1838,21 @@ class ArangoDBGraph:
                     while j < len(docs):
                         b = docs[j]
                         examined += 1
-                        score = self._sim_score(a.get("name",""), a.get("description"), b.get("name",""), b.get("description"))
+                        score = self._sim_score(
+                            a.get("name", ""),
+                            a.get("description"),
+                            b.get("name", ""),
+                            b.get("description"),
+                        )
                         if score >= threshold:
                             ka = a.get("source_metadata") or {}
                             kb = b.get("source_metadata") or {}
                             choose_a = self._select_canonical_source(kb, ka) == ka
                             keep_id = a.get("_key") if choose_a else b.get("_key")
                             drop_id = b.get("_key") if choose_a else a.get("_key")
-                            self.logger.info(f"[CONSOLIDATE-ALL] merge {coll_name}: '{a.get('name','')}' <-> '{b.get('name','')}' score={score:.3f} keep={keep_id} drop={drop_id}")
+                            self.logger.info(
+                                f"[CONSOLIDATE-ALL] merge {coll_name}: '{a.get('name', '')}' <-> '{b.get('name', '')}' score={score:.3f} keep={keep_id} drop={drop_id}"
+                            )
                             self._merge_two_docs(coll_name, keep_id, drop_id)
                             # Refresh docs list after deletion
                             docs.pop(j if choose_a else i)
@@ -1591,23 +1860,29 @@ class ArangoDBGraph:
                             # Do not advance j; the list shrank
                             continue
                         elif judge_low <= score < judge_high:
-                            borderline.append({
-                                "coll": coll_name,
-                                "a_id": a.get("_key"),
-                                "b_id": b.get("_key"),
-                                "a_name": a.get("name",""),
-                                "b_name": b.get("name",""),
-                                "a_desc": a.get("description",""),
-                                "b_desc": b.get("description",""),
-                                "score": float(score)
-                            })
+                            borderline.append(
+                                {
+                                    "coll": coll_name,
+                                    "a_id": a.get("_key"),
+                                    "b_id": b.get("_key"),
+                                    "a_name": a.get("name", ""),
+                                    "b_name": b.get("name", ""),
+                                    "a_desc": a.get("description", ""),
+                                    "b_desc": b.get("description", ""),
+                                    "score": float(score),
+                                }
+                            )
                         j += 1
                     i += 1
                 results[coll_name] = {"merged": merged, "examined": examined}
-                self.logger.info(f"[CONSOLIDATE-ALL] collection={coll_name} merged={merged} examined={examined}")
-            total_merged = sum(v.get('merged',0) for v in results.values())
-            total_examined = sum(v.get('examined',0) for v in results.values())
-            self.logger.info(f"[CONSOLIDATE-ALL] Completed merged_total={total_merged} examined_total={total_examined}")
+                self.logger.info(
+                    f"[CONSOLIDATE-ALL] collection={coll_name} merged={merged} examined={examined}"
+                )
+            total_merged = sum(v.get("merged", 0) for v in results.values())
+            total_examined = sum(v.get("examined", 0) for v in results.values())
+            self.logger.info(
+                f"[CONSOLIDATE-ALL] Completed merged_total={total_merged} examined_total={total_examined}"
+            )
             return {"collections": results, "borderline": borderline}
         except Exception as e:
             self.logger.error(f"consolidate_all_entities error: {e}")
@@ -1637,9 +1912,14 @@ class ArangoDBGraph:
         except Exception as e:
             self.logger.error(f"merge_pair_auto error: {e}")
             return False
-    
-    
-    def _fallback_text_search(self, search_term: str, types: Optional[List[EntityType]], jurisdiction: Optional[str], limit: int) -> List[LegalEntity]:
+
+    def _fallback_text_search(
+        self,
+        search_term: str,
+        types: Optional[List[EntityType]],
+        jurisdiction: Optional[str],
+        limit: int,
+    ) -> List[LegalEntity]:
         """Fallback search using AQL LIKE across all collections when ArangoSearch is unavailable."""
         try:
             results: List[LegalEntity] = []
@@ -1698,7 +1978,13 @@ class ArangoDBGraph:
             self.logger.error(f"Fallback text search error: {e}")
             return []
 
-    def search_entities_by_text(self, search_term: str, types: Optional[List[EntityType]] = None, jurisdiction: Optional[str] = None, limit: int = 50) -> List[LegalEntity]:
+    def search_entities_by_text(
+        self,
+        search_term: str,
+        types: Optional[List[EntityType]] = None,
+        jurisdiction: Optional[str] = None,
+        limit: int = 50,
+    ) -> List[LegalEntity]:
         """Search for entities by text in name or description using ArangoSearch."""
         try:
             filters = []
@@ -1729,12 +2015,16 @@ class ArangoDBGraph:
             except Exception as e:
                 # If view missing, ensure and retry; else fallback
                 msg = str(e)
-                self.logger.warning(f"ArangoSearch view issue detected: {msg}. Ensuring view and retrying/falling back...")
+                self.logger.warning(
+                    f"ArangoSearch view issue detected: {msg}. Ensuring view and retrying/falling back..."
+                )
                 try:
                     self._ensure_search_view()
                     cursor = self.db.aql.execute(aql, bind_vars=bind_vars)
                 except Exception as retry_err:
-                    self.logger.warning(f"Retry with view failed: {retry_err}. Using fallback LIKE search.")
+                    self.logger.warning(
+                        f"Retry with view failed: {retry_err}. Using fallback LIKE search."
+                    )
                     return self._fallback_text_search(search_term, types, jurisdiction, limit)
 
             results: List[LegalEntity] = []
@@ -1807,7 +2097,9 @@ class ArangoDBGraph:
                 updated_counts[collection_name] = -1
         return updated_counts
 
-    def compute_next_steps(self, issues: List[str], jurisdiction: Optional[str] = None) -> List[Dict]:
+    def compute_next_steps(
+        self, issues: List[str], jurisdiction: Optional[str] = None
+    ) -> List[Dict]:
         """Compute deterministic next steps from issues through applicable laws, remedies, procedures, and evidence.
         This is a heuristic placeholder; refine with AQL/graph traversal later.
         """
@@ -1816,7 +2108,9 @@ class ArangoDBGraph:
             # Gather candidate laws by simple name match
             laws_coll = self.db.collection(self._get_collection_for_entity(EntityType.LAW))
             remedies_coll = self.db.collection(self._get_collection_for_entity(EntityType.REMEDY))
-            procedures_coll = self.db.collection(self._get_collection_for_entity(EntityType.LEGAL_PROCEDURE))
+            procedures_coll = self.db.collection(
+                self._get_collection_for_entity(EntityType.LEGAL_PROCEDURE)
+            )
             evidence_coll = self.db.collection(self._get_collection_for_entity(EntityType.EVIDENCE))
 
             # Simple scan; replace with AQL + relationships when populated
@@ -1841,19 +2135,35 @@ class ArangoDBGraph:
                 # Remedies
                 for r in remedies_coll.all():
                     r_text = (r.get("name", "") + " " + r.get("description", "")).lower()
-                    if any(k in r_text for k in ["hp action", "overcharge", "abatement", "complaint", "311", "dhcr"]):
+                    if any(
+                        k in r_text
+                        for k in [
+                            "hp action",
+                            "overcharge",
+                            "abatement",
+                            "complaint",
+                            "311",
+                            "dhcr",
+                        ]
+                    ):
                         step["remedies"].append(r.get("name", ""))
 
                 # Procedures
                 for p in procedures_coll.all():
                     p_text = (p.get("name", "") + " " + p.get("description", "")).lower()
-                    if any(k in p_text for k in ["file", "petition", "action", "hearing", "notice", "court"]):
+                    if any(
+                        k in p_text
+                        for k in ["file", "petition", "action", "hearing", "notice", "court"]
+                    ):
                         step["procedures"].append(p.get("name", ""))
 
                 # Evidence
                 for e in evidence_coll.all():
                     e_text = (e.get("name", "") + " " + e.get("description", "")).lower()
-                    if any(k in e_text for k in ["receipt", "photo", "violation", "history", "letter", "record"]):
+                    if any(
+                        k in e_text
+                        for k in ["receipt", "photo", "violation", "history", "letter", "record"]
+                    ):
                         step["evidence"].append(e.get("name", ""))
 
                 steps.append(step)
@@ -1861,7 +2171,9 @@ class ArangoDBGraph:
             self.logger.warning(f"compute_next_steps fallback used due to error: {e}")
         return steps
 
-    def build_legal_chains(self, issues: List[str], jurisdiction: Optional[str] = None, limit: int = 25) -> List[Dict]:
+    def build_legal_chains(
+        self, issues: List[str], jurisdiction: Optional[str] = None, limit: int = 25
+    ) -> List[Dict]:
         """Build explicit chains (issue -> law -> remedy -> procedure -> evidence) with citations via AQL traversal.
         Returns a list of chains with nodes, edges, and source_metadata for citations.
         """
@@ -1909,30 +2221,32 @@ class ArangoDBGraph:
 
     def get_database_stats(self) -> Dict[str, int]:
         """Get statistics about the database collections.
-        
+
         Returns:
             Dict mapping collection names to document counts
         """
         try:
             stats = {}
-            
+
             # Get all collection names
             collections = self.db.collections()
-            
+
             for collection_info in collections:
-                collection_name = collection_info['name']
-                
+                collection_name = collection_info["name"]
+
                 # Skip system collections
-                if collection_name.startswith('_'):
+                if collection_name.startswith("_"):
                     continue
-                    
+
                 try:
                     collection = self.db.collection(collection_name)
                     stats[collection_name] = collection.count()
                 except Exception as e:
-                    self.logger.warning(f"Could not get count for collection {collection_name}: {e}")
+                    self.logger.warning(
+                        f"Could not get count for collection {collection_name}: {e}"
+                    )
                     stats[collection_name] = -1
-            
+
             return stats
         except Exception as e:
             self.logger.error(f"Error getting database stats: {e}")
@@ -1940,13 +2254,13 @@ class ArangoDBGraph:
 
     def reset_database(self, confirm: bool = False) -> Dict[str, int]:
         """Truncate all collections in the database (keeps schema, removes data).
-        
+
         This is safer than dropping the database as it preserves collection structure
         and indexes.
-        
+
         Args:
             confirm: Must be True to actually perform the operation (safety check)
-            
+
         Returns:
             Dict with counts of documents deleted per collection
         """
@@ -1954,30 +2268,32 @@ class ArangoDBGraph:
             raise ValueError(
                 "reset_database requires confirm=True. This operation will delete all data!"
             )
-        
+
         try:
             deleted_counts = {}
-            
+
             # Get all collection names
             collections = self.db.collections()
-            
+
             for collection_info in collections:
-                collection_name = collection_info['name']
-                
+                collection_name = collection_info["name"]
+
                 # Skip system collections
-                if collection_name.startswith('_'):
+                if collection_name.startswith("_"):
                     continue
-                    
+
                 try:
                     collection = self.db.collection(collection_name)
                     count_before = collection.count()
                     collection.truncate()
                     deleted_counts[collection_name] = count_before
-                    self.logger.info(f"Truncated collection {collection_name}: {count_before} documents removed")
+                    self.logger.info(
+                        f"Truncated collection {collection_name}: {count_before} documents removed"
+                    )
                 except Exception as e:
                     self.logger.error(f"Error truncating collection {collection_name}: {e}")
                     deleted_counts[collection_name] = -1
-            
+
             return deleted_counts
         except Exception as e:
             self.logger.error(f"Error resetting database: {e}")
@@ -1985,13 +2301,13 @@ class ArangoDBGraph:
 
     def drop_database(self, confirm: bool = False) -> bool:
         """Drop the entire database (DESTRUCTIVE - cannot be undone).
-        
+
         This completely removes the database including all collections, indexes,
         and data. The database will need to be re-initialized after this operation.
-        
+
         Args:
             confirm: Must be True to actually perform the operation (safety check)
-            
+
         Returns:
             True if successful, False otherwise
         """
@@ -1999,11 +2315,11 @@ class ArangoDBGraph:
             raise ValueError(
                 "drop_database requires confirm=True. This operation will permanently delete the entire database!"
             )
-        
+
         try:
             # Connect to _system database to drop our database
             sys_db = self.client.db("_system", username=self.username, password=self.password)
-            
+
             if sys_db.has_database(self.db_name):
                 self.logger.warning(f"Dropping database {self.db_name}...")
                 sys_db.delete_database(self.db_name)

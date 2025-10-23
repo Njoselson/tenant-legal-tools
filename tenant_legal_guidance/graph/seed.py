@@ -14,14 +14,21 @@ Env vars used for connection (same as app):
   ARANGO_USERNAME (default root)
   ARANGO_PASSWORD
 """
+
 import argparse
 import sys
 from typing import Dict
+
 from dotenv import load_dotenv
 
 from tenant_legal_guidance.graph.arango_graph import ArangoDBGraph
-from tenant_legal_guidance.models.entities import EntityType, SourceType, SourceMetadata, LegalEntity
-from tenant_legal_guidance.models.relationships import RelationshipType, LegalRelationship
+from tenant_legal_guidance.models.entities import (
+    EntityType,
+    LegalEntity,
+    SourceMetadata,
+    SourceType,
+)
+from tenant_legal_guidance.models.relationships import LegalRelationship, RelationshipType
 
 load_dotenv()
 
@@ -73,7 +80,9 @@ def seed_ny_habitability() -> int:
         "name": "Uninhabitable premises (leaks/ceiling collapse)",
         "description": "Serious leaks and ceiling collapse rendering unit unfit for habitation.",
         "attributes": {"jurisdiction": "NYC"},
-        "source_metadata": SourceMetadata(source="manual:seed", source_type=SourceType.INTERNAL, jurisdiction="NYC"),
+        "source_metadata": SourceMetadata(
+            source="manual:seed", source_type=SourceType.INTERNAL, jurisdiction="NYC"
+        ),
     }
     # REMEDIES
     remedies = [
@@ -116,7 +125,9 @@ def seed_ny_habitability() -> int:
             "name": r["name"],
             "description": None,
             "attributes": {"jurisdiction": "NYC"},
-            "source_metadata": SourceMetadata(source="manual:seed", source_type=SourceType.INTERNAL, jurisdiction="NYC"),
+            "source_metadata": SourceMetadata(
+                source="manual:seed", source_type=SourceType.INTERNAL, jurisdiction="NYC"
+            ),
         }
         if _add_entity(kg, ent):
             added += 1
@@ -129,17 +140,26 @@ def seed_ny_habitability() -> int:
             "name": ev["name"],
             "description": None,
             "attributes": {"jurisdiction": "NYC"},
-            "source_metadata": SourceMetadata(source="manual:seed", source_type=SourceType.INTERNAL, jurisdiction="NYC"),
+            "source_metadata": SourceMetadata(
+                source="manual:seed", source_type=SourceType.INTERNAL, jurisdiction="NYC"
+            ),
         }
         if _add_entity(kg, ent):
             added += 1
 
     # Edges
-    _add_rel(kg, "law:ny_rpl_235b", "tenant_issue:uninhabitable_leaks_ceiling", RelationshipType.APPLIES_TO)
+    _add_rel(
+        kg,
+        "law:ny_rpl_235b",
+        "tenant_issue:uninhabitable_leaks_ceiling",
+        RelationshipType.APPLIES_TO,
+    )
     _add_rel(kg, "law:ny_rpl_235b", "remedy:rent_abatement", RelationshipType.ENABLES)
     _add_rel(kg, "law:ny_rpl_235b", "remedy:rescission_release", RelationshipType.ENABLES)
     _add_rel(kg, "law:ny_rpl_235b", "remedy:return_deposit", RelationshipType.ENABLES)
-    _add_rel(kg, "remedy:rent_abatement", "legal_procedure:hp_action_nyc", RelationshipType.AVAILABLE_VIA)
+    _add_rel(
+        kg, "remedy:rent_abatement", "legal_procedure:hp_action_nyc", RelationshipType.AVAILABLE_VIA
+    )
     for ev in [
         "evidence:photos_video_leaks",
         "evidence:311_complaint_record",
@@ -155,7 +175,9 @@ def seed_ny_habitability() -> int:
 
 def main():
     parser = argparse.ArgumentParser(description="Seed ArangoDB knowledge graph with baseline data")
-    parser.add_argument("--ny-habitability", action="store_true", help="Seed NY Warranty of Habitability")
+    parser.add_argument(
+        "--ny-habitability", action="store_true", help="Seed NY Warranty of Habitability"
+    )
     args = parser.parse_args()
 
     if args.__dict__.get("ny_habitability"):
@@ -168,4 +190,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main() 
+    main()

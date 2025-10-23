@@ -25,7 +25,7 @@ def arango_config():
         "host": "http://localhost:8529",
         "db_name": "tenant_legal_test",
         "username": "test_user",
-        "password": "test_password"
+        "password": "test_password",
     }
 
 
@@ -46,7 +46,7 @@ def arango_graph(mock_arango_client, arango_config):
             host=arango_config["host"],
             db_name=arango_config["db_name"],
             username=arango_config["username"],
-            password=arango_config["password"]
+            password=arango_config["password"],
         )
         return graph
 

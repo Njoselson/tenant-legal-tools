@@ -5,30 +5,32 @@ FastAPI application initialization for the Tenant Legal Guidance System.
 import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.templating import Jinja2Templates
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 
 from tenant_legal_guidance.api.routes import router
-from tenant_legal_guidance.utils.logging import setup_logging
 from tenant_legal_guidance.config import get_settings
-from tenant_legal_guidance.services.tenant_system import TenantLegalSystem
-from tenant_legal_guidance.services.case_analyzer import CaseAnalyzer
-from tenant_legal_guidance.observability.middleware import RequestIdAndTimingMiddleware
 from tenant_legal_guidance.domain.errors import (
+    ConflictError,
     DomainError,
     ResourceNotFound,
-    ValidationFailed,
-    ConflictError,
     ServiceUnavailable,
+    ValidationFailed,
 )
-from fastapi.responses import JSONResponse
+from tenant_legal_guidance.observability.middleware import RequestIdAndTimingMiddleware
+from tenant_legal_guidance.services.case_analyzer import CaseAnalyzer
+from tenant_legal_guidance.services.tenant_system import TenantLegalSystem
+from tenant_legal_guidance.utils.logging import setup_logging
 
 # Initialize logging
 logger = setup_logging()
 
 settings = get_settings()
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -39,12 +41,13 @@ async def lifespan(app: FastAPI):
     system = TenantLegalSystem(deepseek_api_key=settings.deepseek_api_key)
     analyzer = CaseAnalyzer(system.knowledge_graph, system.deepseek)
 
-    # Ensure Qdrant collection exists on startup
+    # Ensure Qdrant collection exists on startup (non-destructive check)
     try:
         from tenant_legal_guidance.services.vector_store import QdrantVectorStore
+
+        # QdrantVectorStore() constructor already calls _ensure_collection() which creates if missing
         vector_store = QdrantVectorStore()
-        vector_store.ensure_collection(384)  # MiniLM embedding size
-        logger.info("Qdrant collection ensured")
+        logger.info("Qdrant collection ensured (non-destructive)")
     except Exception as e:
         logger.error(f"Failed to initialize Qdrant collection: {e}")
         raise
@@ -58,6 +61,7 @@ async def lifespan(app: FastAPI):
         yield
     finally:
         logger.info("Shutting down Tenant Legal Guidance System API (lifespan cleanup)")
+
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -85,6 +89,7 @@ app.include_router(router)
 # Add request ID and access logging middleware
 app.add_middleware(RequestIdAndTimingMiddleware)
 
+
 # Domain exception handlers -> HTTP mapping
 @app.exception_handler(ResourceNotFound)
 async def handle_not_found(request: Request, exc: ResourceNotFound):
@@ -109,6 +114,7 @@ async def handle_service_unavailable(request: Request, exc: ServiceUnavailable):
 @app.exception_handler(DomainError)
 async def handle_domain_error(request: Request, exc: DomainError):
     return JSONResponse(status_code=400, content={"detail": str(exc) or "Domain error"})
+
 
 @app.get("/api/_healthz")
 async def _healthz(request: Request):

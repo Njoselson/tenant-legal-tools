@@ -11,7 +11,6 @@ class EntityType(str, Enum):
     # Legal entities
     LAW = "law"  # Legal statute, regulation, or case law
     REMEDY = "remedy"  # Available legal remedies
-    COURT_CASE = "court_case"  # Specific court cases and decisions
     LEGAL_PROCEDURE = "legal_procedure"  # Court processes, administrative procedures
     DAMAGES = "damages"  # Monetary compensation or penalties
     LEGAL_CONCEPT = "legal_concept"  # Legal concepts and principles
@@ -37,6 +36,7 @@ class EntityType(str, Enum):
 
     # Documentation and evidence
     DOCUMENT = "document"  # Legal documents, evidence
+    CASE_DOCUMENT = "case_document"  # Court case opinion/decision as a whole document
     EVIDENCE = "evidence"  # Proof, documentation
 
     # Geographic and jurisdictional
@@ -64,16 +64,15 @@ class SourceAuthority(str, Enum):
 
 
 class LegalDocumentType(str, Enum):
-    """Specific types of legal documents."""
-
-    STATUTE = "statute"
-    REGULATION = "regulation"
-    CASE_LAW = "case_law"
-    AGENCY_GUIDANCE = "agency_guidance"
-    TREATISE = "treatise"
-    LAW_REVIEW = "law_review"
-    SELF_HELP_GUIDE = "self_help_guide"
-    NEWS_ARTICLE = "news_article"
+    """Types of legal documents that can be ingested."""
+    
+    COURT_OPINION = "court_opinion"           # Court case decisions (produces CASE_DOCUMENT)
+    STATUTE = "statute"                       # Laws, codes, regulations
+    LEGAL_GUIDE = "legal_guide"              # Tenant handbooks, how-to guides
+    TENANT_HANDBOOK = "tenant_handbook"      # Organization materials
+    LEGAL_MEMO = "legal_memo"                # Internal legal analysis
+    ADVOCACY_DOCUMENT = "advocacy_document"  # Policy papers, reports
+    UNKNOWN = "unknown"                       # Auto-detect or default
 
 
 class SourceMetadata(BaseModel):
@@ -159,6 +158,28 @@ class LegalEntity(BaseModel):
     mentions_count: Optional[int] = Field(
         default=None, description="How many times this entity was observed across sources"
     )
+    
+    # Quote support (NEW)
+    best_quote: Optional[Dict[str, str]] = Field(
+        default=None,
+        description="Best quote highlighting this entity: {text, source_id, chunk_id, explanation}"
+    )
+    all_quotes: List[Dict[str, str]] = Field(
+        default_factory=list,
+        description="All quotes from all sources mentioning this entity"
+    )
+    
+    # Chunk linkage (NEW)
+    chunk_ids: List[str] = Field(
+        default_factory=list,
+        description="All chunk IDs where this entity is mentioned"
+    )
+    
+    # Source tracking (NEW for multi-source provenance)
+    source_ids: List[str] = Field(
+        default_factory=list,
+        description="All source UUIDs that mention this entity"
+    )
 
     # Tenant-specific fields
     tenant_id: Optional[str] = None
@@ -184,17 +205,46 @@ class LegalEntity(BaseModel):
         None, ge=0, le=1, description="Estimated success rate (0.0-1.0)"
     )
     evidence_required: Optional[List[str]] = None
+    
+    # Case document fields (NEW)
+    case_name: Optional[str] = None  # "756 Liberty Realty LLC v Garcia"
+    court: Optional[str] = None  # "NYC Housing Court"
+    docket_number: Optional[str] = None
+    decision_date: Optional[datetime] = None
+    parties: Optional[Dict[str, List[str]]] = None  # {"plaintiff": [...], "defendant": [...]}
+    holdings: Optional[List[str]] = None  # Key legal holdings
+    procedural_history: Optional[str] = None
+    citations: Optional[List[str]] = None  # Case law citations within document
+    
+    # Case outcome fields (NEW)
+    outcome: Optional[str] = Field(
+        None,
+        description="Case outcome: 'plaintiff_win', 'defendant_win', 'settlement', 'dismissed'"
+    )
+    ruling_type: Optional[str] = Field(
+        None,
+        description="Type of ruling: 'judgment', 'summary_judgment', 'dismissal'"
+    )
+    relief_granted: Optional[List[str]] = Field(
+        None,
+        description="Relief granted: ['rent_reduction', 'attorney_fees', 'repairs_ordered']"
+    )
+    damages_awarded: Optional[float] = Field(
+        None,
+        description="Monetary damages awarded (if any)"
+    )
+    
     attributes: Dict[str, str] = Field(default_factory=dict)
 
     @field_validator("entity_type", mode="before")
     @classmethod
     def validate_enum_str(cls, v):
         if isinstance(v, str):
-            # First try to get by name (e.g., "ACTOR")
+            # First try to get by name (e.g., "LAW")
             try:
                 return EntityType[v]
             except KeyError:
-                # If that fails, try to get by value (e.g., "actor")
+                # If that fails, try to get by value (e.g., "law")
                 try:
                     return EntityType(v)
                 except ValueError:
@@ -212,3 +262,16 @@ class LegalEntity(BaseModel):
             except ValueError:
                 raise ValueError(f"Invalid datetime format: {v}")
         return v
+    
+    def to_api_dict(self) -> Dict:
+        """
+        Serialize entity to consistent API response format.
+        
+        Returns:
+            dict with serialized entity data ready for JSON response
+        """
+        from tenant_legal_guidance.utils.entity_helpers import (
+            serialize_entity_for_api,
+        )
+        
+        return serialize_entity_for_api(self)

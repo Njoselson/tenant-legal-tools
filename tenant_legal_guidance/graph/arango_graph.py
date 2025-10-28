@@ -1,4 +1,3 @@
-import hashlib
 import logging
 import os
 import re
@@ -6,9 +5,7 @@ import time
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 
-import torch
 from arango import ArangoClient
-from torch_geometric.data import Data
 
 from tenant_legal_guidance.config import get_settings
 from tenant_legal_guidance.models.entities import (
@@ -19,6 +16,7 @@ from tenant_legal_guidance.models.entities import (
 )
 from tenant_legal_guidance.models.relationships import LegalRelationship, RelationshipType
 from tenant_legal_guidance.utils.chunking import build_chunk_docs
+from tenant_legal_guidance.utils.text import canonicalize_text, sha256
 
 
 class ArangoDBGraph:
@@ -53,35 +51,15 @@ class ArangoDBGraph:
         The entity collection is inferred from the id prefix before ':'.
         """
         try:
+            from tenant_legal_guidance.utils.entity_helpers import get_entity_type_from_id
+            
             if ":" in entity_id:
-                prefix = entity_id.split(":", 1)[0]
-                prefix_to_type = {
-                    "law": EntityType.LAW,
-                    "remedy": EntityType.REMEDY,
-                    "court_case": EntityType.COURT_CASE,
-                    "legal_procedure": EntityType.LEGAL_PROCEDURE,
-                    "damages": EntityType.DAMAGES,
-                    "legal_concept": EntityType.LEGAL_CONCEPT,
-                    "tenant_group": EntityType.TENANT_GROUP,
-                    "campaign": EntityType.CAMPAIGN,
-                    "tactic": EntityType.TACTIC,
-                    "tenant": EntityType.TENANT,
-                    "landlord": EntityType.LANDLORD,
-                    "legal_service": EntityType.LEGAL_SERVICE,
-                    "government_entity": EntityType.GOVERNMENT_ENTITY,
-                    "legal_outcome": EntityType.LEGAL_OUTCOME,
-                    "organizing_outcome": EntityType.ORGANIZING_OUTCOME,
-                    "tenant_issue": EntityType.TENANT_ISSUE,
-                    "event": EntityType.EVENT,
-                    "document": EntityType.DOCUMENT,
-                    "evidence": EntityType.EVIDENCE,
-                    "jurisdiction": EntityType.JURISDICTION,
-                }
-                et = prefix_to_type.get(prefix)
-                if et is None:
+                try:
+                    et = get_entity_type_from_id(entity_id)
+                    coll_name = self._get_collection_for_entity(et)
+                except ValueError:
                     self.logger.warning(f"Unknown entity prefix for delete: {entity_id}")
                     return False
-                coll_name = self._get_collection_for_entity(et)
             else:
                 # Fallback: find collection that has the key
                 coll_name = None
@@ -503,6 +481,7 @@ class ArangoDBGraph:
             EntityType.EVENT: "events",
             # Documentation and evidence
             EntityType.DOCUMENT: "documents",
+            EntityType.CASE_DOCUMENT: "case_documents",
             EntityType.EVIDENCE: "evidence",
             # Geographic and jurisdictional
             EntityType.JURISDICTION: "jurisdictions",
@@ -518,18 +497,11 @@ class ArangoDBGraph:
     # Provenance links entities to chunks via quotes (offset-based) and Qdrant point IDs
 
     # --- Normalized text + provenance APIs ---
-    def _canonicalize_text(self, text: Optional[str]) -> str:
-        if not text:
-            return ""
-        return str(text).replace("\r\n", "\n").replace("\r", "\n")
-
-    def _sha256(self, data: str) -> str:
-        return hashlib.sha256(data.encode("utf-8")).hexdigest()
 
     def upsert_text_blob(self, text: str) -> str:
         try:
-            canon = self._canonicalize_text(text)
-            sha = self._sha256(canon)
+            canon = canonicalize_text(text)
+            sha = sha256(canon)
             blob_id = f"t:{sha}"
             coll = self.db.collection("text_blobs")
             doc = {
@@ -554,27 +526,34 @@ class ArangoDBGraph:
         title: Optional[str] = None,
         jurisdiction: Optional[str] = None,
         sha256: Optional[str] = None,
+        source_id: Optional[str] = None,
     ) -> str:
         try:
+            from tenant_legal_guidance.utils.text import generate_uuid_from_text
+            
+            if not source_id:
+                # Fallback: generate from locator if no source_id provided
+                source_id = generate_uuid_from_text(locator)
+            
             if not sha256:
-                sha256 = self._sha256(locator or "")
-            sid = f"src:{sha256}"
+                sha256 = sha256(locator or "")
+            
             coll = self.db.collection("sources")
             doc = {
-                "_key": sid,
+                "_key": source_id,  # Use UUID as key
                 "kind": kind,
                 "locator": locator,
                 "title": title,
                 "jurisdiction": jurisdiction,
-                "sha256": sha256,
+                "sha256": sha256,  # Store content hash separately
                 "fetched_at": datetime.utcnow().isoformat(),
                 "meta": {},
             }
-            if coll.has(sid):
+            if coll.has(source_id):
                 coll.update(doc)
             else:
                 coll.insert(doc)
-            return sid
+            return source_id
         except Exception as e:
             self.logger.error(f"upsert_source failed for {locator}: {e}")
             return ""
@@ -584,8 +563,8 @@ class ArangoDBGraph:
     ) -> Dict[str, object]:
         """DEPRECATED: legacy path that stored text as entities. Prefer register_source_with_text which uses text_chunks."""
         try:
-            canon = self._canonicalize_text(full_text)
-            src_sha = source_id.split(":", 1)[1] if ":" in source_id else self._sha256(canon)
+            canon = canonicalize_text(full_text)
+            src_sha = source_id.split(":", 1)[1] if ":" in source_id else sha256(canon)
             full_blob_id = self.upsert_text_blob(canon)
             ent_coll = self.db.collection("entities")
             textdoc_id = f"textdoc:{src_sha}"
@@ -662,10 +641,18 @@ class ArangoDBGraph:
     ) -> Dict[str, object]:
         """Register source and prepare chunks for vector DB. Returns chunk docs (not persisted to Arango)."""
         try:
-            canon = self._canonicalize_text(full_text)
-            sha = self._sha256(canon)
+            from tenant_legal_guidance.utils.text import generate_uuid_from_text
+            
+            canon = canonicalize_text(full_text)
+            content_hash = sha256(canon)
+            
+            # NEW: Use UUID instead of "src:{hash}"
+            source_id = generate_uuid_from_text(full_text)
+            
+            # Store both UUID and content hash
             sid = self.upsert_source(
-                locator=locator, kind=kind, title=title, jurisdiction=jurisdiction, sha256=sha
+                locator=locator, kind=kind, title=title, jurisdiction=jurisdiction, 
+                sha256=content_hash, source_id=source_id
             )
             # Store full text blob for audit/provenance
             blob_id = self.upsert_text_blob(canon)
@@ -682,19 +669,17 @@ class ArangoDBGraph:
             )
             # Generate stable chunk IDs (caller will use as Qdrant point IDs)
             chunk_ids = []
-            safe_source = re.sub(r"\W+", "_", str(locator).lower()).strip("_")
-            for ch in chunks:
-                idx = ch.get("chunk_index", 0)
-                # Use underscores instead of colons for Qdrant compatibility
-                chunk_ids.append(f"chunk_{safe_source}_{idx}")
+            for idx, ch in enumerate(chunks):
+                # Update chunk ID format to use UUID
+                chunk_ids.append(f"{source_id}:{idx}")  # UUID:index format
             return {
-                "source_id": sid,
+                "source_id": source_id,  # Now returns UUID
                 "blob_id": blob_id,
                 "chunk_docs": chunks,
                 "chunk_ids": chunk_ids,
                 "total_length": len(canon),
                 "chunk_size": target,
-                "src_sha": sha,
+                "src_sha": content_hash,
             }
         except Exception as e:
             self.logger.error(f"register_source_with_text failed for {locator}: {e}")
@@ -720,7 +705,7 @@ class ArangoDBGraph:
             src_sha = source_id.split(":", 1)[1] if ":" in source_id else ""
             qid = f"q:{src_sha}:{int(start_offset)}:{int(end_offset)}"
             qsha = (
-                self._sha256(self._canonicalize_text(quote_text or ""))
+                sha256(canonicalize_text(quote_text or ""))
                 if quote_text is not None
                 else None
             )
@@ -750,11 +735,13 @@ class ArangoDBGraph:
         source_id: str,
         quote_id: Optional[str] = None,
         citation: Optional[str] = None,
+        chunk_id: Optional[str] = None,
+        chunk_index: Optional[int] = None
     ) -> bool:
         try:
             coll = self.db.collection("provenance")
-            base = f"{subject_type}:{subject_id}:{source_id}:{quote_id or ''}"
-            pid = f"prov:{self._sha256(base)}"
+            base = f"{subject_type}:{subject_id}:{source_id}:{quote_id or ''}:{chunk_id or ''}"
+            pid = f"prov:{sha256(base)}"
             doc = {
                 "_key": pid,
                 "subject_type": subject_type,
@@ -762,6 +749,8 @@ class ArangoDBGraph:
                 "source_id": source_id,
                 "quote_id": quote_id,
                 "citation": citation,
+                "chunk_id": chunk_id,
+                "chunk_index": chunk_index,
                 "added_at": datetime.utcnow().isoformat(),
             }
             if coll.has(pid):
@@ -822,40 +811,59 @@ class ArangoDBGraph:
 
     def get_entity(self, entity_id: str) -> Optional[LegalEntity]:
         """Retrieve an entity by its ID."""
-        # Extract entity type from ID prefix for efficient lookup
+        # FIRST: Check consolidated 'entities' collection
+        try:
+            if self.db.has_collection("entities"):
+                entities_coll = self.db.collection("entities")
+                # Try both with and without prefix for _key lookup
+                has_by_key = entities_coll.has(entity_id)
+                # Also try without prefix if entity_id contains ":" 
+                has_by_id_only = False
+                if ":" in entity_id and not has_by_key:
+                    # Try looking up just the suffix part
+                    id_suffix = entity_id.split(":", 1)[1]
+                    if entities_coll.has(id_suffix):
+                        entity_id = id_suffix
+                        has_by_id_only = True
+                
+                if has_by_key or has_by_id_only:
+                    data = entities_coll.get(entity_id)
+                    # Try to infer entity type from the 'type' field or from the ID prefix
+                    from tenant_legal_guidance.utils.entity_helpers import normalize_entity_type, get_entity_type_from_id
+                    
+                    entity_type = None
+                    
+                    # First try: 'type' field in document
+                    type_str = data.get("type", "")
+                    if type_str:
+                        try:
+                            entity_type = normalize_entity_type(type_str)
+                        except (ValueError, KeyError):
+                            pass
+                    
+                    # Second try: infer from ID prefix if 'type' field failed or is missing
+                    if not entity_type and ":" in entity_id:
+                        try:
+                            entity_type = get_entity_type_from_id(entity_id)
+                        except ValueError:
+                            pass
+                    
+                    if entity_type:
+                        return self._parse_entity_from_doc(data, entity_type)
+                    else:
+                        # Fall through if we can't parse it - this means the entity exists but is malformed
+                        self.logger.warning(f"Found entity {entity_id} in consolidated collection but could not infer type (type field: '{type_str}'), will try legacy collections")
+        except Exception as e:
+            self.logger.debug(f"Failed to get entity from consolidated collection: {e}")
+        
+        # FALLBACK: Check type-specific collections (legacy storage)
+        # Extract entity type from ID prefix using utility
         if ":" in entity_id:
-            type_prefix = entity_id.split(":", 1)[0]
-            # Map prefix to entity type
-            prefix_to_type = {
-                # Legal entities
-                "law": EntityType.LAW,
-                "remedy": EntityType.REMEDY,
-                "court_case": EntityType.COURT_CASE,
-                "legal_procedure": EntityType.LEGAL_PROCEDURE,
-                "damages": EntityType.DAMAGES,
-                "legal_concept": EntityType.LEGAL_CONCEPT,
-                # Organizing entities
-                "tenant_group": EntityType.TENANT_GROUP,
-                "campaign": EntityType.CAMPAIGN,
-                "tactic": EntityType.TACTIC,
-                # Parties
-                "tenant": EntityType.TENANT,
-                "landlord": EntityType.LANDLORD,
-                "legal_service": EntityType.LEGAL_SERVICE,
-                "government_entity": EntityType.GOVERNMENT_ENTITY,
-                # Outcomes
-                "legal_outcome": EntityType.LEGAL_OUTCOME,
-                "organizing_outcome": EntityType.ORGANIZING_OUTCOME,
-                # Issues and events
-                "tenant_issue": EntityType.TENANT_ISSUE,
-                "event": EntityType.EVENT,
-                # Documentation and evidence
-                "document": EntityType.DOCUMENT,
-                "evidence": EntityType.EVIDENCE,
-                # Geographic and jurisdictional
-                "jurisdiction": EntityType.JURISDICTION,
-            }
-            entity_type = prefix_to_type.get(type_prefix)
+            try:
+                from tenant_legal_guidance.utils.entity_helpers import get_entity_type_from_id
+                entity_type = get_entity_type_from_id(entity_id)
+            except ValueError:
+                entity_type = None
             if entity_type:
                 collection = self.db.collection(self._get_collection_for_entity(entity_type))
                 if collection.has(entity_id):
@@ -869,8 +877,8 @@ class ArangoDBGraph:
                         return None
 
         # Fallback: search across all collections if prefix doesn't match expected pattern
-        self.logger.warning(
-            f"Entity ID {entity_id} doesn't follow expected prefix pattern, falling back to full search"
+        self.logger.debug(
+            f"Entity ID {entity_id} not found in consolidated or legacy collections, performing full search"
         )
         for entity_type in EntityType:
             collection = self.db.collection(self._get_collection_for_entity(entity_type))
@@ -924,30 +932,36 @@ class ArangoDBGraph:
 
     def _parse_entity_from_doc(self, data: Dict, entity_type: EntityType) -> LegalEntity:
         """Parse ArangoDB document into LegalEntity object."""
+        from tenant_legal_guidance.utils.entity_helpers import normalize_entity_type
+        
         # Extract source metadata from stored data
         stored_metadata = data.get("source_metadata", {})
 
         # Validate and clean entity type
         stored_type = data.get("type", "")
-        valid_entity_type = entity_type.name  # Default to the collection's entity type
+        # Default to the collection's entity type
+        valid_entity_type = entity_type
 
         # Try to validate the stored type
         if stored_type:
             try:
-                # First try by enum NAME (e.g., "LAW")
-                valid_entity_type = EntityType[stored_type].value
-            except KeyError:
-                try:
-                    # Then try by enum VALUE (e.g., "law")
-                    valid_entity_type = EntityType(stored_type).value
-                except ValueError:
-                    # If stored type is invalid, log it and use the collection's entity type
-                    self.logger.warning(
-                        f"Invalid entity type '{stored_type}' for entity {data.get('_key', 'unknown')}, using {entity_type.name}"
-                    )
-                    valid_entity_type = entity_type.value
+                valid_entity_type = normalize_entity_type(stored_type)
+            except ValueError:
+                # If stored type is invalid, log it and use the collection's entity type
+                self.logger.warning(
+                    f"Invalid entity type '{stored_type}' for entity {data.get('_key', 'unknown')}, using {entity_type.value}"
+                )
+                valid_entity_type = entity_type
 
         # Map ArangoDB document to LegalEntity fields
+        # Fields to exclude from attributes (handled separately at top level)
+        excluded_fields = {
+            "_key", "type", "name", "description", "source_metadata", "jurisdiction",
+            "provenance", "mentions_count", "best_quote", "all_quotes", "chunk_ids",
+            "source_ids", "outcome", "ruling_type", "relief_granted", "damages_awarded",
+            "_id", "_rev"  # ArangoDB internal fields
+        }
+        
         entity_data = {
             "id": data["_key"],  # Use _key as id
             "entity_type": valid_entity_type,
@@ -956,17 +970,7 @@ class ArangoDBGraph:
             "attributes": {
                 k: v
                 for k, v in data.items()
-                if k
-                not in [
-                    "_key",
-                    "type",
-                    "name",
-                    "description",
-                    "source_metadata",
-                    "jurisdiction",
-                    "provenance",
-                    "mentions_count",
-                ]
+                if k not in excluded_fields
             },
             "source_metadata": {
                 "source": stored_metadata.get(
@@ -993,6 +997,27 @@ class ArangoDBGraph:
                 entity_data["mentions_count"] = int(data.get("mentions_count") or 0)
             except Exception:
                 entity_data["mentions_count"] = 0
+        
+        # Add quote support fields (NEW)
+        if "best_quote" in data:
+            entity_data["best_quote"] = data.get("best_quote")
+        if "all_quotes" in data:
+            entity_data["all_quotes"] = data.get("all_quotes")
+        if "chunk_ids" in data:
+            entity_data["chunk_ids"] = data.get("chunk_ids")
+        if "source_ids" in data:
+            entity_data["source_ids"] = data.get("source_ids")
+        
+        # Add case outcome fields (NEW)
+        if "outcome" in data:
+            entity_data["outcome"] = data.get("outcome")
+        if "ruling_type" in data:
+            entity_data["ruling_type"] = data.get("ruling_type")
+        if "relief_granted" in data:
+            entity_data["relief_granted"] = data.get("relief_granted")
+        if "damages_awarded" in data:
+            entity_data["damages_awarded"] = data.get("damages_awarded")
+        
         return LegalEntity(**entity_data)
 
     def add_entity(self, entity: LegalEntity, overwrite: bool = False) -> bool:
@@ -1017,11 +1042,7 @@ class ArangoDBGraph:
             source_metadata["source"] = entity.id
 
         # Validation: id prefix must match entity_type value
-        expected_prefix = (
-            entity.entity_type.value
-            if hasattr(entity.entity_type, "value")
-            else str(entity.entity_type)
-        )
+        expected_prefix = entity.entity_type.value
         if ":" in entity.id:
             prefix = entity.id.split(":", 1)[0]
             if prefix != expected_prefix:
@@ -1040,11 +1061,7 @@ class ArangoDBGraph:
         # Prepare document with required fields
         doc = {
             "_key": entity.id,
-            "type": (
-                entity.entity_type.value
-                if hasattr(entity.entity_type, "value")
-                else str(entity.entity_type)
-            ).lower(),
+            "type": entity.entity_type.value.lower(),
             "name": entity.name,
             "description": entity.description,
             "source_metadata": source_metadata,
@@ -1052,6 +1069,28 @@ class ArangoDBGraph:
         }
         if top_level_jurisdiction:
             doc["jurisdiction"] = top_level_jurisdiction
+        
+        # Add quote support fields (NEW)
+        if entity.best_quote:
+            doc["best_quote"] = entity.best_quote
+        if entity.all_quotes:
+            doc["all_quotes"] = entity.all_quotes
+        if entity.chunk_ids:
+            doc["chunk_ids"] = entity.chunk_ids
+        if entity.source_ids:
+            doc["source_ids"] = entity.source_ids
+        if entity.mentions_count is not None:
+            doc["mentions_count"] = entity.mentions_count
+        
+        # Add case outcome fields (NEW)
+        if entity.outcome:
+            doc["outcome"] = entity.outcome
+        if entity.ruling_type:
+            doc["ruling_type"] = entity.ruling_type
+        if entity.relief_granted:
+            doc["relief_granted"] = entity.relief_granted
+        if entity.damages_awarded is not None:
+            doc["damages_awarded"] = entity.damages_awarded
 
         # Auto-populate URL for evidence/document entities from source when available
         try:
@@ -1264,7 +1303,7 @@ class ArangoDBGraph:
                 },
             )
             if list(cur):
-                self.logger.debug("Skipping duplicate relationship insertion")
+                self.logger.debug(f"[KG] Skipping duplicate relationship: {relationship.source_id} --{relationship.relationship_type.name}--> {relationship.target_id}")
                 return False
         except Exception as e:
             self.logger.debug(f"Edge dedup check failed (continuing): {e}")
@@ -1281,102 +1320,16 @@ class ArangoDBGraph:
 
         try:
             collection.insert(edge_doc)
-            self.logger.debug(
-                f"Added relationship: {relationship.source_id} --{relationship.relationship_type.name}--> {relationship.target_id}"
+            self.logger.info(
+                f"[KG] Added relationship: {relationship.source_id} --{relationship.relationship_type.name}--> {relationship.target_id}"
             )
             return True
         except Exception as e:
             self.logger.error(f"Error adding relationship: {e}", exc_info=True)
             return False
 
-    def to_pytorch_geometric(self) -> Data:
-        """Convert the graph to PyTorch Geometric format."""
-        # Collect all nodes and their features
-        node_features = []
-        node_mapping = {}  # Map node IDs to indices
-
-        for entity_type in EntityType:
-            collection = self.db.collection(self._get_collection_for_entity(entity_type))
-            for doc in collection.all():
-                # Extract just the entity ID from the _key
-                node_id = doc["_key"]
-                node_mapping[node_id] = len(node_features)
-                # Convert entity attributes to feature vector
-                features = self._entity_to_features(doc)
-                node_features.append(features)
-
-        # Convert to tensor
-        x = torch.tensor(node_features, dtype=torch.float)
-
-        # Collect all edges
-        edge_index = []
-        edge_attr = []
-
-        for rel_type in RelationshipType:
-            collection = self.db.collection(self._get_collection_for_relationship(rel_type))
-            for doc in collection.all():
-                try:
-                    # Extract entity IDs from _from and _to paths
-                    source_id = doc["_from"].split("/")[-1]
-                    target_id = doc["_to"].split("/")[-1]
-
-                    if source_id in node_mapping and target_id in node_mapping:
-                        source_idx = node_mapping[source_id]
-                        target_idx = node_mapping[target_id]
-                        edge_index.append([source_idx, target_idx])
-                        # Convert edge attributes to feature vector
-                        edge_features = self._relationship_to_features(doc)
-                        edge_attr.append(edge_features)
-                    else:
-                        self.logger.warning(
-                            f"Skipping edge {doc['_from']} -> {doc['_to']} due to missing node mapping. "
-                            f"Source: {source_id} (in mapping: {source_id in node_mapping}), "
-                            f"Target: {target_id} (in mapping: {target_id in node_mapping})"
-                        )
-                except Exception as e:
-                    self.logger.error(
-                        f"Error processing edge {doc.get('_from', 'unknown')} -> {doc.get('_to', 'unknown')}: {e}"
-                    )
-                    continue
-
-        # Convert to tensors
-        if edge_index:
-            edge_index = torch.tensor(edge_index, dtype=torch.long).t()
-            edge_attr = torch.tensor(edge_attr, dtype=torch.float)
-        else:
-            # No edges found, create empty tensors
-            edge_index = torch.empty((2, 0), dtype=torch.long)
-            edge_attr = torch.empty(
-                (0, len(RelationshipType) + 1), dtype=torch.float
-            )  # +1 for weight
-
-        return Data(x=x, edge_index=edge_index, edge_attr=edge_attr)
-
-    def _entity_to_features(self, entity_doc: Dict) -> List[float]:
-        """Convert entity document to feature vector."""
-        # This is a placeholder - you'll need to implement proper feature extraction
-        # based on your specific needs
-        features = []
-        # Add entity type one-hot encoding
-        entity_type = entity_doc.get("type", "")
-        for et in EntityType:
-            features.append(1.0 if et.value == entity_type or et.name == entity_type else 0.0)
-        # Add other features as needed
-        return features
-
-    def _relationship_to_features(self, rel_doc: Dict) -> List[float]:
-        """Convert relationship document to feature vector."""
-        # This is a placeholder - you'll need to implement proper feature extraction
-        # based on your specific needs
-        features = []
-        # Add relationship type one-hot encoding
-        rel_type = rel_doc.get("type", "")
-        for rt in RelationshipType:
-            features.append(1.0 if rt.name == rel_type else 0.0)
-        # Add weight
-        features.append(rel_doc.get("weight", 1.0))
-        # Add other features as needed
-        return features
+    # PyTorch Geometric conversion removed - use separate graph ML service if needed
+    # See: tenant_legal_guidance/services/graph_ml.py (to be created if required)
 
     def find_relevant_laws(self, issue: str) -> List[str]:
         """Find laws relevant to a legal issue using ArangoSearch (BM25/PHRASE)."""
@@ -2057,6 +2010,8 @@ class ArangoDBGraph:
         """Migrate stored entity 'type' from enum NAME (e.g., 'LAW') to enum VALUE (e.g., 'law').
         Returns a dict of collection -> updated_count.
         """
+        from tenant_legal_guidance.utils.entity_helpers import normalize_entity_type
+        
         updated_counts: Dict[str, int] = {}
         for entity_type in EntityType:
             collection_name = self._get_collection_for_entity(entity_type)
@@ -2067,29 +2022,22 @@ class ArangoDBGraph:
                     stored_type = doc.get("type")
                     if not stored_type:
                         continue
-                    target_value = None
                     # If it's already the value, skip
                     if stored_type == entity_type.value:
                         continue
-                    # If matches enum NAME, convert to value
-                    if stored_type == entity_type.name:
-                        target_value = entity_type.value
-                    else:
-                        # Try to coerce by name/value lookup
-                        try:
-                            target_value = EntityType[stored_type].value
-                        except KeyError:
-                            try:
-                                target_value = EntityType(stored_type).value
-                            except ValueError:
-                                self.logger.warning(
-                                    f"Skipping migration for {doc.get('_key', 'unknown')} in {collection_name}: unknown type '{stored_type}'"
-                                )
-                                continue
-                    if target_value and target_value != stored_type:
-                        doc["type"] = target_value
-                        collection.update(doc)
-                        updated += 1
+                    # Try to normalize using utility
+                    try:
+                        normalized = normalize_entity_type(stored_type)
+                        target_value = normalized.value
+                        if target_value != stored_type:
+                            doc["type"] = target_value
+                            collection.update(doc)
+                            updated += 1
+                    except ValueError:
+                        self.logger.warning(
+                            f"Skipping migration for {doc.get('_key', 'unknown')} in {collection_name}: unknown type '{stored_type}'"
+                        )
+                        continue
                 updated_counts[collection_name] = updated
                 self.logger.info(f"Migrated {updated} docs in {collection_name} to type values")
             except Exception as e:

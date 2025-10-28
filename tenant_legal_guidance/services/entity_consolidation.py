@@ -120,18 +120,18 @@ class EntityConsolidationService:
         - types: optional list of entity type strings (value or name)
         Returns { status, collections, borderline_count, judge_merged }
         """
-        # Map type strings to EntityType when possible
+        # Map type strings to EntityType when possible using utility
+        from tenant_legal_guidance.utils.entity_helpers import normalize_entity_type
+        
         type_filter: Optional[List[EntityType]] = None
         if types:
             type_filter = []
             for t in types:
                 try:
-                    type_filter.append(EntityType(t))
-                except Exception:
-                    try:
-                        type_filter.append(EntityType[t])
-                    except Exception:
-                        continue
+                    entity_type = normalize_entity_type(t)
+                    type_filter.append(entity_type)
+                except ValueError:
+                    continue
 
         # Judge band is [threshold-0.05, threshold)
         judge_low = max(0.0, (threshold or 0.95) - 0.05)

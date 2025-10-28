@@ -14,6 +14,22 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 
+from tenant_legal_guidance.api.schemas import (
+    CaseAnalysisRequest,
+    ChainsRequest,
+    ConsolidateAllRequest,
+    ConsolidateRequest,
+    ConsultationRequest,
+    DeleteEntitiesRequest,
+    EnhancedCaseAnalysisRequest,
+    ExpandRequest,
+    GenerateAnalysisRequest,
+    HybridSearchRequest,
+    KGChatRequest,
+    KnowledgeGraphProcessRequest,
+    NextStepsRequest,
+    RetrieveEntitiesRequest,
+)
 from tenant_legal_guidance.models.documents import InputType, LegalDocument
 from tenant_legal_guidance.models.entities import EntityType, SourceMetadata, SourceType
 from tenant_legal_guidance.models.relationships import RelationshipType
@@ -52,46 +68,6 @@ async def index_page(request: Request, templates: Jinja2Templates = Depends(get_
     return templates.TemplateResponse("case_analysis.html", {"request": request})
 
 
-class ConsultationRequest(BaseModel):
-    """Request model for consultation analysis."""
-
-    text: str
-    source_type: InputType = InputType.CLINIC_NOTES
-
-
-class KnowledgeGraphProcessRequest(BaseModel):
-    """Request model for knowledge graph processing."""
-
-    text: Optional[str] = None
-    url: Optional[str] = None
-    metadata: SourceMetadata
-
-
-class CaseAnalysisRequest(BaseModel):
-    """Request model for case analysis."""
-
-    case_text: str
-    example_id: Optional[str] = None
-    force_refresh: Optional[bool] = False
-
-
-class RetrieveEntitiesRequest(BaseModel):
-    """Request model for retrieving relevant entities."""
-
-    case_text: str
-
-
-class GenerateAnalysisRequest(BaseModel):
-    """Request model for generating legal analysis."""
-
-    case_text: str
-    relevant_entities: List[Dict]
-
-
-class ChainsRequest(BaseModel):
-    issues: List[str] = []
-    jurisdiction: Optional[str] = None
-    limit: Optional[int] = 25
 
 
 @router.post("/api/analyze-consultation")
@@ -145,36 +121,16 @@ async def process_knowledge_graph(
         # Log the incoming request for debugging
         logger.info(f"Received request: {request.model_dump_json(indent=2)}")
 
-        # Validate that either text or url is provided
-        if not request.text and not request.url:
-            raise HTTPException(status_code=422, detail="Either text or url must be provided")
-
-        # If URL is provided, scrape the text
-        text = request.text
-        if request.url:
-            resource_processor = LegalResourceProcessor(system.deepseek)
-
-            # Try to scrape as PDF first
-            try:
-                text = resource_processor.scrape_text_from_pdf(request.url)
-            except Exception as e:
-                logger.info(f"URL is not a PDF, falling back to web scraping: {str(e)}")
-                text = None
-
-            # If PDF scraping failed or returned no text, try web scraping
-            if not text:
-                text = resource_processor.scrape_text_from_url(request.url)
-                if not text:
-                    raise HTTPException(
-                        status_code=400, detail="Failed to scrape text from the provided URL"
-                    )
-
         # Update metadata with processing timestamp
         metadata = request.metadata
         metadata.processed_at = datetime.utcnow()
 
-        # Process the text and update knowledge graph
-        result = await system.ingest_legal_source(text=text, metadata=metadata)
+        # Process the text and update knowledge graph using the new orchestration method
+        result = await system.ingest_from_source(
+            text=request.text,
+            url=request.url,
+            metadata=metadata
+        )
         return result
     except Exception as e:
         logger.error(f"Error processing knowledge graph: {str(e)}", exc_info=True)
@@ -272,19 +228,27 @@ async def get_graph_data(
                     "description": doc.get("description", ""),
                     "jurisdiction": doc.get("jurisdiction", ""),
                     "source_metadata": doc.get("source_metadata", {}),
-                    "provenance": doc.get("provenance", []),
                     "mentions_count": doc.get("mentions_count", 0),
+                    # Only include lightweight attributes - exclude heavy fields
                     "attributes": {
                         k: v
                         for k, v in doc.items()
                         if k
                         not in [
                             "_key",
+                            "_id",
+                            "_rev",
                             "type",
                             "name",
                             "description",
                             "source_metadata",
                             "jurisdiction",
+                            "provenance",
+                            "best_quote",
+                            "all_quotes",
+                            "chunk_ids",
+                            "source_ids",
+                            "mentions_count",
                         ]
                     },
                 }
@@ -322,8 +286,6 @@ async def get_graph_data(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-class DeleteEntitiesRequest(BaseModel):
-    ids: List[str]
 
 
 @router.delete("/api/kg/entities/{entity_id}")
@@ -375,70 +337,11 @@ async def retrieve_entities(
         # Retrieve relevant entities
         relevant_data = case_analyzer.retrieve_relevant_entities(key_terms)
 
-        # Format entities for response with enhanced source metadata
-        entities_response = []
-        for entity in relevant_data["entities"]:
-            # Extract source metadata - handle both dict and Pydantic object
-            source_meta = {}
-            if hasattr(entity, "source_metadata") and entity.source_metadata:
-                if hasattr(entity.source_metadata, "dict"):
-                    # Pydantic object
-                    source_meta = entity.source_metadata.dict()
-                elif isinstance(entity.source_metadata, dict):
-                    # Dictionary
-                    source_meta = entity.source_metadata
+        # Format entities for response using new serialization method
+        entities_response = [entity.to_api_dict() for entity in relevant_data["entities"]]
 
-            # Normalize type fields
-            type_value = (
-                entity.entity_type.value
-                if hasattr(entity.entity_type, "value")
-                else str(entity.entity_type)
-            )
-            type_name = (
-                entity.entity_type.name
-                if hasattr(entity.entity_type, "name")
-                else str(entity.entity_type).upper()
-            )
-
-            entities_response.append(
-                {
-                    "id": entity.id,
-                    "name": entity.name,
-                    "type": type_value,
-                    "type_value": type_value,
-                    "type_name": type_name,
-                    "description": entity.description,
-                    "attributes": entity.attributes,
-                    "source_metadata": {
-                        "source": source_meta.get("source", "Unknown"),
-                        "source_type": str(source_meta.get("source_type", "Unknown")),
-                        "authority": str(source_meta.get("authority", "Unknown")),
-                        "organization": source_meta.get("organization", ""),
-                        "title": source_meta.get("title", ""),
-                        "jurisdiction": source_meta.get("jurisdiction", ""),
-                        "created_at": source_meta.get("created_at", ""),
-                        "document_type": source_meta.get("document_type", ""),
-                        "cites": source_meta.get("cites", []),
-                    },
-                }
-            )
-
-        # Format relationships for response
-        relationships_response = []
-        for rel in relevant_data["relationships"]:
-            relationships_response.append(
-                {
-                    "source_id": rel.source_id,
-                    "target_id": rel.target_id,
-                    "type": (
-                        rel.relationship_type.name
-                        if hasattr(rel.relationship_type, "name")
-                        else str(rel.relationship_type)
-                    ),
-                    "weight": rel.weight,
-                    "conditions": rel.conditions,
-                }
-            )
+        # Format relationships for response using new serialization method
+        relationships_response = [rel.to_api_dict() for rel in relevant_data["relationships"]]
 
         return {
             "key_terms": key_terms,
@@ -463,7 +366,7 @@ async def generate_analysis(
 
         # Format the entities for LLM context
         # Build richer context including SOURCES and citations map
-        sources_text, citations_map = case_analyzer._build_sources_index(request.relevant_entities)
+        sources_text, citations_map = case_analyzer.build_sources_index(request.relevant_entities)
         base_context = case_analyzer.format_context_for_llm(
             {"entities": request.relevant_entities, "relationships": [], "concept_groups": []}
         )
@@ -548,13 +451,6 @@ async def analyze_case(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-class EnhancedCaseAnalysisRequest(BaseModel):
-    """Request model for enhanced case analysis with proof chains."""
-
-    case_text: str
-    jurisdiction: Optional[str] = None
-    example_id: Optional[str] = None
-    force_refresh: Optional[bool] = False
 
 
 @router.post("/api/analyze-case-enhanced")
@@ -656,17 +552,8 @@ async def get_all_entities(system: TenantLegalSystem = Depends(get_system)) -> D
     try:
         all_entities = system.knowledge_graph.get_all_entities()
 
-        entities_response = []
-        for entity in all_entities:
-            entities_response.append(
-                {
-                    "id": entity.id,
-                    "name": entity.name,
-                    "type": entity.entity_type,
-                    "description": entity.description,
-                    "attributes": entity.attributes,
-                }
-            )
+        # Use new serialization method
+        entities_response = [entity.to_api_dict() for entity in all_entities]
 
         return {
             "entities": entities_response,
@@ -809,9 +696,6 @@ async def health_search(system: TenantLegalSystem = Depends(get_system)) -> Dict
         return {"status": "error", "message": str(e)}
 
 
-class NextStepsRequest(BaseModel):
-    issues: List[str]
-    jurisdiction: Optional[str] = None
 
 
 @router.post("/api/next-steps")
@@ -829,10 +713,6 @@ async def next_steps(
 ## Removed legacy seeding endpoint: /api/seed/ny-habitability (unused)
 
 
-class ExpandRequest(BaseModel):
-    node_ids: List[str]
-    per_node_limit: int = 25
-    direction: str = "both"
 
 
 @router.post("/api/kg/expand")
@@ -843,46 +723,10 @@ async def kg_expand(req: ExpandRequest, system: TenantLegalSystem = Depends(get_
         neighbors, rels = system.knowledge_graph.get_neighbors(
             req.node_ids, per_node_limit=req.per_node_limit, direction=req.direction
         )
-        # Format nodes
-        nodes = []
-        for e in neighbors:
-            nodes.append(
-                {
-                    "id": e.id,
-                    "label": e.name,
-                    "type": (
-                        e.entity_type.value
-                        if hasattr(e.entity_type, "value")
-                        else str(e.entity_type)
-                    ),
-                    "description": e.description,
-                    "jurisdiction": e.attributes.get("jurisdiction")
-                    or getattr(e.source_metadata, "jurisdiction", ""),
-                    "source_metadata": (
-                        getattr(e, "source_metadata", None).dict()
-                        if hasattr(getattr(e, "source_metadata", None), "dict")
-                        else getattr(e, "source_metadata", None)
-                    ),
-                    "attributes": e.attributes,
-                }
-            )
-        # Format links
-        links = []
-        for r in rels:
-            links.append(
-                {
-                    "source": r.source_id,
-                    "target": r.target_id,
-                    "label": (
-                        r.relationship_type.name
-                        if hasattr(r.relationship_type, "name")
-                        else str(r.relationship_type)
-                    ),
-                    "weight": r.weight,
-                    "conditions": r.conditions,
-                    "attributes": r.attributes,
-                }
-            )
+        # Format nodes using new serialization method
+        nodes = [e.to_api_dict() for e in neighbors]
+        # Format links using new serialization method
+        links = [r.to_api_dict() for r in rels]
         return {"nodes": nodes, "links": links}
     except HTTPException:
         raise
@@ -891,9 +735,6 @@ async def kg_expand(req: ExpandRequest, system: TenantLegalSystem = Depends(get_
         raise HTTPException(status_code=500, detail=str(e))
 
 
-class ConsolidateRequest(BaseModel):
-    node_ids: List[str]
-    threshold: float = 0.95
 
 
 @router.post("/api/kg/consolidate")
@@ -912,9 +753,6 @@ async def kg_consolidate(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-class ConsolidateAllRequest(BaseModel):
-    threshold: float = 0.95
-    types: Optional[List[str]] = None
 
 
 @router.post("/api/kg/consolidate-all")
@@ -922,26 +760,20 @@ async def kg_consolidate_all(
     req: ConsolidateAllRequest, consolidator: EntityConsolidationService = Depends(get_consolidator)
 ) -> Dict:
     try:
+        from tenant_legal_guidance.utils.entity_helpers import normalize_entity_type
+        
         type_filter = None
         if req.types:
-            # Map strings to EntityType when possible; ignore unknowns
             type_filter = []
             for t in req.types:
                 try:
-                    type_filter.append(EntityType(t))
-                except Exception:
-                    try:
-                        type_filter.append(EntityType[t])
-                    except Exception:
-                        continue
+                    entity_type = normalize_entity_type(t)
+                    type_filter.append(entity_type.value)
+                except (ValueError, KeyError):
+                    continue
         # Delegate the full consolidate-all flow to the service
         threshold = req.threshold or 0.95
-        types_str = (
-            [t.value if hasattr(t, "value") else str(t) for t in type_filter]
-            if type_filter
-            else None
-        )
-        return await consolidator.consolidate_all(threshold=threshold, types=types_str)
+        return await consolidator.consolidate_all(threshold=threshold, types=type_filter)
     except Exception as e:
         logger.error(f"KG consolidate-all failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
@@ -1025,11 +857,6 @@ async def search_chunks(q: str, limit: int = 10) -> Dict:
 # === NEW: Vector Search & Hybrid Retrieval Endpoints ===
 
 
-class HybridSearchRequest(BaseModel):
-    query: str
-    top_k_chunks: int = 20
-    top_k_entities: int = 50
-    expand_neighbors: bool = True
 
 
 @router.post("/api/hybrid-search")
@@ -1063,13 +890,7 @@ async def hybrid_search(
             ],
             "entities": [
                 {
-                    "id": e.id,
-                    "name": e.name,
-                    "type": (
-                        e.entity_type.value
-                        if hasattr(e.entity_type, "value")
-                        else str(e.entity_type)
-                    ),
+                    **e.to_api_dict(),
                     "description": e.description[:200] if e.description else "",
                 }
                 for e in results.get("entities", [])[:20]
@@ -1118,3 +939,210 @@ async def vector_status() -> Dict:
     except Exception as e:
         logger.error(f"Vector status check failed: {e}", exc_info=True)
         return {"status": "error", "error": str(e)}
+
+
+@router.get("/api/chunks/adjacent")
+async def get_adjacent_chunks(
+    chunk_id: str,
+    system: TenantLegalSystem = Depends(get_system)
+) -> Dict:
+    """Get previous and next chunks for a given chunk ID."""
+    try:
+        # Get all chunks from this source
+        all_chunks = system.vector_store.search_by_id(chunk_id)
+        if not all_chunks:
+            raise HTTPException(status_code=404, detail="Chunk not found")
+        
+        current_chunk = all_chunks[0]
+        source_id = current_chunk["payload"].get("source_id")
+        current_index = current_chunk["payload"].get("chunk_index", 0)
+        
+        # Get all chunks from this source
+        all_source_chunks = system.vector_store.get_chunks_by_source(source_id)
+        
+        # Find adjacent chunks
+        prev_chunk = None
+        next_chunk = None
+        
+        for chunk in all_source_chunks:
+            chunk_idx = chunk.get("chunk_index", 0)
+            if chunk_idx == current_index - 1:
+                prev_chunk = chunk
+            elif chunk_idx == current_index + 1:
+                next_chunk = chunk
+        
+        return {
+            "current": {
+                "id": current_chunk["id"],
+                "text": current_chunk["payload"].get("text", ""),
+                "chunk_index": current_index,
+            },
+            "prev": {
+                "id": prev_chunk.get("chunk_id") if prev_chunk else None,
+                "text": prev_chunk.get("text", "") if prev_chunk else "",
+                "chunk_index": prev_chunk.get("chunk_index") if prev_chunk else None,
+            } if prev_chunk else None,
+            "next": {
+                "id": next_chunk.get("chunk_id") if next_chunk else None,
+                "text": next_chunk.get("text", "") if next_chunk else "",
+                "chunk_index": next_chunk.get("chunk_index") if next_chunk else None,
+            } if next_chunk else None,
+        }
+    except Exception as e:
+        logger.error(f"Failed to get adjacent chunks: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/api/entities/{entity_id}/chunks")
+async def get_entity_chunks(
+    entity_id: str,
+    system: TenantLegalSystem = Depends(get_system)
+) -> Dict:
+    """Get all chunks (vectors) that mention a specific entity."""
+    try:
+        # Get entity from ArangoDB
+        entity = system.knowledge_graph.get_entity(entity_id)
+        if not entity:
+            raise HTTPException(status_code=404, detail="Entity not found")
+        
+        # Get chunks from Qdrant that mention this entity
+        chunks = system.vector_store.get_chunks_by_entity(entity_id)
+        
+        # If entity has chunk_ids, also fetch those chunks directly
+        if hasattr(entity, 'chunk_ids') and entity.chunk_ids:
+            chunks_by_ids = system.vector_store.get_chunks_by_ids(entity.chunk_ids)
+            # Merge and deduplicate
+            seen = {ch['chunk_id'] for ch in chunks}
+            for ch in chunks_by_ids:
+                if ch.get('chunk_id') not in seen:
+                    chunks.append(ch)
+                    seen.add(ch.get('chunk_id'))
+        
+        # Format response
+        return {
+            "entity_id": entity_id,
+            "entity_name": entity.name if hasattr(entity, 'name') else "",
+            "chunk_count": len(chunks),
+            "chunks": [
+                {
+                    "chunk_id": ch.get("chunk_id"),
+                    "chunk_index": ch.get("chunk_index"),
+                    "text_preview": ch.get("text", "")[:300] + "..." if len(ch.get("text", "")) > 300 else ch.get("text", ""),
+                    "source_id": ch.get("source_id"),
+                    "doc_title": ch.get("doc_title"),
+                    "metadata": ch.get("payload", {})
+                }
+                for ch in chunks
+            ]
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get entity chunks: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/api/entities/{entity_id}/quote")
+async def get_entity_quote(
+    entity_id: str,
+    system: TenantLegalSystem = Depends(get_system)
+) -> Dict:
+    """Get the best quote for a specific entity."""
+    try:
+        # Get entity from ArangoDB
+        entity = system.knowledge_graph.get_entity(entity_id)
+        if not entity:
+            raise HTTPException(status_code=404, detail="Entity not found")
+        
+        # Extract quote information
+        best_quote = None
+        if hasattr(entity, 'best_quote') and entity.best_quote:
+            best_quote = entity.best_quote
+        
+        # Get all quotes if available
+        all_quotes = []
+        if hasattr(entity, 'all_quotes') and entity.all_quotes:
+            all_quotes = entity.all_quotes
+        
+        return {
+            "entity_id": entity_id,
+            "entity_name": entity.name if hasattr(entity, 'name') else "",
+            "best_quote": best_quote,
+            "all_quotes_count": len(all_quotes),
+            "all_quotes": all_quotes
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get entity quote: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/api/kg/chat")
+async def kg_chat(
+    request: KGChatRequest,
+    system: TenantLegalSystem = Depends(get_system)
+) -> Dict:
+    """Chat with the knowledge graph using LLM."""
+    try:
+        # Build context about the graph
+        context_parts = []
+        
+        # If a specific entity is selected, get its details
+        if request.context_id:
+            try:
+                entity = system.knowledge_graph.get_entity(request.context_id)
+                if entity:
+                    context_parts.append(
+                        f"SELECTED ENTITY:\n"
+                        f"ID: {entity.id}\n"
+                        f"Name: {entity.name}\n"
+                        f"Type: {entity.entity_type.value}\n"
+                        f"Description: {entity.description or 'N/A'}\n"
+                    )
+            except Exception as e:
+                logger.warning(f"Failed to load context entity: {e}")
+        
+        # Add knowledge graph statistics
+        try:
+            kg = system.knowledge_graph
+            stats = kg.db.aql.execute(
+                """
+                FOR doc IN entities
+                    COLLECT type = doc.type WITH COUNT INTO count
+                    RETURN {type: type, count: count}
+                """,
+                cursor=True
+            )
+            entity_types = list(stats)
+            entity_dist = ', '.join([f'{t["type"]}:{t["count"]}' for t in entity_types[:10]])
+            nl = '\n'
+            context_parts.append(
+                f"KNOWLEDGE GRAPH STATS:{nl}"
+                f"Total entity types: {len(entity_types)}{nl}"
+                f"Entity distribution: {entity_dist}{nl}"
+            )
+        except Exception as e:
+            logger.warning(f"Failed to get KG stats: {e}")
+        
+        # Build the prompt
+        context_text = "\n".join(context_parts) if context_parts else ""
+        
+        prompt = f"""You are an AI assistant helping users explore a legal knowledge graph about tenant rights and housing law.
+
+{context_text}
+
+USER QUESTION: {request.message}
+
+Please provide a helpful, accurate response based on your knowledge. If the question is about the graph structure, entities, or relationships, explain what you can see in the context provided above. Keep your response concise and focused."""
+
+        # Call LLM
+        response = await system.deepseek.chat_completion(prompt)
+        
+        return {
+            "response": response,
+            "context_id": request.context_id
+        }
+    except Exception as e:
+        logger.error(f"Chat failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))

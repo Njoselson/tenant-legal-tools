@@ -3,6 +3,7 @@ Document processing service for the Tenant Legal Guidance System.
 """
 
 import asyncio
+import hashlib
 import json
 import logging
 import re
@@ -13,16 +14,21 @@ from tenant_legal_guidance.config import get_settings
 from tenant_legal_guidance.graph.arango_graph import ArangoDBGraph
 from tenant_legal_guidance.models.entities import (
     EntityType,
+    LegalDocumentType,
     LegalEntity,
     SourceMetadata,
     SourceType,
 )
 from tenant_legal_guidance.models.relationships import LegalRelationship, RelationshipType
+from tenant_legal_guidance.services.case_analyzer import CaseAnalyzer
+from tenant_legal_guidance.services.case_metadata_extractor import CaseMetadataExtractor
 from tenant_legal_guidance.services.concept_grouping import ConceptGroupingService
 from tenant_legal_guidance.services.deepseek import DeepSeekClient
 from tenant_legal_guidance.services.embeddings import EmbeddingsService
 from tenant_legal_guidance.services.entity_consolidation import EntityConsolidationService
+from tenant_legal_guidance.services.quote_extractor import QuoteExtractor
 from tenant_legal_guidance.services.vector_store import QdrantVectorStore
+from tenant_legal_guidance.utils.text import canonicalize_text, sha256
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +44,12 @@ class DocumentProcessor:
         # Initialize embeddings and vector store (required for chunk storage)
         self.embeddings_svc = EmbeddingsService()
         self.vector_store = QdrantVectorStore()
+        # Initialize case metadata extractor for court opinions
+        self.case_metadata_extractor = CaseMetadataExtractor(self.deepseek)
+        # Initialize case analyzer for enhanced legal analysis
+        self.case_analyzer = CaseAnalyzer(self.knowledge_graph, self.deepseek)
+        # Initialize quote extractor for entity quotes
+        self.quote_extractor = QuoteExtractor(self.deepseek)
 
     async def ingest_document(
         self, text: str, metadata: SourceMetadata, force_reprocess: bool = False
@@ -65,8 +77,8 @@ class DocumentProcessor:
         ) or "URL"
 
         # Compute SHA256 of canonical text
-        canon_text = self.knowledge_graph._canonicalize_text(text or "")
-        text_sha = self.knowledge_graph._sha256(canon_text)
+        canon_text = canonicalize_text(text or "")
+        text_sha = sha256(canon_text)
         source_id_check = f"src:{text_sha}"
 
         if not force_reprocess:
@@ -125,7 +137,7 @@ class DocumentProcessor:
         if external_merge_map:
             relationships = self._update_relationship_references(relationships, external_merge_map)
 
-        # Step 3: Add entities to graph
+        # Step 3: Add entities to graph with quotes and multi-source consolidation
         added_entities = []
         for entity in entities:
             # Redirect to canonical id if semantic match found
@@ -135,6 +147,72 @@ class DocumentProcessor:
                     entity = type(entity)(**{**entity.dict(), "id": target_id})
                 except Exception:
                     pass
+            
+            # NEW: Check if entity exists in KG (for multi-source tracking)
+            existing_entity = self.knowledge_graph.get_entity(entity.id)
+            
+            if existing_entity:
+                # ENTITY EXISTS - Add this source's info
+                self.logger.info(f"Entity {entity.id} exists, adding new source provenance")
+                
+                # Extract quote from NEW document with enriched chunks
+                # Include ALL chunks from this source for this entity (not just name matches)
+                enriched_chunks = []
+                for i, chunk in enumerate(chunk_docs):
+                    enriched_chunks.append({
+                        **chunk,
+                        "chunk_id": chunk_ids[i] if i < len(chunk_ids) else None,
+                        "source_id": source_id
+                    })
+                if enriched_chunks:
+                    # Filter chunks that mention entity name for quote extraction
+                    quote_chunks = [ch for ch in enriched_chunks if entity.name.lower() in ch.get("text", "").lower()]
+                    if quote_chunks:
+                        new_quote = await self.quote_extractor.extract_best_quote(entity, quote_chunks)
+                    else:
+                        # No exact name match, use first chunk as fallback
+                        new_quote = await self.quote_extractor.extract_best_quote(entity, enriched_chunks[:1])
+                    new_chunk_ids = [ch.get("chunk_id") for ch in enriched_chunks if ch.get("chunk_id")]
+                    
+                    # Merge with existing entity
+                    updated_entity = self._merge_entity_sources(
+                        existing_entity=existing_entity,
+                        new_quote=new_quote,
+                        new_chunk_ids=new_chunk_ids,
+                        new_source_id=source_id or metadata.source
+                    )
+                    
+                    # Update entity in KG (overwrite=True)
+                    if self.knowledge_graph.add_entity(updated_entity, overwrite=True):
+                        added_entities.append(updated_entity)
+                        self.logger.info(f"Updated entity {entity.id} with multi-source data")
+            else:
+                # NEW ENTITY - First time seeing it
+                # Link entity to ALL chunks from this source (entity belongs to entire document)
+                enriched_chunks = []
+                for i, chunk in enumerate(chunk_docs):
+                    enriched_chunks.append({
+                        **chunk,
+                        "chunk_id": chunk_ids[i] if i < len(chunk_ids) else None,
+                        "source_id": source_id
+                    })
+                if enriched_chunks:
+                    # Filter chunks that mention entity name for quote extraction
+                    quote_chunks = [ch for ch in enriched_chunks if entity.name.lower() in ch.get("text", "").lower()]
+                    if quote_chunks:
+                        best_quote = await self.quote_extractor.extract_best_quote(entity, quote_chunks)
+                    else:
+                        # No exact name match, use first chunk as fallback
+                        best_quote = await self.quote_extractor.extract_best_quote(entity, enriched_chunks[:1])
+                    entity.best_quote = best_quote
+                    entity.all_quotes = [best_quote]
+                    entity.chunk_ids = [ch.get("chunk_id") for ch in enriched_chunks if ch.get("chunk_id")]
+                    entity.source_ids = [source_id or metadata.source] if source_id or metadata.source else []
+                
+                # Add to KG (overwrite=False for new entities)
+                if self.knowledge_graph.add_entity(entity, overwrite=False):
+                    added_entities.append(entity)
+            
             # Build a provenance entry with a sentence-level quote from the source if available
             quote_text, quote_offset = self._extract_best_quote(text or "", entity)
             # Attach normalized provenance with hashed quote
@@ -165,6 +243,14 @@ class DocumentProcessor:
                     )
                 # Ensure entity stored, then attach provenance row
                 if self.knowledge_graph.add_entity(entity, overwrite=False) or True:
+                    # Extract chunk index from chunk_entity_id if available
+                    chunk_index = None
+                    if chunk_entity_id and ":" in chunk_entity_id:
+                        try:
+                            chunk_index = int(chunk_entity_id.split(":")[-1])
+                        except ValueError:
+                            chunk_index = None
+                    
                     attached = self.knowledge_graph.attach_provenance(
                         subject_type="ENTITY",
                         subject_id=entity.id,
@@ -176,6 +262,8 @@ class DocumentProcessor:
                         ),
                         quote_id=quote_id,
                         citation=None,
+                        chunk_id=chunk_entity_id,
+                        chunk_index=chunk_index
                     )
             except Exception as e:
                 self.logger.debug(f"attach_provenance failed: {e}")
@@ -199,6 +287,71 @@ class DocumentProcessor:
             all_entities = self._get_all_entities()
             # Group the newly added entities with similar existing ones
             concept_groups = self.concept_grouping.group_similar_concepts(all_entities)
+
+        # Step 5.5: Stage 2 - Document-Level Synthesis (for court opinions)
+        case_document_entity = None
+        if metadata.document_type == LegalDocumentType.COURT_OPINION and source_id:
+            try:
+                self.logger.info("Performing Stage 2 document-level synthesis for court opinion")
+                case_document_entity = await self.case_metadata_extractor.extract_case_metadata(
+                    text, metadata, source_id
+                )
+                
+                if case_document_entity:
+                    # Add the CASE_DOCUMENT entity to the knowledge graph
+                    if self.knowledge_graph.add_entity(case_document_entity, overwrite=False):
+                        added_entities.append(case_document_entity)
+                        self.logger.info(f"Created CASE_DOCUMENT entity: {case_document_entity.case_name}")
+                        
+                        # Attach provenance for the case document
+                        self.knowledge_graph.attach_provenance(
+                            subject_type="ENTITY",
+                            subject_id=case_document_entity.id,
+                            source_id=source_id,
+                            chunk_id=None,  # Document-level entity
+                            chunk_index=None
+                        )
+                    else:
+                        self.logger.warning("Failed to add CASE_DOCUMENT entity to knowledge graph")
+                        
+            except Exception as e:
+                self.logger.error(f"Stage 2 document-level synthesis failed: {e}", exc_info=True)
+
+        # Step 5.6: Enhanced Case Analysis (for court opinions)
+        case_analysis_results = None
+        if metadata.document_type == LegalDocumentType.COURT_OPINION and case_document_entity:
+            try:
+                self.logger.info("Performing enhanced case analysis with proof chains")
+                case_analysis_results = await self.case_analyzer.analyze_case_enhanced(
+                    text, 
+                    jurisdiction=metadata.jurisdiction
+                )
+                
+                # Extract additional entities from case analysis
+                if case_analysis_results and case_analysis_results.proof_chains:
+                    analysis_entities = await self._extract_entities_from_case_analysis(
+                        case_analysis_results, metadata, source_id
+                    )
+                    
+                    # Add analysis entities to the knowledge graph
+                    for entity in analysis_entities:
+                        if self.knowledge_graph.add_entity(entity, overwrite=False):
+                            added_entities.append(entity)
+                            self.logger.info(f"Added analysis entity: {entity.name}")
+                            
+                            # Attach provenance
+                            self.knowledge_graph.attach_provenance(
+                                subject_type="ENTITY",
+                                subject_id=entity.id,
+                                source_id=source_id,
+                                chunk_id=None,
+                                chunk_index=None
+                            )
+                
+                self.logger.info(f"Case analysis completed with {len(case_analysis_results.proof_chains) if case_analysis_results else 0} proof chains")
+                
+            except Exception as e:
+                self.logger.error(f"Enhanced case analysis failed: {e}", exc_info=True)
 
         # Step 6: Embed and persist chunks to Qdrant
         chunk_count = 0
@@ -233,22 +386,56 @@ class DocumentProcessor:
                 payloads = []
                 for i, ch in enumerate(chunk_docs):
                     enrichment = enriched_metadata[i] if i < len(enriched_metadata) else {}
+                    
+                    # NEW: Compute chunk-specific content hash
+                    chunk_content_hash = sha256(ch.get("text", ""))
+                    
+                    # NEW: Calculate prev/next chunk IDs
+                    prev_chunk_id = f"{source_id}:{i-1}" if i > 0 else None
+                    next_chunk_id = f"{source_id}:{i+1}" if i < len(chunk_docs)-1 else None
+                    
                     payloads.append(
                         {
-                            "chunk_id": chunk_ids[i],
+                            "chunk_id": chunk_ids[i],  # Format: "UUID:index"
+                            "source_id": source_id,    # NEW: UUID for filtering
+                            "chunk_index": i,          # NEW: For ordering
+                            "content_hash": chunk_content_hash,  # NEW: For integrity
+                            
+                            # Sequential navigation (NEW)
+                            "prev_chunk_id": prev_chunk_id,
+                            "next_chunk_id": next_chunk_id,
+                            
+                            # Document metadata
                             "source": locator,
                             "source_type": kind,
                             "doc_title": getattr(metadata, "title", None) or "",
+                            "document_type": metadata.document_type.value if metadata.document_type else "unknown",  # NEW
                             "jurisdiction": getattr(metadata, "jurisdiction", None) or "",
+                            "organization": getattr(metadata, "organization", None) or "",
                             "tags": [],  # Extract from metadata if available
+                            
+                            # Entity linkage
                             "entities": entity_ids,  # All entities from this doc
-                            "super_chunk_id": None,  # TODO: link super-chunks if needed
+                            
+                            # Chunk enrichment
                             "description": enrichment.get("description", ""),
                             "proves": enrichment.get("proves", ""),
                             "references": enrichment.get("references", ""),
+                            
+                            # Content
                             "text": ch.get("text", ""),
-                            "chunk_index": ch.get("chunk_index", i),
                             "token_count": ch.get("token_count", 0),
+                            
+                            # Link to CASE_DOCUMENT if applicable (NEW)
+                            "doc_metadata": {
+                                "case_document_id": case_document_entity.id if case_document_entity else None
+                            },
+                            
+                            # Case-specific metadata (if available)
+                            "case_name": case_document_entity.case_name if case_document_entity else None,
+                            "court": case_document_entity.court if case_document_entity else None,
+                            "docket_number": case_document_entity.docket_number if case_document_entity else None,
+                            "decision_date": case_document_entity.decision_date.isoformat() if case_document_entity and case_document_entity.decision_date else None
                         }
                     )
                 # Upsert to Qdrant
@@ -266,6 +453,8 @@ class DocumentProcessor:
             "entities": added_entities,
             "relationships": added_relationships,
             "concept_groups": concept_groups,
+            "case_document": case_document_entity,  # NEW: Include case document entity
+            "case_analysis": case_analysis_results,  # NEW: Include case analysis results
         }
 
     async def _enrich_chunks_metadata_batch(
@@ -471,8 +660,18 @@ Ensure array has exactly {len(batch)} objects."""
             chunk_entities = []
             for entity_data in data["entities"]:
                 try:
-                    # Generate unique ID based on type and name
-                    entity_id = self._generate_entity_id(entity_data["name"], entity_data["type"])
+                    # Convert type string to EntityType enum using utility
+                    from tenant_legal_guidance.utils.entity_helpers import normalize_entity_type
+                    
+                    entity_type_str = entity_data["type"]
+                    try:
+                        entity_type = normalize_entity_type(entity_type_str)
+                    except ValueError:
+                        self.logger.error(f"Invalid entity type: {entity_type_str}")
+                        continue
+                    
+                    # Generate unique ID using the converted entity_type
+                    entity_id = self._generate_entity_id(entity_data["name"], entity_type)
 
                     # Convert any list attributes to semicolon-separated strings
                     attributes = entity_data.get("attributes", {})
@@ -486,10 +685,10 @@ Ensure array has exactly {len(batch)} objects."""
                     jurisdiction = entity_data.get("jurisdiction")
                     if jurisdiction:
                         attributes["jurisdiction"] = str(jurisdiction)
-
+                    
                     entity = LegalEntity(
                         id=entity_id,
-                        entity_type=entity_data["type"],  # Pass the string type directly
+                        entity_type=entity_type,
                         name=entity_data["name"],
                         description=entity_data.get("description"),
                         attributes=attributes,
@@ -627,14 +826,24 @@ Ensure array has exactly {len(batch)} objects."""
         return chunks
 
     def _generate_entity_id(self, name: str, entity_type: EntityType) -> str:
-        """Generate a unique ID for an entity."""
-        # Normalize name
-        normalized_name = re.sub(r"\W+", "_", name.lower()).strip("_")
-        # Truncate if too long
-        if len(normalized_name) > 30:
-            normalized_name = normalized_name[:30]
-        # Add type prefix
-        return f"{entity_type.lower()}:{normalized_name}"
+        """
+        Generate a unique, stable ID for an entity.
+        
+        Strategy: Use hash of (entity_type, name) for uniqueness.
+        Format: {type}:{hash_8chars}
+        
+        This ensures:
+        - ID length stays under 63 chars (ArangoDB limit)
+        - Same entity gets same ID across documents
+        - No collisions (8 hex chars = 4.3 billion combinations)
+        """
+        # Create hash input from entity type and name
+        hash_input = f"{entity_type.value}:{name}".lower()
+        hash_digest = hashlib.sha256(hash_input.encode()).hexdigest()[:8]
+        
+        # Format: {type}:{hash}
+        # Example: law:a3f2b1c4
+        return f"{entity_type.value}:{hash_digest}"
 
     def _deduplicate_entities(
         self, entities: List[LegalEntity]
@@ -774,6 +983,7 @@ Ensure array has exactly {len(batch)} objects."""
             )
 
             # Extract attributes (exclude special and derived fields that don't belong in attributes)
+            # These should be handled as top-level LegalEntity fields, not in attributes dict
             attributes = {
                 k: v
                 for k, v in doc.items()
@@ -787,6 +997,16 @@ Ensure array has exactly {len(batch)} objects."""
                     "jurisdiction",
                     "provenance",
                     "mentions_count",
+                    "best_quote",
+                    "all_quotes",
+                    "chunk_ids",
+                    "source_ids",
+                    "outcome",
+                    "ruling_type",
+                    "relief_granted",
+                    "damages_awarded",
+                    "_id",
+                    "_rev",
                 ]
             }
 
@@ -798,16 +1018,39 @@ Ensure array has exactly {len(batch)} objects."""
             except Exception:
                 mentions_count = None
 
-            return LegalEntity(
-                id=doc["_key"],
-                entity_type=entity_type,
-                name=doc.get("name", ""),
-                description=doc.get("description"),
-                source_metadata=metadata,
-                provenance=provenance if provenance is not None else None,
-                mentions_count=mentions_count,
-                attributes=attributes,
-            )
+            # Build LegalEntity with all top-level fields
+            entity_kwargs = {
+                "id": doc["_key"],
+                "entity_type": entity_type,
+                "name": doc.get("name", ""),
+                "description": doc.get("description"),
+                "source_metadata": metadata,
+                "provenance": provenance if provenance is not None else None,
+                "mentions_count": mentions_count,
+                "attributes": attributes,
+            }
+            
+            # Add quote fields if present
+            if "best_quote" in doc:
+                entity_kwargs["best_quote"] = doc.get("best_quote")
+            if "all_quotes" in doc:
+                entity_kwargs["all_quotes"] = doc.get("all_quotes")
+            if "chunk_ids" in doc:
+                entity_kwargs["chunk_ids"] = doc.get("chunk_ids")
+            if "source_ids" in doc:
+                entity_kwargs["source_ids"] = doc.get("source_ids")
+            
+            # Add case outcome fields if present
+            if "outcome" in doc:
+                entity_kwargs["outcome"] = doc.get("outcome")
+            if "ruling_type" in doc:
+                entity_kwargs["ruling_type"] = doc.get("ruling_type")
+            if "relief_granted" in doc:
+                entity_kwargs["relief_granted"] = doc.get("relief_granted")
+            if "damages_awarded" in doc:
+                entity_kwargs["damages_awarded"] = doc.get("damages_awarded")
+            
+            return LegalEntity(**entity_kwargs)
         except Exception as e:
             self.logger.warning(f"Error converting document to entity: {e}")
             return None
@@ -1049,3 +1292,128 @@ Ensure array has exactly {len(batch)} objects."""
             return best_sentence, int(best_start)
         except Exception:
             return None, None
+    
+    async def _extract_entities_from_case_analysis(
+        self, 
+        case_analysis_results, 
+        metadata: SourceMetadata, 
+        source_id: str
+    ) -> List[LegalEntity]:
+        """Extract additional entities from case analysis results."""
+        entities = []
+        
+        try:
+            # Extract entities from proof chains
+            for proof_chain in case_analysis_results.proof_chains:
+                # Create entity for the legal issue
+                if proof_chain.issue:
+                    issue_entity = LegalEntity(
+                        id=f"issue:{source_id}:{self._generate_entity_id(proof_chain.issue, EntityType.TENANT_ISSUE)}",
+                        entity_type=EntityType.TENANT_ISSUE,
+                        name=proof_chain.issue,
+                        description=f"Legal issue identified in case analysis: {proof_chain.reasoning}",
+                        source_metadata=metadata,
+                        attributes={
+                            "strength_score": proof_chain.strength_score,
+                            "strength_assessment": proof_chain.strength_assessment,
+                            "evidence_present": ",".join(proof_chain.evidence_present),
+                            "evidence_needed": ",".join(proof_chain.evidence_needed),
+                            "extraction_method": "case_analysis"
+                        }
+                    )
+                    entities.append(issue_entity)
+                
+                # Create entities for remedies
+                for remedy in proof_chain.remedies:
+                    if remedy.name:
+                        remedy_entity = LegalEntity(
+                            id=f"remedy:{source_id}:{self._generate_entity_id(remedy.name, EntityType.REMEDY)}",
+                            entity_type=EntityType.REMEDY,
+                            name=remedy.name,
+                            description=remedy.description,
+                            source_metadata=metadata,
+                            attributes={
+                                "success_rate": remedy.success_rate,
+                                "reasoning": remedy.reasoning,
+                                "extraction_method": "case_analysis"
+                            }
+                        )
+                        entities.append(remedy_entity)
+                
+                # Create entities for applicable laws
+                for law in proof_chain.applicable_laws:
+                    if law.get("name"):
+                        law_entity = LegalEntity(
+                            id=f"law:{source_id}:{self._generate_entity_id(law['name'], EntityType.LAW)}",
+                            entity_type=EntityType.LAW,
+                            name=law["name"],
+                            description=law.get("text", ""),
+                            source_metadata=metadata,
+                            attributes={
+                                "source": law.get("source", ""),
+                                "extraction_method": "case_analysis"
+                            }
+                        )
+                        entities.append(law_entity)
+            
+            self.logger.info(f"Extracted {len(entities)} additional entities from case analysis")
+            return entities
+            
+        except Exception as e:
+            self.logger.error(f"Failed to extract entities from case analysis: {e}", exc_info=True)
+            return []
+    
+    def _merge_entity_sources(
+        self,
+        existing_entity: LegalEntity,
+        new_quote: Dict[str, str],
+        new_chunk_ids: List[str],
+        new_source_id: str
+    ) -> LegalEntity:
+        """
+        Merge new source information into existing entity.
+        
+        Strategy:
+        - Keep best_quote as the highest-quality quote across all sources
+        - Add new quote to all_quotes list
+        - Append new chunk_ids (deduplicated)
+        - Append new source_id (deduplicated)
+        - Increment mentions_count
+        """
+        # Add to all_quotes (deduplicate by quote text)
+        if not existing_entity.all_quotes:
+            existing_entity.all_quotes = []
+        
+        # Check if this quote already exists (compare by text content)
+        new_quote_text = new_quote.get("text", "")
+        quote_exists = False
+        for existing_quote in existing_entity.all_quotes:
+            if isinstance(existing_quote, dict) and existing_quote.get("text", "") == new_quote_text:
+                quote_exists = True
+                break
+        
+        if not quote_exists:
+            existing_entity.all_quotes.append(new_quote)
+        
+        # Update best_quote if new quote is better (or if none exists)
+        # For simplicity, just keep the first one or the one with non-empty text
+        if not existing_entity.best_quote or (new_quote.get("text") and not existing_entity.best_quote.get("text")):
+            existing_entity.best_quote = new_quote
+        
+        # Merge chunk_ids (deduplicate)
+        if not existing_entity.chunk_ids:
+            existing_entity.chunk_ids = []
+        for chunk_id in new_chunk_ids:
+            if chunk_id and chunk_id not in existing_entity.chunk_ids:
+                existing_entity.chunk_ids.append(chunk_id)
+        
+        # Merge source_ids (deduplicate)
+        if not existing_entity.source_ids:
+            existing_entity.source_ids = []
+        if new_source_id and new_source_id not in existing_entity.source_ids:
+            existing_entity.source_ids.append(new_source_id)
+        
+        # Update mentions_count
+        existing_entity.mentions_count = len(existing_entity.source_ids) if existing_entity.source_ids else (existing_entity.mentions_count or 0) + 1
+        
+        return existing_entity

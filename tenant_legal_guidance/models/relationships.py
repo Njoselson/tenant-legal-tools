@@ -28,6 +28,18 @@ class LegalRelationship(BaseModel):
     )
     weight: float = 1.0
     attributes: Dict = Field(default_factory=dict)
+    
+    # Relationship strength (NEW)
+    strength: float = Field(
+        1.0,
+        ge=0.0,
+        le=1.0,
+        description="How strong is this relationship? (0-1)"
+    )
+    evidence_level: Optional[str] = Field(
+        None,
+        description="Evidence level: 'required', 'helpful', 'sufficient'"
+    )
 
     @field_validator("relationship_type", mode="before")
     @classmethod
@@ -50,3 +62,16 @@ class LegalRelationship(BaseModel):
                         f"Invalid value '{v}' for relationship_type. Allowed: {[e.name for e in RelationshipType]}"
                     )
         return v
+    
+    def to_api_dict(self) -> Dict:
+        """
+        Serialize relationship to consistent API response format.
+        
+        Returns:
+            dict with serialized relationship data ready for JSON response
+        """
+        from tenant_legal_guidance.utils.entity_helpers import (
+            serialize_relationship_for_api,
+        )
+        
+        return serialize_relationship_for_api(self)

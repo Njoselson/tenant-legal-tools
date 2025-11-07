@@ -4,12 +4,13 @@ Main system class for the Tenant Legal Guidance System.
 
 import logging
 from pathlib import Path
-from typing import Dict
+from typing import Dict, Optional
 
 from tenant_legal_guidance.graph.arango_graph import ArangoDBGraph
 from tenant_legal_guidance.models.entities import SourceMetadata, SourceType
 from tenant_legal_guidance.services.deepseek import DeepSeekClient
 from tenant_legal_guidance.services.document_processor import DocumentProcessor
+from tenant_legal_guidance.services.resource_processor import LegalResourceProcessor
 
 
 class TenantLegalSystem:
@@ -55,6 +56,54 @@ class TenantLegalSystem:
             text=text, metadata=metadata, force_reprocess=force_reprocess
         )
 
+        return result
+
+    async def ingest_from_source(
+        self,
+        text: Optional[str] = None,
+        url: Optional[str] = None,
+        metadata: SourceMetadata = None,
+        force_reprocess: bool = False
+    ) -> Dict:
+        """Ingest from text or URL (with PDF/web scraping).
+        
+        Args:
+            text: Document text content (optional if url provided)
+            url: URL to scrape text from (optional if text provided)
+            metadata: Source metadata
+            force_reprocess: If True, reprocess even if source has been seen before
+            
+        Returns:
+            Dict with ingestion results
+        """
+        self.logger.info(f"Ingesting from source: {url or 'text input'}")
+        
+        # Validate input
+        if not text and not url:
+            raise ValueError("Either text or url must be provided")
+        
+        # If URL is provided, scrape the text
+        if url:
+            resource_processor = LegalResourceProcessor(self.deepseek)
+            
+            # Try to scrape as PDF first
+            try:
+                text = resource_processor.scrape_text_from_pdf(url)
+            except Exception as e:
+                self.logger.info(f"URL is not a PDF, falling back to web scraping: {str(e)}")
+                text = None
+            
+            # If PDF scraping failed or returned no text, try web scraping
+            if not text:
+                text = resource_processor.scrape_text_from_url(url)
+                if not text:
+                    raise ValueError("Failed to scrape text from the provided URL")
+        
+        # Process the text via document processor
+        result = await self.document_processor.ingest_document(
+            text=text, metadata=metadata, force_reprocess=force_reprocess
+        )
+        
         return result
 
     def save_knowledge_graph(self):

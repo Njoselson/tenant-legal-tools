@@ -52,8 +52,25 @@ jobs:
       
       - name: Wait for services
         run: |
-          timeout 60 sh -c 'until curl -f http://localhost:8529/_api/version; do sleep 2; done'
-          timeout 60 sh -c 'until curl -f http://localhost:6333/health; do sleep 2; done'
+          echo "Waiting for ArangoDB..."
+          for i in {1..30}; do
+            if curl -sf http://localhost:8529/_api/version > /dev/null 2>&1; then
+              echo "ArangoDB is ready!"
+              break
+            fi
+            echo "Attempt $i: ArangoDB not ready yet..."
+            sleep 2
+          done
+          
+          echo "Waiting for Qdrant..."
+          for i in {1..30}; do
+            if curl -sf http://localhost:6333/ > /dev/null 2>&1; then
+              echo "Qdrant is ready!"
+              break
+            fi
+            echo "Attempt $i: Qdrant not ready yet..."
+            sleep 2
+          done
       
       - name: Run linting
         run: |

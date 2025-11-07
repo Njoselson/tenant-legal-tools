@@ -13,7 +13,7 @@ from tenant_legal_guidance.services.resource_processor import LegalResourceProce
 
 
 class TenantLegalSystem:
-    def __init__(self, deepseek_api_key: str = None, graph_path: Path = None):
+    def __init__(self, deepseek_api_key: str | None = None, graph_path: Path | None = None):
         """Initialize the Tenant Legal Guidance System.
 
         Args:

@@ -9,6 +9,7 @@ from typing import Dict, List, Optional, Tuple
 from tenant_legal_guidance.config import get_settings
 from tenant_legal_guidance.graph.arango_graph import ArangoDBGraph
 from tenant_legal_guidance.models.entities import EntityType, LegalEntity
+from tenant_legal_guidance.services.case_law_retriever import CaseLawRetriever
 from tenant_legal_guidance.services.embeddings import EmbeddingsService
 from tenant_legal_guidance.services.vector_store import QdrantVectorStore
 
@@ -21,6 +22,8 @@ class HybridRetriever:
         # Initialize vector components (required)
         self.embeddings_svc = EmbeddingsService()
         self.vector_store = QdrantVectorStore()
+        # Initialize case law retriever
+        self.case_law_retriever = CaseLawRetriever(knowledge_graph, self.vector_store)
 
     def retrieve(
         self,
@@ -50,11 +53,19 @@ class HybridRetriever:
                     "score": hit["score"],
                     "text": hit["payload"].get("text", ""),
                     "source": hit["payload"].get("source", ""),
+                    "source_id": hit["payload"].get("source_id", ""),
+                    "source_type": hit["payload"].get("source_type", ""),
                     "doc_title": hit["payload"].get("doc_title", ""),
+                    "document_type": hit["payload"].get("document_type", ""),
+                    "organization": hit["payload"].get("organization", ""),
                     "jurisdiction": hit["payload"].get("jurisdiction", ""),
                     "entities": hit["payload"].get("entities", []),
                     "description": hit["payload"].get("description", ""),
                     "proves": hit["payload"].get("proves", ""),
+                    "chunk_index": hit["payload"].get("chunk_index", 0),
+                    "content_hash": hit["payload"].get("content_hash", ""),
+                    "prev_chunk_id": hit["payload"].get("prev_chunk_id"),
+                    "next_chunk_id": hit["payload"].get("next_chunk_id"),
                 }
                 for hit in chunk_hits
             ]

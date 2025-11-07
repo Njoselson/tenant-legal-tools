@@ -86,3 +86,162 @@ class QdrantVectorStore:
             }
             for r in res
         ]
+    
+    def search_by_id(self, chunk_id: str) -> List[Dict[str, Any]]:
+        """Retrieve a chunk by its ID."""
+        from qdrant_client.models import Filter, FieldCondition, MatchValue
+        
+        results = self.client.scroll(
+            collection_name=self.collection,
+            scroll_filter=Filter(
+                must=[
+                    FieldCondition(
+                        key="chunk_id",
+                        match=MatchValue(value=chunk_id)
+                    )
+                ]
+            ),
+            limit=1,
+            with_payload=True,
+            with_vectors=False
+        )
+        
+        points = []
+        for point in results[0]:
+            points.append({
+                "id": point.id,
+                "payload": dict(point.payload) if point.payload else {},
+            })
+        
+        return points
+
+    def get_chunks_by_source(
+        self,
+        source_id: str,
+        limit: int = 1000
+    ) -> List[Dict[str, Any]]:
+        """
+        Retrieve all chunks from a specific source document.
+        
+        Args:
+            source_id: UUID of the source document
+            limit: Maximum chunks to retrieve
+            
+        Returns:
+            List of chunks with payloads, ordered by chunk_index
+        """
+        from qdrant_client.models import Filter, FieldCondition, MatchValue
+        
+        results = self.client.scroll(
+            collection_name=self.collection,
+            scroll_filter=Filter(
+                must=[
+                    FieldCondition(
+                        key="source_id",
+                        match=MatchValue(value=source_id)
+                    )
+                ]
+            ),
+            limit=limit,
+            with_payload=True,
+            with_vectors=False
+        )
+        
+        chunks = []
+        for point in results[0]:
+            chunks.append({
+                "id": point.id,
+                "chunk_id": point.payload.get("chunk_id"),
+                "chunk_index": point.payload.get("chunk_index"),
+                "text": point.payload.get("text"),
+                "payload": dict(point.payload)
+            })
+        
+        # Sort by chunk_index
+        chunks.sort(key=lambda x: x.get("chunk_index", 0))
+        
+        return chunks
+    
+    def get_chunks_by_entity(self, entity_id: str) -> List[Dict[str, Any]]:
+        """
+        Retrieve all chunks that mention a specific entity.
+        
+        Args:
+            entity_id: Entity ID (e.g., 'law:warranty_of_habitability')
+            
+        Returns:
+            List of chunks containing this entity
+        """
+        from qdrant_client.models import Filter, FieldCondition, MatchValue
+        
+        # Search for chunks where the entity is in the entities list
+        results = self.client.scroll(
+            collection_name=self.collection,
+            scroll_filter=Filter(
+                must=[
+                    FieldCondition(
+                        key="entities",
+                        match=MatchValue(value=entity_id)
+                    )
+                ]
+            ),
+            limit=100,
+            with_payload=True,
+            with_vectors=False
+        )
+        
+        chunks = []
+        for point in results[0]:
+            chunks.append({
+                "id": point.id,
+                "chunk_id": point.payload.get("chunk_id"),
+                "chunk_index": point.payload.get("chunk_index"),
+                "text": point.payload.get("text"),
+                "source_id": point.payload.get("source_id"),
+                "doc_title": point.payload.get("doc_title"),
+                "payload": dict(point.payload)
+            })
+        
+        return chunks
+    
+    def get_chunks_by_ids(self, chunk_ids: List[str]) -> List[Dict[str, Any]]:
+        """
+        Retrieve specific chunks by their IDs.
+        
+        Args:
+            chunk_ids: List of chunk IDs to retrieve
+            
+        Returns:
+            List of chunks with their payloads
+        """
+        chunks = []
+        for chunk_id in chunk_ids:
+            # Search by chunk_id field in payload
+            results = self.client.scroll(
+                collection_name=self.collection,
+                scroll_filter=Filter(
+                    must=[
+                        FieldCondition(
+                            key="chunk_id",
+                            match=MatchValue(value=chunk_id)
+                        )
+                    ]
+                ),
+                limit=1,
+                with_payload=True,
+                with_vectors=False
+            )
+            
+            if results[0]:
+                for point in results[0]:
+                    chunks.append({
+                        "id": point.id,
+                        "chunk_id": point.payload.get("chunk_id"),
+                        "chunk_index": point.payload.get("chunk_index"),
+                        "text": point.payload.get("text"),
+                        "source_id": point.payload.get("source_id"),
+                        "doc_title": point.payload.get("doc_title"),
+                        "payload": dict(point.payload)
+                    })
+        
+        return chunks

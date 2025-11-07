@@ -2,7 +2,7 @@
 Unit tests for CaseAnalyzer service.
 """
 
-from unittest.mock import AsyncMock, MagicMock, Mock
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 
@@ -12,7 +12,7 @@ from tenant_legal_guidance.models.entities import (
     SourceMetadata,
     SourceType,
 )
-from tenant_legal_guidance.services.case_analyzer import CaseAnalyzer, LegalProofChain, RemedyOption
+from tenant_legal_guidance.services.case_analyzer import CaseAnalyzer, RemedyOption
 
 
 @pytest.fixture

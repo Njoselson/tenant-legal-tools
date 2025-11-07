@@ -4,11 +4,9 @@ Hybrid retrieval service combining Qdrant vector search with ArangoSearch and KG
 
 import logging
 from collections import defaultdict
-from typing import Dict, List, Optional, Tuple
 
 from tenant_legal_guidance.config import get_settings
 from tenant_legal_guidance.graph.arango_graph import ArangoDBGraph
-from tenant_legal_guidance.models.entities import EntityType, LegalEntity
 from tenant_legal_guidance.services.case_law_retriever import CaseLawRetriever
 from tenant_legal_guidance.services.embeddings import EmbeddingsService
 from tenant_legal_guidance.services.vector_store import QdrantVectorStore
@@ -31,17 +29,26 @@ class HybridRetriever:
         top_k_chunks: int = 20,
         top_k_entities: int = 50,
         expand_neighbors: bool = True,
-    ) -> Dict[str, List]:
+        linked_entity_ids: list[str] | None = None,
+    ) -> dict[str, list]:
         """
         Hybrid retrieval combining:
         1. Vector search for chunks (Qdrant ANN)
         2. Entity search (ArangoSearch BM25/PHRASE)
-        3. KG expansion via neighbors
-        4. Score fusion (RRF)
+        3. Direct entity lookup (NEW: from linked query entities)
+        4. KG expansion via neighbors (including linked entities)
+        5. Score fusion (RRF)
 
-        Returns: {"chunks": [...], "entities": [...], "neighbors": [...]}
+        Args:
+            query_text: Text query for vector/text search
+            top_k_chunks: Number of chunks to retrieve
+            top_k_entities: Number of entities to retrieve via text search
+            expand_neighbors: Whether to expand with 1-hop neighbors
+            linked_entity_ids: Entity IDs linked from query (NEW)
+
+        Returns: {"chunks": [...], "entities": [...], "neighbors": [...], "linked_entities": [...]}
         """
-        results = {"chunks": [], "entities": [], "neighbors": []}
+        results = {"chunks": [], "entities": [], "neighbors": [], "linked_entities": []}
 
         # Step 1: Vector search for chunks (required)
         try:
@@ -74,7 +81,20 @@ class HybridRetriever:
             self.logger.error(f"Vector search failed: {e}")
             raise  # Fail fast since chunks are now only in Qdrant
 
-        # Step 2: Entity search (ArangoSearch)
+        # Step 2: Direct entity lookup (NEW: for linked query entities)
+        if linked_entity_ids:
+            try:
+                for entity_id in linked_entity_ids:
+                    entity = self.kg.get_entity(entity_id)
+                    if entity:
+                        results["linked_entities"].append(entity)
+                self.logger.info(
+                    f"Direct lookup returned {len(results['linked_entities'])} linked entities"
+                )
+            except Exception as e:
+                self.logger.error(f"Direct entity lookup failed: {e}")
+        
+        # Step 3: Entity text search (ArangoSearch - for broader context)
         try:
             entity_hits = self.kg.search_entities_by_text(
                 query_text, types=None, limit=top_k_entities
@@ -84,32 +104,63 @@ class HybridRetriever:
         except Exception as e:
             self.logger.error(f"Entity search failed: {e}")
 
-        # Step 3: KG expansion (get neighbors of retrieved entities)
-        if expand_neighbors and results["entities"]:
+        # Step 4: KG expansion (get neighbors of ALL retrieved/linked entities)
+        if expand_neighbors:
             try:
-                entity_ids = [
-                    e.id for e in results["entities"][:20]
-                ]  # Top 20 only to limit expansion
-                neighbors, _ = self.kg.get_neighbors(
-                    entity_ids, per_node_limit=10, direction="both"
-                )
-                results["neighbors"] = neighbors
-                self.logger.info(
-                    f"KG expansion added {len(results['neighbors'])} neighbor entities"
-                )
+                # Collect all entity IDs for neighbor expansion
+                expansion_ids = []
+                
+                # Add linked entities (highest priority - from query)
+                if results["linked_entities"]:
+                    expansion_ids.extend([e.id for e in results["linked_entities"]])
+                
+                # Add top text-matched entities
+                if results["entities"]:
+                    expansion_ids.extend([e.id for e in results["entities"][:20]])
+                
+                # Get neighbors for all expansion seeds
+                if expansion_ids:
+                    neighbors, neighbor_rels = self.kg.get_neighbors(
+                        expansion_ids, per_node_limit=10, direction="both"
+                    )
+                    results["neighbors"] = neighbors
+                    results["neighbor_relationships"] = neighbor_rels
+                    self.logger.info(
+                        f"KG expansion from {len(expansion_ids)} seeds added "
+                        f"{len(neighbors)} neighbor entities and {len(neighbor_rels)} relationships"
+                    )
             except Exception as e:
                 self.logger.warning(f"KG expansion failed: {e}")
 
-        # Step 4: Deduplicate entities (combine direct hits + neighbors)
-        all_entities = {e.id: e for e in results["entities"]}
+        # Step 5: Deduplicate entities (combine linked + direct hits + neighbors)
+        all_entities = {}
+        
+        # Add linked entities first (highest priority)
+        for e in results.get("linked_entities", []):
+            all_entities[e.id] = e
+        
+        # Add text-matched entities
+        for e in results.get("entities", []):
+            if e.id not in all_entities:
+                all_entities[e.id] = e
+        
+        # Add neighbors
         for e in results.get("neighbors", []):
             if e.id not in all_entities:
                 all_entities[e.id] = e
+        
         results["entities"] = list(all_entities.values())
+        
+        self.logger.info(
+            f"Total unique entities after deduplication: {len(results['entities'])} "
+            f"(linked: {len(results.get('linked_entities', []))}, "
+            f"text-matched: {len(results.get('entities', []))}, "
+            f"neighbors: {len(results.get('neighbors', []))})"
+        )
 
         return results
 
-    def rrf_fusion(self, ranked_lists: List[List[str]], k: int = 60) -> List[Tuple[str, float]]:
+    def rrf_fusion(self, ranked_lists: list[list[str]], k: int = 60) -> list[tuple[str, float]]:
         """Reciprocal Rank Fusion: merge multiple ranked lists."""
         scores = defaultdict(float)
         for rank_list in ranked_lists:

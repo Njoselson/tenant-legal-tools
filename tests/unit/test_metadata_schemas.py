@@ -17,7 +17,6 @@ from tenant_legal_guidance.models.entities import (
 )
 from tenant_legal_guidance.models.metadata_schemas import (
     ManifestEntry,
-    MetadataTemplate,
     detect_metadata_from_url,
     manifest_entry_to_source_metadata,
     validate_metadata_completeness,
@@ -51,7 +50,7 @@ def test_manifest_entry_validation():
     assert metadata.jurisdiction == entry.jurisdiction
     assert metadata.organization == entry.organization
 
-    print(f"\n✅ Valid manifest entry converted to metadata")
+    print("\n✅ Valid manifest entry converted to metadata")
     print(f"   Title: {metadata.title}")
     print(f"   Authority: {metadata.authority}")
     print(f"   Type: {metadata.document_type}")
@@ -69,7 +68,7 @@ def test_url_pattern_detection():
     metadata = detect_metadata_from_url(unknown_url)
 
     assert isinstance(metadata, dict), "Should return a dictionary"
-    print(f"\n🔍 URL pattern detection is functional")
+    print("\n🔍 URL pattern detection is functional")
     print(
         f"   Returns dict with keys: {list(metadata.keys()) if metadata else '(empty for unknown URLs)'}"
     )
@@ -133,7 +132,7 @@ def test_metadata_template_system():
     assert statute_template.document_type == LegalDocumentType.STATUTE
     assert "statute" in statute_template.tags
 
-    print(f"\n📋 Template system verified")
+    print("\n📋 Template system verified")
     print(f"   Available templates: {list(TEMPLATES.keys())}")
     print(f"   Statute template authority: {statute_template.authority}")
     print(f"   Statute template type: {statute_template.document_type}")
@@ -167,7 +166,7 @@ def test_metadata_attributes_are_extensible():
     assert "language" in metadata.attributes
     assert "author" in metadata.attributes
 
-    print(f"\n🏷️  Extensible attributes:")
+    print("\n🏷️  Extensible attributes:")
     for key, value in metadata.attributes.items():
         print(f"   {key}: {value}")
 

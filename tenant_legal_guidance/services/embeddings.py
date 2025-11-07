@@ -1,5 +1,4 @@
 import hashlib
-from typing import List
 
 import numpy as np
 from sentence_transformers import SentenceTransformer
@@ -13,11 +12,11 @@ class EmbeddingsService:
         settings = get_settings()
         self.model = SentenceTransformer(settings.embedding_model_name)
 
-    def _cache_key(self, texts: List[str]) -> str:
+    def _cache_key(self, texts: list[str]) -> str:
         sha = hashlib.sha256("\n".join(texts).encode("utf-8")).hexdigest()
         return f"emb:{self.model.get_sentence_embedding_dimension()}:{sha}"
 
-    def embed(self, texts: List[str], batch_size: int = 64) -> np.ndarray:
+    def embed(self, texts: list[str], batch_size: int = 64) -> np.ndarray:
         if not texts:
             return np.zeros((0, self.model.get_sentence_embedding_dimension()), dtype=np.float32)
         key = self._cache_key(texts)

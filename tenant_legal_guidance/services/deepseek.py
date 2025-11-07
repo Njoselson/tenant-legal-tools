@@ -2,7 +2,6 @@ import json
 import logging
 import re
 import ssl
-from typing import Dict, List
 
 import aiohttp
 
@@ -56,10 +55,10 @@ class DeepSeekClient:
                         raise ValueError("Invalid response format from API")
 
         except Exception as e:
-            self.logger.error(f"Error in chat completion: {str(e)}")
+            self.logger.error(f"Error in chat completion: {e!s}")
             raise
 
-    async def extract_legal_concepts(self, text: str) -> Dict:
+    async def extract_legal_concepts(self, text: str) -> dict:
         """Use DeepSeek to extract legal concepts from text"""
         self.logger.info("Extracting legal concepts from text")
         self.logger.debug(f"Text length: {len(text)} characters")
@@ -96,7 +95,7 @@ class DeepSeekClient:
             self.logger.error(f"Error extracting legal concepts: {e}", exc_info=True)
             raise
 
-    async def summarize_clinic_notes(self, notes: str) -> Dict:
+    async def summarize_clinic_notes(self, notes: str) -> dict:
         """Generate structured summary of legal clinic notes"""
         self.logger.info("Summarizing clinic notes")
         self.logger.debug(f"Notes length: {len(notes)} characters")
@@ -133,7 +132,7 @@ class DeepSeekClient:
             self.logger.error(f"Error during note summarization: {e}", exc_info=True)
             raise
 
-    async def extract_dates(self, text: str) -> List[Dict]:
+    async def extract_dates(self, text: str) -> list[dict]:
         """Extract dates and their context from text"""
         self.logger.info("Extracting dates from text")
         self.logger.debug(f"Text length: {len(text)} characters")

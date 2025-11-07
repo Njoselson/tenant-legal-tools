@@ -57,7 +57,7 @@ class TestRecursiveCharChunks:
 
     def test_sentence_boundary_breaking(self):
         # Create text with clear sentence boundaries
-        text = ". ".join(["Sentence number {}".format(i) for i in range(200)])
+        text = ". ".join([f"Sentence number {i}" for i in range(200)])
         chunks = recursive_char_chunks(text, 1000, 0)
 
         # Should create multiple chunks

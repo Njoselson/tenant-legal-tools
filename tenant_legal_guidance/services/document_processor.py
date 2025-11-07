@@ -4,12 +4,10 @@ Document processing service for the Tenant Legal Guidance System.
 
 import asyncio
 import hashlib
-import hashlib
 import json
 import logging
 import re
 from datetime import datetime
-from typing import Dict, List, Optional, Tuple
 
 from tenant_legal_guidance.config import get_settings
 from tenant_legal_guidance.graph.arango_graph import ArangoDBGraph
@@ -21,12 +19,27 @@ from tenant_legal_guidance.models.entities import (
     SourceType,
 )
 from tenant_legal_guidance.models.relationships import LegalRelationship, RelationshipType
+
+# Relationship inference rules for common legal patterns
+RELATIONSHIP_INFERENCE_RULES = {
+    # (source_type, target_type): relationship_type
+    (EntityType.LAW, EntityType.TENANT_ISSUE): RelationshipType.APPLIES_TO,
+    (EntityType.LAW, EntityType.REMEDY): RelationshipType.ENABLES,
+    (EntityType.REMEDY, EntityType.DAMAGES): RelationshipType.AWARDS,
+    (EntityType.LAW, EntityType.EVIDENCE): RelationshipType.REQUIRES,
+    (EntityType.LAW, EntityType.DOCUMENT): RelationshipType.REQUIRES,
+    (EntityType.TENANT_ISSUE, EntityType.REMEDY): RelationshipType.APPLIES_TO,  # Issue can be resolved by remedy
+    (EntityType.REMEDY, EntityType.LEGAL_PROCEDURE): RelationshipType.AVAILABLE_VIA,
+    (EntityType.LEGAL_PROCEDURE, EntityType.LEGAL_OUTCOME): RelationshipType.ENABLES,
+    (EntityType.TENANT_ISSUE, EntityType.LAW): RelationshipType.VIOLATES,  # Reverse: issue violates law
+}
 from tenant_legal_guidance.services.case_analyzer import CaseAnalyzer
 from tenant_legal_guidance.services.case_metadata_extractor import CaseMetadataExtractor
 from tenant_legal_guidance.services.concept_grouping import ConceptGroupingService
 from tenant_legal_guidance.services.deepseek import DeepSeekClient
 from tenant_legal_guidance.services.embeddings import EmbeddingsService
 from tenant_legal_guidance.services.entity_consolidation import EntityConsolidationService
+from tenant_legal_guidance.services.entity_service import EntityService
 from tenant_legal_guidance.services.quote_extractor import QuoteExtractor
 from tenant_legal_guidance.services.vector_store import QdrantVectorStore
 from tenant_legal_guidance.utils.text import canonicalize_text, sha256
@@ -51,10 +64,12 @@ class DocumentProcessor:
         self.case_analyzer = CaseAnalyzer(self.knowledge_graph, self.deepseek)
         # Initialize quote extractor for entity quotes
         self.quote_extractor = QuoteExtractor(self.deepseek)
+        # Initialize entity service for consistent entity extraction and canonicalization
+        self.entity_service = EntityService(self.deepseek, self.knowledge_graph)
 
     async def ingest_document(
         self, text: str, metadata: SourceMetadata, force_reprocess: bool = False
-    ) -> Dict:
+    ) -> dict:
         """Ingest a document and extract entities and relationships.
 
         Args:
@@ -106,10 +121,10 @@ class DocumentProcessor:
                 self.logger.debug(f"Error checking existing source: {e}")
 
         # Step 0.5: Register source + prepare chunks (now for Qdrant only)
-        chunk_ids: List[str] = []
-        chunk_docs: List[Dict] = []
-        source_id: Optional[str] = None
-        blob_id: Optional[str] = None
+        chunk_ids: list[str] = []
+        chunk_docs: list[dict] = []
+        source_id: str | None = None
+        blob_id: str | None = None
         try:
             reg = self.knowledge_graph.register_source_with_text(
                 locator=locator,
@@ -126,12 +141,19 @@ class DocumentProcessor:
         except Exception as e:
             self.logger.debug(f"register_source_with_text failed: {e}")
 
-        # Step 1: Extract entities and relationships using LLM
+        # Step 1: Extract entities and relationships using LLM (Pass 1: explicit)
         entities, relationships = await self._extract_structured_data(text, metadata)
 
         # Step 2: Deduplicate entities and update relationship references
         entities, relationship_map = self._deduplicate_entities(entities)
         relationships = self._update_relationship_references(relationships, relationship_map)
+        
+        # Step 2.25: Infer additional relationships (Pass 2: implicit)
+        inferred_relationships = self._infer_relationships(entities, relationships)
+        self.logger.info(
+            f"Inferred {len(inferred_relationships)} additional relationships from entity patterns"
+        )
+        relationships.extend(inferred_relationships)
 
         # Step 2.5: Semantic merge with existing KG (token/Jaccard similarity on name/description)
         external_merge_map = await self._semantic_merge_entities(entities)
@@ -459,8 +481,8 @@ class DocumentProcessor:
         }
 
     async def _enrich_chunks_metadata_batch(
-        self, chunk_texts: List[str], doc_title: str, entity_ids: List[str], batch_size: int = 5
-    ) -> List[Dict[str, str]]:
+        self, chunk_texts: list[str], doc_title: str, entity_ids: list[str], batch_size: int = 5
+    ) -> list[dict[str, str]]:
         """Enrich chunks with LLM-generated metadata in batches."""
         enriched = []
 
@@ -502,7 +524,7 @@ Ensure array has exactly {len(batch)} objects."""
                     else:
                         # Fallback for batch
                         self.logger.warning(
-                            f"Batch enrichment returned wrong length, using defaults"
+                            "Batch enrichment returned wrong length, using defaults"
                         )
                         enriched.extend(
                             [{"description": "", "proves": "", "references": ""} for _ in batch]
@@ -523,7 +545,7 @@ Ensure array has exactly {len(batch)} objects."""
 
     async def _process_chunk(
         self, chunk: str, chunk_num: int, total_chunks: int, metadata: SourceMetadata
-    ) -> Tuple[List[LegalEntity], List[Dict]]:
+    ) -> tuple[list[LegalEntity], list[dict]]:
         """Process a single chunk of text."""
         self.logger.info(f"Processing chunk {chunk_num}/{total_chunks}")
 
@@ -577,12 +599,18 @@ Ensure array has exactly {len(batch)} objects."""
             "- Description\n"
             "- Jurisdiction (e.g., 'NYC', 'California', 'Federal', '9th Circuit', 'New York State', 'Los Angeles')\n"
             "- Relevant attributes (dates, amounts, status, etc.)\n"
+            "- Supporting quote: A direct quote from the text (1-3 sentences) that best describes or defines this entity\n"
             f"- Source reference: {metadata.source}\n\n"
             "For each relationship, include:\n"
             "- Source entity name (must match an entity name exactly)\n"
             "- Target entity name (must match an entity name exactly)\n"
             f"- Type (must be one of: [{rel_types_list}])\n"
             "- Attributes (conditions, weight, etc.)\n\n"
+            "IMPORTANT: For each entity's supporting_quote, extract the most relevant sentence(s) from the actual text that:\n"
+            "- Directly mentions, defines, or explains the entity\n"
+            "- Is a complete, grammatically correct sentence\n"
+            "- Is 1-3 sentences long (prefer shorter)\n"
+            "- Provides clear context about what the entity is or does\n\n"
             "Return a JSON object with this structure:\n"
             "{\n"
             '    "entities": [\n'
@@ -591,6 +619,7 @@ Ensure array has exactly {len(batch)} objects."""
             '            "name": "Entity name",\n'
             '            "description": "Brief description",\n'
             '            "jurisdiction": "Applicable jurisdiction",\n'
+            '            "supporting_quote": "Direct quote from the text that best describes this entity (1-3 sentences)",\n'
             '            "attributes": {\n'
             "                // Type-specific attributes\n"
             "            }\n"
@@ -617,11 +646,11 @@ Ensure array has exactly {len(batch)} objects."""
                     response = await self.deepseek.chat_completion(prompt)
                     break
                 except Exception as e:
-                    self.logger.error(f"Error in chat completion: {str(e)}", exc_info=True)
+                    self.logger.error(f"Error in chat completion: {e!s}", exc_info=True)
                     if attempt == max_retries - 1:
                         raise
                     self.logger.warning(
-                        f"Attempt {attempt + 1} failed, retrying... Error: {str(e)}"
+                        f"Attempt {attempt + 1} failed, retrying... Error: {e!s}"
                     )
                     continue
 
@@ -687,6 +716,17 @@ Ensure array has exactly {len(batch)} objects."""
                     if jurisdiction:
                         attributes["jurisdiction"] = str(jurisdiction)
                     
+                    # Extract supporting quote from LLM response
+                    supporting_quote_text = entity_data.get("supporting_quote", "")
+                    best_quote = None
+                    if supporting_quote_text and supporting_quote_text.strip():
+                        best_quote = {
+                            "text": supporting_quote_text.strip(),
+                            "source_id": None,  # Will be set later when we have source_id
+                            "chunk_id": None,   # Will be set later when we have chunk_id
+                            "explanation": f"This quote describes {entity_data['name']}."
+                        }
+                    
                     entity = LegalEntity(
                         id=entity_id,
                         entity_type=entity_type,
@@ -694,6 +734,8 @@ Ensure array has exactly {len(batch)} objects."""
                         description=entity_data.get("description"),
                         attributes=attributes,
                         source_metadata=metadata,
+                        best_quote=best_quote,
+                        all_quotes=[best_quote] if best_quote else [],
                     )
                     chunk_entities.append(entity)
                 except Exception as e:
@@ -708,8 +750,71 @@ Ensure array has exactly {len(batch)} objects."""
 
     async def _extract_structured_data(
         self, text: str, metadata: SourceMetadata
-    ) -> Tuple[List[LegalEntity], List[LegalRelationship]]:
-        """Extract structured data from text using LLM."""
+    ) -> tuple[list[LegalEntity], list[LegalRelationship]]:
+        """Extract structured data from text using EntityService for consistent canonicalization."""
+        # Split text into larger chunks (approximately 8000 characters per chunk)
+        chunks = self._split_text_into_chunks(text, 8000)
+        self.logger.info(f"Split text into {len(chunks)} chunks")
+
+        # Use EntityService for extraction (provides canonicalization)
+        all_entities = []
+        all_relationships = []
+        
+        for i, chunk in enumerate(chunks):
+            self.logger.info(f"Processing chunk {i+1}/{len(chunks)} with EntityService")
+            try:
+                chunk_entities, chunk_rels = await self.entity_service.extract_entities_from_text(
+                    chunk, metadata=metadata, context="ingestion"
+                )
+                all_entities.extend(chunk_entities)
+                all_relationships.extend(chunk_rels)
+            except Exception as e:
+                self.logger.error(f"Entity extraction failed for chunk {i+1}: {e}", exc_info=True)
+        
+        # Convert raw relationship dicts to LegalRelationship objects
+        relationship_objects = []
+        entity_map = {e.name: e for e in all_entities}
+        
+        for rel_data in all_relationships:
+            try:
+                source_name = rel_data.get("source_id")
+                target_name = rel_data.get("target_id")
+                rel_type_str = rel_data.get("type")
+                
+                # Find entities by name
+                source_entity = entity_map.get(source_name)
+                target_entity = entity_map.get(target_name)
+                
+                if not source_entity or not target_entity:
+                    continue
+                
+                # Parse relationship type
+                try:
+                    rel_type = RelationshipType[rel_type_str]
+                except (KeyError, ValueError):
+                    self.logger.warning(f"Invalid relationship type: {rel_type_str}")
+                    continue
+                
+                relationship = LegalRelationship(
+                    source_id=source_entity.id,
+                    target_id=target_entity.id,
+                    relationship_type=rel_type,
+                    attributes=rel_data.get("attributes", {})
+                )
+                relationship_objects.append(relationship)
+            except Exception as e:
+                self.logger.error(f"Error creating relationship: {e}")
+        
+        self.logger.info(
+            f"Extracted {len(all_entities)} entities and {len(relationship_objects)} relationships using EntityService"
+        )
+        
+        return all_entities, relationship_objects
+
+    async def _extract_structured_data_legacy(
+        self, text: str, metadata: SourceMetadata
+    ) -> tuple[list[LegalEntity], list[LegalRelationship]]:
+        """Legacy extraction method - kept for reference."""
         # Split text into larger chunks (approximately 8000 characters per chunk)
         chunks = self._split_text_into_chunks(text, 8000)
         self.logger.info(f"Split text into {len(chunks)} chunks")
@@ -800,7 +905,7 @@ Ensure array has exactly {len(batch)} objects."""
 
         return all_entities, all_relationships
 
-    def _split_text_into_chunks(self, text: str, chunk_size: int) -> List[str]:
+    def _split_text_into_chunks(self, text: str, chunk_size: int) -> list[str]:
         """Split text into chunks of approximately chunk_size characters."""
         # Split on paragraph boundaries
         paragraphs = text.split("\n\n")
@@ -847,14 +952,14 @@ Ensure array has exactly {len(batch)} objects."""
         return f"{entity_type.value}:{hash_digest}"
 
     def _deduplicate_entities(
-        self, entities: List[LegalEntity]
-    ) -> Tuple[List[LegalEntity], Dict[str, str]]:
+        self, entities: list[LegalEntity]
+    ) -> tuple[list[LegalEntity], dict[str, str]]:
         """
         Deduplicate entities based on type, name, and key attributes.
         Returns deduplicated entities and a mapping of old IDs to new IDs.
         """
         # Group entities by type and name
-        entity_groups: Dict[Tuple[str, str], List[LegalEntity]] = {}
+        entity_groups: dict[tuple[str, str], list[LegalEntity]] = {}
         for entity in entities:
             key = (entity.entity_type, entity.name.lower())
             if key not in entity_groups:
@@ -898,8 +1003,8 @@ Ensure array has exactly {len(batch)} objects."""
         return deduplicated_entities, relationship_map
 
     def _update_relationship_references(
-        self, relationships: List[LegalRelationship], relationship_map: Dict[str, str]
-    ) -> List[LegalRelationship]:
+        self, relationships: list[LegalRelationship], relationship_map: dict[str, str]
+    ) -> list[LegalRelationship]:
         """Update relationship source and target IDs based on the relationship map."""
         updated_relationships = []
         for relationship in relationships:
@@ -922,7 +1027,125 @@ Ensure array has exactly {len(batch)} objects."""
 
         return updated_relationships
 
-    def _get_all_entities(self) -> List[LegalEntity]:
+    def _infer_relationships(
+        self, 
+        entities: list[LegalEntity], 
+        existing_relationships: list[LegalRelationship]
+    ) -> list[LegalRelationship]:
+        """
+        Infer additional relationships based on entity type patterns.
+        
+        This is Pass 2 of relationship extraction - finding implicit relationships
+        that the LLM might have missed based on common legal patterns.
+        
+        Args:
+            entities: List of entities extracted from document
+            existing_relationships: Relationships already extracted (to avoid duplicates)
+            
+        Returns:
+            List of inferred relationships
+        """
+        inferred = []
+        
+        # Build entity lookup by ID and type
+        entity_by_id = {e.id: e for e in entities}
+        entities_by_type = {}
+        for e in entities:
+            if e.entity_type not in entities_by_type:
+                entities_by_type[e.entity_type] = []
+            entities_by_type[e.entity_type].append(e)
+        
+        # Build set of existing relationship pairs to avoid duplicates
+        existing_pairs = {
+            (rel.source_id, rel.target_id, rel.relationship_type.value)
+            for rel in existing_relationships
+        }
+        
+        # Apply inference rules
+        for (source_type, target_type), rel_type in RELATIONSHIP_INFERENCE_RULES.items():
+            source_entities = entities_by_type.get(source_type, [])
+            target_entities = entities_by_type.get(target_type, [])
+            
+            if not source_entities or not target_entities:
+                continue
+            
+            # For each source-target pair of these types, check if we should infer a relationship
+            for source_entity in source_entities:
+                for target_entity in target_entities:
+                    # Check if relationship already exists
+                    pair_key = (source_entity.id, target_entity.id, rel_type.value)
+                    if pair_key in existing_pairs:
+                        continue
+                    
+                    # Infer relationship if entities are contextually related
+                    if self._should_infer_relationship(source_entity, target_entity, source_type, target_type):
+                        inferred_rel = LegalRelationship(
+                            source_id=source_entity.id,
+                            target_id=target_entity.id,
+                            relationship_type=rel_type,
+                            attributes={"inferred": True, "confidence": "medium"}
+                        )
+                        inferred.append(inferred_rel)
+                        existing_pairs.add(pair_key)  # Mark as added
+                        
+                        self.logger.debug(
+                            f"Inferred relationship: {source_entity.name} --{rel_type.value}--> {target_entity.name}"
+                        )
+        
+        return inferred
+
+    def _should_infer_relationship(
+        self, 
+        source_entity: LegalEntity, 
+        target_entity: LegalEntity,
+        source_type: EntityType,
+        target_type: EntityType
+    ) -> bool:
+        """
+        Determine if we should infer a relationship between two entities.
+        
+        Uses heuristics like:
+        - Name/description overlap
+        - Jurisdiction match
+        - Contextual keywords
+        """
+        # Check for name/description overlap (token-based)
+        source_text = f"{source_entity.name} {source_entity.description or ''}".lower()
+        target_text = f"{target_entity.name} {target_entity.description or ''}".lower()
+        
+        # Extract meaningful tokens
+        source_tokens = set(self._normalize_tokens(source_text))
+        target_tokens = set(self._normalize_tokens(target_text))
+        
+        # If there's significant token overlap, likely related
+        overlap = 0
+        if source_tokens and target_tokens:
+            overlap = len(source_tokens & target_tokens)
+            if overlap >= 2:  # At least 2 shared meaningful tokens
+                return True
+        
+        # Check for jurisdiction match (same jurisdiction suggests relevance)
+        source_juris = self._get_entity_jurisdiction(source_entity)
+        target_juris = self._get_entity_jurisdiction(target_entity)
+        
+        if source_juris and target_juris:
+            if source_juris.lower() == target_juris.lower():
+                # Same jurisdiction + matching types = likely related
+                # But be conservative - only infer if there's at least 1 token overlap
+                if overlap >= 1:
+                    return True
+        
+        return False
+    
+    def _get_entity_jurisdiction(self, entity: LegalEntity) -> Optional[str]:
+        """Extract jurisdiction from entity."""
+        if entity.attributes and "jurisdiction" in entity.attributes:
+            return entity.attributes["jurisdiction"]
+        if hasattr(entity.source_metadata, "jurisdiction") and entity.source_metadata.jurisdiction:
+            return entity.source_metadata.jurisdiction
+        return None
+
+    def _get_all_entities(self) -> list[LegalEntity]:
         """Get all entities from the knowledge graph for concept grouping."""
         all_entities = []
 
@@ -951,7 +1174,7 @@ Ensure array has exactly {len(batch)} objects."""
 
         return all_entities
 
-    def _document_to_entity(self, doc: Dict, entity_type: EntityType) -> Optional[LegalEntity]:
+    def _document_to_entity(self, doc: dict, entity_type: EntityType) -> LegalEntity | None:
         """Convert ArangoDB document back to LegalEntity object."""
         try:
             # Extract source metadata
@@ -959,7 +1182,7 @@ Ensure array has exactly {len(batch)} objects."""
 
             # Convert datetime strings back to datetime objects if needed
             for field in ["created_at", "processed_at", "last_updated"]:
-                if field in source_metadata and source_metadata[field]:
+                if source_metadata.get(field):
                     if isinstance(source_metadata[field], str):
                         try:
                             source_metadata[field] = datetime.fromisoformat(source_metadata[field])
@@ -1056,7 +1279,7 @@ Ensure array has exactly {len(batch)} objects."""
             self.logger.warning(f"Error converting document to entity: {e}")
             return None
 
-    def _normalize_tokens(self, text: Optional[str]) -> List[str]:
+    def _normalize_tokens(self, text: str | None) -> list[str]:
         if not text:
             return []
         try:
@@ -1095,7 +1318,7 @@ Ensure array has exactly {len(batch)} objects."""
         except Exception:
             return []
 
-    def _jaccard(self, a: List[str], b: List[str]) -> float:
+    def _jaccard(self, a: list[str], b: list[str]) -> float:
         if not a or not b:
             return 0.0
         sa, sb = set(a), set(b)
@@ -1106,7 +1329,7 @@ Ensure array has exactly {len(batch)} objects."""
         return inter / union if union else 0.0
 
     def _similarity_score(
-        self, e_name: str, e_desc: Optional[str], c_name: str, c_desc: Optional[str]
+        self, e_name: str, e_desc: str | None, c_name: str, c_desc: str | None
     ) -> float:
         if not e_name or not c_name:
             return 0.0
@@ -1119,12 +1342,12 @@ Ensure array has exactly {len(batch)} objects."""
         # Weight names more, but include descriptions meaningfully
         return 0.6 * name_sim + 0.4 * desc_sim
 
-    async def _semantic_merge_entities(self, entities: List[LegalEntity]) -> Dict[str, str]:
+    async def _semantic_merge_entities(self, entities: list[LegalEntity]) -> dict[str, str]:
         """Try to map each incoming entity to an existing KG id using semantic similarity.
         Returns a map of incoming_id -> existing_id.
         """
-        merge_map: Dict[str, str] = {}
-        borderline_cases: List[Dict] = []  # collect for one LLM batch
+        merge_map: dict[str, str] = {}
+        borderline_cases: list[dict] = []  # collect for one LLM batch
         for ent in entities:
             try:
                 # Limit search to same type for precision
@@ -1299,7 +1522,7 @@ Ensure array has exactly {len(batch)} objects."""
         case_analysis_results, 
         metadata: SourceMetadata, 
         source_id: str
-    ) -> List[LegalEntity]:
+    ) -> list[LegalEntity]:
         """Extract additional entities from case analysis results."""
         entities = []
         
@@ -1367,8 +1590,8 @@ Ensure array has exactly {len(batch)} objects."""
     def _merge_entity_sources(
         self,
         existing_entity: LegalEntity,
-        new_quote: Dict[str, str],
-        new_chunk_ids: List[str],
+        new_quote: dict[str, str],
+        new_chunk_ids: list[str],
         new_source_id: str
     ) -> LegalEntity:
         """

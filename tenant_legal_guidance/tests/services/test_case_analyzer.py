@@ -8,7 +8,6 @@ These tests demonstrate:
 4. Proof chain construction
 """
 
-from typing import Dict, List
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest

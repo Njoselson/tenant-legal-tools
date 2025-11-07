@@ -4,10 +4,9 @@ Main system class for the Tenant Legal Guidance System.
 
 import logging
 from pathlib import Path
-from typing import Dict, Optional
 
 from tenant_legal_guidance.graph.arango_graph import ArangoDBGraph
-from tenant_legal_guidance.models.entities import SourceMetadata, SourceType
+from tenant_legal_guidance.models.entities import SourceMetadata
 from tenant_legal_guidance.services.deepseek import DeepSeekClient
 from tenant_legal_guidance.services.document_processor import DocumentProcessor
 from tenant_legal_guidance.services.resource_processor import LegalResourceProcessor
@@ -38,7 +37,7 @@ class TenantLegalSystem:
 
     async def ingest_legal_source(
         self, text: str, metadata: SourceMetadata, force_reprocess: bool = False
-    ) -> Dict:
+    ) -> dict:
         """Ingest a legal source and add it to the knowledge graph.
 
         Args:
@@ -60,11 +59,11 @@ class TenantLegalSystem:
 
     async def ingest_from_source(
         self,
-        text: Optional[str] = None,
-        url: Optional[str] = None,
+        text: str | None = None,
+        url: str | None = None,
         metadata: SourceMetadata = None,
         force_reprocess: bool = False
-    ) -> Dict:
+    ) -> dict:
         """Ingest from text or URL (with PDF/web scraping).
         
         Args:
@@ -90,7 +89,7 @@ class TenantLegalSystem:
             try:
                 text = resource_processor.scrape_text_from_pdf(url)
             except Exception as e:
-                self.logger.info(f"URL is not a PDF, falling back to web scraping: {str(e)}")
+                self.logger.info(f"URL is not a PDF, falling back to web scraping: {e!s}")
                 text = None
             
             # If PDF scraping failed or returned no text, try web scraping

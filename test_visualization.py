@@ -13,6 +13,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 from tenant_legal_guidance.graph.arango_graph import ArangoDBGraph
 from tenant_legal_guidance.services.vector_store import QdrantVectorStore
 
+
 def main():
     print("=== Testing Quote & Chunk Linkage ===\n")
     
@@ -61,7 +62,7 @@ def main():
             try:
                 chunk = vs.client.retrieve("legal_chunks", ids=[chunk_id])
                 if chunk:
-                    print(f"✓ Successfully retrieved chunk")
+                    print("✓ Successfully retrieved chunk")
                     print(f"  Text preview: {chunk.get('text', '')[:100]}...")
                     print(f"  Entities in chunk: {len(chunk.get('entities', []))}")
             except Exception as e:
@@ -82,10 +83,10 @@ def main():
                     entities_in_chunk = chunk.get('entities', [])
                     entity_id = sample.get('_key')
                     if entity_id in entities_in_chunk:
-                        print(f"✓ Bidirectional linkage verified!")
+                        print("✓ Bidirectional linkage verified!")
                         print(f"  Entity {entity_id} ↔ Chunk {test_chunk_id}")
                     else:
-                        print(f"✗ Missing bidirectional link")
+                        print("✗ Missing bidirectional link")
                         print(f"  Entity ID {entity_id} not in chunk's entities list")
             except Exception as e:
                 print(f"✗ Failed to verify linkage: {e}")

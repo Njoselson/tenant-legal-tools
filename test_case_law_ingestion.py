@@ -7,12 +7,16 @@ import logging
 from datetime import datetime
 
 from tenant_legal_guidance.graph.arango_graph import ArangoDBGraph
-from tenant_legal_guidance.models.entities import LegalDocumentType, SourceAuthority, SourceMetadata, SourceType
+from tenant_legal_guidance.models.entities import (
+    LegalDocumentType,
+    SourceAuthority,
+    SourceMetadata,
+    SourceType,
+)
 from tenant_legal_guidance.services.case_law_retriever import CaseLawRetriever
 from tenant_legal_guidance.services.deepseek import DeepSeekClient
 from tenant_legal_guidance.services.document_processor import DocumentProcessor
 from tenant_legal_guidance.services.retrieval import HybridRetriever
-
 
 # Sample court opinion text
 SAMPLE_CASE_TEXT = """
@@ -116,7 +120,7 @@ async def test_case_law_ingestion():
             force_reprocess=True
         )
         
-        logger.info(f"✅ Document ingestion completed:")
+        logger.info("✅ Document ingestion completed:")
         logger.info(f"   - Added entities: {result['added_entities']}")
         logger.info(f"   - Added relationships: {result['added_relationships']}")
         logger.info(f"   - Chunk count: {result['chunk_count']}")
@@ -192,8 +196,8 @@ async def test_case_law_ingestion():
         logger.info(f"   ✅ {result['added_relationships']} relationships created")
         logger.info(f"   ✅ Case document entity created: {result['case_document'].case_name if result['case_document'] else 'None'}")
         logger.info(f"   ✅ Case analysis with proof chains: {len(result['case_analysis'].proof_chains) if result['case_analysis'] else 0}")
-        logger.info(f"   ✅ All retrieval methods working")
-        logger.info(f"   ✅ Context expansion functional")
+        logger.info("   ✅ All retrieval methods working")
+        logger.info("   ✅ Context expansion functional")
         
         return True
         

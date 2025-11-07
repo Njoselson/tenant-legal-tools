@@ -4,6 +4,7 @@ Document processing service for the Tenant Legal Guidance System.
 
 import asyncio
 import hashlib
+import hashlib
 import json
 import logging
 import re

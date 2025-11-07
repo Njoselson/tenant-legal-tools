@@ -61,6 +61,7 @@ from tenant_legal_guidance.models.metadata_schemas import (
 )
 from tenant_legal_guidance.services.resource_processor import LegalResourceProcessor
 from tenant_legal_guidance.services.tenant_system import TenantLegalSystem
+from tenant_legal_guidance.utils.text import canonicalize_text, sha256
 
 
 class IngestionCheckpoint:
@@ -196,8 +197,8 @@ def archive_text(text: str, archive_dir: Path, knowledge_graph: Any) -> str:
     Returns:
         SHA256 hash of the text
     """
-    canon = knowledge_graph._canonicalize_text(text)
-    sha = knowledge_graph._sha256(canon)
+    canon = canonicalize_text(text)
+    sha = sha256(canon)
 
     archive_path = archive_dir / f"{sha}.txt"
     if not archive_path.exists():

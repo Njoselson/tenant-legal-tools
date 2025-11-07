@@ -89,45 +89,35 @@ class MetadataTemplate(BaseModel):
 # Predefined metadata templates for common source types
 
 TEMPLATES = {
+    "court_opinion": MetadataTemplate(  # NEW
+        authority=SourceAuthority.BINDING_LEGAL_AUTHORITY,
+        document_type=LegalDocumentType.COURT_OPINION,
+        tags=["case_law", "court_opinion", "precedent"],
+    ),
     "statute": MetadataTemplate(
         authority=SourceAuthority.BINDING_LEGAL_AUTHORITY,
         document_type=LegalDocumentType.STATUTE,
         tags=["statute", "binding_law"],
     ),
-    "regulation": MetadataTemplate(
-        authority=SourceAuthority.BINDING_LEGAL_AUTHORITY,
-        document_type=LegalDocumentType.REGULATION,
-        tags=["regulation", "administrative_law"],
-    ),
-    "case_law": MetadataTemplate(
-        authority=SourceAuthority.BINDING_LEGAL_AUTHORITY,
-        document_type=LegalDocumentType.CASE_LAW,
-        tags=["case_law", "precedent"],
-    ),
-    "agency_guidance": MetadataTemplate(
-        authority=SourceAuthority.OFFICIAL_INTERPRETIVE,
-        document_type=LegalDocumentType.AGENCY_GUIDANCE,
-        tags=["guidance", "administrative"],
-    ),
-    "self_help_guide": MetadataTemplate(
+    "legal_guide": MetadataTemplate(
         authority=SourceAuthority.PRACTICAL_SELF_HELP,
-        document_type=LegalDocumentType.SELF_HELP_GUIDE,
-        tags=["self_help", "guide"],
+        document_type=LegalDocumentType.LEGAL_GUIDE,
+        tags=["guide", "self_help"],
     ),
-    "tenant_union": MetadataTemplate(
+    "tenant_handbook": MetadataTemplate(
         authority=SourceAuthority.PRACTICAL_SELF_HELP,
-        document_type=LegalDocumentType.SELF_HELP_GUIDE,
-        tags=["tenant_union", "organizing", "advocacy"],
+        document_type=LegalDocumentType.TENANT_HANDBOOK,
+        tags=["handbook", "tenant_rights"],
     ),
-    "legal_aid": MetadataTemplate(
-        authority=SourceAuthority.INFORMATIONAL_ONLY,
-        document_type=LegalDocumentType.SELF_HELP_GUIDE,
-        tags=["legal_aid", "informational"],
-    ),
-    "treatise": MetadataTemplate(
+    "legal_memo": MetadataTemplate(
         authority=SourceAuthority.PERSUASIVE_AUTHORITY,
-        document_type=LegalDocumentType.TREATISE,
-        tags=["treatise", "secondary_source"],
+        document_type=LegalDocumentType.LEGAL_MEMO,
+        tags=["memo", "analysis"],
+    ),
+    "advocacy_document": MetadataTemplate(
+        authority=SourceAuthority.INFORMATIONAL_ONLY,
+        document_type=LegalDocumentType.ADVOCACY_DOCUMENT,
+        tags=["advocacy", "policy"],
     ),
 }
 
@@ -135,23 +125,32 @@ TEMPLATES = {
 # URL pattern-based metadata detection
 
 URL_PATTERNS = [
+    # Court opinions (NEW)
+    (
+        r"courtlistener\.com|casetext\.com|law\.justia\.com/cases",
+        {
+            "authority": SourceAuthority.BINDING_LEGAL_AUTHORITY,
+            "document_type": LegalDocumentType.COURT_OPINION,
+            "tags": ["court_opinion", "case_law"],
+        },
+    ),
+    (
+        r"nycourts\.gov/.*decisions|courts\.state\.ny\.us/.*decisions",
+        {
+            "authority": SourceAuthority.BINDING_LEGAL_AUTHORITY,
+            "document_type": LegalDocumentType.COURT_OPINION,
+            "jurisdiction": "New York State",
+            "tags": ["ny_court", "court_opinion"],
+        },
+    ),
     # Federal/State courts
     (
         r"uscourts\.gov|supremecourt\.gov",
         {
             "authority": SourceAuthority.BINDING_LEGAL_AUTHORITY,
-            "document_type": LegalDocumentType.CASE_LAW,
+            "document_type": LegalDocumentType.COURT_OPINION,
             "jurisdiction": "Federal",
             "tags": ["federal_court"],
-        },
-    ),
-    (
-        r"nycourts\.gov",
-        {
-            "authority": SourceAuthority.BINDING_LEGAL_AUTHORITY,
-            "document_type": LegalDocumentType.CASE_LAW,
-            "jurisdiction": "New York State",
-            "tags": ["ny_court"],
         },
     ),
     # Government agencies
@@ -159,7 +158,7 @@ URL_PATTERNS = [
         r"hud\.gov",
         {
             "authority": SourceAuthority.OFFICIAL_INTERPRETIVE,
-            "document_type": LegalDocumentType.AGENCY_GUIDANCE,
+            "document_type": LegalDocumentType.LEGAL_GUIDE,
             "jurisdiction": "Federal",
             "organization": "HUD",
             "tags": ["federal_agency", "hud"],
@@ -188,6 +187,7 @@ URL_PATTERNS = [
         r"crownheightstenantunion\.org",
         {
             "authority": SourceAuthority.PRACTICAL_SELF_HELP,
+            "document_type": LegalDocumentType.TENANT_HANDBOOK,
             "jurisdiction": "NYC",
             "organization": "Crown Heights Tenant Union",
             "tags": ["tenant_union", "organizing", "crown_heights"],
@@ -197,6 +197,7 @@ URL_PATTERNS = [
         r"metcouncilonhousing\.org",
         {
             "authority": SourceAuthority.PRACTICAL_SELF_HELP,
+            "document_type": LegalDocumentType.TENANT_HANDBOOK,
             "jurisdiction": "NYC",
             "organization": "Met Council on Housing",
             "tags": ["tenant_advocacy", "legal_aid"],
@@ -207,6 +208,7 @@ URL_PATTERNS = [
         r"lawhelp\.org|legalaidnyc\.org",
         {
             "authority": SourceAuthority.INFORMATIONAL_ONLY,
+            "document_type": LegalDocumentType.LEGAL_GUIDE,
             "jurisdiction": "NYC",
             "tags": ["legal_aid", "informational"],
         },

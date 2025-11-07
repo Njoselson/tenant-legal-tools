@@ -460,7 +460,7 @@ class ArangoDBGraph:
             # Legal entities
             EntityType.LAW: "laws",
             EntityType.REMEDY: "remedies",
-            EntityType.COURT_CASE: "court_cases",
+            EntityType.CASE_DOCUMENT: "court_cases",  # Court cases are stored in court_cases collection
             EntityType.LEGAL_PROCEDURE: "legal_procedures",
             EntityType.DAMAGES: "damages",
             EntityType.LEGAL_CONCEPT: "legal_concepts",
@@ -491,10 +491,6 @@ class ArangoDBGraph:
     def _get_collection_for_relationship(self, relationship_type: RelationshipType) -> str:
         """Get the collection name for a relationship type."""
         return relationship_type.name.lower()
-
-    # --- Text chunk storage: REMOVED (now in Qdrant) ---
-    # Chunks are stored exclusively in Qdrant vector DB with embeddings
-    # Provenance links entities to chunks via quotes (offset-based) and Qdrant point IDs
 
     # --- Normalized text + provenance APIs ---
 
@@ -1400,7 +1396,7 @@ class ArangoDBGraph:
                 mapping = {
                     "law": EntityType.LAW,
                     "remedy": EntityType.REMEDY,
-                    "court_case": EntityType.COURT_CASE,
+                    "court_case": EntityType.CASE_DOCUMENT,
                     "legal_procedure": EntityType.LEGAL_PROCEDURE,
                     "damages": EntityType.DAMAGES,
                     "legal_concept": EntityType.LEGAL_CONCEPT,

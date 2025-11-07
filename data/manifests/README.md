@@ -41,6 +41,41 @@ Each line in a manifest file should be a JSON object with the following structur
 - `tags`: Array of categorization tags
 - `notes`: Additional context or notes
 
+## Document Type Classification
+
+The `document_type` field determines how the document is processed:
+
+### Court Opinions (Creates CASE_DOCUMENT entity)
+- `COURT_OPINION`: Court decisions, opinions (extracts case metadata, parties, holdings)
+  - Example: "756 Liberty Realty LLC v Garcia.pdf"
+  - Triggers: Case name extraction, holdings, procedural history
+
+### Statutes & Regulations
+- `STATUTE`: Laws, codes (e.g., NYC Admin Code)
+
+### Guides & Handbooks  
+- `LEGAL_GUIDE`: General legal guides
+- `TENANT_HANDBOOK`: Tenant organization materials
+
+### Other Types
+- `LEGAL_MEMO`: Legal analysis memos
+- `ADVOCACY_DOCUMENT`: Policy papers, reports
+- `UNKNOWN`: Auto-detect (default)
+
+## Example: Ingesting Case Law
+
+```json
+{
+  "locator": "https://example.com/756_liberty_v_garcia.pdf",
+  "kind": "URL",
+  "title": "756 Liberty Realty LLC v Garcia",
+  "document_type": "COURT_OPINION",
+  "jurisdiction": "NYC",
+  "authority": "BINDING_LEGAL_AUTHORITY",
+  "tags": ["housing_court", "habitability", "rent_reduction"]
+}
+```
+
 ## Auto-Detection
 
 The ingestion system can automatically detect metadata based on URL patterns:

@@ -8,6 +8,7 @@ import json
 import logging
 import re
 from datetime import datetime
+from typing import Optional
 
 from tenant_legal_guidance.config import get_settings
 from tenant_legal_guidance.graph.arango_graph import ArangoDBGraph
@@ -19,20 +20,8 @@ from tenant_legal_guidance.models.entities import (
     SourceType,
 )
 from tenant_legal_guidance.models.relationships import LegalRelationship, RelationshipType
-
-# Relationship inference rules for common legal patterns
-RELATIONSHIP_INFERENCE_RULES = {
-    # (source_type, target_type): relationship_type
-    (EntityType.LAW, EntityType.TENANT_ISSUE): RelationshipType.APPLIES_TO,
-    (EntityType.LAW, EntityType.REMEDY): RelationshipType.ENABLES,
-    (EntityType.REMEDY, EntityType.DAMAGES): RelationshipType.AWARDS,
-    (EntityType.LAW, EntityType.EVIDENCE): RelationshipType.REQUIRES,
-    (EntityType.LAW, EntityType.DOCUMENT): RelationshipType.REQUIRES,
-    (EntityType.TENANT_ISSUE, EntityType.REMEDY): RelationshipType.APPLIES_TO,  # Issue can be resolved by remedy
-    (EntityType.REMEDY, EntityType.LEGAL_PROCEDURE): RelationshipType.AVAILABLE_VIA,
-    (EntityType.LEGAL_PROCEDURE, EntityType.LEGAL_OUTCOME): RelationshipType.ENABLES,
-    (EntityType.TENANT_ISSUE, EntityType.LAW): RelationshipType.VIOLATES,  # Reverse: issue violates law
-}
+from tenant_legal_guidance.constants import RELATIONSHIP_INFERENCE_RULES
+from tenant_legal_guidance.prompts import get_entity_extraction_prompt, get_chunk_enrichment_prompt
 from tenant_legal_guidance.services.case_analyzer import CaseAnalyzer
 from tenant_legal_guidance.services.case_metadata_extractor import CaseMetadataExtractor
 from tenant_legal_guidance.services.concept_grouping import ConceptGroupingService
@@ -178,59 +167,64 @@ class DocumentProcessor:
                 # ENTITY EXISTS - Add this source's info
                 self.logger.info(f"Entity {entity.id} exists, adding new source provenance")
                 
-                # Extract quote from NEW document with enriched chunks
-                # Include ALL chunks from this source for this entity (not just name matches)
-                enriched_chunks = []
-                for i, chunk in enumerate(chunk_docs):
-                    enriched_chunks.append({
-                        **chunk,
-                        "chunk_id": chunk_ids[i] if i < len(chunk_ids) else None,
-                        "source_id": source_id
-                    })
-                if enriched_chunks:
-                    # Filter chunks that mention entity name for quote extraction
-                    quote_chunks = [ch for ch in enriched_chunks if entity.name.lower() in ch.get("text", "").lower()]
-                    if quote_chunks:
-                        new_quote = await self.quote_extractor.extract_best_quote(entity, quote_chunks)
-                    else:
-                        # No exact name match, use first chunk as fallback
-                        new_quote = await self.quote_extractor.extract_best_quote(entity, enriched_chunks[:1])
-                    new_chunk_ids = [ch.get("chunk_id") for ch in enriched_chunks if ch.get("chunk_id")]
+                # Get the LLM-provided quote and update its metadata
+                new_quote = entity.best_quote
+                if new_quote:
+                    # Update quote with source and chunk information
+                    # Find the first chunk that contains this quote text (best effort)
+                    quote_chunk_id = None
+                    if chunk_ids and chunk_docs:
+                        for i, chunk in enumerate(chunk_docs):
+                            if new_quote["text"].lower() in chunk.get("text", "").lower():
+                                quote_chunk_id = chunk_ids[i]
+                                break
+                    # If not found, use first chunk as fallback
+                    if not quote_chunk_id and chunk_ids:
+                        quote_chunk_id = chunk_ids[0]
                     
-                    # Merge with existing entity
-                    updated_entity = self._merge_entity_sources(
-                        existing_entity=existing_entity,
-                        new_quote=new_quote,
-                        new_chunk_ids=new_chunk_ids,
-                        new_source_id=source_id or metadata.source
-                    )
-                    
-                    # Update entity in KG (overwrite=True)
-                    if self.knowledge_graph.add_entity(updated_entity, overwrite=True):
-                        added_entities.append(updated_entity)
-                        self.logger.info(f"Updated entity {entity.id} with multi-source data")
+                    new_quote["source_id"] = source_id
+                    new_quote["chunk_id"] = quote_chunk_id
+                
+                # All chunks belong to this entity
+                new_chunk_ids = [ch_id for ch_id in chunk_ids if ch_id]
+                
+                # Merge with existing entity
+                updated_entity = self._merge_entity_sources(
+                    existing_entity=existing_entity,
+                    new_quote=new_quote,
+                    new_chunk_ids=new_chunk_ids,
+                    new_source_id=source_id or metadata.source
+                )
+                
+                # Update entity in KG (overwrite=True)
+                if self.knowledge_graph.add_entity(updated_entity, overwrite=True):
+                    added_entities.append(updated_entity)
+                    self.logger.info(f"Updated entity {entity.id} with multi-source data")
             else:
                 # NEW ENTITY - First time seeing it
-                # Link entity to ALL chunks from this source (entity belongs to entire document)
-                enriched_chunks = []
-                for i, chunk in enumerate(chunk_docs):
-                    enriched_chunks.append({
-                        **chunk,
-                        "chunk_id": chunk_ids[i] if i < len(chunk_ids) else None,
-                        "source_id": source_id
-                    })
-                if enriched_chunks:
-                    # Filter chunks that mention entity name for quote extraction
-                    quote_chunks = [ch for ch in enriched_chunks if entity.name.lower() in ch.get("text", "").lower()]
-                    if quote_chunks:
-                        best_quote = await self.quote_extractor.extract_best_quote(entity, quote_chunks)
-                    else:
-                        # No exact name match, use first chunk as fallback
-                        best_quote = await self.quote_extractor.extract_best_quote(entity, enriched_chunks[:1])
+                # Get the LLM-provided quote and update its metadata
+                best_quote = entity.best_quote
+                if best_quote:
+                    # Update quote with source and chunk information
+                    # Find the first chunk that contains this quote text (best effort)
+                    quote_chunk_id = None
+                    if chunk_ids and chunk_docs:
+                        for i, chunk in enumerate(chunk_docs):
+                            if best_quote["text"].lower() in chunk.get("text", "").lower():
+                                quote_chunk_id = chunk_ids[i]
+                                break
+                    # If not found, use first chunk as fallback
+                    if not quote_chunk_id and chunk_ids:
+                        quote_chunk_id = chunk_ids[0]
+                    
+                    best_quote["source_id"] = source_id
+                    best_quote["chunk_id"] = quote_chunk_id
                     entity.best_quote = best_quote
                     entity.all_quotes = [best_quote]
-                    entity.chunk_ids = [ch.get("chunk_id") for ch in enriched_chunks if ch.get("chunk_id")]
-                    entity.source_ids = [source_id or metadata.source] if source_id or metadata.source else []
+                
+                # Link entity to ALL chunks from this source (entity belongs to entire document)
+                entity.chunk_ids = [ch_id for ch_id in chunk_ids if ch_id]
+                entity.source_ids = [source_id or metadata.source] if source_id or metadata.source else []
                 
                 # Add to KG (overwrite=False for new entities)
                 if self.knowledge_graph.add_entity(entity, overwrite=False):
@@ -490,28 +484,7 @@ class DocumentProcessor:
         for batch_start in range(0, len(chunk_texts), batch_size):
             batch_end = min(batch_start + batch_size, len(chunk_texts))
             batch = chunk_texts[batch_start:batch_end]
-
-            # Build prompt for batch
-            chunks_text = ""
-            for idx, chunk_text in enumerate(batch):
-                chunks_text += f"\n--- Chunk {batch_start + idx + 1} ---\n{chunk_text[:600]}...\n"
-
-            prompt = f"""Analyze these legal text chunks from "{doc_title}" and provide metadata for each.
-
-{chunks_text}
-
-For EACH chunk, provide:
-1. description: 1-sentence summary of what this chunk covers
-2. proves: What legal facts/claims this chunk establishes (or "N/A" if none)
-3. references: What laws/cases/entities it cites (or "N/A" if none)
-
-Return ONLY valid JSON array (no markdown):
-[
-  {{"description": "...", "proves": "...", "references": "..."}},
-  {{"description": "...", "proves": "...", "references": "..."}}
-]
-
-Ensure array has exactly {len(batch)} objects."""
+            prompt = get_chunk_enrichment_prompt(batch, doc_title)
 
             try:
                 response = await self.deepseek.chat_completion(prompt)
@@ -549,94 +522,7 @@ Ensure array has exactly {len(batch)} objects."""
         """Process a single chunk of text."""
         self.logger.info(f"Processing chunk {chunk_num}/{total_chunks}")
 
-        types_list = "|".join([e.name for e in EntityType])
-        rel_types_list = "|".join([r.name for r in RelationshipType])
-
-        prompt = (
-            "Analyze this legal text and extract structured information about tenants, buildings, issues, and legal concepts.\n\n"
-            f"Text: {chunk}\n"
-            f"Source: {metadata.source}\n"
-            f"Chunk: {chunk_num} of {total_chunks}\n\n"
-            "Extract the following information in JSON format:\n\n"
-            "1. Entities (must use these exact types):\n"
-            "   # Legal entities\n"
-            "   - LAW: Legal statutes, regulations, or case law\n"
-            "   - REMEDY: Available legal remedies or actions\n"
-            "   - COURT_CASE: Specific court cases and decisions\n"
-            "   - LEGAL_PROCEDURE: Court processes, administrative procedures\n"
-            "   - DAMAGES: Monetary compensation or penalties\n"
-            "   - LEGAL_CONCEPT: Legal concepts and principles\n\n"
-            "   # Organizing entities\n"
-            "   - TENANT_GROUP: Associations, unions, block groups\n"
-            "   - CAMPAIGN: Specific organizing campaigns\n"
-            "   - TACTIC: Rent strikes, protests, lobbying, direct action\n\n"
-            "   # Parties\n"
-            "   - TENANT: Individual or family tenants\n"
-            "   - LANDLORD: Property owners, management companies\n"
-            "   - LEGAL_SERVICE: Legal aid, attorneys, law firms\n"
-            "   - GOVERNMENT_ENTITY: Housing authorities, courts, agencies\n\n"
-            "   # Outcomes\n"
-            "   - LEGAL_OUTCOME: Court decisions, settlements, legal victories\n"
-            "   - ORGANIZING_OUTCOME: Policy changes, building wins, power building\n\n"
-            "   # Issues and events\n"
-            "   - TENANT_ISSUE: Housing problems, violations\n"
-            "   - EVENT: Specific incidents, violations, filings\n\n"
-            "   # Documentation and evidence\n"
-            "   - DOCUMENT: Legal documents, evidence\n"
-            "   - EVIDENCE: Proof, documentation\n\n"
-            "   # Geographic and jurisdictional\n"
-            "   - JURISDICTION: Geographic areas, court systems\n\n"
-            "2. Relationships (must use these exact types):\n"
-            "   - VIOLATES: When an ACTOR violates a LAW\n"
-            "   - ENABLES: When a LAW enables a REMEDY\n"
-            "   - AWARDS: When a REMEDY awards DAMAGES\n"
-            "   - APPLIES_TO: When a LAW applies to a TENANT_ISSUE\n"
-            "   - AVAILABLE_VIA: When a REMEDY is available via a LEGAL_PROCEDURE\n"
-            "   - REQUIRES: When a LAW requires EVIDENCE/DOCUMENT\n\n"
-            "For each entity, include:\n"
-            f"- Type (must be one of: [{types_list}])\n"
-            "- Name\n"
-            "- Description\n"
-            "- Jurisdiction (e.g., 'NYC', 'California', 'Federal', '9th Circuit', 'New York State', 'Los Angeles')\n"
-            "- Relevant attributes (dates, amounts, status, etc.)\n"
-            "- Supporting quote: A direct quote from the text (1-3 sentences) that best describes or defines this entity\n"
-            f"- Source reference: {metadata.source}\n\n"
-            "For each relationship, include:\n"
-            "- Source entity name (must match an entity name exactly)\n"
-            "- Target entity name (must match an entity name exactly)\n"
-            f"- Type (must be one of: [{rel_types_list}])\n"
-            "- Attributes (conditions, weight, etc.)\n\n"
-            "IMPORTANT: For each entity's supporting_quote, extract the most relevant sentence(s) from the actual text that:\n"
-            "- Directly mentions, defines, or explains the entity\n"
-            "- Is a complete, grammatically correct sentence\n"
-            "- Is 1-3 sentences long (prefer shorter)\n"
-            "- Provides clear context about what the entity is or does\n\n"
-            "Return a JSON object with this structure:\n"
-            "{\n"
-            '    "entities": [\n'
-            "        {\n"
-            '            "type": "LAW|REMEDY|COURT_CASE|LEGAL_PROCEDURE|DAMAGES|LEGAL_CONCEPT|TENANT_GROUP|CAMPAIGN|TACTIC|TENANT|LANDLORD|LEGAL_SERVICE|GOVERNMENT_ENTITY|LEGAL_OUTCOME|ORGANIZING_OUTCOME|TENANT_ISSUE|EVENT|DOCUMENT|EVIDENCE|JURISDICTION",\n'
-            '            "name": "Entity name",\n'
-            '            "description": "Brief description",\n'
-            '            "jurisdiction": "Applicable jurisdiction",\n'
-            '            "supporting_quote": "Direct quote from the text that best describes this entity (1-3 sentences)",\n'
-            '            "attributes": {\n'
-            "                // Type-specific attributes\n"
-            "            }\n"
-            "        }\n"
-            "    ],\n"
-            '    "relationships": [\n'
-            "        {\n"
-            '            "source_id": "source_entity_name",\n'
-            '            "target_id": "target_entity_name",\n'
-            '            "type": "VIOLATES|ENABLES|AWARDS|APPLIES_TO|AVAILABLE_VIA|REQUIRES",\n'
-            '            "attributes": {\n'
-            "                // Relationship attributes\n"
-            "            }\n"
-            "        }\n"
-            "    ]\n"
-            "}\n"
-        )
+        prompt = get_entity_extraction_prompt(chunk, metadata, chunk_num, total_chunks)
 
         try:
             # Get LLM response with retry logic
@@ -1137,7 +1023,7 @@ Ensure array has exactly {len(batch)} objects."""
         
         return False
     
-    def _get_entity_jurisdiction(self, entity: LegalEntity) -> Optional[str]:
+    def _get_entity_jurisdiction(self, entity: LegalEntity) -> str | None:
         """Extract jurisdiction from entity."""
         if entity.attributes and "jurisdiction" in entity.attributes:
             return entity.attributes["jurisdiction"]

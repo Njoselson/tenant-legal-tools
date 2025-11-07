@@ -7,7 +7,7 @@ metadata enrichment and validation.
 
 import re
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -24,13 +24,13 @@ class ManifestEntry(BaseModel):
 
     locator: str = Field(..., description="URL or file path to the source")
     kind: str = Field(default="URL", description="Source kind: URL, FILE, etc.")
-    title: Optional[str] = Field(None, description="Document title")
-    jurisdiction: Optional[str] = Field(None, description="Legal jurisdiction")
-    authority: Optional[str] = Field(None, description="Source authority level")
-    document_type: Optional[str] = Field(None, description="Legal document type")
-    organization: Optional[str] = Field(None, description="Publishing organization")
-    tags: List[str] = Field(default_factory=list, description="Custom tags")
-    notes: Optional[str] = Field(None, description="Additional notes")
+    title: str | None = Field(None, description="Document title")
+    jurisdiction: str | None = Field(None, description="Legal jurisdiction")
+    authority: str | None = Field(None, description="Source authority level")
+    document_type: str | None = Field(None, description="Legal document type")
+    organization: str | None = Field(None, description="Publishing organization")
+    tags: list[str] = Field(default_factory=list, description="Custom tags")
+    notes: str | None = Field(None, description="Additional notes")
 
     @field_validator("locator")
     @classmethod
@@ -42,7 +42,7 @@ class ManifestEntry(BaseModel):
 
     @field_validator("tags", mode="before")
     @classmethod
-    def validate_tags(cls, v: Any) -> List[str]:
+    def validate_tags(cls, v: Any) -> list[str]:
         """Ensure tags is a list."""
         if v is None:
             return []
@@ -57,13 +57,13 @@ class MetadataTemplate(BaseModel):
     """Base template for source metadata."""
 
     authority: SourceAuthority
-    document_type: Optional[LegalDocumentType] = None
-    jurisdiction: Optional[str] = None
-    organization: Optional[str] = None
-    tags: List[str] = Field(default_factory=list)
+    document_type: LegalDocumentType | None = None
+    jurisdiction: str | None = None
+    organization: str | None = None
+    tags: list[str] = Field(default_factory=list)
 
     def to_source_metadata(
-        self, source: str, title: Optional[str] = None, **kwargs
+        self, source: str, title: str | None = None, **kwargs
     ) -> SourceMetadata:
         """Convert template to SourceMetadata instance."""
         return SourceMetadata(
@@ -216,7 +216,7 @@ URL_PATTERNS = [
 ]
 
 
-def detect_metadata_from_url(url: str) -> Dict[str, Any]:
+def detect_metadata_from_url(url: str) -> dict[str, Any]:
     """
     Automatically detect metadata based on URL patterns.
 
@@ -341,7 +341,7 @@ def manifest_entry_to_source_metadata(entry: ManifestEntry) -> SourceMetadata:
     )
 
 
-def validate_metadata_completeness(metadata: SourceMetadata) -> List[str]:
+def validate_metadata_completeness(metadata: SourceMetadata) -> list[str]:
     """
     Validate that metadata has all recommended fields.
 

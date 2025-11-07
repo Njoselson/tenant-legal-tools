@@ -1,8 +1,6 @@
-import os
 from unittest.mock import MagicMock, patch
 
 import pytest
-from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 
 from tenant_legal_guidance import (
@@ -11,7 +9,6 @@ from tenant_legal_guidance import (
     InputType,
     LegalDocument,
     LegalEntity,
-    LegalRelationship,
     LegalResourceProcessor,
     RelationshipType,
     SourceType,

@@ -15,23 +15,14 @@ jobs:
         image: arangodb:latest
         env:
           ARANGO_ROOT_PASSWORD: test_password
+          ARANGO_NO_AUTH: "1"
         ports:
           - 8529:8529
-        options: >-
-          --health-cmd "curl -f http://localhost:8529/_api/version || exit 1"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
       
       qdrant:
         image: qdrant/qdrant:latest
         ports:
           - 6333:6333
-        options: >-
-          --health-cmd "curl -f http://localhost:6333/health || exit 1"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
     
     steps:
       - uses: actions/checkout@v3
@@ -45,7 +36,7 @@ jobs:
         run: uv python install 3.11
       
       - name: Install dependencies
-        run: uv sync --all-extras
+        run: uv sync --all-groups
       
       - name: Create .env for tests
         run: |
@@ -110,7 +101,7 @@ jobs:
         run: uv python install 3.11
       
       - name: Install dependencies
-        run: uv sync
+        run: uv sync --all-groups
       
       - name: Run ruff
         run: uv run ruff check .

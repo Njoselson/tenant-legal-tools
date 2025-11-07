@@ -3,18 +3,18 @@
 Case Analyzer Service - RAG-based legal analysis using knowledge graph
 """
 
-import asyncio
 import json
 import logging
 import re
-from dataclasses import asdict, dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from dataclasses import dataclass, field
+from typing import Any
 
 import markdown
 
 from tenant_legal_guidance.graph.arango_graph import ArangoDBGraph
 from tenant_legal_guidance.models.entities import EntityType, LegalEntity
 from tenant_legal_guidance.services.deepseek import DeepSeekClient
+from tenant_legal_guidance.services.entity_service import EntityService
 from tenant_legal_guidance.services.retrieval import HybridRetriever
 
 
@@ -23,13 +23,13 @@ class RemedyOption:
     """Represents a legal remedy with probability and requirements."""
 
     name: str
-    legal_basis: List[str]  # Laws that enable it
-    requirements: List[str]  # What's needed to pursue
+    legal_basis: list[str]  # Laws that enable it
+    requirements: list[str]  # What's needed to pursue
     estimated_probability: float  # 0-1 win probability
     potential_outcome: str  # "Up to 6 months rent reduction"
     authority_level: str  # binding_legal_authority, etc.
     jurisdiction_match: bool  # Does jurisdiction align?
-    sources: List[str] = field(default_factory=list)  # [S1, S2, ...]
+    sources: list[str] = field(default_factory=list)  # [S1, S2, ...]
     reasoning: str = ""
 
 
@@ -38,19 +38,19 @@ class LegalProofChain:
     """Represents a complete legal argument chain for an issue."""
 
     issue: str  # "Landlord harassment"
-    applicable_laws: List[Dict]  # [{"name": "RSC §26-504", "text": "...", "source": "S3"}]
-    evidence_present: List[str]  # What tenant has
-    evidence_needed: List[str]  # What's missing
+    applicable_laws: list[dict]  # [{"name": "RSC §26-504", "text": "...", "source": "S3"}]
+    evidence_present: list[str]  # What tenant has
+    evidence_needed: list[str]  # What's missing
     strength_score: float  # 0-1 based on evidence completeness
     strength_assessment: str  # "strong", "moderate", "weak"
-    remedies: List[RemedyOption] = field(default_factory=list)
-    next_steps: List[Dict] = field(
+    remedies: list[RemedyOption] = field(default_factory=list)
+    next_steps: list[dict] = field(
         default_factory=list
     )  # [{"step": "...", "priority": "high", "why": "..."}]
     reasoning: str = ""
-    graph_chains: List[Dict] = field(default_factory=list)  # Graph traversal results
-    legal_elements: List[Dict] = field(default_factory=list)  # Element breakdown
-    verification_status: Dict[str, bool] = field(default_factory=dict)  # Verification results
+    graph_chains: list[dict] = field(default_factory=list)  # Graph traversal results
+    legal_elements: list[dict] = field(default_factory=list)  # Element breakdown
+    verification_status: dict[str, bool] = field(default_factory=dict)  # Verification results
 
 
 @dataclass
@@ -58,21 +58,21 @@ class EnhancedLegalGuidance:
     """Enhanced structured legal guidance with proof chains."""
 
     case_summary: str
-    proof_chains: List[LegalProofChain]  # One per identified issue
+    proof_chains: list[LegalProofChain]  # One per identified issue
     overall_strength: str  # "Strong", "Moderate", "Weak"
-    priority_actions: List[Dict]  # Ranked by impact
+    priority_actions: list[dict]  # Ranked by impact
     risk_assessment: str
-    citations: Dict[str, Dict[str, Any]] = field(
+    citations: dict[str, dict[str, Any]] = field(
         default_factory=dict
     )  # S1, S2, etc. with full metadata
 
     # Keep backward compatibility
-    legal_issues: List[str] = field(default_factory=list)
-    relevant_laws: List[str] = field(default_factory=list)
-    recommended_actions: List[str] = field(default_factory=list)
-    evidence_needed: List[str] = field(default_factory=list)
-    legal_resources: List[str] = field(default_factory=list)
-    next_steps: List[str] = field(default_factory=list)
+    legal_issues: list[str] = field(default_factory=list)
+    relevant_laws: list[str] = field(default_factory=list)
+    recommended_actions: list[str] = field(default_factory=list)
+    evidence_needed: list[str] = field(default_factory=list)
+    legal_resources: list[str] = field(default_factory=list)
+    next_steps: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -80,16 +80,16 @@ class LegalGuidance:
     """Structured legal guidance for a tenant case (legacy compatibility)."""
 
     case_summary: str
-    legal_issues: List[str]
-    relevant_laws: List[str]
-    recommended_actions: List[str]
-    evidence_needed: List[str]
-    legal_resources: List[str]
+    legal_issues: list[str]
+    relevant_laws: list[str]
+    recommended_actions: list[str]
+    evidence_needed: list[str]
+    legal_resources: list[str]
     risk_assessment: str
-    next_steps: List[str]
+    next_steps: list[str]
     # Optional structured sections with citations and a citations map
-    sections: Optional[Dict[str, List[Dict[str, Any]]]] = None
-    citations: Optional[Dict[str, Dict[str, Any]]] = None
+    sections: dict[str, list[dict[str, Any]]] | None = None
+    citations: dict[str, dict[str, Any]] | None = None
 
 
 class CaseAnalyzer:
@@ -103,8 +103,10 @@ class CaseAnalyzer:
         self.retriever = HybridRetriever(graph)
         # Initialize markdown converter
         self.md = markdown.Markdown(extensions=["nl2br", "fenced_code", "tables"])
+        # Initialize entity service for entity extraction and linking
+        self.entity_service = EntityService(llm_client, graph)
 
-    def extract_key_terms(self, text: str) -> List[str]:
+    def extract_key_terms(self, text: str) -> list[str]:
         """Extract key legal terms from case text."""
         # Enhanced keyword extraction with synonyms
         legal_keywords = {
@@ -146,21 +148,42 @@ class CaseAnalyzer:
 
         return found_terms
 
-    def retrieve_relevant_entities(self, key_terms: List[str]) -> Dict[str, Any]:
+    def retrieve_relevant_entities(
+        self, 
+        key_terms: list[str],
+        linked_entity_ids: list[str] | None = None,
+        query_entities: list[LegalEntity] | None = None
+    ) -> dict[str, Any]:
         """Retrieve relevant entities and chunks using hybrid retrieval (vector + ArangoSearch + KG)."""
         # Build query from key terms
         query_text = " ".join(key_terms)
 
         # Use hybrid retriever (vector search + entity search + KG expansion)
+        # Pass linked entity IDs for direct lookup and neighbor expansion
         results = self.retriever.retrieve(
-            query_text, top_k_chunks=20, top_k_entities=50, expand_neighbors=True
+            query_text, 
+            top_k_chunks=20, 
+            top_k_entities=50, 
+            expand_neighbors=True,
+            linked_entity_ids=linked_entity_ids or []
         )
 
         chunks = results.get("chunks", [])
         entities = results.get("entities", [])
+        
+        # Add query entities to the entity list (for transparency)
+        if query_entities:
+            # Convert query entities with proper IDs (use linked IDs if available)
+            for qe in query_entities:
+                # Check if this entity was linked
+                if linked_entity_ids and qe.id in [e.id for e in entities]:
+                    continue  # Already have the KG version
+                # Add query entity as-is
+                entities.append(qe)
 
         self.logger.info(
-            f"Hybrid retrieval found {len(chunks)} chunks and {len(entities)} entities for terms: {key_terms}"
+            f"Hybrid retrieval found {len(chunks)} chunks and {len(entities)} entities "
+            f"(including {len(linked_entity_ids or [])} linked from query)"
         )
 
         # Retrieve relationships among the retrieved entities so the graph shows connections
@@ -177,9 +200,11 @@ class CaseAnalyzer:
             "entities": entities,
             "relationships": relationships,
             "concept_groups": [],
+            "query_entities": query_entities or [],  # NEW: Include for transparency
+            "linked_entity_ids": linked_entity_ids or [],  # NEW: Show what was linked
         }
 
-    def format_context_for_llm(self, relevant_data: Dict[str, Any]) -> str:
+    def format_context_for_llm(self, relevant_data: dict[str, Any]) -> str:
         """Format retrieved data for LLM context."""
         context_parts = []
 
@@ -224,15 +249,15 @@ class CaseAnalyzer:
         return "\n".join(context_parts)
 
     def build_sources_index(
-        self, entities: List[Any], chunks: List[Dict] = None, max_sources: int = 20
-    ) -> Tuple[str, Dict[str, Dict[str, Any]]]:
+        self, entities: list[Any], chunks: list[dict] = None, max_sources: int = 20
+    ) -> tuple[str, dict[str, dict[str, Any]]]:
         """Create a numbered sources list and a map S# -> source details for prompting and UI.
         Handles both LegalEntity objects, dicts from API calls, and chunk dicts from vector search.
         """
-        sources_lines: List[str] = []
-        citations_map: Dict[str, Dict[str, Any]] = {}
+        sources_lines: list[str] = []
+        citations_map: dict[str, dict[str, Any]] = {}
 
-        def _get_source_meta(ent: Any) -> Dict[str, Any]:
+        def _get_source_meta(ent: Any) -> dict[str, Any]:
             sm = getattr(ent, "source_metadata", None)
             if sm and hasattr(sm, "dict"):
                 return sm.dict()
@@ -243,7 +268,7 @@ class CaseAnalyzer:
                 return smd if isinstance(smd, dict) else {}
             return {}
 
-        def _get_provenance(ent: Any) -> List[Dict[str, Any]]:
+        def _get_provenance(ent: Any) -> list[dict[str, Any]]:
             prov = getattr(ent, "provenance", None)
             if isinstance(prov, list):
                 return prov
@@ -272,7 +297,7 @@ class CaseAnalyzer:
                 return 0
 
         # Collect candidate source entries (entity-level, provenance-level, and chunks)
-        candidates: List[Dict[str, Any]] = []
+        candidates: list[dict[str, Any]] = []
 
         # Add chunks first (high priority)
         for chunk in chunks or []:
@@ -367,7 +392,7 @@ class CaseAnalyzer:
                 c.get("entity_name") or "",
             ),
         )
-        final: List[Dict[str, Any]] = []
+        final: list[dict[str, Any]] = []
         for c in sorted_candidates:
             k = f"{c.get('source')}::{(c.get('quote') or '')[:64]}"
             if k in seen_keys:
@@ -491,8 +516,8 @@ class CaseAnalyzer:
             "risk_assessment": "",
             "next_steps": [],
         }
-        structured_sections: Optional[Dict[str, Any]] = None
-        citations_map_placeholder: Optional[Dict[str, Dict[str, Any]]] = None
+        structured_sections: dict[str, Any] | None = None
+        citations_map_placeholder: dict[str, dict[str, Any]] | None = None
 
         # Try JSON first
         try:
@@ -514,7 +539,7 @@ class CaseAnalyzer:
 
                 # Normalize and extract lists of text
                 def _pull_list(obj):
-                    out: List[str] = []
+                    out: list[str] = []
                     if isinstance(obj, list):
                         for it in obj:
                             if isinstance(it, dict) and "text" in it:
@@ -621,7 +646,7 @@ class CaseAnalyzer:
                         {"text": val.get("text", ""), "citations": val.get("citations", [])}
                     ]
                 elif isinstance(val, list):
-                    norm_list: List[Dict[str, Any]] = []
+                    norm_list: list[dict[str, Any]] = []
                     for it in val:
                         if isinstance(it, dict):
                             norm_list.append(
@@ -638,7 +663,7 @@ class CaseAnalyzer:
             # Fallback: extract inline citations from text-based sections
             guidance.sections = {}
 
-            def _wrap_list(items: List[str]) -> List[Dict[str, Any]]:
+            def _wrap_list(items: list[str]) -> list[dict[str, Any]]:
                 out = []
                 for it in items:
                     cites = re.findall(r"\[S\d+\]", it)
@@ -680,7 +705,7 @@ class CaseAnalyzer:
             return ""
         return self.md.convert(text)
 
-    def convert_list_to_html(self, items: List[str]) -> str:
+    def convert_list_to_html(self, items: list[str]) -> str:
         """Convert a list of items to HTML."""
         if not items:
             return "<p>No items available.</p>"
@@ -693,7 +718,7 @@ class CaseAnalyzer:
 
         return f"<ul>{''.join(html_items)}</ul>"
 
-    async def extract_evidence_from_case(self, case_text: str) -> Dict[str, List[str]]:
+    async def extract_evidence_from_case(self, case_text: str) -> dict[str, list[str]]:
         """Extract evidence mentioned in the case text using LLM."""
         prompt = f"""Extract all evidence mentioned in this tenant case:
 
@@ -748,10 +773,10 @@ If a category has no items, use an empty array []."""
     def analyze_evidence_gaps(
         self,
         case_text: str,
-        evidence_present: Dict[str, List[str]],
-        applicable_laws: List[LegalEntity],
-        retrieved_chunks: List[Dict],
-    ) -> Dict:
+        evidence_present: dict[str, list[str]],
+        applicable_laws: list[LegalEntity],
+        retrieved_chunks: list[dict],
+    ) -> dict:
         """Analyze gaps between present evidence and required evidence."""
         # Extract requirements from chunks and laws
         requirements = {"critical": [], "helpful": []}
@@ -819,11 +844,11 @@ If a category has no items, use an empty array []."""
     def rank_remedies(
         self,
         issue: str,
-        entities: List[LegalEntity],
-        chunks: List[Dict],
+        entities: list[LegalEntity],
+        chunks: list[dict],
         evidence_strength: float,
-        jurisdiction: Optional[str] = None,
-    ) -> List[RemedyOption]:
+        jurisdiction: str | None = None,
+    ) -> list[RemedyOption]:
         """Score and rank remedies based on multiple factors."""
         # Find remedy entities
         remedy_entities = [
@@ -932,8 +957,8 @@ If a category has no items, use an empty array []."""
         return [remedy for _, remedy in scored_remedies[:10]]  # Top 10
 
     def _extract_elements_from_chains(
-        self, graph_chains: List[Dict], llm_analysis: Dict
-    ) -> List[Dict]:
+        self, graph_chains: list[dict], llm_analysis: dict
+    ) -> list[dict]:
         """Extract legal elements from graph chains and LLM analysis."""
         elements = []
         
@@ -964,8 +989,8 @@ If a category has no items, use an empty array []."""
         return elements
 
     def _verify_chain_against_graph(
-        self, issue: str, laws: List[Dict], remedies: List[RemedyOption], entities: List[LegalEntity]
-    ) -> Dict[str, bool]:
+        self, issue: str, laws: list[dict], remedies: list[RemedyOption], entities: list[LegalEntity]
+    ) -> dict[str, bool]:
         """Verify proof chain elements exist in knowledge graph."""
         verification = {
             "laws_apply_to_issue": True,
@@ -1014,8 +1039,8 @@ If a category has no items, use an empty array []."""
         return verification
 
     def generate_next_steps(
-        self, proof_chains: List[LegalProofChain], evidence_gaps: Dict
-    ) -> List[Dict]:
+        self, proof_chains: list[LegalProofChain], evidence_gaps: dict
+    ) -> list[dict]:
         """Generate prioritized, actionable next steps."""
         next_steps = []
 
@@ -1141,8 +1166,8 @@ If a category has no items, use an empty array []."""
             if not guidance.next_steps or not guidance.recommended_actions:
                 steps = self.graph.compute_next_steps(issues=key_terms)
                 if steps:
-                    derived_steps: List[str] = []
-                    derived_actions: List[str] = []
+                    derived_steps: list[str] = []
+                    derived_actions: list[str] = []
                     for s in steps[:5]:
                         law = s.get("law") or s.get("issue_match")
                         if s.get("procedures"):
@@ -1164,17 +1189,38 @@ If a category has no items, use an empty array []."""
         return guidance
 
     async def analyze_case_enhanced(
-        self, case_text: str, jurisdiction: Optional[str] = None
+        self, case_text: str, jurisdiction: str | None = None
     ) -> EnhancedLegalGuidance:
         """Enhanced case analysis with multi-stage LLM prompting and proof chains."""
         self.logger.info("Starting enhanced case analysis with proof chains")
 
-        # Step 1: Extract key terms and retrieve context
+        # Step 1: Extract structured entities from user query (NEW)
+        self.logger.info("Extracting structured entities from user query...")
+        query_entities, query_relationships = await self.entity_service.extract_entities_from_text(
+            case_text, context="query"
+        )
+        self.logger.info(
+            f"Extracted {len(query_entities)} entities from query: "
+            f"{[f'{e.entity_type.value}:{e.name}' for e in query_entities[:5]]}"
+        )
+        
+        # Step 2: Link query entities to KG entities (NEW)
+        self.logger.info("Linking query entities to knowledge graph...")
+        entity_link_map = await self.entity_service.link_entities_to_kg(query_entities, threshold=0.85)
+        linked_entity_ids = list(entity_link_map.values())
+        self.logger.info(f"Linked {len(linked_entity_ids)} query entities to KG entities")
+        
+        # Step 3: Extract key terms (existing, for backward compatibility)
         key_terms = self.extract_key_terms(case_text)
         self.logger.info(f"Extracted key terms: {key_terms}")
 
-        # Step 2: Retrieve relevant entities and chunks
-        relevant_data = self.retrieve_relevant_entities(key_terms)
+        # Step 4: Retrieve relevant entities and chunks (ENHANCED)
+        # Pass both key terms AND linked entity IDs for comprehensive retrieval
+        relevant_data = self.retrieve_relevant_entities(
+            key_terms, 
+            linked_entity_ids=linked_entity_ids,
+            query_entities=query_entities
+        )
         chunks = relevant_data.get("chunks", [])
         entities = relevant_data.get("entities", [])
 
@@ -1365,9 +1411,9 @@ If a category has no items, use an empty array []."""
         return enhanced_guidance
 
     async def _analyze_issue_with_graph_chain(
-        self, issue: str, case_text: str, graph_chains: List[Dict],
-        entities: List, chunks: List[Dict], sources_text: str, jurisdiction: Optional[str]
-    ) -> Dict:
+        self, issue: str, case_text: str, graph_chains: list[dict],
+        entities: list, chunks: list[dict], sources_text: str, jurisdiction: str | None
+    ) -> dict:
         """Analyze issue using graph chain as ground truth, asking LLM to explain how it applies."""
         
         # Format graph chain as context
@@ -1410,7 +1456,7 @@ Return ONLY valid JSON:
             "reasoning": "Unable to analyze with graph chain"
         }
 
-    async def _identify_issues(self, case_text: str, sources_text: str) -> List[str]:
+    async def _identify_issues(self, case_text: str, sources_text: str) -> list[str]:
         """Stage 1: Identify legal issues in the case."""
         prompt = f"""Identify all tenant legal issues in this case. Focus on specific, actionable legal issues.
 
@@ -1442,11 +1488,11 @@ Return JSON array:"""
         self,
         issue: str,
         case_text: str,
-        entities: List,
-        chunks: List[Dict],
+        entities: list,
+        chunks: list[dict],
         sources_text: str,
-        jurisdiction: Optional[str],
-    ) -> Dict:
+        jurisdiction: str | None,
+    ) -> dict:
         """Stage 2: Analyze a specific issue with grounding."""
         # Filter sources relevant to this issue
         issue_keywords = issue.replace("_", " ").split()
@@ -1545,7 +1591,7 @@ Return JSON:
     async def _generate_case_summary(
         self,
         case_text: str,
-        proof_chains: List[LegalProofChain],
+        proof_chains: list[LegalProofChain],
         overall_strength: str,
         sources_text: str,
     ) -> str:
@@ -1572,7 +1618,7 @@ Summary (cite sources):"""
             return f"Tenant case involving {issues_summary}. Overall case strength: {overall_strength}."
 
     async def _generate_risk_assessment(
-        self, proof_chains: List[LegalProofChain], evidence_gaps: Dict, overall_strength: str
+        self, proof_chains: list[LegalProofChain], evidence_gaps: dict, overall_strength: str
     ) -> str:
         """Generate risk assessment."""
         if not proof_chains:

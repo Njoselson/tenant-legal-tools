@@ -3,10 +3,8 @@ Script to identify and clean up duplicate quotes in entity all_quotes arrays.
 """
 
 import logging
-from collections import Counter
 
 from tenant_legal_guidance.graph.arango_graph import ArangoDBGraph
-from tenant_legal_guidance.models.entities import EntityType
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -84,7 +82,7 @@ def cleanup_duplicate_quotes():
 
 if __name__ == "__main__":
     result = cleanup_duplicate_quotes()
-    print(f"\n✅ Cleanup complete!")
+    print("\n✅ Cleanup complete!")
     print(f"   - Entities cleaned: {result['cleaned_entities']}")
     print(f"   - Duplicates removed: {result['duplicates_removed']}")
 

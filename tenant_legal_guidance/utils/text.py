@@ -5,7 +5,6 @@ Text processing utilities for the Tenant Legal Guidance System.
 import hashlib
 import re
 import uuid
-from typing import Optional
 
 
 def canonicalize_text(text: str) -> str:

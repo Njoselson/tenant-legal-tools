@@ -15,15 +15,15 @@ from tenant_legal_guidance.services.resource_processor import LegalResourceProce
 from tenant_legal_guidance.utils.logging import setup_logging
 
 __all__ = [
-    "EntityType",
-    "LegalEntity",
-    "SourceType",
-    "LegalRelationship",
-    "RelationshipType",
-    "LegalDocument",
-    "InputType",
-    "DeepSeekClient",
-    "LegalResourceProcessor",
     "ArangoDBGraph",
+    "DeepSeekClient",
+    "EntityType",
+    "InputType",
+    "LegalDocument",
+    "LegalEntity",
+    "LegalRelationship",
+    "LegalResourceProcessor",
+    "RelationshipType",
+    "SourceType",
     "setup_logging",
 ]

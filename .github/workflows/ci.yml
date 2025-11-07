@@ -78,7 +78,7 @@ jobs:
         continue-on-error: true
       
       - name: Run unit tests
-        run: uv run pytest tenant_legal_guidance/tests -v --tb=short -m "not slow" -p no:cov
+        run: uv run pytest tenant_legal_guidance/tests -v --tb=short -m "not slow" 
         env:
           PYTEST_CURRENT_TEST: "true"
       

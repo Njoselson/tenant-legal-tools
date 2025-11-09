@@ -13,13 +13,17 @@ from tenant_legal_guidance.services.vector_store import QdrantVectorStore
 
 
 class HybridRetriever:
-    def __init__(self, knowledge_graph: ArangoDBGraph):
+    def __init__(
+        self,
+        knowledge_graph: ArangoDBGraph,
+        vector_store: "QdrantVectorStore | None" = None,
+    ):
         self.kg = knowledge_graph
         self.settings = get_settings()
         self.logger = logging.getLogger(__name__)
         # Initialize vector components (required)
         self.embeddings_svc = EmbeddingsService()
-        self.vector_store = QdrantVectorStore()
+        self.vector_store = vector_store or QdrantVectorStore()
         # Initialize case law retriever
         self.case_law_retriever = CaseLawRetriever(knowledge_graph, self.vector_store)
 

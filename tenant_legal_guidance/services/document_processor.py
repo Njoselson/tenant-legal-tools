@@ -48,7 +48,12 @@ logger = logging.getLogger(__name__)
 
 
 class DocumentProcessor:
-    def __init__(self, deepseek_client: DeepSeekClient, knowledge_graph: ArangoDBGraph):
+    def __init__(
+        self,
+        deepseek_client: DeepSeekClient,
+        knowledge_graph: ArangoDBGraph,
+        vector_store: "QdrantVectorStore | None" = None,
+    ):
         self.deepseek = deepseek_client
         self.knowledge_graph = knowledge_graph
         self.logger = logging.getLogger(__name__)
@@ -57,7 +62,7 @@ class DocumentProcessor:
         self.settings = get_settings()
         # Initialize embeddings and vector store (required for chunk storage)
         self.embeddings_svc = EmbeddingsService()
-        self.vector_store = QdrantVectorStore()
+        self.vector_store = vector_store or QdrantVectorStore()
         # Initialize case metadata extractor for court opinions
         self.case_metadata_extractor = CaseMetadataExtractor(self.deepseek)
         # Initialize case analyzer for enhanced legal analysis

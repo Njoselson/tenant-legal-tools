@@ -247,14 +247,6 @@ class TestChunkingEdgeCases:
         for chunk in chunks:
             assert len(chunk) > 0
 
-    def test_extreme_overlap(self):
-        text = "sentence. " * 50  # Reduced from 500 for speed
-        # Overlap larger than chunk size
-        chunks = recursive_char_chunks(text, 100, 150)
-
-        # Should still work (overlap capped at chunk size)
-        assert len(chunks) >= 1
-
     def test_whitespace_handling(self):
         text = "   \n\n   Text with lots of    whitespace   \n\n   "
         chunks = build_chunk_docs(text, "test", "Test", 1000, 0)

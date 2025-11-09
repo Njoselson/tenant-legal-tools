@@ -76,9 +76,9 @@ def mock_vector_store():
 
 
 class TestHybridRetriever:
-    def test_initialization(self, mock_knowledge_graph):
+    def test_initialization(self, mock_knowledge_graph, mock_vector_store):
         """Test that HybridRetriever initializes correctly."""
-        retriever = HybridRetriever(mock_knowledge_graph)
+        retriever = HybridRetriever(mock_knowledge_graph, vector_store=mock_vector_store)
 
         assert retriever.kg == mock_knowledge_graph
         assert retriever.embeddings_svc is not None
@@ -129,7 +129,7 @@ class TestHybridRetriever:
 
         mock_knowledge_graph.get_neighbors = Mock(return_value=([], []))
 
-        retriever = HybridRetriever(mock_knowledge_graph)
+        retriever = HybridRetriever(mock_knowledge_graph, vector_store=mock_vector_store)
         results = retriever.retrieve("test query")
 
         # Should return all three components
@@ -157,7 +157,7 @@ class TestHybridRetriever:
         mock_knowledge_graph.search_entities_by_text = Mock(return_value=[])
         mock_knowledge_graph.get_neighbors = Mock(return_value=([], []))
 
-        retriever = HybridRetriever(mock_knowledge_graph)
+        retriever = HybridRetriever(mock_knowledge_graph, vector_store=mock_vector_store)
         results = retriever.retrieve("test", top_k_chunks=10, top_k_entities=25)
 
         # Verify vector search called with correct top_k
@@ -192,7 +192,7 @@ class TestHybridRetriever:
         mock_knowledge_graph.search_entities_by_text = Mock(return_value=[test_entity])
         mock_knowledge_graph.get_neighbors = Mock(return_value=([test_entity], []))
 
-        retriever = HybridRetriever(mock_knowledge_graph)
+        retriever = HybridRetriever(mock_knowledge_graph, vector_store=mock_vector_store)
         results = retriever.retrieve("test", expand_neighbors=True)
 
         # Should deduplicate
@@ -201,9 +201,9 @@ class TestHybridRetriever:
 
 
 class TestRRFFusion:
-    def test_rrf_basic(self, mock_knowledge_graph):
+    def test_rrf_basic(self, mock_knowledge_graph, mock_vector_store):
         """Test Reciprocal Rank Fusion scoring."""
-        retriever = HybridRetriever(mock_knowledge_graph)
+        retriever = HybridRetriever(mock_knowledge_graph, vector_store=mock_vector_store)
 
         ranked_lists = [
             ["item1", "item2", "item3"],
@@ -222,15 +222,15 @@ class TestRRFFusion:
         scores = [score for _, score in fused]
         assert scores == sorted(scores, reverse=True)
 
-    def test_rrf_empty_lists(self, mock_knowledge_graph):
+    def test_rrf_empty_lists(self, mock_knowledge_graph, mock_vector_store):
         """Test RRF with empty input."""
-        retriever = HybridRetriever(mock_knowledge_graph)
+        retriever = HybridRetriever(mock_knowledge_graph, vector_store=mock_vector_store)
         fused = retriever.rrf_fusion([], k=60)
         assert fused == []
 
-    def test_rrf_single_list(self, mock_knowledge_graph):
+    def test_rrf_single_list(self, mock_knowledge_graph, mock_vector_store):
         """Test RRF with single ranked list."""
-        retriever = HybridRetriever(mock_knowledge_graph)
+        retriever = HybridRetriever(mock_knowledge_graph, vector_store=mock_vector_store)
         fused = retriever.rrf_fusion([["A", "B", "C"]], k=60)
 
         # Should preserve order
@@ -295,7 +295,7 @@ class TestIntegrationScenarios:
 
         mock_knowledge_graph.get_neighbors = Mock(return_value=([], []))
 
-        retriever = HybridRetriever(mock_knowledge_graph)
+        retriever = HybridRetriever(mock_knowledge_graph, vector_store=mock_vector_store)
         results = retriever.retrieve(
             "landlord trying to evict without proper notice", top_k_chunks=10, top_k_entities=20
         )

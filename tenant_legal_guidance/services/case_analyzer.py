@@ -95,12 +95,17 @@ class LegalGuidance:
 class CaseAnalyzer:
     """Analyzes tenant cases using RAG on the knowledge graph."""
 
-    def __init__(self, graph: ArangoDBGraph, llm_client: DeepSeekClient):
+    def __init__(
+        self,
+        graph: ArangoDBGraph,
+        llm_client: DeepSeekClient,
+        vector_store: "QdrantVectorStore | None" = None,
+    ):
         self.graph = graph
         self.llm_client = llm_client
         self.logger = logging.getLogger(__name__)
         # Initialize hybrid retriever (combines vector + entity search)
-        self.retriever = HybridRetriever(graph)
+        self.retriever = HybridRetriever(graph, vector_store=vector_store)
         # Initialize markdown converter
         self.md = markdown.Markdown(extensions=["nl2br", "fenced_code", "tables"])
         # Initialize entity service for entity extraction and linking

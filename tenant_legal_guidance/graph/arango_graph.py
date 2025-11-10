@@ -1390,8 +1390,17 @@ class ArangoDBGraph:
             return []
 
     def _collection_for_entity_id(self, entity_id: str) -> str | None:
-        """Infer vertex collection name from id prefix, or scan to find it."""
+        """Infer vertex collection name from id prefix.
+        
+        NOTE: All entities are now stored in the unified 'entities' collection,
+        so this always returns 'entities' (not type-specific collections).
+        """
         try:
+            # Check if entity exists in unified collection
+            if self.db.collection("entities").has(entity_id):
+                return "entities"
+            
+            # Fallback: check old type-specific collections for backward compatibility
             if ":" in entity_id:
                 prefix = entity_id.split(":", 1)[0]
                 mapping = {
@@ -1419,11 +1428,6 @@ class ArangoDBGraph:
                 et = mapping.get(prefix)
                 if et is not None:
                     return self._get_collection_for_entity(et)
-            # Fallback scan
-            for et in EntityType:
-                cn = self._get_collection_for_entity(et)
-                if self.db.collection(cn).has(entity_id):
-                    return cn
         except Exception:
             pass
         return None
@@ -1488,98 +1492,118 @@ class ArangoDBGraph:
             dir_filter_out = direction in ("out", "both")
             dir_filter_in = direction in ("in", "both")
 
+            # Use generic edges collection (where relationships are actually stored)
+            edge_collection = "edges"
+
             for nid in node_ids:
                 coll_name = self._collection_for_entity_id(nid)
                 if not coll_name:
                     continue
-                # For each edge collection, find incident edges
-                for rel_type in RelationshipType:
-                    edge_name = self._get_collection_for_relationship(rel_type)
-                    # Outbound
-                    if dir_filter_out:
-                        aql_out = """
-                        FOR e IN @@edge
-                            FILTER e._from == CONCAT(@coll, '/', @key)
-                            LIMIT @limit
-                            RETURN e
-                        """
-                        cursor_out = self.db.aql.execute(
-                            aql_out,
-                            bind_vars={
-                                "@edge": edge_name,
-                                "coll": coll_name,
-                                "key": nid,
-                                "limit": per_node_limit,
-                            },
-                        )
-                        for e in cursor_out:
-                            to_id = e["_to"].split("/")[-1]
-                            rels.append(
-                                LegalRelationship(
-                                    source_id=nid,
-                                    target_id=to_id,
-                                    relationship_type=rel_type,
-                                    conditions=e.get("conditions"),
-                                    weight=e.get("weight", 1.0),
-                                    attributes={},
-                                )
+                    
+                # Outbound edges
+                if dir_filter_out:
+                    aql_out = """
+                    FOR e IN @@edge
+                        FILTER e._from == CONCAT(@coll, '/', @key)
+                        LIMIT @limit
+                        RETURN e
+                    """
+                    cursor_out = self.db.aql.execute(
+                        aql_out,
+                        bind_vars={
+                            "@edge": edge_collection,
+                            "coll": coll_name,
+                            "key": nid,
+                            "limit": per_node_limit,
+                        },
+                    )
+                    for e in cursor_out:
+                        to_id = e["_to"].split("/")[-1]
+                        # Parse relationship type from edge document
+                        try:
+                            rel_type_str = e.get("type", "")
+                            rel_type = RelationshipType[rel_type_str] if rel_type_str else None
+                            if not rel_type:
+                                continue
+                        except (KeyError, ValueError):
+                            continue
+                            
+                        rels.append(
+                            LegalRelationship(
+                                source_id=nid,
+                                target_id=to_id,
+                                relationship_type=rel_type,
+                                conditions=e.get("conditions"),
+                                weight=e.get("weight", 1.0),
+                                attributes=e.get("attributes", {}),
                             )
-                            # Fetch neighbor doc
-                            to_coll = e["_to"].split("/")[0]
-                            try:
-                                doc = self.db.collection(to_coll).get(to_id)
-                                # Infer entity type by collection name via reverse lookup
-                                et = None
-                                for t in EntityType:
-                                    if self._get_collection_for_entity(t) == to_coll:
-                                        et = t
-                                        break
-                                if et:
+                        )
+                        # Fetch neighbor doc from unified entities collection
+                        try:
+                            doc = self.db.collection("entities").get(to_id)
+                            # Get entity type from document's type field
+                            type_str = doc.get("type")
+                            if type_str:
+                                try:
+                                    et = EntityType(type_str)
                                     neighbors[to_id] = self._parse_entity_from_doc(doc, et)
-                            except Exception:
-                                pass
-                    # Inbound
-                    if dir_filter_in:
-                        aql_in = """
-                        FOR e IN @@edge
-                            FILTER e._to == CONCAT(@coll, '/', @key)
-                            LIMIT @limit
-                            RETURN e
-                        """
-                        cursor_in = self.db.aql.execute(
-                            aql_in,
-                            bind_vars={
-                                "@edge": edge_name,
-                                "coll": coll_name,
-                                "key": nid,
-                                "limit": per_node_limit,
-                            },
-                        )
-                        for e in cursor_in:
-                            from_id = e["_from"].split("/")[-1]
-                            rels.append(
-                                LegalRelationship(
-                                    source_id=from_id,
-                                    target_id=nid,
-                                    relationship_type=rel_type,
-                                    conditions=e.get("conditions"),
-                                    weight=e.get("weight", 1.0),
-                                    attributes={},
-                                )
+                                except (ValueError, KeyError):
+                                    self.logger.debug(f"Unknown entity type: {type_str}")
+                        except Exception as fetch_err:
+                            self.logger.debug(f"Failed to fetch neighbor {to_id}: {fetch_err}")
+                            
+                # Inbound edges
+                if dir_filter_in:
+                    aql_in = """
+                    FOR e IN @@edge
+                        FILTER e._to == CONCAT(@coll, '/', @key)
+                        LIMIT @limit
+                        RETURN e
+                    """
+                    cursor_in = self.db.aql.execute(
+                        aql_in,
+                        bind_vars={
+                            "@edge": edge_collection,
+                            "coll": coll_name,
+                            "key": nid,
+                            "limit": per_node_limit,
+                        },
+                    )
+                    for e in cursor_in:
+                        from_id = e["_from"].split("/")[-1]
+                        # Parse relationship type from edge document
+                        try:
+                            rel_type_str = e.get("type", "")
+                            rel_type = RelationshipType[rel_type_str] if rel_type_str else None
+                            if not rel_type:
+                                continue
+                        except (KeyError, ValueError):
+                            continue
+                            
+                        rels.append(
+                            LegalRelationship(
+                                source_id=from_id,
+                                target_id=nid,
+                                relationship_type=rel_type,
+                                conditions=e.get("conditions"),
+                                weight=e.get("weight", 1.0),
+                                attributes=e.get("attributes", {}),
                             )
-                            # Fetch neighbor doc
-                            from_coll = e["_from"].split("/")[0]
-                            try:
-                                doc = self.db.collection(from_coll).get(from_id)
-                                et = None
-                                for t in EntityType:
-                                    if self._get_collection_for_entity(t) == from_coll:
-                                        et = t
-                                        break
-                                if et:
+                        )
+                        # Fetch neighbor doc from unified entities collection
+                        try:
+                            doc = self.db.collection("entities").get(from_id)
+                            # Get entity type from document's type field
+                            type_str = doc.get("type")
+                            if type_str:
+                                try:
+                                    et = EntityType(type_str)
                                     neighbors[from_id] = self._parse_entity_from_doc(doc, et)
-                            except Exception:
-                                pass
+                                except (ValueError, KeyError):
+                                    self.logger.debug(f"Unknown entity type: {type_str}")
+                        except Exception as fetch_err:
+                            self.logger.debug(f"Failed to fetch neighbor {from_id}: {fetch_err}")
+                            
             return list(neighbors.values()), rels
         except Exception as e:
             self.logger.error(f"get_neighbors error: {e}")

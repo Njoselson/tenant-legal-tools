@@ -103,13 +103,8 @@ def recursive_char_chunks(text: str, target_chars: int, overlap_chars: int) -> l
         # Extract chunk
         chunks.append(text[start:end].strip())
 
-        # Move start position with overlap (capped at chunk size to prevent infinite loops)
-        actual_overlap = min(overlap_chars, end - start) if overlap_chars > 0 else 0
-        # Ensure we always make forward progress
-        new_start = end - actual_overlap
-        if new_start <= start:
-            new_start = start + max(1, target_chars // 2)  # Force progress
-        start = new_start
+        # Move start position with overlap
+        start = end - overlap_chars if overlap_chars > 0 else end
 
     return chunks
 

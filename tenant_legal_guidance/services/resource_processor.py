@@ -5,9 +5,6 @@ Resource processing service for the Tenant Legal Guidance System.
 import hashlib
 import io
 import logging
-import re
-import ssl
-from typing import Dict, List, Optional, Union
 
 import PyPDF2
 import requests
@@ -40,7 +37,7 @@ class LegalResourceProcessor:
         self.session.mount("http://", adapter)
         self.session.mount("https://", adapter)
 
-    def scrape_text_from_url(self, url: str) -> Optional[str]:
+    def scrape_text_from_url(self, url: str) -> str | None:
         """Scrape text content from a URL with anti-bot measures handling."""
         self.logger.info(f"Attempting to scrape text from URL: {url}")
 
@@ -116,17 +113,17 @@ class LegalResourceProcessor:
                             )
 
                     except Exception as e:
-                        self.logger.debug(f"SSL verify={verify_ssl} failed: {str(e)}")
+                        self.logger.debug(f"SSL verify={verify_ssl} failed: {e!s}")
                         continue
 
             except Exception as e:
-                self.logger.warning(f"Attempt {attempt + 1} failed: {str(e)}")
+                self.logger.warning(f"Attempt {attempt + 1} failed: {e!s}")
                 continue
 
         self.logger.error(f"All scraping attempts failed for {url}")
         return None
 
-    def scrape_text_from_pdf(self, url: str) -> Optional[str]:
+    def scrape_text_from_pdf(self, url: str) -> str | None:
         """Scrape text content from a PDF URL."""
         self.logger.info(f"Attempting to scrape text from PDF: {url}")
         try:
@@ -139,7 +136,7 @@ class LegalResourceProcessor:
                 text += page.extract_text()
             return text
         except Exception as e:
-            self.logger.error(f"Failed to scrape PDF {url}: {str(e)}")
+            self.logger.error(f"Failed to scrape PDF {url}: {e!s}")
             # Try without SSL verification as fallback
             try:
                 self.logger.info(f"Retrying PDF without SSL verification for {url}")
@@ -152,10 +149,10 @@ class LegalResourceProcessor:
                     text += page.extract_text()
                 return text
             except Exception as e2:
-                self.logger.error(f"Failed to scrape PDF {url} even without SSL: {str(e2)}")
+                self.logger.error(f"Failed to scrape PDF {url} even without SSL: {e2!s}")
                 return None
 
-    async def process_input(self, input: Union[str, LegalDocument]) -> Dict:
+    async def process_input(self, input: str | LegalDocument) -> dict:
         """Process input text or document and extract structured data."""
         self.logger.info("Processing input for knowledge graph")
 
@@ -236,7 +233,7 @@ class LegalResourceProcessor:
 
 
 # --- Backwards-compatible helper for tests ---
-def scrape_text_from_url(url: str, max_retries: int = 2, timeout: int = 10) -> Optional[str]:
+def scrape_text_from_url(url: str, max_retries: int = 2, timeout: int = 10) -> str | None:
     """Simple helper to fetch page text with basic retries.
 
     Provided for tests that import the function directly from this module.

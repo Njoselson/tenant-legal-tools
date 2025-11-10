@@ -8,7 +8,6 @@ These tests demonstrate:
 4. Proof chain construction
 """
 
-from typing import Dict, List
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
@@ -288,6 +287,7 @@ class TestRemedyRanking:
         if result_high and result_low:
             assert result_high[0].estimated_probability > result_low[0].estimated_probability
 
+    @pytest.mark.slow
     def test_rank_remedies_prefers_binding_authority(
         self, case_analyzer, sample_entities, sample_chunks
     ):
@@ -615,6 +615,7 @@ class TestIntegrationScenarios:
     """Integration tests showing complete workflows."""
 
     @pytest.mark.asyncio
+    @pytest.mark.slow
     async def test_complete_analysis_workflow(
         self, case_analyzer, mock_llm, sample_entities, sample_chunks
     ):
@@ -703,6 +704,7 @@ class TestIntegrationScenarios:
 
 
 @pytest.mark.asyncio
+@pytest.mark.slow
 async def test_graph_chains_integration_with_valid_chains(mock_graph, mock_llm):
     """Test that graph chains are retrieved and integrated into proof chains."""
     
@@ -792,6 +794,7 @@ async def test_graph_chains_integration_with_valid_chains(mock_graph, mock_llm):
 
 
 @pytest.mark.asyncio
+@pytest.mark.slow
 async def test_graph_chains_skips_issue_with_no_chains(mock_graph, mock_llm):
     """Test that issues with no graph chains are skipped."""
     
@@ -824,6 +827,7 @@ async def test_graph_chains_skips_issue_with_no_chains(mock_graph, mock_llm):
 
 
 @pytest.mark.asyncio
+@pytest.mark.slow
 async def test_legal_elements_extraction_from_graph_chains(mock_graph, mock_llm):
     """Test that legal elements are correctly extracted from graph chains."""
     
@@ -888,6 +892,7 @@ async def test_legal_elements_extraction_from_graph_chains(mock_graph, mock_llm)
 
 
 @pytest.mark.asyncio
+@pytest.mark.slow
 async def test_remedies_prioritized_from_graph_chain(mock_graph, mock_llm):
     """Test that remedies from graph chains are prioritized over others."""
     

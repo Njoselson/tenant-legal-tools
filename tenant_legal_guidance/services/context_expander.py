@@ -3,7 +3,6 @@ Context expansion service for retrieving neighboring chunks.
 """
 
 import logging
-from typing import Dict, List, Optional
 
 from tenant_legal_guidance.services.vector_store import QdrantVectorStore
 
@@ -15,7 +14,7 @@ class ContextExpander:
         self.vector_store = vector_store
         self.logger = logging.getLogger(__name__)
     
-    def _get_chunk_by_id(self, chunk_id: str) -> Optional[Dict]:
+    def _get_chunk_by_id(self, chunk_id: str) -> dict | None:
         """Retrieve a single chunk by ID from Qdrant."""
         try:
             result = self.vector_store.client.retrieve(
@@ -37,7 +36,7 @@ class ContextExpander:
         chunk_id: str,
         expand_before: int = 1,
         expand_after: int = 1
-    ) -> Dict:
+    ) -> dict:
         """
         Retrieve a chunk plus N chunks before/after.
         

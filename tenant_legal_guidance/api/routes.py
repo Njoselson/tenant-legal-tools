@@ -2,17 +2,12 @@
 API routes for the Tenant Legal Guidance System.
 """
 
-import json
 import logging
-import os
-import re
 from datetime import datetime
-from typing import Dict, List, Optional
 
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
-from pydantic import BaseModel
 
 from tenant_legal_guidance.api.schemas import (
     CaseAnalysisRequest,
@@ -30,12 +25,9 @@ from tenant_legal_guidance.api.schemas import (
     NextStepsRequest,
     RetrieveEntitiesRequest,
 )
-from tenant_legal_guidance.models.documents import InputType, LegalDocument
 from tenant_legal_guidance.models.entities import EntityType, SourceMetadata, SourceType
-from tenant_legal_guidance.models.relationships import RelationshipType
 from tenant_legal_guidance.services.case_analyzer import CaseAnalyzer
 from tenant_legal_guidance.services.entity_consolidation import EntityConsolidationService
-from tenant_legal_guidance.services.resource_processor import LegalResourceProcessor
 from tenant_legal_guidance.services.tenant_system import TenantLegalSystem
 from tenant_legal_guidance.utils.analysis_cache import get_cached_analysis, set_cached_analysis
 
@@ -73,7 +65,7 @@ async def index_page(request: Request, templates: Jinja2Templates = Depends(get_
 @router.post("/api/analyze-consultation")
 async def analyze_consultation(
     request: ConsultationRequest, system: TenantLegalSystem = Depends(get_system)
-) -> Dict:
+) -> dict:
     """Analyze a legal consultation and extract structured information."""
     try:
         metadata = SourceMetadata(
@@ -89,8 +81,10 @@ async def analyze_consultation(
 
 @router.post("/api/upload-document")
 async def upload_document(
-    file: UploadFile = File(...), organization: Optional[str] = None, title: Optional[str] = None
-) -> Dict:
+    file: UploadFile = File(...), organization: str | None = None, title: str | None = None
+,
+    system: TenantLegalSystem = Depends(get_system),
+) -> dict:
     """Upload and process a legal document."""
     try:
         content = await file.read()
@@ -115,7 +109,7 @@ async def upload_document(
 @router.post("/api/kg/process")
 async def process_knowledge_graph(
     request: KnowledgeGraphProcessRequest, system: TenantLegalSystem = Depends(get_system)
-) -> Dict:
+) -> dict:
     """Process text and update the knowledge graph."""
     try:
         # Log the incoming request for debugging
@@ -133,7 +127,7 @@ async def process_knowledge_graph(
         )
         return result
     except Exception as e:
-        logger.error(f"Error processing knowledge graph: {str(e)}", exc_info=True)
+        logger.error(f"Error processing knowledge graph: {e!s}", exc_info=True)
         if isinstance(e, HTTPException):
             raise e
         raise HTTPException(status_code=500, detail=str(e))
@@ -144,11 +138,11 @@ async def get_graph_data(
     system: TenantLegalSystem = Depends(get_system),
     offset: int = 0,
     limit: int = 200,
-    types: Optional[str] = None,
-    q: Optional[str] = None,
-    jurisdiction: Optional[str] = None,
-    cursor: Optional[str] = None,
-) -> Dict:
+    types: str | None = None,
+    q: str | None = None,
+    jurisdiction: str | None = None,
+    cursor: str | None = None,
+) -> dict:
     """Retrieve a paginated slice of graph nodes and their connecting links.
     Returns { nodes, links, next_cursor }.
     """
@@ -160,7 +154,7 @@ async def get_graph_data(
             eff_offset = 0
 
         # Normalize type filters
-        type_values: Optional[List[str]] = None
+        type_values: list[str] | None = None
         if types:
             type_values = [t.strip().lower() for t in types.split(",") if t.strip()]
 
@@ -214,7 +208,7 @@ async def get_graph_data(
                 raw_nodes = []
 
         nodes = []
-        node_ids: List[str] = []
+        node_ids: list[str] = []
         for doc in raw_nodes:
             nid = doc.get("_key")
             if not nid:
@@ -282,14 +276,14 @@ async def get_graph_data(
 
         return {"nodes": nodes, "links": links, "next_cursor": next_cursor}
     except Exception as e:
-        logger.error(f"Error retrieving graph data: {str(e)}", exc_info=True)
+        logger.error(f"Error retrieving graph data: {e!s}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 
 
 
 @router.delete("/api/kg/entities/{entity_id}")
-async def delete_entity(entity_id: str, system: TenantLegalSystem = Depends(get_system)) -> Dict:
+async def delete_entity(entity_id: str, system: TenantLegalSystem = Depends(get_system)) -> dict:
     try:
         deleted = system.knowledge_graph.delete_entity(entity_id)
         if not deleted:
@@ -305,7 +299,7 @@ async def delete_entity(entity_id: str, system: TenantLegalSystem = Depends(get_
 @router.post("/api/kg/entities/delete-bulk")
 async def delete_entities(
     req: DeleteEntitiesRequest, system: TenantLegalSystem = Depends(get_system)
-) -> Dict:
+) -> dict:
     try:
         if not req.ids:
             raise HTTPException(status_code=400, detail="No ids provided")
@@ -325,7 +319,7 @@ async def delete_entities(
 @router.post("/api/retrieve-entities")
 async def retrieve_entities(
     request: RetrieveEntitiesRequest, case_analyzer: CaseAnalyzer = Depends(get_analyzer)
-) -> Dict:
+) -> dict:
     """Retrieve relevant entities from the knowledge graph based on case text."""
     try:
         logger.info(f"Retrieving entities for case: {request.case_text[:100]}...")
@@ -358,7 +352,7 @@ async def retrieve_entities(
 @router.post("/api/generate-analysis")
 async def generate_analysis(
     request: GenerateAnalysisRequest, case_analyzer: CaseAnalyzer = Depends(get_analyzer)
-) -> Dict:
+) -> dict:
     """Generate legal analysis using retrieved entities and LLM."""
     try:
         logger.info(f"Generating analysis for case: {request.case_text[:100]}...")
@@ -406,7 +400,7 @@ async def generate_analysis(
 @router.post("/api/analyze-case")
 async def analyze_case(
     request: CaseAnalysisRequest, case_analyzer: CaseAnalyzer = Depends(get_analyzer)
-) -> Dict:
+) -> dict:
     """Analyze a tenant case using RAG on the knowledge graph (legacy endpoint)."""
     try:
         logger.info(f"Analyzing case: {request.case_text[:100]}...")
@@ -456,7 +450,7 @@ async def analyze_case(
 @router.post("/api/analyze-case-enhanced")
 async def analyze_case_enhanced(
     request: EnhancedCaseAnalysisRequest, case_analyzer: CaseAnalyzer = Depends(get_analyzer)
-) -> Dict:
+) -> dict:
     """Enhanced case analysis with proof chains, evidence gaps, and remedy ranking."""
     try:
         logger.info(f"Enhanced analysis for case: {request.case_text[:100]}...")
@@ -472,7 +466,6 @@ async def analyze_case_enhanced(
                 return cached
 
         # Run enhanced analysis
-        from dataclasses import asdict
 
         guidance = await case_analyzer.analyze_case_enhanced(
             request.case_text, request.jurisdiction
@@ -535,7 +528,7 @@ async def analyze_case_enhanced(
 
 
 @router.post("/api/chains")
-async def build_chains(req: ChainsRequest, system: TenantLegalSystem = Depends(get_system)) -> Dict:
+async def build_chains(req: ChainsRequest, system: TenantLegalSystem = Depends(get_system)) -> dict:
     try:
         chains = system.knowledge_graph.build_legal_chains(
             req.issues or [], req.jurisdiction, req.limit or 25
@@ -547,7 +540,7 @@ async def build_chains(req: ChainsRequest, system: TenantLegalSystem = Depends(g
 
 
 @router.get("/api/kg/all-entities")
-async def get_all_entities(system: TenantLegalSystem = Depends(get_system)) -> Dict:
+async def get_all_entities(system: TenantLegalSystem = Depends(get_system)) -> dict:
     """Retrieve all entities from the knowledge graph."""
     try:
         all_entities = system.knowledge_graph.get_all_entities()
@@ -584,11 +577,10 @@ async def case_analysis_page():
 
 
 @router.get("/api/example-cases")
-async def get_example_cases() -> Dict:
+async def get_example_cases() -> dict:
     """Get all available example cases."""
     try:
         import json
-        import os
         from pathlib import Path
 
         # Get the path to the static directory
@@ -598,7 +590,7 @@ async def get_example_cases() -> Dict:
         if not cases_file.exists():
             raise HTTPException(status_code=404, detail="Example cases file not found")
 
-        with open(cases_file, "r") as f:
+        with open(cases_file) as f:
             cases_data = json.load(f)
 
         return cases_data
@@ -608,7 +600,7 @@ async def get_example_cases() -> Dict:
 
 
 @router.get("/api/health")
-async def health(system: TenantLegalSystem = Depends(get_system)) -> Dict:
+async def health(system: TenantLegalSystem = Depends(get_system)) -> dict:
     try:
         # Query normalized entities collection and group by type
         kg = system.knowledge_graph
@@ -635,7 +627,7 @@ async def health(system: TenantLegalSystem = Depends(get_system)) -> Dict:
 
 
 @router.get("/api/health/search")
-async def health_search(system: TenantLegalSystem = Depends(get_system)) -> Dict:
+async def health_search(system: TenantLegalSystem = Depends(get_system)) -> dict:
     """Validate ArangoSearch view and required analyzers; provide fallback status."""
     try:
         kg = system.knowledge_graph
@@ -701,7 +693,7 @@ async def health_search(system: TenantLegalSystem = Depends(get_system)) -> Dict
 @router.post("/api/next-steps")
 async def next_steps(
     req: NextStepsRequest, system: TenantLegalSystem = Depends(get_system)
-) -> Dict:
+) -> dict:
     try:
         steps = system.knowledge_graph.compute_next_steps(req.issues, req.jurisdiction)
         return {"steps": steps, "total": len(steps)}
@@ -716,7 +708,7 @@ async def next_steps(
 
 
 @router.post("/api/kg/expand")
-async def kg_expand(req: ExpandRequest, system: TenantLegalSystem = Depends(get_system)) -> Dict:
+async def kg_expand(req: ExpandRequest, system: TenantLegalSystem = Depends(get_system)) -> dict:
     try:
         if not req.node_ids:
             raise HTTPException(status_code=400, detail="node_ids is required")
@@ -740,7 +732,7 @@ async def kg_expand(req: ExpandRequest, system: TenantLegalSystem = Depends(get_
 @router.post("/api/kg/consolidate")
 async def kg_consolidate(
     req: ConsolidateRequest, system: TenantLegalSystem = Depends(get_system)
-) -> Dict:
+) -> dict:
     try:
         if not req.node_ids:
             raise HTTPException(status_code=400, detail="node_ids is required")
@@ -758,7 +750,7 @@ async def kg_consolidate(
 @router.post("/api/kg/consolidate-all")
 async def kg_consolidate_all(
     req: ConsolidateAllRequest, consolidator: EntityConsolidationService = Depends(get_consolidator)
-) -> Dict:
+) -> dict:
     try:
         from tenant_legal_guidance.utils.entity_helpers import normalize_entity_type
         
@@ -780,7 +772,7 @@ async def kg_consolidate_all(
 
 
 @router.get("/api/chunks/search")
-async def search_chunks(q: str, limit: int = 10) -> Dict:
+async def search_chunks(q: str, limit: int = 10, system: TenantLegalSystem = Depends(get_system)) -> dict:
     try:
         # Search in ArangoSearch view for text chunks
         kg = system.knowledge_graph
@@ -862,7 +854,7 @@ async def search_chunks(q: str, limit: int = 10) -> Dict:
 @router.post("/api/hybrid-search")
 async def hybrid_search(
     req: HybridSearchRequest, system: TenantLegalSystem = Depends(get_system)
-) -> Dict:
+) -> dict:
     """Test hybrid retrieval combining Qdrant vector search + ArangoSearch + KG expansion."""
     try:
         from tenant_legal_guidance.services.retrieval import HybridRetriever
@@ -904,7 +896,7 @@ async def hybrid_search(
 
 
 @router.get("/api/vector-status")
-async def vector_status() -> Dict:
+async def vector_status() -> dict:
     """Check Qdrant vector store status."""
     try:
         from tenant_legal_guidance.config import get_settings
@@ -945,7 +937,7 @@ async def vector_status() -> Dict:
 async def get_adjacent_chunks(
     chunk_id: str,
     system: TenantLegalSystem = Depends(get_system)
-) -> Dict:
+) -> dict:
     """Get previous and next chunks for a given chunk ID."""
     try:
         # Get all chunks from this source
@@ -997,7 +989,7 @@ async def get_adjacent_chunks(
 async def get_entity_chunks(
     entity_id: str,
     system: TenantLegalSystem = Depends(get_system)
-) -> Dict:
+) -> dict:
     """Get all chunks (vectors) that mention a specific entity."""
     try:
         # Get entity from ArangoDB
@@ -1046,7 +1038,7 @@ async def get_entity_chunks(
 async def get_entity_quote(
     entity_id: str,
     system: TenantLegalSystem = Depends(get_system)
-) -> Dict:
+) -> dict:
     """Get the best quote for a specific entity."""
     try:
         # Get entity from ArangoDB
@@ -1082,7 +1074,7 @@ async def get_entity_quote(
 async def kg_chat(
     request: KGChatRequest,
     system: TenantLegalSystem = Depends(get_system)
-) -> Dict:
+) -> dict:
     """Chat with the knowledge graph using LLM."""
     try:
         # Build context about the graph

@@ -3,10 +3,9 @@ Case law specific retrieval methods for finding precedents, holdings, and relate
 """
 
 import logging
-from typing import Dict, List, Optional, Tuple
 
 from tenant_legal_guidance.graph.arango_graph import ArangoDBGraph
-from tenant_legal_guidance.models.entities import EntityType, LegalDocumentType
+from tenant_legal_guidance.models.entities import EntityType
 from tenant_legal_guidance.services.embeddings import EmbeddingsService
 from tenant_legal_guidance.services.vector_store import QdrantVectorStore
 
@@ -23,10 +22,10 @@ class CaseLawRetriever:
     def find_precedent_cases(
         self, 
         issue: str, 
-        jurisdiction: Optional[str] = None,
-        court: Optional[str] = None,
+        jurisdiction: str | None = None,
+        court: str | None = None,
         limit: int = 20
-    ) -> List[Dict]:
+    ) -> list[dict]:
         """
         Find similar cases by legal issue and jurisdiction.
         
@@ -92,7 +91,7 @@ class CaseLawRetriever:
             self.logger.error(f"Failed to find precedent cases: {e}", exc_info=True)
             return []
     
-    def get_case_holdings(self, case_document_id: str) -> List[str]:
+    def get_case_holdings(self, case_document_id: str) -> list[str]:
         """
         Get all holdings from a specific case.
         
@@ -119,7 +118,7 @@ class CaseLawRetriever:
             self.logger.error(f"Failed to get case holdings: {e}", exc_info=True)
             return []
     
-    def find_cases_by_party(self, party_name: str, limit: int = 20) -> List[Dict]:
+    def find_cases_by_party(self, party_name: str, limit: int = 20) -> list[dict]:
         """
         Find all cases involving a specific party.
         
@@ -190,7 +189,7 @@ class CaseLawRetriever:
             self.logger.error(f"Failed to find cases by party: {e}", exc_info=True)
             return []
     
-    def find_cases_by_court(self, court_name: str, limit: int = 20) -> List[Dict]:
+    def find_cases_by_court(self, court_name: str, limit: int = 20) -> list[dict]:
         """
         Find all cases from a specific court.
         
@@ -239,7 +238,7 @@ class CaseLawRetriever:
             self.logger.error(f"Failed to find cases by court: {e}", exc_info=True)
             return []
     
-    def find_cases_by_citation(self, citation: str, limit: int = 20) -> List[Dict]:
+    def find_cases_by_citation(self, citation: str, limit: int = 20) -> list[dict]:
         """
         Find cases that cite a specific law or case.
         
@@ -309,7 +308,7 @@ class CaseLawRetriever:
             self.logger.error(f"Failed to find cases by citation: {e}", exc_info=True)
             return []
     
-    def get_case_timeline(self, case_document_id: str) -> Dict:
+    def get_case_timeline(self, case_document_id: str) -> dict:
         """
         Get procedural timeline for a case.
         
@@ -343,9 +342,9 @@ class CaseLawRetriever:
     def search_case_law(
         self, 
         query: str, 
-        filters: Optional[Dict] = None,
+        filters: dict | None = None,
         limit: int = 20
-    ) -> List[Dict]:
+    ) -> list[dict]:
         """
         General case law search with optional filters.
         

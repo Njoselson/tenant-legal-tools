@@ -1,6 +1,8 @@
 from datetime import datetime
 from unittest.mock import MagicMock
 
+import pytest
+
 from tenant_legal_guidance.graph.arango_graph import ArangoDBGraph
 from tenant_legal_guidance.models.entities import (
     EntityType,
@@ -28,6 +30,8 @@ def make_entity(eid: str, etype: EntityType, name: str, meta: SourceMetadata | N
     )
 
 
+@pytest.mark.slow
+@pytest.mark.slow
 def test_upsert_entity_provenance_merges_provenance_and_mentions(monkeypatch):
     # Build a graph instance without running __init__ (avoid real DB connection)
     g = object.__new__(ArangoDBGraph)

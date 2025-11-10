@@ -4,7 +4,6 @@ Quote extraction service for highlighting entities in source text.
 
 import logging
 import re
-from typing import Dict, List
 
 from tenant_legal_guidance.models.entities import LegalEntity
 from tenant_legal_guidance.services.deepseek import DeepSeekClient
@@ -20,8 +19,8 @@ class QuoteExtractor:
     async def extract_best_quote(
         self,
         entity: LegalEntity,
-        chunks: List[Dict],
-    ) -> Dict[str, str]:
+        chunks: list[dict],
+    ) -> dict[str, str]:
         """
         Find best quote for entity.
         
@@ -95,7 +94,7 @@ class QuoteExtractor:
             "explanation": explanation
         }
     
-    def _score_sentence(self, sentence: str, entity: LegalEntity, name_variations: List[str] = None) -> float:
+    def _score_sentence(self, sentence: str, entity: LegalEntity, name_variations: list[str] = None) -> float:
         """
         Score sentence quality (0-1).
         
@@ -130,7 +129,7 @@ class QuoteExtractor:
         
         return min(score, 1.0)
     
-    def _build_name_variations(self, name: str) -> List[str]:
+    def _build_name_variations(self, name: str) -> list[str]:
         """Build variations of entity name for flexible matching."""
         variations = [name.lower()]
         name_lower = name.lower()
@@ -185,7 +184,7 @@ class QuoteExtractor:
         
         return min(score, 1.0)
     
-    def _extract_sentences(self, text: str) -> List[str]:
+    def _extract_sentences(self, text: str) -> list[str]:
         """
         Extract sentences from text.
         

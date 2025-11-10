@@ -17,7 +17,6 @@ Env vars used for connection (same as app):
 
 import argparse
 import sys
-from typing import Dict
 
 from dotenv import load_dotenv
 
@@ -33,7 +32,7 @@ from tenant_legal_guidance.models.relationships import LegalRelationship, Relati
 load_dotenv()
 
 
-def _add_entity(kg: ArangoDBGraph, data: Dict) -> bool:
+def _add_entity(kg: ArangoDBGraph, data: dict) -> bool:
     entity = LegalEntity(
         id=data["id"],
         entity_type=data["entity_type"],

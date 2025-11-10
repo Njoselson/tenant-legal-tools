@@ -1,6 +1,5 @@
 from datetime import datetime
-from enum import Enum, auto
-from typing import Dict, List, Literal, Optional
+from enum import Enum
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -84,31 +83,31 @@ class SourceMetadata(BaseModel):
         default=SourceAuthority.INFORMATIONAL_ONLY,
         description="Legal authority level of this source",
     )
-    document_type: Optional[LegalDocumentType] = Field(
+    document_type: LegalDocumentType | None = Field(
         None, description="Specific type of legal document"
     )
 
     # Provenance fields
-    organization: Optional[str] = Field(
+    organization: str | None = Field(
         None, description="Publishing organization (e.g., 'HUD', 'California BAR')"
     )
-    title: Optional[str] = Field(None, description="Document title")
-    jurisdiction: Optional[str] = Field(
+    title: str | None = Field(None, description="Document title")
+    jurisdiction: str | None = Field(
         None, description="Applicable jurisdiction (e.g., '9th Circuit', 'NYC')"
     )
 
     # Timestamps
-    created_at: Optional[datetime] = Field(
+    created_at: datetime | None = Field(
         None, description="When the source was originally published"
     )
-    processed_at: Optional[datetime] = Field(None, description="When we processed this source")
-    last_updated: Optional[datetime] = Field(None, description="When the source was last updated")
+    processed_at: datetime | None = Field(None, description="When we processed this source")
+    last_updated: datetime | None = Field(None, description="When the source was last updated")
 
     # Relationships
-    cites: Optional[List[str]] = Field(
+    cites: list[str] | None = Field(
         default_factory=list, description="List of sources this document references"
     )
-    attributes: Dict[str, str] = Field(
+    attributes: dict[str, str] = Field(
         default_factory=dict, description="Additional metadata key-value pairs"
     )
 
@@ -148,93 +147,93 @@ class LegalEntity(BaseModel):
     )
     entity_type: EntityType
     name: str = Field(..., description="Human-readable name")
-    description: Optional[str] = None
+    description: str | None = None
     source_metadata: SourceMetadata = Field(..., description="Source and its authority level")
     # Multiple-source provenance
-    provenance: Optional[List[Dict]] = Field(
+    provenance: list[dict] | None = Field(
         default=None,
         description="Optional list of provenance records with quotes and per-source metadata",
     )
-    mentions_count: Optional[int] = Field(
+    mentions_count: int | None = Field(
         default=None, description="How many times this entity was observed across sources"
     )
     
     # Quote support (NEW)
-    best_quote: Optional[Dict[str, str]] = Field(
+    best_quote: dict[str, str] | None = Field(
         default=None,
         description="Best quote highlighting this entity: {text, source_id, chunk_id, explanation}"
     )
-    all_quotes: List[Dict[str, str]] = Field(
+    all_quotes: list[dict[str, str]] = Field(
         default_factory=list,
         description="All quotes from all sources mentioning this entity"
     )
     
     # Chunk linkage (NEW)
-    chunk_ids: List[str] = Field(
+    chunk_ids: list[str] = Field(
         default_factory=list,
         description="All chunk IDs where this entity is mentioned"
     )
     
     # Source tracking (NEW for multi-source provenance)
-    source_ids: List[str] = Field(
+    source_ids: list[str] = Field(
         default_factory=list,
         description="All source UUIDs that mention this entity"
     )
 
     # Tenant-specific fields
-    tenant_id: Optional[str] = None
-    building_id: Optional[str] = None
-    lease_start_date: Optional[datetime] = None
-    lease_end_date: Optional[datetime] = None
-    rent_amount: Optional[float] = None
-    rent_stabilized: Optional[bool] = None
-    household_size: Optional[int] = None
-    income_level: Optional[str] = None
+    tenant_id: str | None = None
+    building_id: str | None = None
+    lease_start_date: datetime | None = None
+    lease_end_date: datetime | None = None
+    rent_amount: float | None = None
+    rent_stabilized: bool | None = None
+    household_size: int | None = None
+    income_level: str | None = None
 
     # Building-specific fields
-    building_type: Optional[str] = None
-    total_units: Optional[int] = None
-    occupied_units: Optional[int] = None
-    year_built: Optional[int] = None
-    building_class: Optional[str] = None
+    building_type: str | None = None
+    total_units: int | None = None
+    occupied_units: int | None = None
+    year_built: int | None = None
+    building_class: str | None = None
 
     # Legal process fields
-    effective_date: Optional[datetime] = None
-    process: Optional[str] = None
-    success_rate: Optional[float] = Field(
+    effective_date: datetime | None = None
+    process: str | None = None
+    success_rate: float | None = Field(
         None, ge=0, le=1, description="Estimated success rate (0.0-1.0)"
     )
-    evidence_required: Optional[List[str]] = None
+    evidence_required: list[str] | None = None
     
     # Case document fields (NEW)
-    case_name: Optional[str] = None  # "756 Liberty Realty LLC v Garcia"
-    court: Optional[str] = None  # "NYC Housing Court"
-    docket_number: Optional[str] = None
-    decision_date: Optional[datetime] = None
-    parties: Optional[Dict[str, List[str]]] = None  # {"plaintiff": [...], "defendant": [...]}
-    holdings: Optional[List[str]] = None  # Key legal holdings
-    procedural_history: Optional[str] = None
-    citations: Optional[List[str]] = None  # Case law citations within document
+    case_name: str | None = None  # "756 Liberty Realty LLC v Garcia"
+    court: str | None = None  # "NYC Housing Court"
+    docket_number: str | None = None
+    decision_date: datetime | None = None
+    parties: dict[str, list[str]] | None = None  # {"plaintiff": [...], "defendant": [...]}
+    holdings: list[str] | None = None  # Key legal holdings
+    procedural_history: str | None = None
+    citations: list[str] | None = None  # Case law citations within document
     
     # Case outcome fields (NEW)
-    outcome: Optional[str] = Field(
+    outcome: str | None = Field(
         None,
         description="Case outcome: 'plaintiff_win', 'defendant_win', 'settlement', 'dismissed'"
     )
-    ruling_type: Optional[str] = Field(
+    ruling_type: str | None = Field(
         None,
         description="Type of ruling: 'judgment', 'summary_judgment', 'dismissal'"
     )
-    relief_granted: Optional[List[str]] = Field(
+    relief_granted: list[str] | None = Field(
         None,
         description="Relief granted: ['rent_reduction', 'attorney_fees', 'repairs_ordered']"
     )
-    damages_awarded: Optional[float] = Field(
+    damages_awarded: float | None = Field(
         None,
         description="Monetary damages awarded (if any)"
     )
     
-    attributes: Dict[str, str] = Field(default_factory=dict)
+    attributes: dict[str, str] = Field(default_factory=dict)
 
     @field_validator("entity_type", mode="before")
     @classmethod
@@ -263,7 +262,7 @@ class LegalEntity(BaseModel):
                 raise ValueError(f"Invalid datetime format: {v}")
         return v
     
-    def to_api_dict(self) -> Dict:
+    def to_api_dict(self) -> dict:
         """
         Serialize entity to consistent API response format.
         

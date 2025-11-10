@@ -7,7 +7,7 @@ metadata enrichment and validation.
 
 import re
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -24,13 +24,13 @@ class ManifestEntry(BaseModel):
 
     locator: str = Field(..., description="URL or file path to the source")
     kind: str = Field(default="URL", description="Source kind: URL, FILE, etc.")
-    title: Optional[str] = Field(None, description="Document title")
-    jurisdiction: Optional[str] = Field(None, description="Legal jurisdiction")
-    authority: Optional[str] = Field(None, description="Source authority level")
-    document_type: Optional[str] = Field(None, description="Legal document type")
-    organization: Optional[str] = Field(None, description="Publishing organization")
-    tags: List[str] = Field(default_factory=list, description="Custom tags")
-    notes: Optional[str] = Field(None, description="Additional notes")
+    title: str | None = Field(None, description="Document title")
+    jurisdiction: str | None = Field(None, description="Legal jurisdiction")
+    authority: str | None = Field(None, description="Source authority level")
+    document_type: str | None = Field(None, description="Legal document type")
+    organization: str | None = Field(None, description="Publishing organization")
+    tags: list[str] = Field(default_factory=list, description="Custom tags")
+    notes: str | None = Field(None, description="Additional notes")
 
     @field_validator("locator")
     @classmethod
@@ -42,7 +42,7 @@ class ManifestEntry(BaseModel):
 
     @field_validator("tags", mode="before")
     @classmethod
-    def validate_tags(cls, v: Any) -> List[str]:
+    def validate_tags(cls, v: Any) -> list[str]:
         """Ensure tags is a list."""
         if v is None:
             return []
@@ -57,13 +57,13 @@ class MetadataTemplate(BaseModel):
     """Base template for source metadata."""
 
     authority: SourceAuthority
-    document_type: Optional[LegalDocumentType] = None
-    jurisdiction: Optional[str] = None
-    organization: Optional[str] = None
-    tags: List[str] = Field(default_factory=list)
+    document_type: LegalDocumentType | None = None
+    jurisdiction: str | None = None
+    organization: str | None = None
+    tags: list[str] = Field(default_factory=list)
 
     def to_source_metadata(
-        self, source: str, title: Optional[str] = None, **kwargs
+        self, source: str, title: str | None = None, **kwargs
     ) -> SourceMetadata:
         """Convert template to SourceMetadata instance."""
         return SourceMetadata(
@@ -89,45 +89,35 @@ class MetadataTemplate(BaseModel):
 # Predefined metadata templates for common source types
 
 TEMPLATES = {
+    "court_opinion": MetadataTemplate(  # NEW
+        authority=SourceAuthority.BINDING_LEGAL_AUTHORITY,
+        document_type=LegalDocumentType.COURT_OPINION,
+        tags=["case_law", "court_opinion", "precedent"],
+    ),
     "statute": MetadataTemplate(
         authority=SourceAuthority.BINDING_LEGAL_AUTHORITY,
         document_type=LegalDocumentType.STATUTE,
         tags=["statute", "binding_law"],
     ),
-    "regulation": MetadataTemplate(
-        authority=SourceAuthority.BINDING_LEGAL_AUTHORITY,
-        document_type=LegalDocumentType.REGULATION,
-        tags=["regulation", "administrative_law"],
-    ),
-    "case_law": MetadataTemplate(
-        authority=SourceAuthority.BINDING_LEGAL_AUTHORITY,
-        document_type=LegalDocumentType.CASE_LAW,
-        tags=["case_law", "precedent"],
-    ),
-    "agency_guidance": MetadataTemplate(
-        authority=SourceAuthority.OFFICIAL_INTERPRETIVE,
-        document_type=LegalDocumentType.AGENCY_GUIDANCE,
-        tags=["guidance", "administrative"],
-    ),
-    "self_help_guide": MetadataTemplate(
+    "legal_guide": MetadataTemplate(
         authority=SourceAuthority.PRACTICAL_SELF_HELP,
-        document_type=LegalDocumentType.SELF_HELP_GUIDE,
-        tags=["self_help", "guide"],
+        document_type=LegalDocumentType.LEGAL_GUIDE,
+        tags=["guide", "self_help"],
     ),
-    "tenant_union": MetadataTemplate(
+    "tenant_handbook": MetadataTemplate(
         authority=SourceAuthority.PRACTICAL_SELF_HELP,
-        document_type=LegalDocumentType.SELF_HELP_GUIDE,
-        tags=["tenant_union", "organizing", "advocacy"],
+        document_type=LegalDocumentType.TENANT_HANDBOOK,
+        tags=["handbook", "tenant_rights"],
     ),
-    "legal_aid": MetadataTemplate(
-        authority=SourceAuthority.INFORMATIONAL_ONLY,
-        document_type=LegalDocumentType.SELF_HELP_GUIDE,
-        tags=["legal_aid", "informational"],
-    ),
-    "treatise": MetadataTemplate(
+    "legal_memo": MetadataTemplate(
         authority=SourceAuthority.PERSUASIVE_AUTHORITY,
-        document_type=LegalDocumentType.TREATISE,
-        tags=["treatise", "secondary_source"],
+        document_type=LegalDocumentType.LEGAL_MEMO,
+        tags=["memo", "analysis"],
+    ),
+    "advocacy_document": MetadataTemplate(
+        authority=SourceAuthority.INFORMATIONAL_ONLY,
+        document_type=LegalDocumentType.ADVOCACY_DOCUMENT,
+        tags=["advocacy", "policy"],
     ),
 }
 
@@ -135,23 +125,32 @@ TEMPLATES = {
 # URL pattern-based metadata detection
 
 URL_PATTERNS = [
+    # Court opinions (NEW)
+    (
+        r"courtlistener\.com|casetext\.com|law\.justia\.com/cases",
+        {
+            "authority": SourceAuthority.BINDING_LEGAL_AUTHORITY,
+            "document_type": LegalDocumentType.COURT_OPINION,
+            "tags": ["court_opinion", "case_law"],
+        },
+    ),
+    (
+        r"nycourts\.gov/.*decisions|courts\.state\.ny\.us/.*decisions",
+        {
+            "authority": SourceAuthority.BINDING_LEGAL_AUTHORITY,
+            "document_type": LegalDocumentType.COURT_OPINION,
+            "jurisdiction": "New York State",
+            "tags": ["ny_court", "court_opinion"],
+        },
+    ),
     # Federal/State courts
     (
         r"uscourts\.gov|supremecourt\.gov",
         {
             "authority": SourceAuthority.BINDING_LEGAL_AUTHORITY,
-            "document_type": LegalDocumentType.CASE_LAW,
+            "document_type": LegalDocumentType.COURT_OPINION,
             "jurisdiction": "Federal",
             "tags": ["federal_court"],
-        },
-    ),
-    (
-        r"nycourts\.gov",
-        {
-            "authority": SourceAuthority.BINDING_LEGAL_AUTHORITY,
-            "document_type": LegalDocumentType.CASE_LAW,
-            "jurisdiction": "New York State",
-            "tags": ["ny_court"],
         },
     ),
     # Government agencies
@@ -159,7 +158,7 @@ URL_PATTERNS = [
         r"hud\.gov",
         {
             "authority": SourceAuthority.OFFICIAL_INTERPRETIVE,
-            "document_type": LegalDocumentType.AGENCY_GUIDANCE,
+            "document_type": LegalDocumentType.LEGAL_GUIDE,
             "jurisdiction": "Federal",
             "organization": "HUD",
             "tags": ["federal_agency", "hud"],
@@ -188,6 +187,7 @@ URL_PATTERNS = [
         r"crownheightstenantunion\.org",
         {
             "authority": SourceAuthority.PRACTICAL_SELF_HELP,
+            "document_type": LegalDocumentType.TENANT_HANDBOOK,
             "jurisdiction": "NYC",
             "organization": "Crown Heights Tenant Union",
             "tags": ["tenant_union", "organizing", "crown_heights"],
@@ -197,6 +197,7 @@ URL_PATTERNS = [
         r"metcouncilonhousing\.org",
         {
             "authority": SourceAuthority.PRACTICAL_SELF_HELP,
+            "document_type": LegalDocumentType.TENANT_HANDBOOK,
             "jurisdiction": "NYC",
             "organization": "Met Council on Housing",
             "tags": ["tenant_advocacy", "legal_aid"],
@@ -207,6 +208,7 @@ URL_PATTERNS = [
         r"lawhelp\.org|legalaidnyc\.org",
         {
             "authority": SourceAuthority.INFORMATIONAL_ONLY,
+            "document_type": LegalDocumentType.LEGAL_GUIDE,
             "jurisdiction": "NYC",
             "tags": ["legal_aid", "informational"],
         },
@@ -214,7 +216,7 @@ URL_PATTERNS = [
 ]
 
 
-def detect_metadata_from_url(url: str) -> Dict[str, Any]:
+def detect_metadata_from_url(url: str) -> dict[str, Any]:
     """
     Automatically detect metadata based on URL patterns.
 
@@ -339,7 +341,7 @@ def manifest_entry_to_source_metadata(entry: ManifestEntry) -> SourceMetadata:
     )
 
 
-def validate_metadata_completeness(metadata: SourceMetadata) -> List[str]:
+def validate_metadata_completeness(metadata: SourceMetadata) -> list[str]:
     """
     Validate that metadata has all recommended fields.
 

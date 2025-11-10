@@ -198,25 +198,36 @@
         <div id="sidebar">
             <h2>Graph Details & Chat</h2>
             <div id="actions-panel">
-                <h3>Actions</h3>
-                <div class="actions-row">
-                    <button id="delete-node-btn" class="action-btn danger" disabled>Delete Node</button>
-                    <button id="delete-selected-btn" class="action-btn danger" disabled>Delete Selected</button>
-                    <button id="expand-btn" class="action-btn" disabled>Expand 1-hop</button>
-                    <button id="consolidate-btn" class="action-btn" disabled>Consolidate</button>
-                    <button id="consolidate-all-btn" class="action-btn">Consolidate All</button>
+                <h3 style="cursor:pointer;" onclick="document.getElementById('actions-advanced').classList.toggle('hidden')">
+                    Actions ▼
+                </h3>
+                <div id="actions-advanced">
+                    <div class="actions-row">
+                        <button id="delete-selected-btn" class="action-btn danger" disabled>Delete</button>
+                        <button id="expand-btn" class="action-btn" disabled>Expand</button>
+                        <button id="consolidate-btn" class="action-btn" disabled>Consolidate</button>
+                    </div>
+                    <div class="actions-row">
+                        <button id="load-more-btn" class="action-btn">Load More</button>
+                    </div>
+                    <div class="actions-row" style="margin-top:8px;">
+                        <input id="filter-q" placeholder="Search..." style="flex:1; padding:6px; border:1px solid #ced4da; border-radius:6px; font-size:0.9em;" />
+                        <button id="apply-filters-btn" class="action-btn">Search</button>
+                    </div>
+                    <details style="margin-top:8px;">
+                        <summary style="cursor:pointer; font-size:0.85em; color:#6c757d;">Advanced Filters</summary>
+                        <div style="margin-top:6px;">
+                            <input id="filter-types" placeholder="Entity types (comma)" style="width:100%; padding:6px; border:1px solid #ced4da; border-radius:6px; font-size:0.9em; margin-bottom:6px;" />
+                            <input id="filter-jurisdiction" placeholder="Jurisdiction" style="width:100%; padding:6px; border:1px solid #ced4da; border-radius:6px; font-size:0.9em; margin-bottom:6px;" />
+                            <button id="consolidate-all-btn" class="action-btn" style="width:100%;">Consolidate All</button>
+                        </div>
+                    </details>
+                    <p class="hint">Tip: Cmd/Ctrl + Click to multi-select</p>
                 </div>
-                <div class="actions-row">
-                    <input id="filter-q" placeholder="Search q" style="flex:1; padding:6px; border:1px solid #ced4da; border-radius:6px;" />
-                    <input id="filter-types" placeholder="types (comma)" style="flex:1; padding:6px; border:1px solid #ced4da; border-radius:6px;" />
-                </div>
-                <div class="actions-row">
-                    <input id="filter-jurisdiction" placeholder="jurisdiction" style="flex:1; padding:6px; border:1px solid #ced4da; border-radius:6px;" />
-                    <button id="apply-filters-btn" class="action-btn">Apply Filters</button>
-                    <button id="load-more-btn" class="action-btn">Load More</button>
-                </div>
-                <p class="hint">Tip: Hold Cmd/Ctrl or Shift to multi-select nodes.</p>
             </div>
+            <style>
+                .hidden { display: none; }
+            </style>
             <div id="details-panel">
                 <h3>Selection Details</h3>
                 <p>Click on a node or edge to see details here.</p>
@@ -239,7 +250,6 @@
         const chatLog = document.getElementById('chat-log');
         const chatInput = document.getElementById('chat-input');
         const sendBtn = document.getElementById('send-btn');
-        const deleteNodeBtn = document.getElementById('delete-node-btn');
         const deleteSelectedBtn = document.getElementById('delete-selected-btn');
         const expandBtn = document.getElementById('expand-btn');
         const consolidateBtn = document.getElementById('consolidate-btn');
@@ -308,7 +318,7 @@
                 console.log("Fetching graph data (first page)...");
                 nextCursor = null;
                 const params = new URLSearchParams();
-                params.set('limit', '200');
+                params.set('limit', '100');
                 if (activeFilters.q) params.set('q', activeFilters.q);
                 if (activeFilters.types) params.set('types', activeFilters.types);
                 if (activeFilters.jurisdiction) params.set('jurisdiction', activeFilters.jurisdiction);
@@ -324,15 +334,28 @@
                 console.log(`Received ${rawData.nodes?.length} nodes, ${rawData.links?.length} links.`);
 
                 // Process entity nodes for vis-network
-                const entityNodes = rawData.nodes.map(node => ({
-                    id: node.id,
-                    label: node.label || node.name || node.id,
-                    title: `Type: ${node.type}<br>ID: ${node.id}`,
-                    shape: entityShapes[normalizeTypeKey(node.type)] || entityShapes.DEFAULT,
-                    color: entityColors[normalizeTypeKey(node.type)] || entityColors.DEFAULT,
-                    size: normalizeTypeKey(node.type) === 'TEXT_CHUNK' ? 12 : 20,
-                    originalData: node
-                }));
+                const entityNodes = rawData.nodes.map(node => {
+                    // Check if node has chunks/quotes (look in both node and attributes)
+                    const hasChunks = (node.chunk_ids && node.chunk_ids.length > 0) || 
+                                     (node.attributes && node.attributes.chunk_ids && node.attributes.chunk_ids.length > 0);
+                    const hasQuote = node.best_quote || (node.attributes && node.attributes.best_quote);
+                    const hasVector = hasChunks || hasQuote;
+                    
+                    // Customize node appearance based on having vectors/quotes
+                    const nodeSize = normalizeTypeKey(node.type) === 'TEXT_CHUNK' ? 12 : (hasVector ? 25 : 20);
+                    
+                    return {
+                        id: node.id,
+                        label: node.label || node.name || node.id,
+                        title: `Type: ${node.type}<br>ID: ${node.id}${hasVector ? '<br>📄 Has vectors' : ''}`,
+                        shape: entityShapes[normalizeTypeKey(node.type)] || entityShapes.DEFAULT,
+                        color: entityColors[normalizeTypeKey(node.type)] || entityColors.DEFAULT,
+                        size: nodeSize,
+                        borderWidth: hasVector ? 3 : 1,
+                        borderColor: hasVector ? '#2ecc71' : undefined,
+                        originalData: node
+                    };
+                });
 
                 // Combine all nodes
                 const nodes = [...entityNodes];
@@ -431,7 +454,7 @@
             try {
                 if (nextCursor == null) return;
                 const params = new URLSearchParams();
-                params.set('limit', '200');
+                params.set('limit', '100');
                 params.set('cursor', String(nextCursor));
                 if (activeFilters.q) params.set('q', activeFilters.q);
                 if (activeFilters.types) params.set('types', activeFilters.types);
@@ -441,15 +464,28 @@
                 if (!resp.ok) throw new Error(page && page.detail ? page.detail : 'Load more failed');
                 nextCursor = page.next_cursor ?? null;
 
-                const newNodes = page.nodes.map(node => ({
-                    id: node.id,
-                    label: node.label || node.name || node.id,
-                    title: `Type: ${node.type}<br>ID: ${node.id}`,
-                    shape: entityShapes[normalizeTypeKey(node.type)] || entityShapes.DEFAULT,
-                    color: entityColors[normalizeTypeKey(node.type)] || entityColors.DEFAULT,
-                    size: normalizeTypeKey(node.type) === 'TEXT_CHUNK' ? 12 : 20,
-                    originalData: node
-                }));
+                const newNodes = page.nodes.map(node => {
+                    // Check if node has chunks/quotes (look in both node and attributes)
+                    const hasChunks = (node.chunk_ids && node.chunk_ids.length > 0) || 
+                                     (node.attributes && node.attributes.chunk_ids && node.attributes.chunk_ids.length > 0);
+                    const hasQuote = node.best_quote || (node.attributes && node.attributes.best_quote);
+                    const hasVector = hasChunks || hasQuote;
+                    
+                    // Customize node appearance based on having vectors/quotes
+                    const nodeSize = normalizeTypeKey(node.type) === 'TEXT_CHUNK' ? 12 : (hasVector ? 25 : 20);
+                    
+                    return {
+                        id: node.id,
+                        label: node.label || node.name || node.id,
+                        title: `Type: ${node.type}<br>ID: ${node.id}${hasVector ? '<br>📄 Has vectors' : ''}`,
+                        shape: entityShapes[normalizeTypeKey(node.type)] || entityShapes.DEFAULT,
+                        color: entityColors[normalizeTypeKey(node.type)] || entityColors.DEFAULT,
+                        size: nodeSize,
+                        borderWidth: hasVector ? 3 : 1,
+                        borderColor: hasVector ? '#2ecc71' : undefined,
+                        originalData: node
+                    };
+                });
                 const newEdges = page.links.map((link, index) => ({
                     id: `edge_more_${Date.now()}_${index}`,
                     from: link.source,
@@ -499,7 +535,7 @@
             updateActionButtons();
         }
 
-        function displayNodeDetails(node) {
+        async function displayNodeDetails(node) {
             if (!node || !node.originalData) {
                 displayDefaultDetails();
                 return;
@@ -550,7 +586,7 @@
                         ? `<a href="${escapeHtml(src)}" target="_blank">${escapeHtml(src)}</a>`
                         : escapeHtml(String(src || ''));
                     const quote = p && p.quote ? escapeHtml(p.quote) : '';
-                    detailsHtml += `<li>${link}${quote ? `<div style="margin-top:4px;font-size:0.9em;color:#444;">“${quote}”</div>` : ''}</li>`;
+                    detailsHtml += `<li>${link}${quote ? `<div style="margin-top:4px;font-size:0.9em;color:#444;">"${quote}"</div>` : ''}</li>`;
                 });
                 if (data.provenance.length > 5) {
                     detailsHtml += `<li>… and ${data.provenance.length - 5} more</li>`;
@@ -564,7 +600,94 @@
                  }
                  detailsHtml += `</ul>`;
             }
+            
+            // Don't display quote inline - it will be loaded asynchronously via API
             detailsPanel.innerHTML = detailsHtml;
+            
+            // Load chunks and quotes asynchronously
+            await loadEntityChunks(data.id);
+            await loadEntityQuote(data.id);
+        }
+        
+        async function loadEntityChunks(entityId) {
+            try {
+                const response = await fetch(`/api/entities/${encodeURIComponent(entityId)}/chunks`);
+                if (!response.ok) {
+                    console.log(`Failed to load chunks for ${entityId}`);
+                    return;
+                }
+                const data = await response.json();
+                
+                // Check if chunks section already exists (prevent duplicates on re-selection)
+                if (detailsPanel.querySelector('.entity-chunks-section')) {
+                    console.log('Chunks already loaded for this entity');
+                    return;
+                }
+                
+                if (data.chunks && data.chunks.length > 0) {
+                    let chunksHtml = `<div class="entity-chunks-section">`;
+                    chunksHtml += `<p><strong>📄 Vectors/Chunks (${data.chunk_count}):</strong></p>`;
+                    chunksHtml += `<div style="max-height:200px; overflow-y:auto; padding:8px; background:#fff; border:1px solid #ddd; border-radius:6px; margin:8px 0;">`;
+                    
+                    data.chunks.slice(0, 5).forEach(chunk => {
+                        chunksHtml += `<div style="border-bottom:1px solid #eee; padding:6px 0; margin-bottom:6px;">`;
+                        chunksHtml += `<code style="font-size:0.85em; color:#666;">${escapeHtml(chunk.chunk_id || 'N/A')}</code>`;
+                        if (chunk.doc_title) {
+                            chunksHtml += `<br><span style="font-size:0.85em; color:#888;">${escapeHtml(chunk.doc_title)}</span>`;
+                        }
+                        if (chunk.text_preview) {
+                            chunksHtml += `<p style="font-size:0.85em; color:#444; margin:4px 0; font-style:italic;">${escapeHtml(chunk.text_preview)}</p>`;
+                        }
+                        chunksHtml += `</div>`;
+                    });
+                    
+                    if (data.chunks.length > 5) {
+                        chunksHtml += `<p style="font-size:0.85em; color:#666;">… and ${data.chunks.length - 5} more chunks</p>`;
+                    }
+                    chunksHtml += `</div></div>`;
+                    
+                    detailsPanel.innerHTML += chunksHtml;
+                }
+            } catch (error) {
+                console.error(`Error loading chunks for ${entityId}:`, error);
+            }
+        }
+        
+        async function loadEntityQuote(entityId) {
+            try {
+                const response = await fetch(`/api/entities/${encodeURIComponent(entityId)}/quote`);
+                if (!response.ok) {
+                    console.log(`Failed to load quote for ${entityId}`);
+                    return;
+                }
+                const data = await response.json();
+                
+                // Check if quote section already exists (prevent duplicates on re-selection)
+                if (detailsPanel.querySelector('.entity-quote-section')) {
+                    console.log('Quote already loaded for this entity');
+                    return;
+                }
+                
+                if (data.best_quote && data.best_quote.text) {
+                    let quoteHtml = `<div class="entity-quote-section">`;
+                    quoteHtml += `<p><strong>Best Quote:</strong></p>`;
+                    quoteHtml += `<div style="padding:10px; background:#fff3cd; border-left:3px solid #ffc107; margin:8px 0; border-radius:4px;">`;
+                    quoteHtml += `<p style="font-style:italic; margin:0; color:#856404;">"${escapeHtml(data.best_quote.text)}"</p>`;
+                    if (data.best_quote.explanation) {
+                        quoteHtml += `<p style="font-size:0.85em; color:#856404; margin:4px 0 0 0;">${escapeHtml(data.best_quote.explanation)}</p>`;
+                    }
+                    quoteHtml += `</div>`;
+                    
+                    if (data.all_quotes_count && data.all_quotes_count > 1) {
+                        quoteHtml += `<p style="font-size:0.9em; color:#666;"><strong>Note:</strong> This entity appears in ${data.all_quotes_count} source(s)</p>`;
+                    }
+                    
+                    quoteHtml += `</div>`;
+                    detailsPanel.innerHTML += quoteHtml;
+                }
+            } catch (error) {
+                console.error(`Error loading quote for ${entityId}:`, error);
+            }
         }
 
         function displayMultiSelectionDetails(count) {
@@ -579,16 +702,9 @@
         function updateActionButtons() {
             const count = selectedNodeIds.size;
             deleteSelectedBtn.disabled = count === 0;
-            deleteNodeBtn.disabled = count !== 1;
             expandBtn.disabled = count === 0;
             consolidateBtn.disabled = count < 2;
         }
-
-        deleteNodeBtn.addEventListener('click', async () => {
-            const ids = Array.from(selectedNodeIds);
-            if (ids.length !== 1) return;
-            await deleteNodes(ids);
-        });
 
         deleteSelectedBtn.addEventListener('click', async () => {
             const ids = Array.from(selectedNodeIds);

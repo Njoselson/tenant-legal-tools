@@ -8,7 +8,6 @@ These tests demonstrate:
 4. Proof chain construction
 """
 
-from typing import Dict, List
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
@@ -288,6 +287,7 @@ class TestRemedyRanking:
         if result_high and result_low:
             assert result_high[0].estimated_probability > result_low[0].estimated_probability
 
+    @pytest.mark.slow
     def test_rank_remedies_prefers_binding_authority(
         self, case_analyzer, sample_entities, sample_chunks
     ):
@@ -615,6 +615,7 @@ class TestIntegrationScenarios:
     """Integration tests showing complete workflows."""
 
     @pytest.mark.asyncio
+    @pytest.mark.slow
     async def test_complete_analysis_workflow(
         self, case_analyzer, mock_llm, sample_entities, sample_chunks
     ):
@@ -695,6 +696,310 @@ class TestIntegrationScenarios:
         assert len(next_steps) > 0
         critical_steps = [s for s in next_steps if s["priority"] == "critical"]
         assert len(critical_steps) > 0
+
+
+# ============================================================================
+# GRAPH CHAINS INTEGRATION TESTS
+# ============================================================================
+
+
+@pytest.mark.asyncio
+@pytest.mark.slow
+async def test_graph_chains_integration_with_valid_chains(mock_graph, mock_llm):
+    """Test that graph chains are retrieved and integrated into proof chains."""
+    
+    # Mock graph chains response (what build_legal_chains returns)
+    mock_graph_chains = [
+        {
+            "chain": [
+                {"type": "tenant_issue", "id": "issue1", "name": "mold", "cite": {"source": "guide"}},
+                {"rel": "APPLIES_TO"},
+                {"type": "law", "id": "law1", "name": "Warranty of Habitability", "cite": {"source": "NYC Housing Code"}},
+                {"rel": "ENABLES"},
+                {"type": "remedy", "id": "remedy1", "name": "HP Action", "cite": {"source": "guide"}},
+                {"rel": "AVAILABLE_VIA"},
+                {"type": "legal_procedure", "id": "proc1", "name": "File Housing Court Complaint", "cite": {"source": "guide"}},
+                {"rel": "REQUIRES"},
+                {"type": "evidence", "id": "ev1", "name": "Photos of mold", "cite": {"source": "guide"}},
+            ],
+            "score": 1.0
+        }
+    ]
+    
+    # Configure mock to return graph chains
+    mock_graph.build_legal_chains = Mock(return_value=mock_graph_chains)
+    
+    # Mock LLM responses
+    mock_llm.chat_completion = AsyncMock(side_effect=[
+        '["mold", "habitability"]',  # Issue identification
+        '{"evidence_present": ["Tenant mentioned mold in bathroom"], "evidence_needed": ["Photos", "Timeline"], "reasoning": "Tenant has mold issue"}',  # Issue analysis
+        '{"photos": ["Mentioned mold"], "correspondence": [], "dates": [], "witnesses": [], "financial_documents": []}',  # Evidence extraction
+        'Tenant has mold in bathroom causing health concerns.',  # Case summary
+        'Moderate risk case with evidence gaps.',  # Risk assessment
+    ])
+    
+    # Mock retrieval
+    mock_retriever = Mock()
+    mock_retriever.retrieve = Mock(return_value={
+        "chunks": [],
+        "entities": [
+            LegalEntity(
+                id="law1",
+                name="Warranty of Habitability",
+                entity_type=EntityType.LAW,
+                description="Landlord must maintain habitable conditions"
+            ),
+            LegalEntity(
+                id="remedy1",
+                name="HP Action",
+                entity_type=EntityType.REMEDY,
+                description="Housing court proceeding"
+            )
+        ]
+    })
+    
+    # Create analyzer with mocked dependencies
+    analyzer = CaseAnalyzer(graph=mock_graph, llm_client=mock_llm)
+    analyzer.retriever = mock_retriever
+    
+    # Run analysis
+    result = await analyzer.analyze_case_enhanced(
+        case_text="My landlord won't fix the mold in my bathroom",
+        jurisdiction="NYC"
+    )
+    
+    # Verify graph chains were called
+    mock_graph.build_legal_chains.assert_called()
+    
+    # Verify proof chains include graph data
+    assert len(result.proof_chains) > 0
+    
+    for pc in result.proof_chains:
+        # Check new fields exist
+        assert hasattr(pc, 'graph_chains')
+        assert hasattr(pc, 'legal_elements')
+        assert hasattr(pc, 'verification_status')
+        
+        # Check graph chains were populated
+        assert len(pc.graph_chains) > 0
+        assert pc.graph_chains[0]["chain"] is not None
+        
+        # Check laws came from graph chain
+        if pc.applicable_laws:
+            law_names = [law.get("name") for law in pc.applicable_laws]
+            assert "Warranty of Habitability" in law_names
+        
+        # Check verification status
+        assert pc.verification_status.get("verified") is True
+
+
+@pytest.mark.asyncio
+@pytest.mark.slow
+async def test_graph_chains_skips_issue_with_no_chains(mock_graph, mock_llm):
+    """Test that issues with no graph chains are skipped."""
+    
+    # Mock graph returns empty chains
+    mock_graph.build_legal_chains = Mock(return_value=[])
+    
+    # Mock LLM to identify issues
+    mock_llm.chat_completion = AsyncMock(side_effect=[
+        '["unknown_issue"]',  # Issue identification
+        '{"photos": [], "correspondence": [], "dates": [], "witnesses": [], "financial_documents": []}',  # Evidence extraction
+        'No applicable issues found.',  # Case summary
+        'Unable to assess risk.',  # Risk assessment
+    ])
+    
+    # Mock retrieval
+    mock_retriever = Mock()
+    mock_retriever.retrieve = Mock(return_value={"chunks": [], "entities": []})
+    
+    analyzer = CaseAnalyzer(graph=mock_graph, llm_client=mock_llm)
+    analyzer.retriever = mock_retriever
+    
+    # Run analysis
+    result = await analyzer.analyze_case_enhanced(
+        case_text="Random text with no legal issues",
+        jurisdiction="NYC"
+    )
+    
+    # Verify no proof chains created (issue was skipped)
+    assert len(result.proof_chains) == 0
+
+
+@pytest.mark.asyncio
+@pytest.mark.slow
+async def test_legal_elements_extraction_from_graph_chains(mock_graph, mock_llm):
+    """Test that legal elements are correctly extracted from graph chains."""
+    
+    # Mock graph chains with multiple evidence requirements
+    mock_graph_chains = [
+        {
+            "chain": [
+                {"type": "tenant_issue", "name": "harassment"},
+                {"rel": "APPLIES_TO"},
+                {"type": "law", "name": "Anti-Harassment Law"},
+                {"rel": "REQUIRES"},
+                {"type": "evidence", "name": "Photos of incidents"},
+                {"rel": "REQUIRES"},
+                {"type": "evidence", "name": "Witness statements"},
+                {"rel": "REQUIRES"},
+                {"type": "evidence", "name": "Timeline of events"},
+            ],
+            "score": 1.0
+        }
+    ]
+    
+    mock_graph.build_legal_chains = Mock(return_value=mock_graph_chains)
+    
+    # Mock LLM to say some evidence is present
+    mock_llm.chat_completion = AsyncMock(side_effect=[
+        '["harassment"]',
+        '{"evidence_present": ["Tenant mentioned photos"], "evidence_needed": ["Witness statements", "Timeline"], "reasoning": "Harassment case"}',
+        '{"photos": ["Has photos"], "correspondence": [], "dates": [], "witnesses": [], "financial_documents": []}',
+        'Harassment case summary.',
+        'Risk assessment.',
+    ])
+    
+    mock_retriever = Mock()
+    mock_retriever.retrieve = Mock(return_value={"chunks": [], "entities": []})
+    
+    analyzer = CaseAnalyzer(graph=mock_graph, llm_client=mock_llm)
+    analyzer.retriever = mock_retriever
+    
+    result = await analyzer.analyze_case_enhanced(
+        case_text="Landlord harassing me",
+        jurisdiction="NYC"
+    )
+    
+    # Verify legal elements were extracted
+    assert len(result.proof_chains) > 0
+    proof_chain = result.proof_chains[0]
+    
+    assert len(proof_chain.legal_elements) > 0
+    
+    # Check that elements include all evidence types from chain
+    element_names = [elem["element_name"] for elem in proof_chain.legal_elements]
+    assert "Photos of incidents" in element_names
+    assert "Witness statements" in element_names
+    assert "Timeline of events" in element_names
+    
+    # Check satisfaction status
+    for elem in proof_chain.legal_elements:
+        if "photos" in elem["element_name"].lower():
+            assert elem["satisfied"] is True  # Tenant mentioned photos
+        else:
+            assert elem["satisfied"] is False  # Others not mentioned
+
+
+@pytest.mark.asyncio
+@pytest.mark.slow
+async def test_remedies_prioritized_from_graph_chain(mock_graph, mock_llm):
+    """Test that remedies from graph chains are prioritized over others."""
+    
+    # Mock graph chains with specific remedies
+    mock_graph_chains = [
+        {
+            "chain": [
+                {"type": "tenant_issue", "name": "repairs"},
+                {"rel": "APPLIES_TO"},
+                {"type": "law", "name": "Warranty of Habitability"},
+                {"rel": "ENABLES"},
+                {"type": "remedy", "name": "HP Action"},  # This should be prioritized
+            ],
+            "score": 1.0
+        }
+    ]
+    
+    mock_graph.build_legal_chains = Mock(return_value=mock_graph_chains)
+    
+    # Mock retrieval to return multiple remedy entities
+    mock_entities = [
+        LegalEntity(id="r1", name="HP Action", entity_type=EntityType.REMEDY, description="Housing court"),
+        LegalEntity(id="r2", name="Rent Reduction", entity_type=EntityType.REMEDY, description="Reduce rent"),
+        LegalEntity(id="r3", name="Small Claims", entity_type=EntityType.REMEDY, description="Small claims court"),
+    ]
+    
+    mock_retriever = Mock()
+    mock_retriever.retrieve = Mock(return_value={"chunks": [], "entities": mock_entities})
+    
+    mock_llm.chat_completion = AsyncMock(side_effect=[
+        '["repairs"]',
+        '{"evidence_present": [], "evidence_needed": [], "reasoning": "Repairs needed"}',
+        '{"photos": [], "correspondence": [], "dates": [], "witnesses": [], "financial_documents": []}',
+        'Summary.',
+        'Risk.',
+    ])
+    
+    analyzer = CaseAnalyzer(graph=mock_graph, llm_client=mock_llm)
+    analyzer.retriever = mock_retriever
+    
+    result = await analyzer.analyze_case_enhanced(
+        case_text="Landlord won't make repairs",
+        jurisdiction="NYC"
+    )
+    
+    # Verify HP Action (from graph chain) is in top remedies
+    assert len(result.proof_chains) > 0
+    proof_chain = result.proof_chains[0]
+    
+    assert len(proof_chain.remedies) > 0
+    
+    # HP Action should be first (prioritized from graph chain)
+    first_remedy = proof_chain.remedies[0]
+    assert first_remedy.name == "HP Action"
+
+
+@pytest.mark.asyncio
+async def test_graph_first_architecture_uses_chain_laws(mock_graph, mock_llm):
+    """Test that laws are extracted from graph chains, not LLM speculation."""
+    
+    # Mock graph chains with specific laws
+    mock_graph_chains = [
+        {
+            "chain": [
+                {"type": "tenant_issue", "name": "eviction"},
+                {"rel": "APPLIES_TO"},
+                {"type": "law", "name": "NYC Admin Code §27-2115", "cite": {"source": "NYC Housing Code"}},
+                {"rel": "APPLIES_TO"},
+                {"type": "law", "name": "Real Property Actions Law §711", "cite": {"source": "NY State Law"}},
+            ],
+            "score": 1.0
+        }
+    ]
+    
+    mock_graph.build_legal_chains = Mock(return_value=mock_graph_chains)
+    
+    # LLM response doesn't include laws (graph-first means LLM doesn't pick them)
+    mock_llm.chat_completion = AsyncMock(side_effect=[
+        '["eviction"]',
+        '{"evidence_present": ["Notice received"], "evidence_needed": ["Legal counsel"], "reasoning": "Eviction case"}',
+        '{"photos": [], "correspondence": [], "dates": [], "witnesses": [], "financial_documents": []}',
+        'Eviction case.',
+        'High risk.',
+    ])
+    
+    mock_retriever = Mock()
+    mock_retriever.retrieve = Mock(return_value={"chunks": [], "entities": []})
+    
+    analyzer = CaseAnalyzer(graph=mock_graph, llm_client=mock_llm)
+    analyzer.retriever = mock_retriever
+    
+    result = await analyzer.analyze_case_enhanced(
+        case_text="I received an eviction notice",
+        jurisdiction="NYC"
+    )
+    
+    # Verify laws came from graph chain, not LLM
+    assert len(result.proof_chains) > 0
+    proof_chain = result.proof_chains[0]
+    
+    # Laws should be from graph chain
+    law_names = [law.get("name") for law in proof_chain.applicable_laws]
+    assert "NYC Admin Code §27-2115" in law_names
+    assert "Real Property Actions Law §711" in law_names
+    
+    # Verify this came from graph, not LLM
+    # (LLM response didn't include "applicable_laws" field)
 
 
 if __name__ == "__main__":

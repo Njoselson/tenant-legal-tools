@@ -42,13 +42,12 @@ Usage:
 
 import argparse
 import asyncio
-import hashlib
 import json
 import logging
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set
+from typing import Any
 
 import aiohttp
 from tqdm import tqdm
@@ -61,15 +60,16 @@ from tenant_legal_guidance.models.metadata_schemas import (
 )
 from tenant_legal_guidance.services.resource_processor import LegalResourceProcessor
 from tenant_legal_guidance.services.tenant_system import TenantLegalSystem
+from tenant_legal_guidance.utils.text import canonicalize_text, sha256
 
 
 class IngestionCheckpoint:
     """Manage ingestion checkpoints for resume support."""
 
-    def __init__(self, checkpoint_path: Optional[Path] = None):
+    def __init__(self, checkpoint_path: Path | None = None):
         self.checkpoint_path = checkpoint_path
-        self.processed: Set[str] = set()
-        self.failed: Set[str] = set()
+        self.processed: set[str] = set()
+        self.failed: set[str] = set()
 
         if checkpoint_path and checkpoint_path.exists():
             self.load()
@@ -123,10 +123,10 @@ class IngestionStats:
         self.failed = 0
         self.added_entities = 0
         self.added_relationships = 0
-        self.errors: List[Dict[str, str]] = []
+        self.errors: list[dict[str, str]] = []
         self.start_time = datetime.utcnow()
 
-    def add_success(self, result: Dict[str, Any]):
+    def add_success(self, result: dict[str, Any]):
         """Record a successful ingestion."""
         self.processed += 1
         self.added_entities += result.get("added_entities", 0)
@@ -143,7 +143,7 @@ class IngestionStats:
             {"locator": locator, "error": str(error), "timestamp": datetime.utcnow().isoformat()}
         )
 
-    def summary(self) -> Dict[str, Any]:
+    def summary(self) -> dict[str, Any]:
         """Get summary statistics."""
         elapsed = (datetime.utcnow() - self.start_time).total_seconds()
         return {
@@ -161,7 +161,7 @@ class IngestionStats:
 
 async def fetch_text(
     session: aiohttp.ClientSession, locator: str, resource_processor: LegalResourceProcessor
-) -> Optional[str]:
+) -> str | None:
     """
     Fetch text from a URL.
 
@@ -196,8 +196,8 @@ def archive_text(text: str, archive_dir: Path, knowledge_graph: Any) -> str:
     Returns:
         SHA256 hash of the text
     """
-    canon = knowledge_graph._canonicalize_text(text)
-    sha = knowledge_graph._sha256(canon)
+    canon = canonicalize_text(text)
+    sha = sha256(canon)
 
     archive_path = archive_dir / f"{sha}.txt"
     if not archive_path.exists():
@@ -211,11 +211,11 @@ async def ingest_entry(
     entry: ManifestEntry,
     session: aiohttp.ClientSession,
     resource_processor: LegalResourceProcessor,
-    archive_dir: Optional[Path],
-    checkpoint: Optional[IngestionCheckpoint],
+    archive_dir: Path | None,
+    checkpoint: IngestionCheckpoint | None,
     stats: IngestionStats,
     skip_existing: bool = False,
-    pbar: Optional[tqdm] = None,
+    pbar: tqdm | None = None,
 ) -> bool:
     """
     Ingest a single manifest entry.
@@ -314,8 +314,8 @@ async def process_manifest(
     system: TenantLegalSystem,
     manifest_path: Path,
     concurrency: int,
-    archive_dir: Optional[Path],
-    checkpoint_path: Optional[Path],
+    archive_dir: Path | None,
+    checkpoint_path: Path | None,
     skip_existing: bool,
 ) -> IngestionStats:
     """
@@ -335,7 +335,7 @@ async def process_manifest(
     logger = logging.getLogger(__name__)
 
     # Load manifest entries
-    entries: List[ManifestEntry] = []
+    entries: list[ManifestEntry] = []
     with manifest_path.open("r", encoding="utf-8") as f:
         for line_num, line in enumerate(f, start=1):
             line = line.strip()
@@ -444,7 +444,7 @@ def main():
 
         if args.urls:
             # Convert URL list to temporary manifest
-            logger.info(f"Converting URL list to manifest...")
+            logger.info("Converting URL list to manifest...")
             manifest_path = Path("temp_manifest.jsonl")
             with args.urls.open("r") as f_in, manifest_path.open("w") as f_out:
                 for line in f_in:

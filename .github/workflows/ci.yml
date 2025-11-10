@@ -88,23 +88,6 @@ jobs:
         env:
           PYTEST_CURRENT_TEST: "true"
       
-      - name: Check test coverage
-        run: |
-          uv run pytest tenant_legal_guidance/tests tests/integration \
-            --cov=tenant_legal_guidance \
-            --cov-report=term-missing \
-            --cov-report=xml \
-            --cov-fail-under=50
-        continue-on-error: true
-      
-      - name: Upload coverage reports
-        uses: codecov/codecov-action@v3
-        if: github.event_name == 'push'
-        with:
-          files: ./coverage.xml
-          flags: unittests
-          name: codecov-umbrella
-        continue-on-error: true
 
   lint:
     runs-on: ubuntu-latest

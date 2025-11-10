@@ -52,38 +52,16 @@ def test_deduplicate_entities_simple(mock_vector_store):
     assert merged.attributes.get("section") == "26-501"
 
 
+@pytest.mark.skip(reason="Semantic merge removed - hash-based IDs make it unnecessary")
 @pytest.mark.asyncio
 async def test_semantic_merge_entities_thresholds(monkeypatch, mock_vector_store):
-    # Incoming entity close to an existing candidate by name
-    incoming = make_entity("law:hp_action", EntityType.LAW, "HP Action", desc="tenant remedy")
-
-    # Mock KG search to return one close candidate
-    class Cand:
-        def __init__(self, _id, name, desc):
-            self.id = _id
-            self.name = name
-            self.description = desc
-
-    kg = MagicMock()
-    kg.search_entities_by_text.return_value = [
-        Cand("law:housing_part_action", "Housing Part Action", "HP action in housing court")
-    ]
-
-    dp = DocumentProcessor(deepseek_client=AsyncMock(), knowledge_graph=kg, vector_store=mock_vector_store)
-
-    # Force similarity to be in borderline band by patching _similarity_score
-    monkeypatch.setattr(dp, "_similarity_score", lambda a, b, c, d: 0.92)
-
-    # Also stub consolidator to auto-approve the borderline pair
-    async def fake_judge_cases(cases):
-        key = cases[0]["key"] if cases else ""
-        return {key: True}
-
-    dp.consolidator.judge_cases = AsyncMock(side_effect=fake_judge_cases)
-
-    result = await dp._semantic_merge_entities([incoming])
-    # Should map to candidate id after judge approval
-    assert result.get("law:hp_action") == "law:housing_part_action"
+    """OBSOLETE: This test is for _semantic_merge_entities which was removed.
+    
+    The feature was replaced with simpler hash-based ID generation where
+    same entity name → same ID automatically, eliminating the need for
+    semantic similarity matching during ingestion.
+    """
+    pass
 
 
 def test_update_relationship_references_skips_self_edges(mock_vector_store):

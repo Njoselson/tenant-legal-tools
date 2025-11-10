@@ -35,7 +35,7 @@ class _FakeSystem:
 @pytest.fixture(scope="module")
 def client():
     # Disable lifespan to avoid real DB connections
-    c = TestClient(app, lifespan="off")
+    c = TestClient(app)
     # Inject a fake system used by health routes
     c.app.state.system = _FakeSystem()
     return c

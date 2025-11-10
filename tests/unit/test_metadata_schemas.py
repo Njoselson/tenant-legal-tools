@@ -1,3 +1,4 @@
+import pytest
 """
 Unit tests for metadata schemas and validation.
 
@@ -116,6 +117,7 @@ def test_metadata_completeness_validation():
         print(f"   - {w}")
 
 
+@pytest.mark.slow
 def test_metadata_template_system():
     """
     User Story: Use templates to quickly create consistent metadata
@@ -138,6 +140,7 @@ def test_metadata_template_system():
     print(f"   Statute template type: {statute_template.document_type}")
 
 
+@pytest.mark.slow
 def test_metadata_attributes_are_extensible():
     """
     User Story: Store custom attributes with documents for flexible

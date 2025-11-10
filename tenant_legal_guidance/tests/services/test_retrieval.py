@@ -86,6 +86,7 @@ class TestHybridRetriever:
 
     @patch("tenant_legal_guidance.services.retrieval.EmbeddingsService")
     @patch("tenant_legal_guidance.services.retrieval.QdrantVectorStore")
+    @pytest.mark.slow
     def test_retrieve_returns_all_components(
         self, mock_vs_class, mock_emb_class, mock_knowledge_graph
     ):
@@ -144,6 +145,7 @@ class TestHybridRetriever:
 
     @patch("tenant_legal_guidance.services.retrieval.EmbeddingsService")
     @patch("tenant_legal_guidance.services.retrieval.QdrantVectorStore")
+    @pytest.mark.slow
     def test_retrieve_with_different_top_k(
         self, mock_vs_class, mock_emb_class, mock_knowledge_graph
     ):
@@ -172,6 +174,7 @@ class TestHybridRetriever:
 
     @patch("tenant_legal_guidance.services.retrieval.EmbeddingsService")
     @patch("tenant_legal_guidance.services.retrieval.QdrantVectorStore")
+    @pytest.mark.slow
     def test_entity_deduplication(self, mock_vs_class, mock_emb_class, mock_knowledge_graph):
         """Test that duplicate entities are deduplicated."""
         mock_emb = mock_emb_class.return_value
@@ -243,6 +246,7 @@ class TestIntegrationScenarios:
 
     @patch("tenant_legal_guidance.services.retrieval.EmbeddingsService")
     @patch("tenant_legal_guidance.services.retrieval.QdrantVectorStore")
+    @pytest.mark.slow
     def test_eviction_query_retrieval(self, mock_vs_class, mock_emb_class, mock_knowledge_graph):
         """Test realistic eviction-related query."""
         # Setup mocks

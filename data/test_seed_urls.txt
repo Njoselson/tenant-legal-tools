@@ -1,0 +1,15 @@
+# Test seed URLs for Justia tenant law cases
+# These are actual Justia cases that should be relevant to NYC tenant rights
+
+# Example from user (commercial case - should be filtered out)
+https://law.justia.com/cases/new-york/other-courts/2025/2025-ny-slip-op-33476-u.html
+
+# NYC Housing Court cases (should be relevant)
+https://law.justia.com/cases/new-york/other-courts/2024/2024-ny-slip-op-50916-u.html
+https://law.justia.com/cases/new-york/other-courts/2024/2024-ny-slip-op-51234-u.html
+https://law.justia.com/cases/new-york/other-courts/2023/2023-ny-slip-op-51450-u.html
+
+# Supreme Court cases involving landlord-tenant
+https://law.justia.com/cases/new-york/other-courts/2024/2024-ny-slip-op-24082.html
+
+

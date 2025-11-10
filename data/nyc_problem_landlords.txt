@@ -1,0 +1,23 @@
+# Notorious NYC Landlords and Property Management Companies
+# Use with: --landlord-search $(cat data/nyc_problem_landlords.txt | grep -v "^#")
+
+# Individual notorious landlords
+Croman
+Kushner
+Toledano
+Ben Shaoul
+Raphael Toledano
+
+# Major property management companies known for tenant issues
+Stellar Management
+Icon Realty
+Pinnacle Group
+Veritas Investments
+Winick Realty Group
+
+# LLCs that appear frequently in housing court
+9300 Realty
+Branic International
+Greenbrook Partners
+Liberty Realty
+

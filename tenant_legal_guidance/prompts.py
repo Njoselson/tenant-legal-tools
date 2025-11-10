@@ -90,13 +90,20 @@ Extract the following information in JSON format:
    # Geographic and jurisdictional
    - JURISDICTION: Geographic areas, court systems
 
-2. Relationships (must use these exact types):
+2. Relationships (MUST use ONLY these exact types - no other types allowed):
    - VIOLATES: When an ACTOR violates a LAW
    - ENABLES: When a LAW enables a REMEDY
    - AWARDS: When a REMEDY awards DAMAGES
    - APPLIES_TO: When a LAW applies to a TENANT_ISSUE
-   - AVAILABLE_VIA: When a REMEDY is available via a LEGAL_PROCEDURE
+   - PROHIBITS: When a LAW prohibits an action
    - REQUIRES: When a LAW requires EVIDENCE/DOCUMENT
+   - AVAILABLE_VIA: When a REMEDY is available via a LEGAL_PROCEDURE
+   - FILED_IN: When a CASE/PROCEDURE is filed in a JURISDICTION
+   - PROVIDED_BY: When a service is provided by a LEGAL_SERVICE
+   - SUPPORTED_BY: When a TACTIC/REMEDY is supported by a TENANT_GROUP/LEGAL_SERVICE
+   - RESULTS_IN: When a TACTIC/REMEDY results in an OUTCOME
+   
+   CRITICAL: Use ONLY the relationship types listed above. Do not create new types.
 
 For each entity, include:
 - Type (must be one of: [{types_list}])
@@ -109,8 +116,10 @@ For each entity, include:
 For each relationship, include:
 - Source entity name (must match an entity name exactly)
 - Target entity name (must match an entity name exactly)
-- Type (must be one of: [{rel_types_list}])
+- Type (must be EXACTLY one of: [{rel_types_list}]) - NO other types allowed
 - Attributes (conditions, weight, etc.)
+
+IMPORTANT: Relationship types are strictly validated. Only use the exact types listed above.
 {quote_guidelines}
 Return a JSON object with this structure:
 {{
@@ -130,7 +139,7 @@ Return a JSON object with this structure:
         {{
             "source_id": "source_entity_name",
             "target_id": "target_entity_name",
-            "type": "VIOLATES|ENABLES|AWARDS|APPLIES_TO|AVAILABLE_VIA|REQUIRES",
+            "type": "VIOLATES|ENABLES|AWARDS|APPLIES_TO|PROHIBITS|REQUIRES|AVAILABLE_VIA|FILED_IN|PROVIDED_BY|SUPPORTED_BY|RESULTS_IN",
             "attributes": {{
                 // Relationship attributes
             }}
@@ -208,8 +217,10 @@ Extract the following information in JSON format:
    # Geographic and jurisdictional
    - JURISDICTION: Geographic areas, court systems
 
-2. Relationships between entities:
-   - VIOLATES, ENABLES, AWARDS, APPLIES_TO, AVAILABLE_VIA, REQUIRES, etc.
+2. Relationships (MUST use ONLY these exact types):
+   - VIOLATES, ENABLES, AWARDS, APPLIES_TO, PROHIBITS, REQUIRES, AVAILABLE_VIA, FILED_IN, PROVIDED_BY, SUPPORTED_BY, RESULTS_IN
+   
+   CRITICAL: Use ONLY the relationship types listed above. Do not create new types like PROVIDES, AUTHORIZES, EMPOWERS, BENEFITS, etc.
 
 For each entity, include:
 - Type (must be one of: [{types_list}])
@@ -220,8 +231,10 @@ For each entity, include:
 
 For relationships:
 - Source entity name
-- Target entity name
-- Relationship type
+- Target entity name  
+- Relationship type (MUST be one of the exact types listed above)
+
+IMPORTANT: Relationship types are strictly validated. Invalid types will be rejected.
 
 Return ONLY valid JSON:
 {{

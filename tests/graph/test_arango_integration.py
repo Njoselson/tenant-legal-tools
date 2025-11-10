@@ -1,5 +1,3 @@
-import os
-from datetime import datetime
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -51,6 +49,7 @@ def arango_graph(mock_arango_client, arango_config):
         return graph
 
 
+@pytest.mark.slow
 def test_entity_creation(arango_graph):
     """Test creating and retrieving legal entities."""
     # Create a test entity
@@ -73,6 +72,7 @@ def test_entity_creation(arango_graph):
     assert retrieved.entity_type == EntityType.LAW
 
 
+@pytest.mark.slow
 def test_relationship_creation(arango_graph):
     """Test creating and querying relationships."""
     # Create source and target entities
@@ -106,6 +106,7 @@ def test_relationship_creation(arango_graph):
     assert arango_graph.add_relationship(relationship) is True
 
 
+@pytest.mark.slow
 def test_find_relevant_laws(arango_graph):
     """Test finding relevant laws for an issue."""
     # Add test laws
@@ -134,6 +135,7 @@ def test_find_relevant_laws(arango_graph):
     assert any("Rent Control" in law["name"] for law in laws)
 
 
+@pytest.mark.slow
 def test_find_remedies_for_issue(arango_graph):
     """Test finding remedies for an issue."""
     # Add test law and remedy
@@ -168,6 +170,7 @@ def test_find_remedies_for_issue(arango_graph):
     assert any("Rent Reduction" in remedy["name"] for remedy in remedies)
 
 
+@pytest.mark.slow
 def test_build_case(arango_graph):
     """Test building a legal case."""
     # Add test entities

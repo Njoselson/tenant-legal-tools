@@ -18,7 +18,6 @@ import pytest
 
 from tenant_legal_guidance.graph.arango_graph import ArangoDBGraph
 from tenant_legal_guidance.models.entities import (
-    EntityType,
     LegalDocumentType,
     SourceAuthority,
     SourceMetadata,
@@ -26,7 +25,6 @@ from tenant_legal_guidance.models.entities import (
 )
 from tenant_legal_guidance.services.document_processor import DocumentProcessor
 from tenant_legal_guidance.services.retrieval import HybridRetriever
-from tenant_legal_guidance.services.tenant_system import TenantLegalSystem
 
 # Sample legal text about rent stabilization
 SAMPLE_LEGAL_TEXT = """
@@ -201,7 +199,7 @@ async def test_retrieval_finds_ingested_content(clean_test_db):
             "My landlord increased my rent illegally", top_k_chunks=5, top_k_entities=10
         )
 
-        print(f"\n🔍 Hybrid retrieval found:")
+        print("\n🔍 Hybrid retrieval found:")
         print(f"   - {len(results['chunks'])} chunks")
         print(f"   - {len(results['entities'])} entities")
         print(f"   - {len(results.get('neighbors', []))} neighbors")

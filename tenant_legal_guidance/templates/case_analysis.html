@@ -290,6 +290,7 @@
             box-shadow: 0 12px 32px rgba(0,0,0,0.2);
             border-radius: 12px;
             padding: 16px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         }
         .cite-tooltip h4 {
             margin: 0 0 10px 0;
@@ -309,6 +310,8 @@
             line-height: 1.6;
             max-height: 300px;
             overflow-y: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
         }
         .cite-actions {
             display: flex;
@@ -341,6 +344,211 @@
         .authority-practical_self_help { background: #fef3c7; color: #92400e; border-color: #fde68a; }
         .authority-informational_only { background: #f3f4f6; color: #374151; border-color: #e5e7eb; }
         .sources-list li.highlight { background: #fffbeb; transition: background 0.5s ease; }
+        
+        .sources-list li {
+            margin-bottom: 20px;
+            padding: 16px;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .sources-list li:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            transition: box-shadow 0.2s ease;
+        }
+        
+        .cite-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 12px;
+            align-items: center;
+        }
+        
+        .cite-actions button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+        
+        .cite-actions button:hover {
+            background: #2563eb;
+        }
+        
+        .cite-actions a {
+            color: #3b82f6;
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 500;
+        }
+        
+        .cite-actions a:hover {
+            text-decoration: underline;
+        }
+        
+        .no-sources-message, .error-message {
+            padding: 20px;
+            text-align: center;
+            color: #64748b;
+            font-style: italic;
+            background: #f8fafc;
+            border-radius: 8px;
+            border: 1px dashed #cbd5e1;
+        }
+        
+        .error-message {
+            color: #dc2626;
+            background: #fef2f2;
+            border-color: #fecaca;
+        }
+        
+        /* Inline Citation Styles */
+        .cite-badge {
+            display: inline-block;
+            background: #3b82f6;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            margin: 0 2px;
+            transition: background 0.2s;
+        }
+
+        .cite-badge:hover {
+            background: #2563eb;
+        }
+
+        .inline-citation-card {
+            margin: 16px 0;
+            padding: 16px;
+            background: #f8fafc;
+            border: 2px solid #3b82f6;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+            position: relative;
+            z-index: 1000;
+            transition: all 0.2s ease;
+        }
+
+        .inline-citation-card:hover {
+            box-shadow: 0 6px 20px rgba(59, 130, 246, 0.25);
+            transform: translateY(-1px);
+        }
+
+        .citation-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #cbd5e1;
+        }
+
+        .citation-header .close-btn {
+            background: none;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+            color: #64748b;
+            padding: 0 8px;
+        }
+
+        .citation-context {
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .context-before, .context-after {
+            color: #64748b;
+            font-style: italic;
+            margin: 8px 0;
+        }
+
+        .citation-quote {
+            background: white;
+            padding: 12px;
+            border-left: 4px solid #3b82f6;
+            margin: 12px 0;
+            font-weight: 500;
+            color: #1e40af;
+        }
+
+        .citation-meta {
+            font-size: 12px;
+            color: #64748b;
+            margin: 8px 0;
+        }
+
+        .citation-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .citation-actions button,
+        .citation-actions a {
+            font-size: 13px;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+
+        .citation-actions button {
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+            color: #334155;
+        }
+
+        .citation-actions button:hover {
+            background: #e2e8f0;
+        }
+
+        .citation-actions a {
+            background: #3b82f6;
+            color: white;
+            border: none;
+        }
+
+        .citation-actions a:hover {
+            background: #2563eb;
+        }
+        
+        /* Enhanced Sources Section */
+        .source-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        
+        .source-type {
+            font-size: 11px;
+            background: #e2e8f0;
+            color: #475569;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-weight: 500;
+        }
+        
+        .source-meta {
+            font-size: 12px;
+            color: #64748b;
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid #e2e8f0;
+        }
         
         .section {
             margin-bottom: 30px;
@@ -410,6 +618,10 @@
             line-height: 1.6;
             display: block !important;
             visibility: visible !important;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            max-height: 200px;
+            overflow-y: auto;
         }
         
         .markdown-content code {
@@ -578,6 +790,120 @@
             max-width: 300px;
         }
         
+        /* Proof tree styles */
+        .proof-tree-toggle {
+            background: #f0f4f8;
+            border: 1px solid #cbd5e0;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 10px 0;
+            transition: background 0.2s;
+        }
+
+        .proof-tree-toggle:hover {
+            background: #e2e8f0;
+        }
+
+        .proof-tree {
+            margin-top: 10px;
+            padding: 15px;
+            background: #f7fafc;
+            border-radius: 8px;
+            border-left: 3px solid #4299e1;
+        }
+
+        .proof-tree.collapsed {
+            display: none;
+        }
+
+        .proof-tree-flow {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+        }
+
+        .tree-node {
+            padding: 12px;
+            border-radius: 6px;
+            margin: 5px 0;
+        }
+
+        .tree-node.type-tenant_issue {
+            background: #fed7d7;
+            border: 2px solid #fc8181;
+        }
+
+        .tree-node.type-law {
+            background: #bee3f8;
+            border: 2px solid #4299e1;
+        }
+
+        .tree-node.type-remedy {
+            background: #c6f6d5;
+            border: 2px solid #48bb78;
+        }
+
+        .tree-node.type-evidence {
+            background: #fefcbf;
+            border: 2px solid #ecc94b;
+        }
+
+        .node-type {
+            font-size: 10px;
+            font-weight: bold;
+            text-transform: uppercase;
+            color: #4a5568;
+            margin-bottom: 4px;
+        }
+
+        .node-name {
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .tree-edge {
+            text-align: center;
+            padding: 5px 0;
+        }
+
+        .edge-arrow {
+            font-size: 24px;
+            color: #4a5568;
+        }
+
+        .edge-label {
+            font-size: 11px;
+            color: #718096;
+            font-weight: 600;
+        }
+
+        .element-row {
+            padding: 8px;
+            margin: 4px 0;
+            background: #f7fafc;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .element-status {
+            font-size: 16px;
+        }
+
+        .element-name {
+            font-weight: 600;
+            flex: 1;
+        }
+
+        .element-evidence {
+            font-size: 12px;
+            color: #718096;
+            font-style: italic;
+        }
+
         /* Responsive design */
         @media (max-width: 768px) {
             .input-controls {
@@ -994,93 +1320,6 @@
             font-size: 16px;
         }
         
-        /* Evidence Trust Section */
-        .evidence-trust-section {
-            background: #f8fafc;
-            border: 2px solid #e2e8f0;
-        }
-        
-        .trust-stats {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 16px;
-            margin-bottom: 24px;
-        }
-        
-        .stat-card {
-            background: white;
-            padding: 20px;
-            border-radius: 12px;
-            text-align: center;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-        }
-        
-        .stat-number {
-            font-size: 36px;
-            font-weight: bold;
-            color: #1e40af;
-            margin-bottom: 4px;
-        }
-        
-        .stat-label {
-            font-size: 14px;
-            color: #64748b;
-        }
-        
-        .source-card-compact {
-            background: white;
-            border-left: 4px solid #3b82f6;
-            padding: 16px;
-            margin-bottom: 16px;
-            border-radius: 0 8px 8px 0;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        }
-        
-        .source-header {
-            font-size: 14px;
-            margin-bottom: 8px;
-            color: #1e293b;
-        }
-        
-        .quote-preview {
-            font-size: 13px;
-            font-style: italic;
-            color: #475569;
-            background: #f1f5f9;
-            padding: 12px;
-            border-radius: 6px;
-            border-left: 3px solid #3b82f6;
-            margin: 8px 0;
-            display: block !important;
-        }
-        
-        .source-link {
-            font-size: 13px;
-            color: #3b82f6;
-            text-decoration: none;
-            font-weight: 500;
-        }
-        
-        .source-link:hover {
-            text-decoration: underline;
-        }
-        
-        .show-all-sources-btn {
-            width: 100%;
-            padding: 12px;
-            background: #3b82f6;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            margin-top: 16px;
-        }
-        
-        .show-all-sources-btn:hover {
-            background: #2563eb;
-        }
         
         /* Collapsible Sections */
         .section.collapsible.collapsed .section-content {
@@ -1247,12 +1486,6 @@
                     <div class="section key-findings-section" id="keyFindings" style="display: none;">
                         <h3>⭐ Key Findings</h3>
                         <div id="keyFindingsContent"></div>
-                    </div>
-                    
-                    <!-- NEW: Evidence & Trust Section -->
-                    <div class="section evidence-trust-section" id="evidenceTrust" style="display: none;">
-                        <h3>📖 Evidence & Legal Sources</h3>
-                        <div id="evidenceTrustContent"></div>
                     </div>
                     
                     <!-- Enhanced Analysis: Proof Chains (shown when available) -->
@@ -1742,80 +1975,6 @@
             keyFindingsContent.innerHTML = html;
         }
         
-        function displayEvidenceTrust(data) {
-            const evidenceTrustSection = document.getElementById('evidenceTrust');
-            const evidenceTrustContent = document.getElementById('evidenceTrustContent');
-            
-            if (!evidenceTrustContent || !data.citations) {
-                return;
-            }
-            
-            evidenceTrustSection.style.display = 'block';
-            
-            const totalCitations = Object.keys(data.citations).length;
-            const withQuotes = Object.values(data.citations).filter(c => c.quote).length;
-            const quoteCoverage = totalCitations > 0 ? Math.round((withQuotes / totalCitations) * 100) : 0;
-            
-            console.log(`📊 Evidence Trust: ${totalCitations} sources, ${withQuotes} with quotes (${quoteCoverage}%)`);
-            
-            // Get top 3 citations with quotes
-            const topQuotes = Object.entries(data.citations)
-                .filter(([_, c]) => c.quote)
-                .slice(0, 3);
-            
-            let html = `
-                <div class="trust-stats">
-                    <div class="stat-card">
-                        <div class="stat-number">${totalCitations}</div>
-                        <div class="stat-label">Legal Sources</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-number">${withQuotes}</div>
-                        <div class="stat-label">With Direct Quotes</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-number">${quoteCoverage}%</div>
-                        <div class="stat-label">Quote Coverage</div>
-                    </div>
-                </div>
-                
-                <div class="top-sources">
-                    <h4>Key Legal Sources:</h4>
-            `;
-            
-            topQuotes.forEach(([id, c]) => {
-                const title = c.title || c.entity_name || 'Legal Source';
-                const quote = c.quote || '';
-                console.log(`  Rendering [${id}]: ${title} - quote length: ${quote.length}`);
-                
-                // Show more quote text (400 chars instead of 200)
-                const displayQuote = quote.length > 400 ? quote.substring(0, 400) + '...' : quote;
-                
-                html += `
-                    <div class="source-card-compact">
-                        <div class="source-header">
-                            <strong>[${id}]</strong> ${escapeHtml(title)}
-                        </div>
-                        <blockquote class="quote-preview">
-                            "${escapeHtml(displayQuote)}"
-                        </blockquote>
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
-                            ${c.anchor_url ? `<a href="${c.anchor_url}" target="_blank" class="source-link">View Source →</a>` : ''}
-                            <span style="font-size: 11px; color: #64748b;">${quote.length} chars</span>
-                        </div>
-                    </div>
-                `;
-            });
-            
-            html += `
-                </div>
-                <button class="show-all-sources-btn" onclick="showTab('debug'); setTimeout(() => window.scrollTo(0, document.body.scrollHeight), 100)">
-                    View All ${totalCitations} Sources in Debug Tab →
-                </button>
-            `;
-            
-            evidenceTrustContent.innerHTML = html;
-        }
         
         function displayProofChains(data) {
             const section = document.getElementById('proofChainsSection');
@@ -1944,12 +2103,76 @@
                                 <strong>Analysis:</strong> ${escapeHtml(chain.reasoning)}
                             </div>
                         ` : ''}
+                        
+                        ${chain.graph_chains && chain.graph_chains.length > 0 ? `
+                            <div class="proof-section">
+                                <button class="proof-tree-toggle" onclick="toggleProofTree(${idx})">
+                                    🌳 Show Graph Path (${chain.verification_status?.graph_path_exists !== false ? '✓ Verified' : '⚠️ Unverified'})
+                                </button>
+                                <div id="proof-tree-${idx}" class="proof-tree collapsed">
+                                    ${renderProofTree(chain.graph_chains[0])}
+                                </div>
+                            </div>
+                        ` : ''}
+
+                        ${chain.legal_elements && chain.legal_elements.length > 0 ? `
+                            <div class="proof-section">
+                                <div class="proof-section-title">📋 Required Elements:</div>
+                                ${chain.legal_elements.map(elem => `
+                                    <div class="element-row">
+                                        <span class="element-status">${elem.satisfied ? '✅' : '⚠️'}</span>
+                                        <span class="element-name">${escapeHtml(elem.element_name)}</span>
+                                        ${elem.satisfied && elem.evidence ? `<span class="element-evidence">(${elem.evidence.join(', ')})</span>` : ''}
+                                    </div>
+                                `).join('')}
+                            </div>
+                        ` : ''}
                         </div>
                     </div>
                 `;
             });
             
             chainsDiv.innerHTML = html;
+        }
+        
+        function renderProofTree(chainData) {
+            if (!chainData || !chainData.chain) return '';
+            
+            const chain = chainData.chain;
+            let html = '<div class="proof-tree-flow">';
+            
+            for (let i = 0; i < chain.length; i++) {
+                const node = chain[i];
+                
+                if (node.type) {
+                    // Entity node
+                    const typeLabel = node.type.replace(/_/g, ' ').toUpperCase();
+                    html += `
+                        <div class="tree-node type-${node.type}">
+                            <div class="node-type">${typeLabel}</div>
+                            <div class="node-name">${escapeHtml(node.name || '')}</div>
+                        </div>
+                    `;
+                } else if (node.rel) {
+                    // Relationship edge
+                    html += `
+                        <div class="tree-edge">
+                            <div class="edge-arrow">↓</div>
+                            <div class="edge-label">${node.rel}</div>
+                        </div>
+                    `;
+                }
+            }
+            
+            html += '</div>';
+            return html;
+        }
+
+        function toggleProofTree(idx) {
+            const tree = document.getElementById(`proof-tree-${idx}`);
+            if (tree) {
+                tree.classList.toggle('collapsed');
+            }
         }
         
         function displayPriorityActions(actions) {
@@ -1987,15 +2210,111 @@
             actionsDiv.innerHTML = html;
         }
         
+        // Inline Citation Functions
+        function toggleInlineCitation(badge, citationId) {
+            const cardId = 'inline-' + citationId;
+            const card = document.getElementById(cardId);
+            if (!card) {
+                // Create and insert card if doesn't exist
+                const citation = analysisData.citations[citationId];
+                if (!citation) {
+                    console.warn('Citation not found:', citationId);
+                    return;
+                }
+                const cardHtml = buildInlineCitationCard(citation, citationId);
+                badge.insertAdjacentHTML('afterend', cardHtml);
+                
+                // Add click-outside-to-close behavior
+                setTimeout(() => {
+                    document.addEventListener('click', function clickOutsideHandler(e) {
+                        const newCard = document.getElementById(cardId);
+                        if (newCard && !newCard.contains(e.target) && !badge.contains(e.target)) {
+                            newCard.style.display = 'none';
+                            document.removeEventListener('click', clickOutsideHandler);
+                        }
+                    });
+                }, 10);
+            } else {
+                card.style.display = card.style.display === 'none' ? 'block' : 'none';
+            }
+            // Close other open citations
+            document.querySelectorAll('.inline-citation-card').forEach(c => {
+                if (c.id !== cardId) c.style.display = 'none';
+            });
+        }
+
+        function buildInlineCitationCard(citation, id) {
+            const quote = citation.quote || '';
+            const fullText = citation.full_text || quote;
+            const contextBefore = citation.chunk_context_before || '';
+            const contextAfter = citation.chunk_context_after || '';
+            
+            // Find quote position in full text to show surrounding context
+            const quoteIndex = fullText.indexOf(quote.substring(0, 100));
+            const beforeContext = quoteIndex > 0 ? fullText.substring(Math.max(0, quoteIndex - 300), quoteIndex) : contextBefore;
+            const afterContext = quoteIndex >= 0 ? fullText.substring(quoteIndex + quote.length, quoteIndex + quote.length + 300) : contextAfter;
+            
+            return `
+                <div class="inline-citation-card" id="inline-${id}">
+                    <div class="citation-header">
+                        <strong>[${id}] ${escapeHtml(citation.title || citation.entity_name || 'Source')}</strong>
+                        ${citation.authority ? '<span class="authority-badge">' + citation.authority + '</span>' : ''}
+                        <button class="close-btn" onclick="closeInlineCitation('inline-${id}')">✕</button>
+                    </div>
+                    <div class="citation-context">
+                        ${beforeContext ? '<div class="context-before">...' + escapeHtml(beforeContext) + '</div>' : ''}
+                        <div class="citation-quote">"${escapeHtml(quote).replace(/\n/g, '<br>')}"</div>
+                        ${afterContext ? '<div class="context-after">' + escapeHtml(afterContext) + '...</div>' : ''}
+                    </div>
+                    <div class="citation-meta">
+                        ${citation.organization ? 'Source: ' + escapeHtml(citation.organization) + ' | ' : ''}
+                        ${quote.length} characters
+                    </div>
+                    <div class="citation-actions">
+                        ${citation.anchor_url ? '<a href="' + citation.anchor_url + '" target="_blank">View Full Source →</a>' : ''}
+                        <button onclick="copyCitationText('${id}')">Copy Quote</button>
+                        <button onclick="scrollToSourcesSection('${id}')">View in Sources List</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function closeInlineCitation(cardId) {
+            const card = document.getElementById(cardId);
+            if (card) card.style.display = 'none';
+        }
+
+        function copyCitationText(citationId) {
+            const citation = analysisData.citations[citationId];
+            if (citation && citation.quote) {
+                try {
+                    navigator.clipboard.writeText(citation.quote);
+                    console.log('Copied citation text to clipboard');
+                } catch (e) {
+                    console.warn('Failed to copy to clipboard:', e);
+                }
+            }
+        }
+
+        function scrollToSourcesSection(citationId) {
+            const sourceElement = document.getElementById(citationId);
+            if (sourceElement) {
+                showTab('analysis');
+                sourceElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                sourceElement.classList.add('highlight');
+                setTimeout(() => sourceElement.classList.remove('highlight'), 2000);
+            }
+        }
+        
         function displayResults(data) {
             console.log('Displaying results:', data);
             debugLog('Displaying results...');
             
+            // Store data globally for citation functions
+            window.analysisData = data;
+            
             // NEW: Display Key Findings (top priority)
             displayKeyFindings(data);
-            
-            // NEW: Display Evidence Trust Panel
-            displayEvidenceTrust(data);
             
             // Display enhanced proof chains if available
             if (data.proof_chains && data.proof_chains.length > 0) {
@@ -2015,10 +2334,10 @@
             }
             const renderCitationsSuperscripts = (text, citationsMap) => {
                 if (!text) return '';
-                // Replace [S#] with clickable superscripts
+                // Replace [S#] with clickable citation badges
                 return text.replace(/\[(S\d+)\]/g, (m, id) => {
                     const exists = citationsMap && citationsMap[id];
-                    return exists ? `<sup class="cite" data-cite="${id}">${id}</sup>` : `<sup>${id}</sup>`;
+                    return exists ? `<span class="cite-badge" data-cite="${id}" onclick="toggleInlineCitation(this, '${id}')">[${id}] 📄</span>` : `<span class="cite-badge" style="background: #64748b;">[${id}]</span>`;
                 });
             };
             if (data.sections && data.sections.case_summary && data.sections.case_summary.length > 0) {
@@ -2058,7 +2377,7 @@
                         let citesHtml = '';
                         const cites = (typeof it === 'object' && Array.isArray(it.citations)) ? it.citations : [];
                         if (cites.length > 0) {
-                            citesHtml = '<span class="citations">' + cites.map(cid => `<sup class="cite" data-cite="${cid}">${cid}</sup>`).join(' ') + '</span>';
+                            citesHtml = '<span class="citations">' + cites.map(cid => `<span class="cite-badge" data-cite="${cid}" onclick="toggleInlineCitation(this, '${cid}')">[${cid}] 📄</span>`).join(' ') + '</span>';
                         }
                         html += `<li>${rendered} ${citesHtml}</li>`;
                     });
@@ -2095,9 +2414,22 @@
                 if (sourcesPanel && data.citations && Object.keys(data.citations).length > 0) {
                     console.log('🔍 Building Sources panel with', Object.keys(data.citations).length, 'citations');
                     
-                    // Count citations with quotes
+                    // Count citations with quotes and debug citation structure
                     const withQuotes = Object.values(data.citations).filter(c => c.quote).length;
                     console.log('📝 Citations with quotes:', withQuotes);
+                    
+                    // Debug: Log citation structure for troubleshooting
+                    Object.entries(data.citations).forEach(([id, c]) => {
+                        console.log(`Citation ${id}:`, {
+                            title: c.title,
+                            entity_name: c.entity_name,
+                            quote_length: c.quote ? c.quote.length : 0,
+                            has_quote: !!c.quote,
+                            organization: c.organization,
+                            jurisdiction: c.jurisdiction,
+                            authority: c.authority
+                        });
+                    });
                     
                     const authorityBadge = (auth) => {
                         if (!auth) return '';
@@ -2107,7 +2439,7 @@
                     const domainFromUrl = (u) => {
                         try { const url = new URL(u); return url.hostname.replace('www.', ''); } catch(e){ return ''; }
                     };
-                    let shtml = '<h3>Sources</h3><ol class="sources-list">';
+                    let shtml = '<h3>All Legal Sources Referenced</h3><ol class="sources-list">';
                     Object.keys(data.citations).sort((a,b)=>{
                         const ai = parseInt(a.replace('S','')) || 0;
                         const bi = parseInt(b.replace('S','')) || 0;
@@ -2121,16 +2453,25 @@
                         const url = c.anchor_url || c.source;
                         const host = url ? domainFromUrl(url) : '';
                         const openBtn = url ? `<a href="${url}" target="_blank" rel="noopener">Open ${host ? '('+host+')' : ''}</a>` : '';
-                        const quote = c.quote ? `<blockquote>${escapeHtml(c.quote)}</blockquote>` : '';
+                        // Show full quote with better formatting
+                        const quote = c.quote ? `<blockquote>${escapeHtml(c.quote).replace(/\n/g, '<br>')}</blockquote>` : '';
+                        const sourceType = c.entity_name && c.entity_name.includes('Chunk from') ? 'Text Chunk' : 'Legal Entity';
                         
                         if (c.quote) {
                             console.log(`  [${id}] has quote: ${c.quote.substring(0, 50)}...`);
                         }
                         
                         shtml += `<li id="${id}">
-                            <div><strong>[${id}] ${escapeHtml(title)}</strong>${escapeHtml(org)}${escapeHtml(jur)} ${authorityBadge(auth)}</div>
-                            <div class="cite-actions">${openBtn}<button data-copy="${id}">Copy snippet</button></div>
+                            <div class="source-header">
+                                <strong>[${id}] ${escapeHtml(title)}</strong>${escapeHtml(org)}${escapeHtml(jur)} ${authorityBadge(auth)}
+                                <span class="source-type">${sourceType}</span>
+                            </div>
+                            <div class="cite-actions">${openBtn}<button data-copy="${id}">Copy Quote</button></div>
                             ${quote}
+                            <div class="source-meta">
+                                ${c.quote ? `${c.quote.length} characters` : 'No quote available'} | 
+                                ${c.authority || 'Unknown authority'}
+                            </div>
                         </li>`;
                     });
                     shtml += '</ol>';
@@ -2145,9 +2486,17 @@
                             try { navigator.clipboard.writeText(text); } catch(e){}
                         });
                     });
+                } else if (sourcesPanel) {
+                    // Show fallback message when no citations available
+                    sourcesPanel.innerHTML = '<div class="no-sources-message"><p>No source citations available for this analysis.</p></div>';
+                    console.log('⚠️ No citations available for sources panel');
                 }
             } catch (e) {
                 console.warn('Failed to render sources panel', e);
+                const sourcesPanel = document.getElementById('sourcesPanel');
+                if (sourcesPanel) {
+                    sourcesPanel.innerHTML = '<div class="error-message"><p>Error loading source citations. Please try refreshing the analysis.</p></div>';
+                }
             }
 
             // Wire up citation click handlers
@@ -2161,11 +2510,11 @@
                     const url = c.anchor_url || c.source;
                     const host = url ? (function(u){try{return new URL(u).hostname.replace('www.','');}catch(e){return '';}})(url) : '';
                     
-                    // Show quote prominently with label
+                    // Show quote prominently with label and better formatting
                     const quote = c.quote ? `
                         <div style="margin: 10px 0;">
                             <strong style="color: #3b82f6; font-size: 12px;">📜 Legal Text:</strong>
-                            <blockquote>${escapeHtml(c.quote)}</blockquote>
+                            <blockquote>${escapeHtml(c.quote).replace(/\n/g, '<br>')}</blockquote>
                         </div>
                     ` : '<div style="color: #64748b; font-style: italic; margin: 8px 0;">No quote available for this source.</div>';
                     
@@ -2177,7 +2526,12 @@
                     `;
                 };
                 let tooltipEl = null;
-                const removeTooltip = () => { if (tooltipEl && tooltipEl.parentNode) { tooltipEl.parentNode.removeChild(tooltipEl); tooltipEl = null; } };
+                const removeTooltip = () => { 
+                    if (tooltipEl && tooltipEl.parentNode && tooltipEl.classList.contains('cite-tooltip')) { 
+                        tooltipEl.parentNode.removeChild(tooltipEl); 
+                        tooltipEl = null; 
+                    } 
+                };
                 document.addEventListener('scroll', removeTooltip, true);
                 document.querySelectorAll('sup.cite').forEach(el => {
                     el.addEventListener('click', () => {
@@ -2199,8 +2553,28 @@
                         tooltipEl.innerHTML = buildTooltipHtml(c, id);
                         document.body.appendChild(tooltipEl);
                         const rect = el.getBoundingClientRect();
-                        const top = rect.top + window.scrollY + rect.height + 6;
-                        const left = Math.min(rect.left + window.scrollX, window.scrollX + (window.innerWidth - tooltipEl.offsetWidth - 12));
+                        
+                        // Improved positioning to prevent off-screen tooltips
+                        const tooltipRect = tooltipEl.getBoundingClientRect();
+                        const viewportWidth = window.innerWidth;
+                        const viewportHeight = window.innerHeight;
+                        
+                        let top = rect.top + window.scrollY + rect.height + 6;
+                        let left = rect.left + window.scrollX;
+                        
+                        // Adjust horizontal position if tooltip would go off-screen
+                        if (left + tooltipRect.width > viewportWidth - 12) {
+                            left = viewportWidth - tooltipRect.width - 12;
+                        }
+                        if (left < 12) {
+                            left = 12;
+                        }
+                        
+                        // Adjust vertical position if tooltip would go off-screen
+                        if (top + tooltipRect.height > viewportHeight + window.scrollY - 12) {
+                            top = rect.top + window.scrollY - tooltipRect.height - 6;
+                        }
+                        
                         tooltipEl.style.top = `${top}px`;
                         tooltipEl.style.left = `${left}px`;
                         const copyBtn = tooltipEl.querySelector('button[data-action="copy"]');
@@ -2215,7 +2589,10 @@
                         }
                     });
                     el.addEventListener('mouseleave', () => {
-                        removeTooltip();
+                        // Add a small delay to prevent flickering when moving mouse
+                        setTimeout(() => {
+                            removeTooltip();
+                        }, 100);
                     });
                 });
             } catch (e) {

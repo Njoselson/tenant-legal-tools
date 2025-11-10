@@ -15,23 +15,14 @@ jobs:
         image: arangodb:latest
         env:
           ARANGO_ROOT_PASSWORD: test_password
+          ARANGO_NO_AUTH: "1"
         ports:
           - 8529:8529
-        options: >-
-          --health-cmd "curl -f http://localhost:8529/_api/version || exit 1"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
       
       qdrant:
         image: qdrant/qdrant:latest
         ports:
           - 6333:6333
-        options: >-
-          --health-cmd "curl -f http://localhost:6333/health || exit 1"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
     
     steps:
       - uses: actions/checkout@v3
@@ -45,7 +36,7 @@ jobs:
         run: uv python install 3.11
       
       - name: Install dependencies
-        run: uv sync --all-extras
+        run: uv sync --all-groups
       
       - name: Create .env for tests
         run: |
@@ -61,8 +52,25 @@ jobs:
       
       - name: Wait for services
         run: |
-          timeout 60 sh -c 'until curl -f http://localhost:8529/_api/version; do sleep 2; done'
-          timeout 60 sh -c 'until curl -f http://localhost:6333/health; do sleep 2; done'
+          echo "Waiting for ArangoDB..."
+          for i in {1..30}; do
+            if curl -sf http://localhost:8529/_api/version > /dev/null 2>&1; then
+              echo "ArangoDB is ready!"
+              break
+            fi
+            echo "Attempt $i: ArangoDB not ready yet..."
+            sleep 2
+          done
+          
+          echo "Waiting for Qdrant..."
+          for i in {1..30}; do
+            if curl -sf http://localhost:6333/ > /dev/null 2>&1; then
+              echo "Qdrant is ready!"
+              break
+            fi
+            echo "Attempt $i: Qdrant not ready yet..."
+            sleep 2
+          done
       
       - name: Run linting
         run: |
@@ -70,7 +78,7 @@ jobs:
         continue-on-error: true
       
       - name: Run unit tests
-        run: uv run pytest tenant_legal_guidance/tests -v --tb=short -m "not slow"
+        run: uv run pytest tenant_legal_guidance/tests -v --tb=short -m "not slow" 
         env:
           PYTEST_CURRENT_TEST: "true"
       
@@ -80,23 +88,6 @@ jobs:
         env:
           PYTEST_CURRENT_TEST: "true"
       
-      - name: Check test coverage
-        run: |
-          uv run pytest tenant_legal_guidance/tests tests/integration \
-            --cov=tenant_legal_guidance \
-            --cov-report=term-missing \
-            --cov-report=xml \
-            --cov-fail-under=50
-        continue-on-error: true
-      
-      - name: Upload coverage reports
-        uses: codecov/codecov-action@v3
-        if: github.event_name == 'push'
-        with:
-          files: ./coverage.xml
-          flags: unittests
-          name: codecov-umbrella
-        continue-on-error: true
 
   lint:
     runs-on: ubuntu-latest
@@ -110,7 +101,7 @@ jobs:
         run: uv python install 3.11
       
       - name: Install dependencies
-        run: uv sync
+        run: uv sync --all-groups
       
       - name: Run ruff
         run: uv run ruff check .

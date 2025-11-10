@@ -38,12 +38,9 @@ import logging
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set
+from typing import Any
 
 from tenant_legal_guidance.graph.arango_graph import ArangoDBGraph
-from tenant_legal_guidance.models.entities import EntityType
-from tenant_legal_guidance.services.justia_scraper import JustiaScraper
-from tenant_legal_guidance.services.case_relevance_filter import CaseRelevanceFilter
 
 
 def _serialize_value(v: Any) -> Any:
@@ -57,7 +54,7 @@ def _serialize_value(v: Any) -> Any:
     return v
 
 
-def extract_sources_from_db(graph: ArangoDBGraph) -> List[Dict[str, Any]]:
+def extract_sources_from_db(graph: ArangoDBGraph) -> list[dict[str, Any]]:
     """
     Extract unique source URLs from the database.
 
@@ -67,7 +64,7 @@ def extract_sources_from_db(graph: ArangoDBGraph) -> List[Dict[str, Any]]:
     Returns:
         List of manifest entries with metadata
     """
-    sources: Dict[str, Dict[str, Any]] = {}
+    sources: dict[str, dict[str, Any]] = {}
 
     # Collection of all entity collections to scan
     collections = [

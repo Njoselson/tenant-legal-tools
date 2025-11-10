@@ -7,7 +7,6 @@ Finds document/resource links and returns structured metadata suitable for inges
 import logging
 import re
 from dataclasses import dataclass
-from typing import Dict, List, Optional
 from urllib.parse import urljoin, urlparse
 
 import requests
@@ -22,11 +21,11 @@ class ResourceLink:
 
     title: str
     url: str
-    category: Optional[str] = None
-    doc_type: Optional[str] = (
+    category: str | None = None
+    doc_type: str | None = (
         None  # flyer|handbook|brochure|guide|presentation|fact_sheet|form|video|zine|other
     )
-    file_ext: Optional[str] = None  # pdf|doc|html|...
+    file_ext: str | None = None  # pdf|doc|html|...
 
 
 class CHTUScraper:
@@ -71,7 +70,7 @@ class CHTUScraper:
         resp.raise_for_status()
         return resp.text
 
-    def parse(self, html: str) -> List[ResourceLink]:
+    def parse(self, html: str) -> list[ResourceLink]:
         """Parse the HTML for resource links grouped by category."""
         soup = BeautifulSoup(html, "html.parser")
 
@@ -85,8 +84,8 @@ class CHTUScraper:
         # Fallback to body if not found
         container = start_node.parent if start_node and start_node.parent else soup.body or soup
 
-        current_category: Optional[str] = None
-        links: List[ResourceLink] = []
+        current_category: str | None = None
+        links: list[ResourceLink] = []
         seen_urls: set[str] = set()
 
         # Iterate through elements after the container heading
@@ -154,7 +153,7 @@ class CHTUScraper:
         filtered = [l for l in links if self._looks_like_resource(l)]
         return filtered
 
-    def scrape(self) -> List[ResourceLink]:
+    def scrape(self) -> list[ResourceLink]:
         """Fetch and parse the resources page in one call."""
         html = self.fetch()
         return self.parse(html)
@@ -169,7 +168,7 @@ class CHTUScraper:
             parent = parent.parent
         return False
 
-    def _file_ext(self, url: str) -> Optional[str]:
+    def _file_ext(self, url: str) -> str | None:
         path = urlparse(url).path
         if not path:
             return None

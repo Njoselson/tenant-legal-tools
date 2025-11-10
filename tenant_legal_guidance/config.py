@@ -15,11 +15,13 @@ from pathlib import Path
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+# Get the project root directory (parent of tenant_legal_guidance package)
+_PROJECT_ROOT = Path(__file__).parent.parent
 
 class AppSettings(BaseSettings):
     # Pydantic Settings v2 config
     model_config: SettingsConfigDict = SettingsConfigDict(
-        env_file=".env",
+        env_file=str(_PROJECT_ROOT / ".env"),
         env_file_encoding="utf-8",
         populate_by_name=True,
         extra="ignore",
@@ -59,6 +61,14 @@ class AppSettings(BaseSettings):
     chunk_chars_target: int = Field(default=3000, alias="CHUNK_CHARS_TARGET")
     chunk_overlap_chars: int = Field(default=200, alias="CHUNK_OVERLAP_CHARS")
     super_chunk_chars: int = Field(default=10000, alias="SUPER_CHUNK_CHARS")
+
+    # Feature Flags (for gradual migration to entity-first approach)
+    use_entity_first_extraction: bool = Field(
+        default=True, alias="USE_ENTITY_FIRST_EXTRACTION"
+    )  # Toggle entity-first vs legacy extraction during ingestion
+    use_entity_first_retrieval: bool = Field(
+        default=True, alias="USE_ENTITY_FIRST_RETRIEVAL"
+    )  # Toggle entity-aware vs keyword-only retrieval during analysis
 
     # Note: class Config removed in favor of model_config above (pydantic v2)
 

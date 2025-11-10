@@ -20,76 +20,6 @@ class EntityService:
         self.llm_client = llm_client
         self.kg = knowledge_graph
         self.logger = logging.getLogger(__name__)
-        
-        # Canonical name mappings for common variations
-        self.canonical_mappings = self._init_canonical_mappings()
-        
-        # Legal citation patterns for normalization
-        self.citation_patterns = self._init_citation_patterns()
-
-    def _init_canonical_mappings(self) -> Dict[str, Dict[str, str]]:
-        """Initialize canonical name mappings for common entity variations."""
-        return {
-            EntityType.TENANT_ISSUE.value: {
-                "no heat": "Failure to Provide Heat and Hot Water",
-                "broken heating": "Failure to Provide Heat and Hot Water",
-                "lack of heat": "Failure to Provide Heat and Hot Water",
-                "no hot water": "Failure to Provide Heat and Hot Water",
-                "cold apartment": "Failure to Provide Heat and Hot Water",
-                "heating issues": "Failure to Provide Heat and Hot Water",
-                
-                "mold": "Mold and Moisture Issues",
-                "mildew": "Mold and Moisture Issues",
-                "water damage": "Mold and Moisture Issues",
-                
-                "broken window": "Defective Windows and Doors",
-                "broken door": "Defective Windows and Doors",
-                "window won't close": "Defective Windows and Doors",
-                
-                "no repairs": "Failure to Maintain Premises",
-                "won't fix": "Failure to Maintain Premises",
-                "refuses to repair": "Failure to Maintain Premises",
-                
-                "harassment": "Landlord Harassment",
-                "intimidation": "Landlord Harassment",
-                "threats": "Landlord Harassment",
-                
-                "illegal eviction": "Illegal Lockout or Eviction",
-                "lockout": "Illegal Lockout or Eviction",
-                "locked out": "Illegal Lockout or Eviction",
-                
-                "rent increase": "Improper Rent Increase",
-                "rent hike": "Improper Rent Increase",
-                "raised rent": "Improper Rent Increase",
-                
-                "security deposit": "Security Deposit Issues",
-                "deposit not returned": "Security Deposit Issues",
-            },
-            EntityType.LAW.value: {
-                "warranty of habitability": "Implied Warranty of Habitability",
-                "habitability": "Implied Warranty of Habitability",
-            }
-        }
-
-    def _init_citation_patterns(self) -> List[Dict[str, Any]]:
-        """Initialize legal citation normalization patterns."""
-        return [
-            {
-                "pattern": r"(?:NYC\s+)?(?:Admin(?:istrative)?\s+)?Code\s+[§§]*\s*(\d+[-\d]+)",
-                "template": "NYC Admin Code §{cite}",
-                "type": "nyc_admin_code"
-            },
-            {
-                "pattern": r"(?:Rent\s+Stabilization\s+)?(?:Code|Law|RSL)\s+[§§]*\s*(\d+[-\d]+)",
-                "template": "RSL §{cite}",
-                "type": "rent_stabilization"
-            },
-            {
-                "pattern": r"(?:Real\s+Property\s+)?(?:Law|RPL)\s+[§§]*\s*(\d+[-\d]+)",
-                "template": "NY RPL §{cite}",
-                "type": "rpl"
-            },
-        ]
 
     async def extract_entities_from_text(
         self, 
@@ -110,85 +40,9 @@ class EntityService:
         """
         self.logger.info(f"Extracting entities from {context} text ({len(text)} chars)")
         
-        types_list = "|".join([e.name for e in EntityType])
-        
-        # Adapt prompt based on context
-        if context == "query":
-            intro = (
-                "Analyze this tenant's case description and extract the key entities and issues.\n"
-                "Focus on identifying: what problems they're experiencing, what laws might apply, "
-                "and what remedies they might pursue.\n\n"
-            )
-        else:
-            intro = (
-                "Analyze this legal text and extract structured information about tenants, "
-                "buildings, issues, and legal concepts.\n\n"
-            )
-        
-        prompt = (
-            intro +
-            f"Text: {text[:8000]}\n\n"  # Limit to avoid token overflow
-            "Extract the following information in JSON format:\n\n"
-            "1. Entities (must use these exact types):\n"
-            "   # Legal entities\n"
-            "   - LAW: Legal statutes, regulations, or case law\n"
-            "   - REMEDY: Available legal remedies or actions\n"
-            "   - COURT_CASE: Specific court cases and decisions\n"
-            "   - LEGAL_PROCEDURE: Court processes, administrative procedures\n"
-            "   - DAMAGES: Monetary compensation or penalties\n"
-            "   - LEGAL_CONCEPT: Legal concepts and principles\n\n"
-            "   # Organizing entities\n"
-            "   - TENANT_GROUP: Associations, unions, block groups\n"
-            "   - CAMPAIGN: Specific organizing campaigns\n"
-            "   - TACTIC: Rent strikes, protests, lobbying, direct action\n\n"
-            "   # Parties\n"
-            "   - TENANT: Individual or family tenants\n"
-            "   - LANDLORD: Property owners, management companies\n"
-            "   - LEGAL_SERVICE: Legal aid, attorneys, law firms\n"
-            "   - GOVERNMENT_ENTITY: Housing authorities, courts, agencies\n\n"
-            "   # Outcomes\n"
-            "   - LEGAL_OUTCOME: Court decisions, settlements, legal victories\n"
-            "   - ORGANIZING_OUTCOME: Policy changes, building wins, power building\n\n"
-            "   # Issues and events\n"
-            "   - TENANT_ISSUE: Housing problems, violations\n"
-            "   - EVENT: Specific incidents, violations, filings\n\n"
-            "   # Documentation and evidence\n"
-            "   - DOCUMENT: Legal documents, evidence\n"
-            "   - EVIDENCE: Proof, documentation\n\n"
-            "   # Geographic and jurisdictional\n"
-            "   - JURISDICTION: Geographic areas, court systems\n\n"
-            "2. Relationships between entities:\n"
-            "   - VIOLATES, ENABLES, AWARDS, APPLIES_TO, AVAILABLE_VIA, REQUIRES, etc.\n\n"
-            "For each entity, include:\n"
-            f"- Type (must be one of: [{types_list}])\n"
-            "- Name (be specific and descriptive)\n"
-            "- Description (brief but informative)\n"
-            "- Jurisdiction (e.g., 'NYC', 'New York State', 'Federal')\n"
-            "- Relevant attributes\n\n"
-            "For relationships:\n"
-            "- Source entity name\n"
-            "- Target entity name\n"
-            "- Relationship type\n\n"
-            "Return ONLY valid JSON:\n"
-            "{\n"
-            '    "entities": [\n'
-            "        {\n"
-            '            "type": "...",\n'
-            '            "name": "...",\n'
-            '            "description": "...",\n'
-            '            "jurisdiction": "...",\n'
-            '            "attributes": {}\n'
-            "        }\n"
-            "    ],\n"
-            '    "relationships": [\n'
-            "        {\n"
-            '            "source_id": "...",\n'
-            '            "target_id": "...",\n'
-            '            "type": "..."\n'
-            "        }\n"
-            "    ]\n"
-            "}\n"
-        )
+        # Use centralized prompt generation
+        from tenant_legal_guidance.prompts import get_simple_entity_extraction_prompt
+        prompt = get_simple_entity_extraction_prompt(text, context=context)
         
         try:
             response = await self.llm_client.chat_completion(prompt)
@@ -263,12 +117,8 @@ class EntityService:
             if not raw_name:
                 return None
             
-            # Apply canonical name mapping
-            canonical_name = self.canonicalize_name(raw_name, entity_type)
-            
-            # Normalize legal citations
-            if entity_type == EntityType.LAW:
-                canonical_name = self.normalize_citation(canonical_name)
+            # LLM already produces canonical names - use directly
+            canonical_name = raw_name.strip()
             
             # Generate stable ID
             entity_id = self.generate_entity_id(canonical_name, entity_type)
@@ -293,7 +143,17 @@ class EntityService:
             if raw_name.lower() != canonical_name.lower():
                 attributes["alias"] = raw_name
             
-            # Create entity
+            # Create entity (with default metadata if None)
+            if metadata is None:
+                # Create minimal metadata for query-extracted entities
+                from tenant_legal_guidance.models.entities import SourceMetadata, SourceType, LegalDocumentType
+                metadata = SourceMetadata(
+                    source="query_extraction",
+                    source_type=SourceType.INTERNAL,
+                    document_type=LegalDocumentType.LEGAL_GUIDE,
+                    title="User Query"
+                )
+            
             entity = LegalEntity(
                 id=entity_id,
                 entity_type=entity_type,
@@ -308,58 +168,6 @@ class EntityService:
         except Exception as e:
             self.logger.error(f"Failed to parse entity data: {e}", exc_info=True)
             return None
-
-    def canonicalize_name(self, name: str, entity_type: EntityType) -> str:
-        """
-        Convert entity name to canonical form using mapping tables.
-        
-        Args:
-            name: Raw entity name
-            entity_type: Entity type
-            
-        Returns:
-            Canonical name (or original if no mapping found)
-        """
-        name_lower = name.lower().strip()
-        type_value = entity_type.value
-        
-        # Check if we have mappings for this type
-        if type_value in self.canonical_mappings:
-            type_mappings = self.canonical_mappings[type_value]
-            
-            # Exact match
-            if name_lower in type_mappings:
-                canonical = type_mappings[name_lower]
-                self.logger.debug(f"Canonicalized '{name}' → '{canonical}'")
-                return canonical
-            
-            # Partial match (check if any mapping key is in the name)
-            for key, canonical in type_mappings.items():
-                if key in name_lower or name_lower in key:
-                    self.logger.debug(f"Canonicalized (partial) '{name}' → '{canonical}'")
-                    return canonical
-        
-        # Return original name (title case for consistency)
-        return name.strip()
-
-    def normalize_citation(self, citation: str) -> str:
-        """
-        Normalize legal citations to canonical form.
-        
-        Examples:
-            "NYC Admin Code 27-2029" → "NYC Admin Code §27-2029"
-            "RSL 26-504" → "RSL §26-504"
-        """
-        for pattern_info in self.citation_patterns:
-            match = re.search(pattern_info["pattern"], citation, re.IGNORECASE)
-            if match:
-                cite_num = match.group(1)
-                normalized = pattern_info["template"].format(cite=cite_num)
-                if normalized != citation:
-                    self.logger.debug(f"Normalized citation '{citation}' → '{normalized}'")
-                return normalized
-        
-        return citation
 
     def generate_entity_id(self, name: str, entity_type: EntityType) -> str:
         """

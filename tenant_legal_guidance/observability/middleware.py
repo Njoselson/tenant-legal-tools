@@ -2,7 +2,7 @@ import json
 import logging
 import time
 import uuid
-from typing import Callable
+from collections.abc import Callable
 
 from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -33,15 +33,15 @@ class JsonRequestLogFormatter(logging.Formatter):
         # Attach request context when available
         req_fields = {}
         if hasattr(record, "request_id"):
-            req_fields["request_id"] = getattr(record, "request_id")
+            req_fields["request_id"] = record.request_id
         if hasattr(record, "method"):
-            req_fields["method"] = getattr(record, "method")
+            req_fields["method"] = record.method
         if hasattr(record, "path"):
-            req_fields["path"] = getattr(record, "path")
+            req_fields["path"] = record.path
         if hasattr(record, "status_code"):
-            req_fields["status"] = getattr(record, "status_code")
+            req_fields["status"] = record.status_code
         if hasattr(record, "duration_ms"):
-            req_fields["duration_ms"] = getattr(record, "duration_ms")
+            req_fields["duration_ms"] = record.duration_ms
         if req_fields:
             base.update(req_fields)
         return json.dumps(base, ensure_ascii=False)

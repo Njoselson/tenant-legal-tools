@@ -8,7 +8,6 @@ This module provides:
 """
 
 import logging
-from typing import Dict, Union
 
 from tenant_legal_guidance.models.entities import EntityType, LegalEntity, SourceMetadata
 from tenant_legal_guidance.models.relationships import LegalRelationship, RelationshipType
@@ -16,7 +15,7 @@ from tenant_legal_guidance.models.relationships import LegalRelationship, Relati
 logger = logging.getLogger(__name__)
 
 
-def normalize_entity_type(value: Union[str, EntityType]) -> EntityType:
+def normalize_entity_type(value: str | EntityType) -> EntityType:
     """
     Normalize entity type from string or EntityType to EntityType enum.
     
@@ -55,7 +54,7 @@ def normalize_entity_type(value: Union[str, EntityType]) -> EntityType:
     )
 
 
-def normalize_relationship_type(value: Union[str, RelationshipType]) -> RelationshipType:
+def normalize_relationship_type(value: str | RelationshipType) -> RelationshipType:
     """
     Normalize relationship type from string or RelationshipType to RelationshipType enum.
     
@@ -93,7 +92,7 @@ def normalize_relationship_type(value: Union[str, RelationshipType]) -> Relation
     )
 
 
-def serialize_source_metadata(metadata: Union[SourceMetadata, Dict]) -> Dict:
+def serialize_source_metadata(metadata: SourceMetadata | dict) -> dict:
     """
     Serialize source metadata to dictionary for API responses.
     
@@ -120,7 +119,7 @@ def serialize_source_metadata(metadata: Union[SourceMetadata, Dict]) -> Dict:
     return result
 
 
-def serialize_entity_for_api(entity: LegalEntity) -> Dict:
+def serialize_entity_for_api(entity: LegalEntity) -> dict:
     """
     Serialize LegalEntity to consistent API response format.
     
@@ -158,7 +157,7 @@ def serialize_entity_for_api(entity: LegalEntity) -> Dict:
     }
 
 
-def serialize_relationship_for_api(rel: LegalRelationship) -> Dict:
+def serialize_relationship_for_api(rel: LegalRelationship) -> dict:
     """
     Serialize LegalRelationship to consistent API response format.
     

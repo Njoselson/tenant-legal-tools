@@ -1,5 +1,5 @@
 import uuid
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import numpy as np
 from qdrant_client import QdrantClient
@@ -45,7 +45,7 @@ class QdrantVectorStore:
         )
 
     def upsert_chunks(
-        self, chunk_ids: List[str], embeddings: np.ndarray, payloads: List[Dict[str, Any]]
+        self, chunk_ids: list[str], embeddings: np.ndarray, payloads: list[dict[str, Any]]
     ) -> None:
         if not len(chunk_ids):
             return
@@ -64,8 +64,8 @@ class QdrantVectorStore:
         self,
         query_embedding: np.ndarray,
         top_k: int = 20,
-        filter_payload: Optional[Dict[str, Any]] = None,
-    ) -> List[Dict[str, Any]]:
+        filter_payload: dict[str, Any] | None = None,
+    ) -> list[dict[str, Any]]:
         flt = None
         if filter_payload:
             conditions = []
@@ -87,9 +87,9 @@ class QdrantVectorStore:
             for r in res
         ]
     
-    def search_by_id(self, chunk_id: str) -> List[Dict[str, Any]]:
+    def search_by_id(self, chunk_id: str) -> list[dict[str, Any]]:
         """Retrieve a chunk by its ID."""
-        from qdrant_client.models import Filter, FieldCondition, MatchValue
+        from qdrant_client.models import FieldCondition, Filter, MatchValue
         
         results = self.client.scroll(
             collection_name=self.collection,
@@ -119,7 +119,7 @@ class QdrantVectorStore:
         self,
         source_id: str,
         limit: int = 1000
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Retrieve all chunks from a specific source document.
         
@@ -130,7 +130,7 @@ class QdrantVectorStore:
         Returns:
             List of chunks with payloads, ordered by chunk_index
         """
-        from qdrant_client.models import Filter, FieldCondition, MatchValue
+        from qdrant_client.models import FieldCondition, Filter, MatchValue
         
         results = self.client.scroll(
             collection_name=self.collection,
@@ -162,7 +162,7 @@ class QdrantVectorStore:
         
         return chunks
     
-    def get_chunks_by_entity(self, entity_id: str) -> List[Dict[str, Any]]:
+    def get_chunks_by_entity(self, entity_id: str) -> list[dict[str, Any]]:
         """
         Retrieve all chunks that mention a specific entity.
         
@@ -172,7 +172,7 @@ class QdrantVectorStore:
         Returns:
             List of chunks containing this entity
         """
-        from qdrant_client.models import Filter, FieldCondition, MatchValue
+        from qdrant_client.models import FieldCondition, Filter, MatchValue
         
         # Search for chunks where the entity is in the entities list
         results = self.client.scroll(
@@ -204,7 +204,7 @@ class QdrantVectorStore:
         
         return chunks
     
-    def get_chunks_by_ids(self, chunk_ids: List[str]) -> List[Dict[str, Any]]:
+    def get_chunks_by_ids(self, chunk_ids: list[str]) -> list[dict[str, Any]]:
         """
         Retrieve specific chunks by their IDs.
         

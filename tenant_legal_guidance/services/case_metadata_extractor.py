@@ -6,9 +6,13 @@ Extracts case-specific information from full document text.
 import logging
 import re
 from datetime import datetime
-from typing import Dict, List, Optional, Tuple
 
-from tenant_legal_guidance.models.entities import EntityType, LegalEntity, LegalDocumentType, SourceMetadata
+from tenant_legal_guidance.models.entities import (
+    EntityType,
+    LegalDocumentType,
+    LegalEntity,
+    SourceMetadata,
+)
 from tenant_legal_guidance.services.deepseek import DeepSeekClient
 
 
@@ -24,7 +28,7 @@ class CaseMetadataExtractor:
         full_text: str, 
         metadata: SourceMetadata,
         source_id: str
-    ) -> Optional[LegalEntity]:
+    ) -> LegalEntity | None:
         """
         Extract case metadata from full document text.
         
@@ -86,7 +90,7 @@ class CaseMetadataExtractor:
         self, 
         full_text: str, 
         metadata: SourceMetadata
-    ) -> Optional[Dict]:
+    ) -> dict | None:
         """Use LLM to extract structured case metadata."""
         
         # Truncate text if too long (keep first 50k chars for LLM processing)
@@ -157,7 +161,7 @@ Return only valid JSON, no additional text.
             self.logger.error(f"LLM extraction failed: {e}")
             return None
     
-    def _parse_date(self, date_str: Optional[str]) -> Optional[datetime]:
+    def _parse_date(self, date_str: str | None) -> datetime | None:
         """Parse date string into datetime object."""
         if not date_str:
             return None
@@ -212,7 +216,7 @@ Return only valid JSON, no additional text.
         # If no pattern matches, return the title as-is
         return title
     
-    def extract_court_from_text(self, text: str) -> Optional[str]:
+    def extract_court_from_text(self, text: str) -> str | None:
         """Extract court name from document text."""
         # Common court patterns
         court_patterns = [

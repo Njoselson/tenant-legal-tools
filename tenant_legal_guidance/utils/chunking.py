@@ -1,5 +1,4 @@
 import re
-from typing import Dict, List, Optional
 
 
 def naive_token_estimate(text: str) -> int:
@@ -9,15 +8,15 @@ def naive_token_estimate(text: str) -> int:
     return max(1, int(len(text) / 4))
 
 
-def split_headings(text: str) -> List[Dict[str, Optional[str]]]:
+def split_headings(text: str) -> list[dict[str, str | None]]:
     """Split text into sections by common heading patterns, returning list of {title, body}."""
     if not text:
         return []
     # Headings: lines in ALL CAPS or numbered sections
     pattern = re.compile(r"^(?P<h>\s*(?:[A-Z][A-Z\s\-]{3,}|\d+\.[\d\.]*\s+.+))$", re.M)
-    parts: List[Dict[str, Optional[str]]] = []
+    parts: list[dict[str, str | None]] = []
     last = 0
-    current_title: Optional[str] = None
+    current_title: str | None = None
     for m in pattern.finditer(text):
         start = m.start()
         if start > last:
@@ -36,12 +35,12 @@ def split_headings(text: str) -> List[Dict[str, Optional[str]]]:
     return parts
 
 
-def make_super_chunks(text: str, target_chars: int) -> List[Dict[str, Optional[str]]]:
+def make_super_chunks(text: str, target_chars: int) -> list[dict[str, str | None]]:
     """Aggregate heading sections into ~target-sized super-chunks."""
     sections = split_headings(text)
-    supers: List[Dict[str, Optional[str]]] = []
-    cur_title: Optional[str] = None
-    cur_body: List[str] = []
+    supers: list[dict[str, str | None]] = []
+    cur_title: str | None = None
+    cur_body: list[str] = []
     cur_len = 0
     for sec in sections:
         title = sec.get("title")
@@ -62,7 +61,7 @@ def make_super_chunks(text: str, target_chars: int) -> List[Dict[str, Optional[s
     return supers
 
 
-def recursive_char_chunks(text: str, target_chars: int, overlap_chars: int) -> List[str]:
+def recursive_char_chunks(text: str, target_chars: int, overlap_chars: int) -> list[str]:
     """Simple recursive character splitter with overlap.
 
     Tries to split at natural boundaries (sentences) but always ensures
@@ -76,7 +75,7 @@ def recursive_char_chunks(text: str, target_chars: int, overlap_chars: int) -> L
     if len(text) <= target_chars:
         return [text]
 
-    chunks: List[str] = []
+    chunks: list[str] = []
     start = 0
 
     while start < len(text):
@@ -104,19 +103,24 @@ def recursive_char_chunks(text: str, target_chars: int, overlap_chars: int) -> L
         # Extract chunk
         chunks.append(text[start:end].strip())
 
-        # Move start position with overlap
-        start = end - overlap_chars if overlap_chars > 0 else end
+        # Move start position with overlap (capped at chunk size to prevent infinite loops)
+        actual_overlap = min(overlap_chars, end - start) if overlap_chars > 0 else 0
+        # Ensure we always make forward progress
+        new_start = end - actual_overlap
+        if new_start <= start:
+            new_start = start + max(1, target_chars // 2)  # Force progress
+        start = new_start
 
     return chunks
 
 
 def build_chunk_docs(
-    text: str, source: str, title: Optional[str], target_chars: int, overlap_chars: int
-) -> List[Dict[str, object]]:
+    text: str, source: str, title: str | None, target_chars: int, overlap_chars: int
+) -> list[dict[str, object]]:
     """Create chunk dicts for persistence to Arango/Qdrant."""
-    result: List[Dict[str, object]] = []
+    result: list[dict[str, object]] = []
     supers = make_super_chunks(text, target_chars * 3)  # ~3x chunk target for super
-    super_ids: List[str] = []
+    super_ids: list[str] = []
     for si, sec in enumerate(supers):
         sec_title = sec.get("title") or title
         body = sec.get("body") or ""

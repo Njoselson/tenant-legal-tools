@@ -1,5 +1,4 @@
 from enum import Enum, auto
-from typing import Dict, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -22,12 +21,12 @@ class LegalRelationship(BaseModel):
     source_id: str = Field(..., description="ID of the source entity")
     target_id: str = Field(..., description="ID of the target entity")
     relationship_type: RelationshipType
-    conditions: Optional[str] = Field(
+    conditions: str | None = Field(
         None,
         description="Conditions under which this relationship holds (e.g., for ENABLES_REMEDY)",
     )
     weight: float = 1.0
-    attributes: Dict = Field(default_factory=dict)
+    attributes: dict = Field(default_factory=dict)
     
     # Relationship strength (NEW)
     strength: float = Field(
@@ -36,7 +35,7 @@ class LegalRelationship(BaseModel):
         le=1.0,
         description="How strong is this relationship? (0-1)"
     )
-    evidence_level: Optional[str] = Field(
+    evidence_level: str | None = Field(
         None,
         description="Evidence level: 'required', 'helpful', 'sufficient'"
     )
@@ -63,7 +62,7 @@ class LegalRelationship(BaseModel):
                     )
         return v
     
-    def to_api_dict(self) -> Dict:
+    def to_api_dict(self) -> dict:
         """
         Serialize relationship to consistent API response format.
         

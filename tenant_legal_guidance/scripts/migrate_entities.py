@@ -3,8 +3,8 @@
 Migrate entities from legacy type-specific collections to consolidated 'entities' collection.
 """
 
-import sys
 import logging
+import sys
 from pathlib import Path
 
 # Add parent directory to path

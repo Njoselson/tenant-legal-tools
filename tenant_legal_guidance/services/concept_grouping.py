@@ -6,11 +6,10 @@ Groups similar legal concepts as the knowledge graph grows.
 import logging
 from collections import defaultdict
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Set, Tuple
 
 import spacy
 
-from tenant_legal_guidance.models.entities import EntityType, LegalEntity
+from tenant_legal_guidance.models.entities import LegalEntity
 from tenant_legal_guidance.models.relationships import LegalRelationship
 
 
@@ -21,7 +20,7 @@ class ConceptGroup:
     id: str
     name: str
     description: str
-    entities: List[LegalEntity]
+    entities: list[LegalEntity]
     similarity_score: float
     group_type: str  # e.g., "housing_rights", "legal_remedies", "procedures"
 
@@ -40,7 +39,7 @@ class ConceptGroupingService:
             f"Loaded spaCy model for concept grouping (threshold: {similarity_threshold})"
         )
 
-    def group_similar_concepts(self, entities: List[LegalEntity]) -> List[ConceptGroup]:
+    def group_similar_concepts(self, entities: list[LegalEntity]) -> list[ConceptGroup]:
         """
         Group entities by semantic similarity using spaCy embeddings.
 
@@ -80,8 +79,8 @@ class ConceptGroupingService:
         return concept_groups
 
     def _find_similarity_groups(
-        self, entities: List[LegalEntity], entity_docs: Dict[str, spacy.tokens.Doc]
-    ) -> Dict[str, List[LegalEntity]]:
+        self, entities: list[LegalEntity], entity_docs: dict[str, spacy.tokens.Doc]
+    ) -> dict[str, list[LegalEntity]]:
         """Find groups of similar entities using hierarchical clustering."""
         if len(entities) < self.min_group_size:
             return {}
@@ -91,7 +90,7 @@ class ConceptGroupingService:
 
         # Log some similarity examples for debugging
         if len(entities) > 1:
-            self.logger.info(f"Sample similarities:")
+            self.logger.info("Sample similarities:")
             for i in range(min(3, len(entities))):
                 for j in range(i + 1, min(4, len(entities))):
                     self.logger.info(
@@ -111,8 +110,8 @@ class ConceptGroupingService:
         return filtered_groups
 
     def _build_similarity_matrix(
-        self, entities: List[LegalEntity], entity_docs: Dict[str, spacy.tokens.Doc]
-    ) -> List[List[float]]:
+        self, entities: list[LegalEntity], entity_docs: dict[str, spacy.tokens.Doc]
+    ) -> list[list[float]]:
         """Build a similarity matrix between all entities."""
         n = len(entities)
         matrix = [[0.0 for _ in range(n)] for _ in range(n)]
@@ -128,8 +127,8 @@ class ConceptGroupingService:
         return matrix
 
     def _hierarchical_clustering(
-        self, entities: List[LegalEntity], similarity_matrix: List[List[float]]
-    ) -> Dict[str, List[LegalEntity]]:
+        self, entities: list[LegalEntity], similarity_matrix: list[list[float]]
+    ) -> dict[str, list[LegalEntity]]:
         """Perform hierarchical clustering to form groups."""
         n = len(entities)
         if n == 0:
@@ -195,7 +194,7 @@ class ConceptGroupingService:
             return 0.0
 
     def _create_concept_group(
-        self, group_id: str, entities: List[LegalEntity], entity_docs: Dict[str, spacy.tokens.Doc]
+        self, group_id: str, entities: list[LegalEntity], entity_docs: dict[str, spacy.tokens.Doc]
     ) -> ConceptGroup:
         """Create a ConceptGroup from a list of similar entities."""
         # Use the most representative entity name as group name
@@ -231,7 +230,7 @@ class ConceptGroupingService:
             group_type=group_type,
         )
 
-    def _get_representative_name(self, entities: List[LegalEntity]) -> str:
+    def _get_representative_name(self, entities: list[LegalEntity]) -> str:
         """Get the most representative name for a group of entities."""
         # Prefer shorter, more general names
         names = [e.name for e in entities]
@@ -241,7 +240,7 @@ class ConceptGroupingService:
 
         return names[0] if names else "Unknown Group"
 
-    def _determine_group_type(self, entities: List[LegalEntity]) -> str:
+    def _determine_group_type(self, entities: list[LegalEntity]) -> str:
         """Determine the type of concept group based on entity types."""
         type_counts = defaultdict(int)
         for entity in entities:
@@ -255,8 +254,8 @@ class ConceptGroupingService:
         return "mixed"
 
     def find_similar_entities(
-        self, query_entity: LegalEntity, candidate_entities: List[LegalEntity], top_k: int = 5
-    ) -> List[Tuple[LegalEntity, float]]:
+        self, query_entity: LegalEntity, candidate_entities: list[LegalEntity], top_k: int = 5
+    ) -> list[tuple[LegalEntity, float]]:
         """
         Find entities similar to a query entity.
 
@@ -295,8 +294,8 @@ class ConceptGroupingService:
         return similarities[:top_k]
 
     def suggest_relationships(
-        self, entities: List[LegalEntity], existing_relationships: List[LegalRelationship]
-    ) -> List[Tuple[LegalEntity, LegalEntity, float]]:
+        self, entities: list[LegalEntity], existing_relationships: list[LegalRelationship]
+    ) -> list[tuple[LegalEntity, LegalEntity, float]]:
         """
         Suggest potential relationships between entities based on similarity.
 

@@ -19,12 +19,11 @@ Usage:
 import argparse
 import logging
 import sys
-from typing import Dict
 
 from tenant_legal_guidance.graph.arango_graph import ArangoDBGraph
 
 
-def print_stats(stats: Dict[str, int]):
+def print_stats(stats: dict[str, int]):
     """Pretty print database statistics."""
     print("\n" + "=" * 60)
     print("DATABASE STATISTICS")

@@ -1,7 +1,6 @@
 import json
 import logging
 import re
-from typing import Dict, List, Optional, Tuple
 
 from tenant_legal_guidance.graph.arango_graph import ArangoDBGraph
 from tenant_legal_guidance.models.entities import EntityType
@@ -16,11 +15,11 @@ class EntityConsolidationService:
 
     async def judge_cases(
         self,
-        cases: List[Dict],
+        cases: list[dict],
         auto_merge_threshold: float = 0.95,
         judge_low: float = 0.90,
         judge_high: float = 0.95,
-    ) -> Dict[str, bool]:
+    ) -> dict[str, bool]:
         """Ask the LLM to judge merge decisions for provided cases.
 
         Each case must include: key, type, incoming{name,desc}, candidate{name,desc}, similarity.
@@ -52,7 +51,7 @@ class EntityConsolidationService:
             except Exception:
                 m = re.search(r"(\{[\s\S]*\})", raw)
                 data = json.loads(m.group(1)) if m else {"decisions": []}
-            decisions: Dict[str, bool] = {}
+            decisions: dict[str, bool] = {}
             for item in data.get("decisions", []):
                 key = str(item.get("key"))
                 decisions[key] = bool(item.get("merge"))
@@ -63,12 +62,12 @@ class EntityConsolidationService:
 
     async def judge_and_merge(
         self,
-        borderline: List[Dict],
-        collections: Dict[str, Dict[str, int]],
+        borderline: list[dict],
+        collections: dict[str, dict[str, int]],
         auto_merge_threshold: float = 0.95,
         judge_low: float = 0.90,
         judge_high: float = 0.95,
-    ) -> Dict:
+    ) -> dict:
         """Use LLM to judge borderline entity pairs and merge approved ones.
 
         Returns { "judge_merged": int, "decisions": List[Dict] }
@@ -112,8 +111,8 @@ class EntityConsolidationService:
     async def consolidate_all(
         self,
         threshold: float = 0.95,
-        types: Optional[List[str]] = None,
-    ) -> Dict:
+        types: list[str] | None = None,
+    ) -> dict:
         """Run consolidate-all with dynamic judge band and LLM judging.
 
         - threshold: auto-merge when score >= threshold
@@ -123,7 +122,7 @@ class EntityConsolidationService:
         # Map type strings to EntityType when possible using utility
         from tenant_legal_guidance.utils.entity_helpers import normalize_entity_type
         
-        type_filter: Optional[List[EntityType]] = None
+        type_filter: list[EntityType] | None = None
         if types:
             type_filter = []
             for t in types:

@@ -39,6 +39,7 @@ from tenant_legal_guidance.services.concept_grouping import ConceptGroupingServi
 from tenant_legal_guidance.services.deepseek import DeepSeekClient
 from tenant_legal_guidance.services.embeddings import EmbeddingsService
 from tenant_legal_guidance.services.entity_consolidation import EntityConsolidationService
+from tenant_legal_guidance.services.entity_resolver import EntityResolver
 from tenant_legal_guidance.services.entity_service import EntityService
 from tenant_legal_guidance.services.vector_store import QdrantVectorStore
 from tenant_legal_guidance.utils.text import canonicalize_text, sha256
@@ -52,6 +53,7 @@ class DocumentProcessor:
         deepseek_client: DeepSeekClient,
         knowledge_graph: ArangoDBGraph,
         vector_store: "QdrantVectorStore | None" = None,
+        enable_entity_search: bool = True,
     ):
         self.deepseek = deepseek_client
         self.knowledge_graph = knowledge_graph
@@ -68,6 +70,9 @@ class DocumentProcessor:
         self.case_analyzer = CaseAnalyzer(self.knowledge_graph, self.deepseek)
         # Initialize entity service for consistent entity extraction and canonicalization
         self.entity_service = EntityService(self.deepseek, self.knowledge_graph)
+        # Initialize entity resolver for search-before-insert consolidation
+        self.enable_entity_search = enable_entity_search
+        self.entity_resolver = EntityResolver(self.knowledge_graph, self.deepseek) if enable_entity_search else None
 
     async def ingest_document(
         self, text: str, metadata: SourceMetadata, force_reprocess: bool = False
@@ -157,15 +162,69 @@ class DocumentProcessor:
         )
         relationships.extend(inferred_relationships)
 
-        # Step 2.5: No longer needed - hash-based IDs ensure same entity → same ID automatically
-        # Semantic merge removed - BM25 search handles entity matching during retrieval
+        # Step 2.5: Entity resolution - search for existing entities before creating new ones
+        entity_resolution_map: dict[str, str | None] = {}
+        consolidation_stats = {
+            "auto_merged": 0,
+            "llm_confirmed": 0,
+            "create_new": 0,
+            "cache_hits": 0,
+            "search_failures": 0,
+        }
+        
+        if self.enable_entity_search and self.entity_resolver:
+            try:
+                self.logger.info(f"[EntityResolution] Resolving {len(entities)} entities to existing entities...")
+                entity_resolution_map = await self.entity_resolver.resolve_entities(
+                    entities, auto_merge_threshold=0.95
+                )
+                
+                # Count resolution outcomes
+                for entity_id, resolved_id in entity_resolution_map.items():
+                    if resolved_id:
+                        consolidation_stats["auto_merged"] += 1
+                    else:
+                        consolidation_stats["create_new"] += 1
+                
+                self.logger.info(
+                    f"[EntityResolution] Complete: {consolidation_stats['auto_merged']} merged, "
+                    f"{consolidation_stats['create_new']} new"
+                )
+                
+                # Update relationship references with resolved entity IDs
+                relationships = self._update_relationship_references_with_resolution(
+                    relationships, entity_resolution_map
+                )
+                
+            except Exception as e:
+                self.logger.error(f"[EntityResolution] Entity resolution failed, falling back to normal flow: {e}", exc_info=True)
+                entity_resolution_map = {}
+        else:
+            self.logger.debug("[EntityResolution] Entity search disabled, skipping resolution")
 
         # Step 3: Add entities to graph with quotes and multi-source consolidation
         added_entities = []
         for entity in entities:
+            # Check if entity was resolved to an existing entity
+            resolved_entity_id = entity_resolution_map.get(entity.id)
             
-            # NEW: Check if entity exists in KG (for multi-source tracking)
-            existing_entity = self.knowledge_graph.get_entity(entity.id)
+            # If resolved, fetch the existing entity
+            existing_entity = None
+            if resolved_entity_id:
+                # Entity should be merged with existing entity
+                existing_entity = self.knowledge_graph.get_entity(resolved_entity_id)
+                if existing_entity:
+                    self.logger.info(
+                        f"[EntityResolution] Entity '{entity.name}' resolved to existing '{existing_entity.name}' (ID: {resolved_entity_id})"
+                    )
+                else:
+                    # Resolved ID doesn't exist (shouldn't happen, but handle gracefully)
+                    self.logger.warning(
+                        f"[EntityResolution] Resolved entity ID {resolved_entity_id} not found, creating new"
+                    )
+            else:
+                # Check if entity exists by its original ID (for backwards compatibility)
+                existing_entity = self.knowledge_graph.get_entity(entity.id)
             
             if existing_entity:
                 # ENTITY EXISTS - Add this source's info
@@ -195,6 +254,7 @@ class DocumentProcessor:
                 # Merge with existing entity
                 updated_entity = self._merge_entity_sources(
                     existing_entity=existing_entity,
+                    new_entity=entity,  # Pass new entity for comparison
                     new_quote=new_quote,
                     new_chunk_ids=new_chunk_ids,
                     new_source_id=source_id or metadata.source
@@ -476,6 +536,7 @@ class DocumentProcessor:
             "concept_groups": concept_groups,
             "case_document": case_document_entity,  # NEW: Include case document entity
             "case_analysis": case_analysis_results,  # NEW: Include case analysis results
+            "consolidation_stats": consolidation_stats,  # NEW: Include entity consolidation statistics
         }
 
     async def _enrich_chunks_metadata_batch(
@@ -693,6 +754,47 @@ Ensure array has exactly {len(batch)} objects."""
 
             # Skip self-referential relationships
             if source_id == target_id:
+                continue
+
+            # Create new relationship with updated IDs
+            updated_relationship = LegalRelationship(
+                source_id=source_id,
+                target_id=target_id,
+                relationship_type=relationship.relationship_type,
+                attributes=relationship.attributes,
+            )
+            updated_relationships.append(updated_relationship)
+
+        return updated_relationships
+    
+    def _update_relationship_references_with_resolution(
+        self, relationships: list[LegalRelationship], resolution_map: dict[str, str | None]
+    ) -> list[LegalRelationship]:
+        """Update relationship source and target IDs based on entity resolution map.
+        
+        Args:
+            relationships: List of relationships to update
+            resolution_map: Dict mapping extracted entity IDs to existing entity IDs (or None if new)
+            
+        Returns:
+            Updated relationships with resolved entity IDs
+        """
+        updated_relationships = []
+        for relationship in relationships:
+            # Update source and target IDs if they were resolved to existing entities
+            source_id = resolution_map.get(relationship.source_id)
+            if source_id is None:
+                # Not resolved, keep original ID
+                source_id = relationship.source_id
+            
+            target_id = resolution_map.get(relationship.target_id)
+            if target_id is None:
+                # Not resolved, keep original ID
+                target_id = relationship.target_id
+
+            # Skip self-referential relationships
+            if source_id == target_id:
+                self.logger.debug(f"Skipping self-referential relationship: {source_id}")
                 continue
 
             # Create new relationship with updated IDs
@@ -1119,21 +1221,74 @@ Ensure array has exactly {len(batch)} objects."""
     def _merge_entity_sources(
         self,
         existing_entity: LegalEntity,
+        new_entity: LegalEntity,
         new_quote: dict[str, str],
         new_chunk_ids: list[str],
         new_source_id: str
     ) -> LegalEntity:
         """
-        Merge new source information into existing entity.
+        Merge new source information into existing entity with intelligent updates.
         
         Strategy:
-        - Keep best_quote as the highest-quality quote across all sources
+        - Use better name (more complete/canonical version)
+        - Merge descriptions (keep longest or most informative)
+        - Update metadata with most authoritative source
+        - Keep best_quote as highest-quality quote
         - Add new quote to all_quotes list
         - Append new chunk_ids (deduplicated)
         - Append new source_id (deduplicated)
         - Increment mentions_count
         """
-        # Add to all_quotes (deduplicate by quote text)
+        # 1. Update NAME if new one is better (more complete)
+        # Prefer longer, more descriptive names
+        if len(new_entity.name) > len(existing_entity.name):
+            self.logger.info(
+                f"[Merge] Updating entity name: '{existing_entity.name}' → '{new_entity.name}'"
+            )
+            existing_entity.name = new_entity.name
+        
+        # 2. Update DESCRIPTION if new one is better (longer and non-empty)
+        existing_desc = existing_entity.description or ""
+        new_desc = new_entity.description or ""
+        if new_desc and len(new_desc) > len(existing_desc):
+            self.logger.info(
+                f"[Merge] Updating entity description: '{existing_desc[:50]}...' → '{new_desc[:50]}...'"
+            )
+            existing_entity.description = new_desc
+        
+        # 3. Update METADATA with most authoritative source
+        existing_authority = existing_entity.source_metadata.authority
+        new_authority = new_entity.source_metadata.authority
+        
+        # Authority ranking (higher is better)
+        authority_rank = {
+            "BINDING_LEGAL_AUTHORITY": 6,
+            "PERSUASIVE_AUTHORITY": 5,
+            "OFFICIAL_INTERPRETIVE": 4,
+            "REPUTABLE_SECONDARY": 3,
+            "PRACTICAL_SELF_HELP": 2,
+            "INFORMATIONAL_ONLY": 1,
+        }
+        
+        existing_rank = authority_rank.get(str(existing_authority), 0)
+        new_rank = authority_rank.get(str(new_authority), 0)
+        
+        if new_rank > existing_rank:
+            self.logger.info(
+                f"[Merge] Updating source metadata: {existing_authority} → {new_authority}"
+            )
+            existing_entity.source_metadata = new_entity.source_metadata
+        
+        # 4. Merge ATTRIBUTES (keep all unique attributes)
+        if new_entity.attributes:
+            if not existing_entity.attributes:
+                existing_entity.attributes = {}
+            for key, value in new_entity.attributes.items():
+                # Don't overwrite existing attributes, but add new ones
+                if key not in existing_entity.attributes:
+                    existing_entity.attributes[key] = value
+        
+        # 5. Add to all_quotes (deduplicate by quote text)
         if not existing_entity.all_quotes:
             existing_entity.all_quotes = []
         
@@ -1149,25 +1304,29 @@ Ensure array has exactly {len(batch)} objects."""
             if not quote_exists and new_quote_text:
                 existing_entity.all_quotes.append(new_quote)
             
-            # Update best_quote if new quote is better (or if none exists)
-            # For simplicity, just keep the first one or the one with non-empty text
-            if not existing_entity.best_quote or (new_quote.get("text") and not existing_entity.best_quote.get("text")):
+            # Update best_quote if new quote is better (longer/more complete)
+            if not existing_entity.best_quote:
                 existing_entity.best_quote = new_quote
+            elif new_quote.get("text"):
+                existing_text = existing_entity.best_quote.get("text", "")
+                new_text = new_quote.get("text", "")
+                if len(new_text) > len(existing_text):
+                    existing_entity.best_quote = new_quote
         
-        # Merge chunk_ids (deduplicate)
+        # 6. Merge chunk_ids (deduplicate)
         if not existing_entity.chunk_ids:
             existing_entity.chunk_ids = []
         for chunk_id in new_chunk_ids:
             if chunk_id and chunk_id not in existing_entity.chunk_ids:
                 existing_entity.chunk_ids.append(chunk_id)
         
-        # Merge source_ids (deduplicate)
+        # 7. Merge source_ids (deduplicate)
         if not existing_entity.source_ids:
             existing_entity.source_ids = []
         if new_source_id and new_source_id not in existing_entity.source_ids:
             existing_entity.source_ids.append(new_source_id)
         
-        # Update mentions_count
+        # 8. Update mentions_count
         existing_entity.mentions_count = len(existing_entity.source_ids) if existing_entity.source_ids else (existing_entity.mentions_count or 0) + 1
         
         return existing_entity

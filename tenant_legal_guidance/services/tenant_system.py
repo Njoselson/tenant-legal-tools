@@ -13,12 +13,18 @@ from tenant_legal_guidance.services.resource_processor import LegalResourceProce
 
 
 class TenantLegalSystem:
-    def __init__(self, deepseek_api_key: str | None = None, graph_path: Path | None = None):
+    def __init__(
+        self,
+        deepseek_api_key: str | None = None,
+        graph_path: Path | None = None,
+        enable_entity_search: bool = True,
+    ):
         """Initialize the Tenant Legal Guidance System.
 
         Args:
             deepseek_api_key: API key for DeepSeek. If None, reads from DEEPSEEK_API_KEY in .env
             graph_path: Optional path to graph database (unused, for compatibility)
+            enable_entity_search: Enable entity resolution search-before-insert (default: True)
         """
         # Read from settings if no key provided
         if deepseek_api_key is None:
@@ -31,9 +37,14 @@ class TenantLegalSystem:
 
         self.deepseek = DeepSeekClient(deepseek_api_key)
         self.knowledge_graph = ArangoDBGraph()
-        self.document_processor = DocumentProcessor(self.deepseek, self.knowledge_graph)
+        self.document_processor = DocumentProcessor(
+            self.deepseek, self.knowledge_graph, enable_entity_search=enable_entity_search
+        )
         self.logger = logging.getLogger(__name__)
-        self.logger.info("Initialized TenantLegalSystem with embedded Knowledge Graph")
+        self.logger.info(
+            f"Initialized TenantLegalSystem with embedded Knowledge Graph "
+            f"(entity_search={'enabled' if enable_entity_search else 'disabled'})"
+        )
 
     async def ingest_legal_source(
         self, text: str, metadata: SourceMetadata, force_reprocess: bool = False

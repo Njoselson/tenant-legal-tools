@@ -425,6 +425,12 @@ def main():
         action="store_true",
         help="Skip sources that have been processed (requires checkpoint)",
     )
+    
+    parser.add_argument(
+        "--skip-entity-search",
+        action="store_true",
+        help="Skip entity resolution search (for debugging/testing)",
+    )
 
     parser.add_argument("--report", type=Path, help="Output report file (JSON)")
 
@@ -436,8 +442,13 @@ def main():
 
     try:
         # Initialize system
-        logger.info("Initializing TenantLegalSystem...")
-        system = TenantLegalSystem(deepseek_api_key=args.deepseek_key)
+        enable_entity_search = not args.skip_entity_search
+        logger.info(
+            f"Initializing TenantLegalSystem (entity_search={'enabled' if enable_entity_search else 'disabled'})..."
+        )
+        system = TenantLegalSystem(
+            deepseek_api_key=args.deepseek_key, enable_entity_search=enable_entity_search
+        )
 
         # Determine manifest path
         manifest_path = args.manifest

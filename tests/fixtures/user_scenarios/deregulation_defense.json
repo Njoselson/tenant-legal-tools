@@ -1,0 +1,80 @@
+{
+  "scenario_id": "tenant_deregulation_defense_001",
+  "name": "Tenant Defending Against Deregulation Claim",
+  "description": "A tenant in a rent-stabilized building is being told by their landlord that the apartment was deregulated via high-rent vacancy. The tenant wants to know if they can challenge this.",
+  
+  "user_input": {
+    "situation": "My landlord is claiming my apartment was deregulated in 2010 when the rent hit $2,500. They're trying to evict me for non-payment of $2,200/month rent, but I think the apartment should still be rent-stabilized. The building was built before 1974 and has more than 6 units. I've been here since 2015 and never got any paperwork about deregulation.",
+    "evidence_i_have": [
+      "My lease showing $2,200/month rent",
+      "Building registration showing pre-1974 construction",
+      "No rent stabilization rider in my lease",
+      "DHCR registration history showing inconsistent records",
+      "Letters from landlord demanding rent"
+    ],
+    "jurisdiction": "NYC"
+  },
+  
+  "expected_output": {
+    "possible_claims": [
+      {
+        "claim_type": "RENT_OVERCHARGE",
+        "should_match": true,
+        "min_match_score": 0.7,
+        "key_evidence_gaps": [
+          "IAI documentation from landlord",
+          "Proof of rent at time of alleged deregulation"
+        ]
+      },
+      {
+        "claim_type": "DEREGULATION_CHALLENGE",
+        "should_match": true,
+        "min_match_score": 0.8,
+        "key_evidence_strengths": [
+          "No rent stabilization rider provided",
+          "Inconsistent DHCR records"
+        ]
+      }
+    ],
+    
+    "expected_evidence_analysis": {
+      "strong_points": [
+        "Pre-1974 building establishes rent stabilization eligibility",
+        "Missing rent stabilization rider violates landlord's notice requirement",
+        "Inconsistent DHCR records undermine deregulation claim (like 756 Liberty)"
+      ],
+      "gaps_to_address": [
+        "Request landlord's IAI documentation through discovery",
+        "Get complete DHCR registration history",
+        "Document the rent history for prior tenants"
+      ]
+    },
+    
+    "expected_outcome_predictions": {
+      "if_landlord_cannot_document_iai": {
+        "likely_outcome": "Apartment remains rent stabilized",
+        "probability_min": 0.7,
+        "precedent": "756 Liberty Realty LLC v Garcia"
+      }
+    },
+    
+    "expected_next_steps": [
+      "File answer to non-payment petition asserting rent stabilization defense",
+      "Assert counterclaim for rent overcharge",
+      "Demand discovery for IAI documentation, DHCR registrations, prior leases",
+      "Request that landlord prove lawful deregulation with documentation"
+    ]
+  },
+  
+  "learning_source": {
+    "case": "756 Liberty Realty LLC v Garcia",
+    "key_lessons": [
+      "Landlord bears burden of proving lawful deregulation",
+      "IAI claims require contemporaneous documentation (invoices, receipts)",
+      "Rent stabilization rider must be provided to first tenant after deregulation",
+      "Conflicting DHCR registrations undermine landlord's case",
+      "Court can look beyond 4-year lookback period to determine regulatory status"
+    ]
+  }
+}
+

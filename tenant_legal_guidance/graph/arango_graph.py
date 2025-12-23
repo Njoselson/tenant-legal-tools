@@ -10,6 +10,7 @@ from tenant_legal_guidance.models.entities import (
     EntityType,
     LegalEntity,
     SourceAuthority,
+    SourceMetadata,
     SourceType,
 )
 from tenant_legal_guidance.models.relationships import LegalRelationship, RelationshipType
@@ -419,6 +420,7 @@ class ArangoDBGraph:
                         "name": {"analyzers": ["text_en"]},
                         "description": {"analyzers": ["text_en"]},
                         "type": {"analyzers": ["identity"]},
+                        "entity_type": {"analyzers": ["identity"]},
                         "jurisdiction": {"analyzers": ["identity"]},
                     },
                 }
@@ -453,38 +455,8 @@ class ArangoDBGraph:
             self.logger.warning(f"Failed to ensure search view: {e}")
 
     def _get_collection_for_entity(self, entity_type: EntityType) -> str:
-        """Get the appropriate collection name for an entity type."""
-        collection_map = {
-            # Legal entities
-            EntityType.LAW: "laws",
-            EntityType.REMEDY: "remedies",
-            EntityType.CASE_DOCUMENT: "court_cases",  # Court cases are stored in court_cases collection
-            EntityType.LEGAL_PROCEDURE: "legal_procedures",
-            EntityType.DAMAGES: "damages",
-            EntityType.LEGAL_CONCEPT: "legal_concepts",
-            # Organizing entities
-            EntityType.TENANT_GROUP: "tenant_groups",
-            EntityType.CAMPAIGN: "campaigns",
-            EntityType.TACTIC: "tactics",
-            # Parties
-            EntityType.TENANT: "tenants",
-            EntityType.LANDLORD: "landlords",
-            EntityType.LEGAL_SERVICE: "legal_services",
-            EntityType.GOVERNMENT_ENTITY: "government_entities",
-            # Outcomes
-            EntityType.LEGAL_OUTCOME: "legal_outcomes",
-            EntityType.ORGANIZING_OUTCOME: "organizing_outcomes",
-            # Issues and events
-            EntityType.TENANT_ISSUE: "tenant_issues",
-            EntityType.EVENT: "events",
-            # Documentation and evidence
-            EntityType.DOCUMENT: "documents",
-            EntityType.CASE_DOCUMENT: "case_documents",
-            EntityType.EVIDENCE: "evidence",
-            # Geographic and jurisdictional
-            EntityType.JURISDICTION: "jurisdictions",
-        }
-        return collection_map[entity_type]
+        """All entities are stored in the consolidated 'entities' collection."""
+        return "entities"
 
     def _get_collection_for_relationship(self, relationship_type: RelationshipType) -> str:
         """Get the collection name for a relationship type."""
@@ -1088,6 +1060,36 @@ class ArangoDBGraph:
             doc["relief_granted"] = entity.relief_granted
         if entity.damages_awarded is not None:
             doc["damages_awarded"] = entity.damages_awarded
+        
+        # Add legal claim fields (for LEGAL_CLAIM entity type)
+        if entity.claim_description:
+            doc["claim_description"] = entity.claim_description
+        if entity.claimant:
+            doc["claimant"] = entity.claimant
+        if entity.respondent_party:
+            doc["respondent_party"] = entity.respondent_party
+        if entity.claim_type:
+            doc["claim_type"] = entity.claim_type
+        if entity.relief_sought:
+            doc["relief_sought"] = entity.relief_sought
+        if entity.claim_status:
+            doc["claim_status"] = entity.claim_status
+        if entity.proof_completeness is not None:
+            doc["proof_completeness"] = entity.proof_completeness
+        if entity.gaps:
+            doc["gaps"] = entity.gaps
+        
+        # Add evidence context fields (for EVIDENCE entity type)
+        if entity.evidence_context:
+            doc["evidence_context"] = entity.evidence_context
+        if entity.evidence_source_type:
+            doc["evidence_source_type"] = entity.evidence_source_type
+        if entity.is_critical is not None:
+            doc["is_critical"] = entity.is_critical
+        
+        # Add linked_claim_type for evidence (required evidence links to claim type string)
+        if entity.linked_claim_type:
+            doc["linked_claim_type"] = entity.linked_claim_type
 
         # Auto-populate URL for evidence/document entities from source when available
         try:
@@ -1478,6 +1480,78 @@ class ArangoDBGraph:
             return rels
         except Exception as e:
             self.logger.error(f"get_relationships_among error: {e}")
+            return []
+
+    def get_relationships(
+        self,
+        source_id: str | None = None,
+        target_id: str | None = None,
+        relationship_type: str | RelationshipType | None = None,
+    ) -> list[dict]:
+        """
+        Query relationships by source, target, and/or type.
+        
+        Args:
+            source_id: Filter by source entity ID
+            target_id: Filter by target entity ID
+            relationship_type: Filter by relationship type (string or enum)
+            
+        Returns:
+            List of relationship dicts with source_id, target_id, type, etc.
+        """
+        try:
+            # Convert relationship_type to string if needed
+            if isinstance(relationship_type, RelationshipType):
+                rel_type_str = relationship_type.name
+            elif relationship_type:
+                rel_type_str = str(relationship_type)
+            else:
+                rel_type_str = None
+            
+            # Build AQL query
+            filters = []
+            bind_vars = {}
+            
+            if source_id:
+                coll_name = self._collection_for_entity_id(source_id)
+                if coll_name:
+                    filters.append("e._from == CONCAT(@source_coll, '/', @source_key)")
+                    bind_vars["source_coll"] = coll_name
+                    bind_vars["source_key"] = source_id
+            
+            if target_id:
+                coll_name = self._collection_for_entity_id(target_id)
+                if coll_name:
+                    filters.append("e._to == CONCAT(@target_coll, '/', @target_key)")
+                    bind_vars["target_coll"] = coll_name
+                    bind_vars["target_key"] = target_id
+            
+            if rel_type_str:
+                filters.append("e.type == @rel_type")
+                bind_vars["rel_type"] = rel_type_str
+            
+            filter_clause = " AND ".join(filters) if filters else "true"
+            
+            aql = f"""
+            FOR e IN edges
+                FILTER {filter_clause}
+                LET from_id = SPLIT(e._from, '/')[1]
+                LET to_id = SPLIT(e._to, '/')[1]
+                RETURN {{
+                    source_id: from_id,
+                    target_id: to_id,
+                    type: e.type,
+                    weight: e.weight,
+                    conditions: e.conditions,
+                    attributes: e.attributes
+                }}
+            """
+            
+            cursor = self.db.aql.execute(aql, bind_vars=bind_vars)
+            return list(cursor)
+            
+        except Exception as e:
+            self.logger.error(f"get_relationships error: {e}")
             return []
 
     def get_neighbors(
@@ -2027,6 +2101,69 @@ class ArangoDBGraph:
             self.logger.error(f"Error searching entities by text: {e}")
             return []
 
+    def search_similar_entities(
+        self, name: str, entity_type: str, limit: int = 3
+    ) -> list[dict[str, object]]:
+        """Search for existing entities using BM25 fulltext search.
+        
+        Used by entity resolution to find potential duplicates before creating new entities.
+        
+        Args:
+            name: Entity name to search for
+            entity_type: Entity type (e.g., 'law', 'remedy')
+            limit: Maximum number of results to return
+            
+        Returns:
+            List of matching entities with their BM25 scores, sorted by relevance
+        """
+        try:
+            # Use ArangoSearch view for BM25 scoring
+            query = """
+            FOR doc IN kg_entities_view
+                SEARCH ANALYZER(TOKENS(@name, "text_en") ALL IN doc.name, "text_en")
+                FILTER doc.type == @entity_type
+                SORT BM25(doc) DESC
+                LIMIT @limit
+                RETURN {
+                    _key: doc._key,
+                    name: doc.name,
+                    entity_type: doc.type,
+                    description: doc.description,
+                    score: BM25(doc)
+                }
+            """
+            
+            bind_vars = {
+                "name": name,
+                "entity_type": entity_type,
+                "limit": limit,
+            }
+            
+            try:
+                cursor = self.db.aql.execute(query, bind_vars=bind_vars)
+                results = list(cursor)
+                self.logger.debug(
+                    f"BM25 search for '{name}' (type={entity_type}): found {len(results)} candidates"
+                )
+                return results
+            except Exception as e:
+                # If view missing, ensure and retry
+                msg = str(e)
+                if "view" in msg.lower() or "search" in msg.lower():
+                    self.logger.warning(
+                        f"ArangoSearch view issue in search_similar_entities: {msg}. Ensuring view and retrying..."
+                    )
+                    self._ensure_search_view()
+                    cursor = self.db.aql.execute(query, bind_vars=bind_vars)
+                    results = list(cursor)
+                    return results
+                raise
+                
+        except Exception as e:
+            self.logger.error(f"Error in search_similar_entities for '{name}': {e}")
+            # Return empty list on failure (graceful degradation)
+            return []
+
     def migrate_types_to_values(self) -> dict[str, int]:
         """Migrate stored entity 'type' from enum NAME (e.g., 'LAW') to enum VALUE (e.g., 'law').
         Returns a dict of collection -> updated_count.
@@ -2300,3 +2437,50 @@ class ArangoDBGraph:
         except Exception as e:
             self.logger.error(f"Error dropping database: {e}")
             raise
+
+    # --- Required Evidence Methods ---
+
+    def get_required_evidence_for_claim_type(self, claim_type: str) -> list[dict]:
+        """
+        Get required evidence for a claim type string.
+        
+        Args:
+            claim_type: The claim type string (e.g., "DEREGULATION_CHALLENGE")
+            
+        Returns:
+            List of evidence entities with context="required" and linked_claim_type=claim_type
+        """
+        try:
+            aql = """
+            FOR ev IN entities
+                FILTER ev.type == "evidence"
+                FILTER ev.evidence_context == "required"
+                FILTER ev.linked_claim_type == @claim_type
+                RETURN ev
+            """
+            cursor = self.db.aql.execute(aql, bind_vars={"claim_type": claim_type})
+            return list(cursor)
+        except Exception as e:
+            self.logger.error(f"Failed to get required evidence for {claim_type}: {e}")
+            return []
+    
+    def get_all_claim_types(self) -> list[str]:
+        """
+        Get all unique claim type strings from stored claims.
+        
+        Returns:
+            List of claim type strings (e.g., ["DEREGULATION_CHALLENGE", "RENT_OVERCHARGE"])
+        """
+        try:
+            aql = """
+            FOR claim IN entities
+                FILTER claim.type == "legal_claim"
+                FILTER claim.claim_type != null
+                COLLECT claim_type = claim.claim_type INTO groups
+                RETURN claim_type
+            """
+            cursor = self.db.aql.execute(aql)
+            return [row for row in cursor]
+        except Exception as e:
+            self.logger.error(f"Failed to get claim types: {e}")
+            return []

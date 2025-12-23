@@ -10,19 +10,32 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 from tenant_legal_guidance.api.schemas import (
+    AnalyzeMyCaseRequest,
+    AnalyzeMyCaseResponse,
     CaseAnalysisRequest,
     ChainsRequest,
+    ClaimExtractionRequest,
+    ClaimExtractionResponse,
+    ClaimTypeMatchSchema,
     ConsolidateAllRequest,
     ConsolidateRequest,
     ConsultationRequest,
     DeleteEntitiesRequest,
     EnhancedCaseAnalysisRequest,
+    EvidenceGapSchema,
+    EvidenceMatchSchema,
     ExpandRequest,
+    ExtractedClaimSchema,
+    ExtractedDamagesSchema,
+    ExtractedEvidenceSchema,
+    ExtractedOutcomeSchema,
     GenerateAnalysisRequest,
     HybridSearchRequest,
     KGChatRequest,
     KnowledgeGraphProcessRequest,
     NextStepsRequest,
+    ProofChainEvidenceSchema,
+    ProofChainSchema,
     RetrieveEntitiesRequest,
 )
 from tenant_legal_guidance.models.entities import EntityType, SourceMetadata, SourceType
@@ -1067,6 +1080,444 @@ async def get_entity_quote(
         raise
     except Exception as e:
         logger.error(f"Failed to get entity quote: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# Legal Claim Proving System Endpoints
+# ============================================================================
+
+@router.post("/api/v1/claims/extract", response_model=ClaimExtractionResponse)
+async def extract_claims(
+    request: ClaimExtractionRequest,
+    system: TenantLegalSystem = Depends(get_system)
+) -> ClaimExtractionResponse:
+    """
+    Extract legal claims, evidence, outcomes, and damages from a document.
+    
+    This is the main entry point for the legal claim proving system.
+    Performs claim-centric sequential extraction:
+    1. Extract all claims from the document
+    2. For each claim, extract related evidence
+    3. Extract outcomes linked to claims
+    4. Extract damages linked to outcomes
+    5. Build relationships between entities
+    """
+    try:
+        from tenant_legal_guidance.services.claim_extractor import ClaimExtractor
+        
+        logger.info(f"Extracting claims from document ({len(request.text)} chars)")
+        
+        # Create extractor with the system's LLM client
+        extractor = ClaimExtractor(llm_client=system.deepseek)
+        
+        # Run full proof chain extraction
+        result = await extractor.extract_full_proof_chain(
+            text=request.text,
+            metadata=request.metadata,
+        )
+        
+        # Convert to response schema
+        return ClaimExtractionResponse(
+            document_id=result.document_id,
+            claims=[
+                ExtractedClaimSchema(
+                    id=c.id,
+                    name=c.name,
+                    claim_description=c.claim_description,
+                    claimant=c.claimant,
+                    respondent_party=c.respondent_party,
+                    claim_type=c.claim_type,
+                    relief_sought=c.relief_sought,
+                    claim_status=c.claim_status,
+                    source_quote=c.source_quote,
+                ) for c in result.claims
+            ],
+            evidence=[
+                ExtractedEvidenceSchema(
+                    id=e.id,
+                    name=e.name,
+                    evidence_type=e.evidence_type,
+                    description=e.description,
+                    evidence_context=e.evidence_context,
+                    evidence_source_type=e.evidence_source_type,
+                    source_quote=e.source_quote,
+                    is_critical=e.is_critical,
+                    linked_claim_ids=e.linked_claim_ids,
+                ) for e in result.evidence
+            ],
+            outcomes=[
+                ExtractedOutcomeSchema(
+                    id=o.id,
+                    name=o.name,
+                    outcome_type=o.outcome_type,
+                    disposition=o.disposition,
+                    description=o.description,
+                    decision_maker=o.decision_maker,
+                    linked_claim_ids=o.linked_claim_ids,
+                ) for o in result.outcomes
+            ],
+            damages=[
+                ExtractedDamagesSchema(
+                    id=d.id,
+                    name=d.name,
+                    damage_type=d.damage_type,
+                    amount=d.amount,
+                    status=d.status,
+                    description=d.description,
+                    linked_outcome_id=d.linked_outcome_id,
+                ) for d in result.damages
+            ],
+            relationships=result.relationships,
+        )
+    except Exception as e:
+        logger.error(f"Claim extraction failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/api/v1/claim-types")
+async def get_claim_types(
+    jurisdiction: str | None = None,
+    include_required_evidence: bool = False,
+    system: TenantLegalSystem = Depends(get_system)
+) -> dict:
+    """
+    Get all claim types in the taxonomy.
+    
+    Query params:
+    - jurisdiction: Filter by jurisdiction (e.g., "NYC")
+    - include_required_evidence: Include required evidence templates in response
+    """
+    try:
+        kg = system.knowledge_graph
+        claim_types = kg.get_all_claim_types()
+        
+        return {
+            "claim_types": claim_types,
+            "count": len(claim_types),
+        }
+    except Exception as e:
+        logger.error(f"Failed to get claim types: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/api/v1/claim-types/{claim_type}/required-evidence")
+async def get_required_evidence(
+    claim_type: str,
+    system: TenantLegalSystem = Depends(get_system)
+) -> dict:
+    """
+    Get required evidence templates for a specific claim type string.
+    
+    Returns the evidence that must be provided to prove this type of claim.
+    """
+    try:
+        kg = system.knowledge_graph
+        evidence = kg.get_required_evidence_for_claim_type(claim_type)
+        
+        return {
+            "claim_type": claim_type,
+            "required_evidence": evidence,
+            "count": len(evidence),
+        }
+    except Exception as e:
+        logger.error(f"Failed to get required evidence: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/api/v1/analyze-my-case", response_model=AnalyzeMyCaseResponse)
+async def analyze_my_case(
+    request: AnalyzeMyCaseRequest,
+    system: TenantLegalSystem = Depends(get_system)
+) -> AnalyzeMyCaseResponse:
+    """
+    Analyze a user's legal situation and provide guidance.
+    
+    This is the core "Analyze My Case" endpoint that:
+    1. Matches user's situation to relevant claim types
+    2. Assesses evidence strength
+    3. Predicts outcomes based on similar cases
+    4. Identifies evidence gaps with actionable advice
+    5. Generates next steps
+    """
+    try:
+        from tenant_legal_guidance.services.claim_matcher import ClaimMatcher
+        from tenant_legal_guidance.services.outcome_predictor import OutcomePredictor
+        
+        logger.info(f"Analyzing case: {len(request.situation)} chars, {len(request.evidence_i_have) if request.evidence_i_have else 0} evidence items (auto-extract: {not request.evidence_i_have or len(request.evidence_i_have) == 0})")
+        
+        # Create matcher and predictor
+        matcher = ClaimMatcher(
+            knowledge_graph=system.knowledge_graph,
+            llm_client=system.deepseek,
+        )
+        predictor = OutcomePredictor(
+            knowledge_graph=system.knowledge_graph,
+            llm_client=system.deepseek,
+        )
+        
+        # Match situation to claim types (auto-extract evidence if not provided)
+        claim_matches, extracted_evidence = await matcher.match_situation_to_claim_types(
+            situation=request.situation,
+            evidence_i_have=request.evidence_i_have or [],
+            auto_extract_evidence=True,  # Auto-extract from situation if evidence not provided
+            jurisdiction=request.jurisdiction,
+        )
+        
+        # Predict outcomes for each claim
+        for match in claim_matches:
+            # Find similar cases
+            similar_cases = await predictor.find_similar_cases(
+                claim_type=match.canonical_name,
+                situation=request.situation,
+            )
+            
+            # Predict outcome
+            outcome_prediction = await predictor.predict_outcomes(
+                claim_type=match.canonical_name,
+                evidence_strength=match.evidence_strength,
+                similar_cases=similar_cases,
+            )
+            
+            # Attach prediction to match
+            match.predicted_outcome = {
+                "outcome_type": outcome_prediction.outcome_type,
+                "disposition": outcome_prediction.disposition,
+                "probability": outcome_prediction.probability,
+                "reasoning": outcome_prediction.reasoning,
+                "similar_cases_count": len(similar_cases),
+            }
+        
+        # Generate next steps
+        next_steps = await matcher.generate_next_steps(
+            claim_matches=claim_matches,
+            situation=request.situation,
+        )
+        
+        # Collect similar cases from all matches
+        all_similar_cases = []
+        for match in claim_matches:
+            if match.predicted_outcome:
+                # Get cases from predictor (would need to store them)
+                pass
+        
+        # Convert to response schema
+        return AnalyzeMyCaseResponse(
+            possible_claims=[
+                ClaimTypeMatchSchema(
+                    claim_type_id=match.claim_type_id,
+                    claim_type_name=match.claim_type_name,
+                    canonical_name=match.canonical_name,
+                    match_score=match.match_score,
+                    evidence_matches=[
+                        EvidenceMatchSchema(
+                            evidence_id=em.evidence_id,
+                            evidence_name=em.evidence_name,
+                            match_score=em.match_score,
+                            user_evidence_description=em.user_evidence_description,
+                            is_critical=em.is_critical,
+                            status=em.status,
+                        )
+                        for em in match.evidence_matches
+                    ],
+                    evidence_strength=match.evidence_strength,
+                    evidence_gaps=[
+                        EvidenceGapSchema(
+                            evidence_name=gap["evidence_name"],
+                            is_critical=gap["is_critical"],
+                            status=gap["status"],
+                            how_to_get=gap["how_to_get"],
+                        )
+                        for gap in match.evidence_gaps
+                    ],
+                    completeness_score=match.completeness_score,
+                    predicted_outcome=match.predicted_outcome,
+                )
+                for match in claim_matches
+            ],
+            next_steps=next_steps,
+            extracted_evidence=extracted_evidence if extracted_evidence else None,
+            similar_cases=None,  # Could populate from predictions
+        )
+        
+    except Exception as e:
+        logger.error(f"Analyze my case failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/api/v1/claims/{claim_id}/proof-chain", response_model=ProofChainSchema)
+async def get_proof_chain(
+    claim_id: str,
+    system: TenantLegalSystem = Depends(get_system)
+):
+    """
+    Get the proof chain for a specific legal claim.
+    
+    Returns the complete proof chain including:
+    - Required evidence (from statutes/guides)
+    - Presented evidence (from case)
+    - Missing evidence (gaps)
+    - Outcome and damages
+    - Completeness score
+    """
+    try:
+        from tenant_legal_guidance.services.proof_chain import ProofChainService
+        
+        proof_chain_service = ProofChainService(system.knowledge_graph)
+        proof_chain = await proof_chain_service.build_proof_chain(claim_id)
+        
+        if not proof_chain:
+            raise HTTPException(status_code=404, detail=f"Claim not found: {claim_id}")
+        
+        # Convert to schema
+        return ProofChainSchema(
+            claim_id=proof_chain.claim_id,
+            claim_description=proof_chain.claim_description,
+            claim_type=proof_chain.claim_type,
+            claimant=proof_chain.claimant,
+            required_evidence=[
+                ProofChainEvidenceSchema(
+                    evidence_id=ev.evidence_id,
+                    evidence_type=ev.evidence_type,
+                    description=ev.description,
+                    is_critical=ev.is_critical,
+                    context=ev.context,
+                    source_reference=ev.source_reference,
+                    satisfied_by=ev.satisfied_by,
+                    satisfies=ev.satisfies,
+                )
+                for ev in proof_chain.required_evidence
+            ],
+            presented_evidence=[
+                ProofChainEvidenceSchema(
+                    evidence_id=ev.evidence_id,
+                    evidence_type=ev.evidence_type,
+                    description=ev.description,
+                    is_critical=ev.is_critical,
+                    context=ev.context,
+                    source_reference=ev.source_reference,
+                    satisfied_by=ev.satisfied_by,
+                    satisfies=ev.satisfies,
+                )
+                for ev in proof_chain.presented_evidence
+            ],
+            missing_evidence=[
+                ProofChainEvidenceSchema(
+                    evidence_id=ev.evidence_id,
+                    evidence_type=ev.evidence_type,
+                    description=ev.description,
+                    is_critical=ev.is_critical,
+                    context=ev.context,
+                    source_reference=ev.source_reference,
+                    satisfied_by=ev.satisfied_by,
+                    satisfies=ev.satisfies,
+                )
+                for ev in proof_chain.missing_evidence
+            ],
+            outcome=proof_chain.outcome,
+            damages=proof_chain.damages,
+            completeness_score=proof_chain.completeness_score,
+            satisfied_count=proof_chain.satisfied_count,
+            missing_count=proof_chain.missing_count,
+            critical_gaps=proof_chain.critical_gaps,
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Get proof chain failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/api/v1/documents/{document_id}/proof-chains", response_model=list[ProofChainSchema])
+async def get_document_proof_chains(
+    document_id: str,
+    system: TenantLegalSystem = Depends(get_system)
+):
+    """
+    Get all proof chains for claims extracted from a document.
+    
+    Returns a list of proof chains, one for each claim in the document.
+    """
+    try:
+        from tenant_legal_guidance.services.proof_chain import ProofChainService
+        
+        proof_chain_service = ProofChainService(system.knowledge_graph)
+        
+        # Find all claims from this document
+        # Claims have a source_document_id or similar field
+        # For now, we'll query by document_id prefix in claim_id
+        # (claims are stored as legal_claim:doc:{doc_id}:{index})
+        all_claims = system.knowledge_graph.get_all_entities(entity_type="LEGAL_CLAIM")
+        
+        # Filter claims from this document
+        document_claims = [
+            claim for claim in all_claims
+            if claim.get("_key", "").startswith(f"legal_claim:doc:{document_id}:")
+        ]
+        
+        # Build proof chains for each claim
+        proof_chains = []
+        for claim in document_claims:
+            proof_chain = await proof_chain_service.build_proof_chain(claim["_key"])
+            if proof_chain:
+                # Convert to schema
+                proof_chains.append(ProofChainSchema(
+                    claim_id=proof_chain.claim_id,
+                    claim_description=proof_chain.claim_description,
+                    claim_type=proof_chain.claim_type,
+                    claimant=proof_chain.claimant,
+                    required_evidence=[
+                        ProofChainEvidenceSchema(
+                            evidence_id=ev.evidence_id,
+                            evidence_type=ev.evidence_type,
+                            description=ev.description,
+                            is_critical=ev.is_critical,
+                            context=ev.context,
+                            source_reference=ev.source_reference,
+                            satisfied_by=ev.satisfied_by,
+                            satisfies=ev.satisfies,
+                        )
+                        for ev in proof_chain.required_evidence
+                    ],
+                    presented_evidence=[
+                        ProofChainEvidenceSchema(
+                            evidence_id=ev.evidence_id,
+                            evidence_type=ev.evidence_type,
+                            description=ev.description,
+                            is_critical=ev.is_critical,
+                            context=ev.context,
+                            source_reference=ev.source_reference,
+                            satisfied_by=ev.satisfied_by,
+                            satisfies=ev.satisfies,
+                        )
+                        for ev in proof_chain.presented_evidence
+                    ],
+                    missing_evidence=[
+                        ProofChainEvidenceSchema(
+                            evidence_id=ev.evidence_id,
+                            evidence_type=ev.evidence_type,
+                            description=ev.description,
+                            is_critical=ev.is_critical,
+                            context=ev.context,
+                            source_reference=ev.source_reference,
+                            satisfied_by=ev.satisfied_by,
+                            satisfies=ev.satisfies,
+                        )
+                        for ev in proof_chain.missing_evidence
+                    ],
+                    outcome=proof_chain.outcome,
+                    damages=proof_chain.damages,
+                    completeness_score=proof_chain.completeness_score,
+                    satisfied_count=proof_chain.satisfied_count,
+                    missing_count=proof_chain.missing_count,
+                    critical_gaps=proof_chain.critical_gaps,
+                ))
+        
+        return proof_chains
+        
+    except Exception as e:
+        logger.error(f"Get document proof chains failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 

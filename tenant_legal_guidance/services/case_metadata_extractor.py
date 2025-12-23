@@ -18,40 +18,37 @@ from tenant_legal_guidance.services.deepseek import DeepSeekClient
 
 class CaseMetadataExtractor:
     """Extract case-specific metadata from court opinion documents."""
-    
+
     def __init__(self, llm_client: DeepSeekClient):
         self.llm_client = llm_client
         self.logger = logging.getLogger(__name__)
-    
+
     async def extract_case_metadata(
-        self, 
-        full_text: str, 
-        metadata: SourceMetadata,
-        source_id: str
+        self, full_text: str, metadata: SourceMetadata, source_id: str
     ) -> LegalEntity | None:
         """
         Extract case metadata from full document text.
-        
+
         Args:
             full_text: Complete document text
             metadata: Source metadata
             source_id: UUID of the source document
-            
+
         Returns:
             CASE_DOCUMENT entity with case metadata, or None if not a court opinion
         """
         if metadata.document_type != LegalDocumentType.COURT_OPINION:
             return None
-        
+
         self.logger.info(f"Extracting case metadata for court opinion: {metadata.title}")
-        
+
         try:
             # Use LLM to extract structured case metadata
             case_data = await self._extract_case_data_with_llm(full_text, metadata)
-            
+
             if not case_data:
                 return None
-            
+
             # Create CASE_DOCUMENT entity
             case_entity = LegalEntity(
                 id=f"case_document:{source_id}",
@@ -59,7 +56,6 @@ class CaseMetadataExtractor:
                 name=case_data.get("case_name", metadata.title or "Unknown Case"),
                 description=case_data.get("summary", ""),
                 source_metadata=metadata,
-                
                 # Case-specific fields
                 case_name=case_data.get("case_name"),
                 court=case_data.get("court"),
@@ -69,33 +65,30 @@ class CaseMetadataExtractor:
                 holdings=case_data.get("holdings", []),
                 procedural_history=case_data.get("procedural_history"),
                 citations=case_data.get("citations", []),
-                
                 # Additional metadata
                 attributes={
                     "jurisdiction": metadata.jurisdiction or "",
                     "authority_level": metadata.authority.value,
                     "document_type": "court_opinion",
-                    "extraction_method": "llm_analysis"
-                }
+                    "extraction_method": "llm_analysis",
+                },
             )
-            
+
             self.logger.info(f"Successfully extracted case metadata: {case_entity.case_name}")
             return case_entity
-            
+
         except Exception as e:
             self.logger.error(f"Failed to extract case metadata: {e}", exc_info=True)
             return None
-    
+
     async def _extract_case_data_with_llm(
-        self, 
-        full_text: str, 
-        metadata: SourceMetadata
+        self, full_text: str, metadata: SourceMetadata
     ) -> dict | None:
         """Use LLM to extract structured case metadata."""
-        
+
         # Truncate text if too long (keep first 50k chars for LLM processing)
         text_for_analysis = full_text[:50000] if len(full_text) > 50000 else full_text
-        
+
         prompt = f"""
 Analyze this court opinion document and extract structured case metadata.
 
@@ -139,101 +132,96 @@ Focus on:
 
 Return only valid JSON, no additional text.
 """
-        
+
         try:
             response = await self.llm_client.complete(prompt)
-            
+
             # Parse JSON response
             import json
+
             case_data = json.loads(response.strip())
-            
+
             # Validate required fields
             if not case_data.get("case_name"):
                 self.logger.warning("LLM response missing case_name")
                 return None
-            
+
             return case_data
-            
+
         except json.JSONDecodeError as e:
             self.logger.error(f"Failed to parse LLM response as JSON: {e}")
             return None
         except Exception as e:
             self.logger.error(f"LLM extraction failed: {e}")
             return None
-    
+
     def _parse_date(self, date_str: str | None) -> datetime | None:
         """Parse date string into datetime object."""
         if not date_str:
             return None
-        
+
         try:
             # Try common date formats
-            formats = [
-                "%Y-%m-%d",
-                "%m/%d/%Y", 
-                "%B %d, %Y",
-                "%d %B %Y",
-                "%Y-%m-%dT%H:%M:%S"
-            ]
-            
+            formats = ["%Y-%m-%d", "%m/%d/%Y", "%B %d, %Y", "%d %B %Y", "%Y-%m-%dT%H:%M:%S"]
+
             for fmt in formats:
                 try:
                     return datetime.strptime(date_str, fmt)
                 except ValueError:
                     continue
-            
+
             # If no format matches, try to extract year
-            year_match = re.search(r'\b(19|20)\d{2}\b', date_str)
+            year_match = re.search(r"\b(19|20)\d{2}\b", date_str)
             if year_match:
                 year = int(year_match.group())
                 return datetime(year, 1, 1)  # Default to Jan 1 of that year
-            
+
             return None
-            
+
         except Exception as e:
             self.logger.warning(f"Failed to parse date '{date_str}': {e}")
             return None
-    
+
     def extract_case_name_from_title(self, title: str) -> str:
         """Extract case name from document title."""
         if not title:
             return "Unknown Case"
-        
+
         # Common patterns for case names
         patterns = [
-            r'^(.+?)\s+v\.?\s+(.+?)(?:\s*\(|$)',  # "Plaintiff v Defendant"
-            r'^(.+?)\s+vs\.?\s+(.+?)(?:\s*\(|$)',  # "Plaintiff vs Defendant"
-            r'^(.+?)\s+against\s+(.+?)(?:\s*\(|$)',  # "Plaintiff against Defendant"
+            r"^(.+?)\s+v\.?\s+(.+?)(?:\s*\(|$)",  # "Plaintiff v Defendant"
+            r"^(.+?)\s+vs\.?\s+(.+?)(?:\s*\(|$)",  # "Plaintiff vs Defendant"
+            r"^(.+?)\s+against\s+(.+?)(?:\s*\(|$)",  # "Plaintiff against Defendant"
         ]
-        
+
         for pattern in patterns:
             match = re.search(pattern, title, re.IGNORECASE)
             if match:
                 plaintiff = match.group(1).strip()
                 defendant = match.group(2).strip()
                 return f"{plaintiff} v {defendant}"
-        
+
         # If no pattern matches, return the title as-is
         return title
-    
+
     def extract_court_from_text(self, text: str) -> str | None:
         """Extract court name from document text."""
         # Common court patterns
         court_patterns = [
-            r'(Supreme Court of [^,\n]+)',
-            r'(Court of Appeals[^,\n]*)',
-            r'(District Court[^,\n]*)',
-            r'(Housing Court[^,\n]*)',
-            r'(Civil Court[^,\n]*)',
-            r'(Family Court[^,\n]*)',
-            r'(Criminal Court[^,\n]*)',
-            r'([A-Z][a-z]+ County Court)',
-            r'([A-Z][a-z]+ State Court)',
+            r"(Supreme Court of [^,\n]+)",
+            r"(Court of Appeals[^,\n]*)",
+            r"(District Court[^,\n]*)",
+            r"(Housing Court[^,\n]*)",
+            r"(Civil Court[^,\n]*)",
+            r"(Family Court[^,\n]*)",
+            r"(Criminal Court[^,\n]*)",
+            r"([A-Z][a-z]+ County Court)",
+            r"([A-Z][a-z]+ State Court)",
         ]
-        
+
         for pattern in court_patterns:
             match = re.search(pattern, text, re.IGNORECASE)
             if match:
                 return match.group(1).strip()
-        
+
         return None

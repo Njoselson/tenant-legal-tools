@@ -25,7 +25,6 @@ from tenant_legal_guidance.models.entities import (
     EntityType,
     LegalEntity,
     SourceMetadata,
-    SourceAuthority,
     SourceType,
 )
 from tenant_legal_guidance.models.relationships import LegalRelationship, RelationshipType
@@ -184,7 +183,6 @@ def main():
         added = seed_ny_habitability()
         print(f"✅ Seeded {added} entities for NY Habitability")
         sys.exit(0)
-    
 
     print("No action specified. Use --ny-habitability or --claim-types")
     sys.exit(1)

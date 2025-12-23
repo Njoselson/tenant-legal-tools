@@ -338,11 +338,11 @@ async def process_manifest(
     entries: list[ManifestEntry] = []
     with manifest_path.open("r", encoding="utf-8") as f:
         for line_num, line in enumerate(f, start=1):
-            line = line.strip()
-            if not line:
+            stripped_line = line.strip()
+            if not stripped_line:
                 continue
             try:
-                data = json.loads(line)
+                data = json.loads(stripped_line)
                 entry = ManifestEntry(**data)
                 entries.append(entry)
             except Exception as e:
@@ -425,7 +425,7 @@ def main():
         action="store_true",
         help="Skip sources that have been processed (requires checkpoint)",
     )
-    
+
     parser.add_argument(
         "--skip-entity-search",
         action="store_true",

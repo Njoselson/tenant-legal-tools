@@ -62,9 +62,7 @@ class MetadataTemplate(BaseModel):
     organization: str | None = None
     tags: list[str] = Field(default_factory=list)
 
-    def to_source_metadata(
-        self, source: str, title: str | None = None, **kwargs
-    ) -> SourceMetadata:
+    def to_source_metadata(self, source: str, title: str | None = None, **kwargs) -> SourceMetadata:
         """Convert template to SourceMetadata instance."""
         return SourceMetadata(
             source=source,
@@ -296,7 +294,7 @@ def manifest_entry_to_source_metadata(entry: ManifestEntry) -> SourceMetadata:
         except (KeyError, AttributeError):
             # Try to match by value
             for auth in SourceAuthority:
-                if auth.name == entry.authority or auth.value == entry.authority:
+                if entry.authority in (auth.name, auth.value):
                     authority = auth
                     break
 
@@ -308,7 +306,7 @@ def manifest_entry_to_source_metadata(entry: ManifestEntry) -> SourceMetadata:
         except (KeyError, AttributeError):
             # Try to match by value
             for dt in LegalDocumentType:
-                if dt.name == entry.document_type or dt.value == entry.document_type:
+                if entry.document_type in (dt.name, dt.value):
                     document_type = dt
                     break
 

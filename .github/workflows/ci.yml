@@ -74,11 +74,11 @@ jobs:
       
       - name: Run linting
         run: |
-          uv run ruff check tenant_legal_guidance --exclude tenant_legal_guidance/tests
+          uv run ruff check tenant_legal_guidance --exclude tests
         continue-on-error: true
       
       - name: Run unit tests
-        run: uv run pytest tenant_legal_guidance/tests -v --tb=short -m "not slow" 
+        run: uv run pytest tests -v --tb=short -m "not slow" 
         env:
           PYTEST_CURRENT_TEST: "true"
       
@@ -104,11 +104,11 @@ jobs:
         run: uv sync --all-groups
       
       - name: Run ruff
-        run: uv run ruff check .
+        run: uv run ruff check . --exclude tests
         continue-on-error: true
       
       - name: Run black check
-        run: uv run black --check .
+        run: uv run black --check tenant_legal_guidance
         continue-on-error: true
       
       - name: Run mypy

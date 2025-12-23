@@ -18,35 +18,47 @@ def get_entity_extraction_prompt(
 ) -> str:
     """
     Generate prompt for extracting entities and relationships from legal text.
-    
+
     This prompt instructs the LLM to extract structured entities with supporting
     quotes directly from the source text.
-    
+
     Args:
         chunk: The text chunk to analyze
         metadata: Source metadata
         chunk_num: Current chunk number
         total_chunks: Total number of chunks
         include_quotes: Whether to request supporting quotes (default: True)
-        
+
     Returns:
         Formatted prompt string
     """
     types_list = "|".join([e.name for e in EntityType])
     rel_types_list = "|".join([r.name for r in RelationshipType])
-    
+
     # Supporting quote fields (optional)
-    quote_field = '"supporting_quote": "Direct quote from the text that best describes this entity (1-3 sentences)",' if include_quotes else ""
-    quote_instruction = """- Supporting quote: A direct quote from the text (1-3 sentences) that best describes or defines this entity
-""" if include_quotes else ""
-    quote_guidelines = """
+    quote_field = (
+        '"supporting_quote": "Direct quote from the text that best describes this entity (1-3 sentences)",'
+        if include_quotes
+        else ""
+    )
+    quote_instruction = (
+        """- Supporting quote: A direct quote from the text (1-3 sentences) that best describes or defines this entity
+"""
+        if include_quotes
+        else ""
+    )
+    quote_guidelines = (
+        """
 IMPORTANT: For each entity's supporting_quote, extract the most relevant sentence(s) from the actual text that:
 - Directly mentions, defines, or explains the entity
 - Is a complete, grammatically correct sentence
 - Is 1-3 sentences long (prefer shorter)
 - Provides clear context about what the entity is or does
-""" if include_quotes else ""
-    
+"""
+        if include_quotes
+        else ""
+    )
+
     return f"""Analyze this legal text and extract structured information about tenants, buildings, issues, and legal concepts.
 
 Text: {chunk}
@@ -154,19 +166,19 @@ def get_simple_entity_extraction_prompt(
 ) -> str:
     """
     Generate a simplified entity extraction prompt for query/case analysis.
-    
+
     This is used by entity_service.py for extracting entities from user queries
     or case descriptions where we don't have formal source metadata.
-    
+
     Args:
         text: The text to analyze (will be truncated to 8000 chars)
         context: Either "query" (user case) or "ingestion" (document analysis)
-        
+
     Returns:
         Formatted prompt string
     """
     types_list = "|".join([e.name for e in EntityType])
-    
+
     # Adapt intro based on context
     if context == "query":
         intro = """Analyze this tenant's case description and extract the key entities and issues.
@@ -177,7 +189,7 @@ Focus on identifying: what problems they're experiencing, what laws might apply,
         intro = """Analyze this legal text and extract structured information about tenants, buildings, issues, and legal concepts.
 
 """
-    
+
     return f"""{intro}Text: {text[:8000]}
 
 Extract the following information in JSON format:
@@ -260,18 +272,18 @@ Return ONLY valid JSON:
 def get_chunk_enrichment_prompt(chunk_texts: list[str], doc_title: str) -> str:
     """
     Generate prompt for enriching chunk metadata with LLM analysis.
-    
+
     Args:
         chunk_texts: List of chunk text strings
         doc_title: Title of the document
-        
+
     Returns:
         Formatted prompt string
     """
     chunks_text = ""
     for idx, chunk_text in enumerate(chunk_texts):
         chunks_text += f"\n--- Chunk {idx + 1} ---\n{chunk_text[:600]}...\n"
-    
+
     return f"""Analyze these legal text chunks from "{doc_title}" and provide metadata for each.
 
 {chunks_text}
@@ -294,15 +306,16 @@ Ensure array has exactly {len(chunk_texts)} objects."""
 # LEGAL CLAIM PROVING SYSTEM PROMPTS
 # ============================================================================
 
+
 def get_claim_extraction_prompt(text: str) -> str:
     """
     Generate prompt for extracting legal claims from a document.
-    
+
     This is step 1 of claim-centric sequential extraction.
-    
+
     Args:
         text: The full legal document text
-        
+
     Returns:
         Formatted prompt string
     """
@@ -343,14 +356,14 @@ Important:
 def get_evidence_extraction_prompt(text: str, claim_name: str, claim_description: str) -> str:
     """
     Generate prompt for extracting evidence supporting a specific claim.
-    
+
     This is step 2 of claim-centric sequential extraction.
-    
+
     Args:
         text: The full legal document text
         claim_name: Name of the claim to find evidence for
         claim_description: Description of the claim
-        
+
     Returns:
         Formatted prompt string
     """
@@ -398,18 +411,18 @@ Important:
 def get_outcome_extraction_prompt(text: str, claim_names: list[str]) -> str:
     """
     Generate prompt for extracting outcomes and linking to claims.
-    
+
     This is step 3 of claim-centric sequential extraction.
-    
+
     Args:
         text: The full legal document text
         claim_names: List of claim names to link outcomes to
-        
+
     Returns:
         Formatted prompt string
     """
     claims_list = "\\n".join([f"- {name}" for name in claim_names])
-    
+
     return f"""Analyze this legal document and extract ALL legal outcomes/decisions.
 
 Document:
@@ -448,13 +461,13 @@ Important:
 def get_full_proof_chain_prompt(text: str) -> str:
     """
     Generate a single comprehensive prompt for extracting complete proof chains.
-    
+
     This megaprompt extracts claims, evidence, outcomes, damages, AND relationships
     in a single LLM call, enabling holistic legal reasoning.
-    
+
     Args:
         text: The full legal document text
-        
+
     Returns:
         Formatted prompt string
     """
@@ -564,18 +577,18 @@ Focus on accuracy and completeness. Trace the full legal reasoning from claims t
 def get_damages_extraction_prompt(text: str, outcome_names: list[str]) -> str:
     """
     Generate prompt for extracting damages and linking to outcomes.
-    
+
     This is step 4 of claim-centric sequential extraction.
-    
+
     Args:
         text: The full legal document text
         outcome_names: List of outcome names to link damages to
-        
+
     Returns:
         Formatted prompt string
     """
     outcomes_list = "\\n".join([f"- {name}" for name in outcome_names])
-    
+
     return f"""Analyze this legal document and extract ALL damages, relief, or remedies.
 
 Document:
@@ -626,21 +639,25 @@ def get_analyze_my_case_megaprompt(
     2. Match situation to claim types
     3. Assess evidence matches
     4. Identify gaps
-    
+
     This is faster and more coherent than multiple sequential calls.
     """
     # Build claim types list
-    types_list = "\n".join([
-        f"- {ct.get('canonical_name', 'N/A')}: {ct.get('display_name', ct.get('name', ''))}"
-        f"\n  Description: {ct.get('description', '')[:200]}"
-        f"\n  Required Evidence: {', '.join([ev.get('name', '') for ev in ct.get('required_evidence', [])[:5]])}"
-        for ct in claim_types
-    ])
-    
+    types_list = "\n".join(
+        [
+            f"- {ct.get('canonical_name', 'N/A')}: {ct.get('display_name', ct.get('name', ''))}"
+            f"\n  Description: {ct.get('description', '')[:200]}"
+            f"\n  Required Evidence: {', '.join([ev.get('name', '') for ev in ct.get('required_evidence', [])[:5]])}"
+            for ct in claim_types
+        ]
+    )
+
     evidence_context = ""
     if user_evidence:
-        evidence_context = f"\n\nUSER'S EXPLICIT EVIDENCE LIST:\n" + "\n".join([f"- {ev}" for ev in user_evidence])
-    
+        evidence_context = "\n\nUSER'S EXPLICIT EVIDENCE LIST:\n" + "\n".join(
+            [f"- {ev}" for ev in user_evidence]
+        )
+
     return f"""You are a legal analysis assistant helping a tenant understand their legal situation and what claims they can make.
 
 TENANT SITUATION:
@@ -698,4 +715,3 @@ Guidelines:
 - Only include claim types with match_score >= 0.5
 
 Return ONLY the JSON object, nothing else."""
-

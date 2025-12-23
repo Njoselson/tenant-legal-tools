@@ -73,8 +73,6 @@ async def index_page(request: Request, templates: Jinja2Templates = Depends(get_
     return templates.TemplateResponse("case_analysis.html", {"request": request})
 
 
-
-
 @router.post("/api/analyze-consultation")
 async def analyze_consultation(
     request: ConsultationRequest, system: TenantLegalSystem = Depends(get_system)
@@ -94,8 +92,9 @@ async def analyze_consultation(
 
 @router.post("/api/upload-document")
 async def upload_document(
-    file: UploadFile = File(...), organization: str | None = None, title: str | None = None
-,
+    file: UploadFile = File(...),
+    organization: str | None = None,
+    title: str | None = None,
     system: TenantLegalSystem = Depends(get_system),
 ) -> dict:
     """Upload and process a legal document."""
@@ -134,9 +133,7 @@ async def process_knowledge_graph(
 
         # Process the text and update knowledge graph using the new orchestration method
         result = await system.ingest_from_source(
-            text=request.text,
-            url=request.url,
-            metadata=metadata
+            text=request.text, url=request.url, metadata=metadata
         )
         return result
     except Exception as e:
@@ -291,8 +288,6 @@ async def get_graph_data(
     except Exception as e:
         logger.error(f"Error retrieving graph data: {e!s}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
-
-
 
 
 @router.delete("/api/kg/entities/{entity_id}")
@@ -456,8 +451,6 @@ async def analyze_case(
     except Exception as e:
         logger.error(f"Error analyzing case: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
-
-
 
 
 @router.post("/api/analyze-case-enhanced")
@@ -701,8 +694,6 @@ async def health_search(system: TenantLegalSystem = Depends(get_system)) -> dict
         return {"status": "error", "message": str(e)}
 
 
-
-
 @router.post("/api/next-steps")
 async def next_steps(
     req: NextStepsRequest, system: TenantLegalSystem = Depends(get_system)
@@ -716,8 +707,6 @@ async def next_steps(
 
 
 ## Removed legacy seeding endpoint: /api/seed/ny-habitability (unused)
-
-
 
 
 @router.post("/api/kg/expand")
@@ -740,8 +729,6 @@ async def kg_expand(req: ExpandRequest, system: TenantLegalSystem = Depends(get_
         raise HTTPException(status_code=500, detail=str(e))
 
 
-
-
 @router.post("/api/kg/consolidate")
 async def kg_consolidate(
     req: ConsolidateRequest, system: TenantLegalSystem = Depends(get_system)
@@ -758,15 +745,13 @@ async def kg_consolidate(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-
-
 @router.post("/api/kg/consolidate-all")
 async def kg_consolidate_all(
     req: ConsolidateAllRequest, consolidator: EntityConsolidationService = Depends(get_consolidator)
 ) -> dict:
     try:
         from tenant_legal_guidance.utils.entity_helpers import normalize_entity_type
-        
+
         type_filter = None
         if req.types:
             type_filter = []
@@ -785,7 +770,9 @@ async def kg_consolidate_all(
 
 
 @router.get("/api/chunks/search")
-async def search_chunks(q: str, limit: int = 10, system: TenantLegalSystem = Depends(get_system)) -> dict:
+async def search_chunks(
+    q: str, limit: int = 10, system: TenantLegalSystem = Depends(get_system)
+) -> dict:
     try:
         # Search in ArangoSearch view for text chunks
         kg = system.knowledge_graph
@@ -860,8 +847,6 @@ async def search_chunks(q: str, limit: int = 10, system: TenantLegalSystem = Dep
 
 
 # === NEW: Vector Search & Hybrid Retrieval Endpoints ===
-
-
 
 
 @router.post("/api/hybrid-search")
@@ -948,8 +933,7 @@ async def vector_status() -> dict:
 
 @router.get("/api/chunks/adjacent")
 async def get_adjacent_chunks(
-    chunk_id: str,
-    system: TenantLegalSystem = Depends(get_system)
+    chunk_id: str, system: TenantLegalSystem = Depends(get_system)
 ) -> dict:
     """Get previous and next chunks for a given chunk ID."""
     try:
@@ -957,41 +941,49 @@ async def get_adjacent_chunks(
         all_chunks = system.vector_store.search_by_id(chunk_id)
         if not all_chunks:
             raise HTTPException(status_code=404, detail="Chunk not found")
-        
+
         current_chunk = all_chunks[0]
         source_id = current_chunk["payload"].get("source_id")
         current_index = current_chunk["payload"].get("chunk_index", 0)
-        
+
         # Get all chunks from this source
         all_source_chunks = system.vector_store.get_chunks_by_source(source_id)
-        
+
         # Find adjacent chunks
         prev_chunk = None
         next_chunk = None
-        
+
         for chunk in all_source_chunks:
             chunk_idx = chunk.get("chunk_index", 0)
             if chunk_idx == current_index - 1:
                 prev_chunk = chunk
             elif chunk_idx == current_index + 1:
                 next_chunk = chunk
-        
+
         return {
             "current": {
                 "id": current_chunk["id"],
                 "text": current_chunk["payload"].get("text", ""),
                 "chunk_index": current_index,
             },
-            "prev": {
-                "id": prev_chunk.get("chunk_id") if prev_chunk else None,
-                "text": prev_chunk.get("text", "") if prev_chunk else "",
-                "chunk_index": prev_chunk.get("chunk_index") if prev_chunk else None,
-            } if prev_chunk else None,
-            "next": {
-                "id": next_chunk.get("chunk_id") if next_chunk else None,
-                "text": next_chunk.get("text", "") if next_chunk else "",
-                "chunk_index": next_chunk.get("chunk_index") if next_chunk else None,
-            } if next_chunk else None,
+            "prev": (
+                {
+                    "id": prev_chunk.get("chunk_id") if prev_chunk else None,
+                    "text": prev_chunk.get("text", "") if prev_chunk else "",
+                    "chunk_index": prev_chunk.get("chunk_index") if prev_chunk else None,
+                }
+                if prev_chunk
+                else None
+            ),
+            "next": (
+                {
+                    "id": next_chunk.get("chunk_id") if next_chunk else None,
+                    "text": next_chunk.get("text", "") if next_chunk else "",
+                    "chunk_index": next_chunk.get("chunk_index") if next_chunk else None,
+                }
+                if next_chunk
+                else None
+            ),
         }
     except Exception as e:
         logger.error(f"Failed to get adjacent chunks: {e}", exc_info=True)
@@ -1000,8 +992,7 @@ async def get_adjacent_chunks(
 
 @router.get("/api/entities/{entity_id}/chunks")
 async def get_entity_chunks(
-    entity_id: str,
-    system: TenantLegalSystem = Depends(get_system)
+    entity_id: str, system: TenantLegalSystem = Depends(get_system)
 ) -> dict:
     """Get all chunks (vectors) that mention a specific entity."""
     try:
@@ -1009,36 +1000,40 @@ async def get_entity_chunks(
         entity = system.knowledge_graph.get_entity(entity_id)
         if not entity:
             raise HTTPException(status_code=404, detail="Entity not found")
-        
+
         # Get chunks from Qdrant that mention this entity
         chunks = system.vector_store.get_chunks_by_entity(entity_id)
-        
+
         # If entity has chunk_ids, also fetch those chunks directly
-        if hasattr(entity, 'chunk_ids') and entity.chunk_ids:
+        if hasattr(entity, "chunk_ids") and entity.chunk_ids:
             chunks_by_ids = system.vector_store.get_chunks_by_ids(entity.chunk_ids)
             # Merge and deduplicate
-            seen = {ch['chunk_id'] for ch in chunks}
+            seen = {ch["chunk_id"] for ch in chunks}
             for ch in chunks_by_ids:
-                if ch.get('chunk_id') not in seen:
+                if ch.get("chunk_id") not in seen:
                     chunks.append(ch)
-                    seen.add(ch.get('chunk_id'))
-        
+                    seen.add(ch.get("chunk_id"))
+
         # Format response
         return {
             "entity_id": entity_id,
-            "entity_name": entity.name if hasattr(entity, 'name') else "",
+            "entity_name": entity.name if hasattr(entity, "name") else "",
             "chunk_count": len(chunks),
             "chunks": [
                 {
                     "chunk_id": ch.get("chunk_id"),
                     "chunk_index": ch.get("chunk_index"),
-                    "text_preview": ch.get("text", "")[:300] + "..." if len(ch.get("text", "")) > 300 else ch.get("text", ""),
+                    "text_preview": (
+                        ch.get("text", "")[:300] + "..."
+                        if len(ch.get("text", "")) > 300
+                        else ch.get("text", "")
+                    ),
                     "source_id": ch.get("source_id"),
                     "doc_title": ch.get("doc_title"),
-                    "metadata": ch.get("payload", {})
+                    "metadata": ch.get("payload", {}),
                 }
                 for ch in chunks
-            ]
+            ],
         }
     except HTTPException:
         raise
@@ -1048,33 +1043,30 @@ async def get_entity_chunks(
 
 
 @router.get("/api/entities/{entity_id}/quote")
-async def get_entity_quote(
-    entity_id: str,
-    system: TenantLegalSystem = Depends(get_system)
-) -> dict:
+async def get_entity_quote(entity_id: str, system: TenantLegalSystem = Depends(get_system)) -> dict:
     """Get the best quote for a specific entity."""
     try:
         # Get entity from ArangoDB
         entity = system.knowledge_graph.get_entity(entity_id)
         if not entity:
             raise HTTPException(status_code=404, detail="Entity not found")
-        
+
         # Extract quote information
         best_quote = None
-        if hasattr(entity, 'best_quote') and entity.best_quote:
+        if hasattr(entity, "best_quote") and entity.best_quote:
             best_quote = entity.best_quote
-        
+
         # Get all quotes if available
         all_quotes = []
-        if hasattr(entity, 'all_quotes') and entity.all_quotes:
+        if hasattr(entity, "all_quotes") and entity.all_quotes:
             all_quotes = entity.all_quotes
-        
+
         return {
             "entity_id": entity_id,
-            "entity_name": entity.name if hasattr(entity, 'name') else "",
+            "entity_name": entity.name if hasattr(entity, "name") else "",
             "best_quote": best_quote,
             "all_quotes_count": len(all_quotes),
-            "all_quotes": all_quotes
+            "all_quotes": all_quotes,
         }
     except HTTPException:
         raise
@@ -1087,14 +1079,14 @@ async def get_entity_quote(
 # Legal Claim Proving System Endpoints
 # ============================================================================
 
+
 @router.post("/api/v1/claims/extract", response_model=ClaimExtractionResponse)
 async def extract_claims(
-    request: ClaimExtractionRequest,
-    system: TenantLegalSystem = Depends(get_system)
+    request: ClaimExtractionRequest, system: TenantLegalSystem = Depends(get_system)
 ) -> ClaimExtractionResponse:
     """
     Extract legal claims, evidence, outcomes, and damages from a document.
-    
+
     This is the main entry point for the legal claim proving system.
     Performs claim-centric sequential extraction:
     1. Extract all claims from the document
@@ -1105,18 +1097,18 @@ async def extract_claims(
     """
     try:
         from tenant_legal_guidance.services.claim_extractor import ClaimExtractor
-        
+
         logger.info(f"Extracting claims from document ({len(request.text)} chars)")
-        
+
         # Create extractor with the system's LLM client
         extractor = ClaimExtractor(llm_client=system.deepseek)
-        
+
         # Run full proof chain extraction
         result = await extractor.extract_full_proof_chain(
             text=request.text,
             metadata=request.metadata,
         )
-        
+
         # Convert to response schema
         return ClaimExtractionResponse(
             document_id=result.document_id,
@@ -1131,7 +1123,8 @@ async def extract_claims(
                     relief_sought=c.relief_sought,
                     claim_status=c.claim_status,
                     source_quote=c.source_quote,
-                ) for c in result.claims
+                )
+                for c in result.claims
             ],
             evidence=[
                 ExtractedEvidenceSchema(
@@ -1144,7 +1137,8 @@ async def extract_claims(
                     source_quote=e.source_quote,
                     is_critical=e.is_critical,
                     linked_claim_ids=e.linked_claim_ids,
-                ) for e in result.evidence
+                )
+                for e in result.evidence
             ],
             outcomes=[
                 ExtractedOutcomeSchema(
@@ -1155,7 +1149,8 @@ async def extract_claims(
                     description=o.description,
                     decision_maker=o.decision_maker,
                     linked_claim_ids=o.linked_claim_ids,
-                ) for o in result.outcomes
+                )
+                for o in result.outcomes
             ],
             damages=[
                 ExtractedDamagesSchema(
@@ -1166,7 +1161,8 @@ async def extract_claims(
                     status=d.status,
                     description=d.description,
                     linked_outcome_id=d.linked_outcome_id,
-                ) for d in result.damages
+                )
+                for d in result.damages
             ],
             relationships=result.relationships,
         )
@@ -1179,11 +1175,11 @@ async def extract_claims(
 async def get_claim_types(
     jurisdiction: str | None = None,
     include_required_evidence: bool = False,
-    system: TenantLegalSystem = Depends(get_system)
+    system: TenantLegalSystem = Depends(get_system),
 ) -> dict:
     """
     Get all claim types in the taxonomy.
-    
+
     Query params:
     - jurisdiction: Filter by jurisdiction (e.g., "NYC")
     - include_required_evidence: Include required evidence templates in response
@@ -1191,7 +1187,7 @@ async def get_claim_types(
     try:
         kg = system.knowledge_graph
         claim_types = kg.get_all_claim_types()
-        
+
         return {
             "claim_types": claim_types,
             "count": len(claim_types),
@@ -1203,18 +1199,17 @@ async def get_claim_types(
 
 @router.get("/api/v1/claim-types/{claim_type}/required-evidence")
 async def get_required_evidence(
-    claim_type: str,
-    system: TenantLegalSystem = Depends(get_system)
+    claim_type: str, system: TenantLegalSystem = Depends(get_system)
 ) -> dict:
     """
     Get required evidence templates for a specific claim type string.
-    
+
     Returns the evidence that must be provided to prove this type of claim.
     """
     try:
         kg = system.knowledge_graph
         evidence = kg.get_required_evidence_for_claim_type(claim_type)
-        
+
         return {
             "claim_type": claim_type,
             "required_evidence": evidence,
@@ -1227,12 +1222,11 @@ async def get_required_evidence(
 
 @router.post("/api/v1/analyze-my-case", response_model=AnalyzeMyCaseResponse)
 async def analyze_my_case(
-    request: AnalyzeMyCaseRequest,
-    system: TenantLegalSystem = Depends(get_system)
+    request: AnalyzeMyCaseRequest, system: TenantLegalSystem = Depends(get_system)
 ) -> AnalyzeMyCaseResponse:
     """
     Analyze a user's legal situation and provide guidance.
-    
+
     This is the core "Analyze My Case" endpoint that:
     1. Matches user's situation to relevant claim types
     2. Assesses evidence strength
@@ -1243,9 +1237,11 @@ async def analyze_my_case(
     try:
         from tenant_legal_guidance.services.claim_matcher import ClaimMatcher
         from tenant_legal_guidance.services.outcome_predictor import OutcomePredictor
-        
-        logger.info(f"Analyzing case: {len(request.situation)} chars, {len(request.evidence_i_have) if request.evidence_i_have else 0} evidence items (auto-extract: {not request.evidence_i_have or len(request.evidence_i_have) == 0})")
-        
+
+        logger.info(
+            f"Analyzing case: {len(request.situation)} chars, {len(request.evidence_i_have) if request.evidence_i_have else 0} evidence items (auto-extract: {not request.evidence_i_have or len(request.evidence_i_have) == 0})"
+        )
+
         # Create matcher and predictor
         matcher = ClaimMatcher(
             knowledge_graph=system.knowledge_graph,
@@ -1255,7 +1251,7 @@ async def analyze_my_case(
             knowledge_graph=system.knowledge_graph,
             llm_client=system.deepseek,
         )
-        
+
         # Match situation to claim types (auto-extract evidence if not provided)
         claim_matches, extracted_evidence = await matcher.match_situation_to_claim_types(
             situation=request.situation,
@@ -1263,7 +1259,7 @@ async def analyze_my_case(
             auto_extract_evidence=True,  # Auto-extract from situation if evidence not provided
             jurisdiction=request.jurisdiction,
         )
-        
+
         # Predict outcomes for each claim
         for match in claim_matches:
             # Find similar cases
@@ -1271,14 +1267,14 @@ async def analyze_my_case(
                 claim_type=match.canonical_name,
                 situation=request.situation,
             )
-            
+
             # Predict outcome
             outcome_prediction = await predictor.predict_outcomes(
                 claim_type=match.canonical_name,
                 evidence_strength=match.evidence_strength,
                 similar_cases=similar_cases,
             )
-            
+
             # Attach prediction to match
             match.predicted_outcome = {
                 "outcome_type": outcome_prediction.outcome_type,
@@ -1287,20 +1283,19 @@ async def analyze_my_case(
                 "reasoning": outcome_prediction.reasoning,
                 "similar_cases_count": len(similar_cases),
             }
-        
+
         # Generate next steps
         next_steps = await matcher.generate_next_steps(
             claim_matches=claim_matches,
             situation=request.situation,
         )
-        
+
         # Collect similar cases from all matches
-        all_similar_cases = []
         for match in claim_matches:
             if match.predicted_outcome:
                 # Get cases from predictor (would need to store them)
                 pass
-        
+
         # Convert to response schema
         return AnalyzeMyCaseResponse(
             possible_claims=[
@@ -1339,20 +1334,17 @@ async def analyze_my_case(
             extracted_evidence=extracted_evidence if extracted_evidence else None,
             similar_cases=None,  # Could populate from predictions
         )
-        
+
     except Exception as e:
         logger.error(f"Analyze my case failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/api/v1/claims/{claim_id}/proof-chain", response_model=ProofChainSchema)
-async def get_proof_chain(
-    claim_id: str,
-    system: TenantLegalSystem = Depends(get_system)
-):
+async def get_proof_chain(claim_id: str, system: TenantLegalSystem = Depends(get_system)):
     """
     Get the proof chain for a specific legal claim.
-    
+
     Returns the complete proof chain including:
     - Required evidence (from statutes/guides)
     - Presented evidence (from case)
@@ -1362,13 +1354,13 @@ async def get_proof_chain(
     """
     try:
         from tenant_legal_guidance.services.proof_chain import ProofChainService
-        
+
         proof_chain_service = ProofChainService(system.knowledge_graph)
         proof_chain = await proof_chain_service.build_proof_chain(claim_id)
-        
+
         if not proof_chain:
             raise HTTPException(status_code=404, detail=f"Claim not found: {claim_id}")
-        
+
         # Convert to schema
         return ProofChainSchema(
             claim_id=proof_chain.claim_id,
@@ -1421,7 +1413,7 @@ async def get_proof_chain(
             missing_count=proof_chain.missing_count,
             critical_gaps=proof_chain.critical_gaps,
         )
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -1431,106 +1423,105 @@ async def get_proof_chain(
 
 @router.get("/api/v1/documents/{document_id}/proof-chains", response_model=list[ProofChainSchema])
 async def get_document_proof_chains(
-    document_id: str,
-    system: TenantLegalSystem = Depends(get_system)
+    document_id: str, system: TenantLegalSystem = Depends(get_system)
 ):
     """
     Get all proof chains for claims extracted from a document.
-    
+
     Returns a list of proof chains, one for each claim in the document.
     """
     try:
         from tenant_legal_guidance.services.proof_chain import ProofChainService
-        
+
         proof_chain_service = ProofChainService(system.knowledge_graph)
-        
+
         # Find all claims from this document
         # Claims have a source_document_id or similar field
         # For now, we'll query by document_id prefix in claim_id
         # (claims are stored as legal_claim:doc:{doc_id}:{index})
         all_claims = system.knowledge_graph.get_all_entities(entity_type="LEGAL_CLAIM")
-        
+
         # Filter claims from this document
         document_claims = [
-            claim for claim in all_claims
+            claim
+            for claim in all_claims
             if claim.get("_key", "").startswith(f"legal_claim:doc:{document_id}:")
         ]
-        
+
         # Build proof chains for each claim
         proof_chains = []
         for claim in document_claims:
             proof_chain = await proof_chain_service.build_proof_chain(claim["_key"])
             if proof_chain:
                 # Convert to schema
-                proof_chains.append(ProofChainSchema(
-                    claim_id=proof_chain.claim_id,
-                    claim_description=proof_chain.claim_description,
-                    claim_type=proof_chain.claim_type,
-                    claimant=proof_chain.claimant,
-                    required_evidence=[
-                        ProofChainEvidenceSchema(
-                            evidence_id=ev.evidence_id,
-                            evidence_type=ev.evidence_type,
-                            description=ev.description,
-                            is_critical=ev.is_critical,
-                            context=ev.context,
-                            source_reference=ev.source_reference,
-                            satisfied_by=ev.satisfied_by,
-                            satisfies=ev.satisfies,
-                        )
-                        for ev in proof_chain.required_evidence
-                    ],
-                    presented_evidence=[
-                        ProofChainEvidenceSchema(
-                            evidence_id=ev.evidence_id,
-                            evidence_type=ev.evidence_type,
-                            description=ev.description,
-                            is_critical=ev.is_critical,
-                            context=ev.context,
-                            source_reference=ev.source_reference,
-                            satisfied_by=ev.satisfied_by,
-                            satisfies=ev.satisfies,
-                        )
-                        for ev in proof_chain.presented_evidence
-                    ],
-                    missing_evidence=[
-                        ProofChainEvidenceSchema(
-                            evidence_id=ev.evidence_id,
-                            evidence_type=ev.evidence_type,
-                            description=ev.description,
-                            is_critical=ev.is_critical,
-                            context=ev.context,
-                            source_reference=ev.source_reference,
-                            satisfied_by=ev.satisfied_by,
-                            satisfies=ev.satisfies,
-                        )
-                        for ev in proof_chain.missing_evidence
-                    ],
-                    outcome=proof_chain.outcome,
-                    damages=proof_chain.damages,
-                    completeness_score=proof_chain.completeness_score,
-                    satisfied_count=proof_chain.satisfied_count,
-                    missing_count=proof_chain.missing_count,
-                    critical_gaps=proof_chain.critical_gaps,
-                ))
-        
+                proof_chains.append(
+                    ProofChainSchema(
+                        claim_id=proof_chain.claim_id,
+                        claim_description=proof_chain.claim_description,
+                        claim_type=proof_chain.claim_type,
+                        claimant=proof_chain.claimant,
+                        required_evidence=[
+                            ProofChainEvidenceSchema(
+                                evidence_id=ev.evidence_id,
+                                evidence_type=ev.evidence_type,
+                                description=ev.description,
+                                is_critical=ev.is_critical,
+                                context=ev.context,
+                                source_reference=ev.source_reference,
+                                satisfied_by=ev.satisfied_by,
+                                satisfies=ev.satisfies,
+                            )
+                            for ev in proof_chain.required_evidence
+                        ],
+                        presented_evidence=[
+                            ProofChainEvidenceSchema(
+                                evidence_id=ev.evidence_id,
+                                evidence_type=ev.evidence_type,
+                                description=ev.description,
+                                is_critical=ev.is_critical,
+                                context=ev.context,
+                                source_reference=ev.source_reference,
+                                satisfied_by=ev.satisfied_by,
+                                satisfies=ev.satisfies,
+                            )
+                            for ev in proof_chain.presented_evidence
+                        ],
+                        missing_evidence=[
+                            ProofChainEvidenceSchema(
+                                evidence_id=ev.evidence_id,
+                                evidence_type=ev.evidence_type,
+                                description=ev.description,
+                                is_critical=ev.is_critical,
+                                context=ev.context,
+                                source_reference=ev.source_reference,
+                                satisfied_by=ev.satisfied_by,
+                                satisfies=ev.satisfies,
+                            )
+                            for ev in proof_chain.missing_evidence
+                        ],
+                        outcome=proof_chain.outcome,
+                        damages=proof_chain.damages,
+                        completeness_score=proof_chain.completeness_score,
+                        satisfied_count=proof_chain.satisfied_count,
+                        missing_count=proof_chain.missing_count,
+                        critical_gaps=proof_chain.critical_gaps,
+                    )
+                )
+
         return proof_chains
-        
+
     except Exception as e:
         logger.error(f"Get document proof chains failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/api/kg/chat")
-async def kg_chat(
-    request: KGChatRequest,
-    system: TenantLegalSystem = Depends(get_system)
-) -> dict:
+async def kg_chat(request: KGChatRequest, system: TenantLegalSystem = Depends(get_system)) -> dict:
     """Chat with the knowledge graph using LLM."""
     try:
         # Build context about the graph
         context_parts = []
-        
+
         # If a specific entity is selected, get its details
         if request.context_id:
             try:
@@ -1545,7 +1536,7 @@ async def kg_chat(
                     )
             except Exception as e:
                 logger.warning(f"Failed to load context entity: {e}")
-        
+
         # Add knowledge graph statistics
         try:
             kg = system.knowledge_graph
@@ -1555,11 +1546,11 @@ async def kg_chat(
                     COLLECT type = doc.type WITH COUNT INTO count
                     RETURN {type: type, count: count}
                 """,
-                cursor=True
+                cursor=True,
             )
             entity_types = list(stats)
-            entity_dist = ', '.join([f'{t["type"]}:{t["count"]}' for t in entity_types[:10]])
-            nl = '\n'
+            entity_dist = ", ".join([f"{t['type']}:{t['count']}" for t in entity_types[:10]])
+            nl = "\n"
             context_parts.append(
                 f"KNOWLEDGE GRAPH STATS:{nl}"
                 f"Total entity types: {len(entity_types)}{nl}"
@@ -1567,10 +1558,10 @@ async def kg_chat(
             )
         except Exception as e:
             logger.warning(f"Failed to get KG stats: {e}")
-        
+
         # Build the prompt
         context_text = "\n".join(context_parts) if context_parts else ""
-        
+
         prompt = f"""You are an AI assistant helping users explore a legal knowledge graph about tenant rights and housing law.
 
 {context_text}
@@ -1581,11 +1572,8 @@ Please provide a helpful, accurate response based on your knowledge. If the ques
 
         # Call LLM
         response = await system.deepseek.chat_completion(prompt)
-        
-        return {
-            "response": response,
-            "context_id": request.context_id
-        }
+
+        return {"response": response, "context_id": request.context_id}
     except Exception as e:
         logger.error(f"Chat failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))

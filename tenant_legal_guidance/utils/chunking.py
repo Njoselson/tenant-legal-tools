@@ -115,12 +115,11 @@ def build_chunk_docs(
     """Create chunk dicts for persistence to Arango/Qdrant."""
     result: list[dict[str, object]] = []
     supers = make_super_chunks(text, target_chars * 3)  # ~3x chunk target for super
-    super_ids: list[str] = []
     for si, sec in enumerate(supers):
         sec_title = sec.get("title") or title
         body = sec.get("body") or ""
         atomic = recursive_char_chunks(body, target_chars, overlap_chars)
-        for i, ch in enumerate(atomic):
+        for _i, ch in enumerate(atomic):
             result.append(
                 {
                     "chunk_index": len(result),

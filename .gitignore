@@ -59,3 +59,8 @@ data/*.graphml
 !data/manifests/
 !data/manifests/**/*.jsonl
 !data/manifests/**/*.md 
+
+# Spec-kit and agentic files
+.specify/
+.cursor/
+specs/

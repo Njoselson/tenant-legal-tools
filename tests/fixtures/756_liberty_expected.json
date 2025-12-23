@@ -1,0 +1,213 @@
+{
+  "document_id": "756_liberty_realty_v_garcia_2025",
+  "case_name": "756 Liberty Realty LLC v Garcia",
+  "court": "Civil Court of the City of New York, Kings County",
+  "docket_number": "LT-063787-19/KI",
+  "decision_date": "2025-09-05",
+  
+  "claims": [
+    {
+      "id": "claim:756liberty:nonpayment",
+      "name": "Non-payment of rent",
+      "claim_description": "Petitioner's claim that respondents owe $45,900 in unpaid rent from February 2017 through April 2019 at $1,700/month",
+      "claimant": "756 Liberty Realty LLC",
+      "respondent_party": "Juan Garcia and Pilar Guevara",
+      "relief_sought": ["$45,900 in unpaid rent", "$137,700 through March 2025"],
+      "claim_status": "dismissed",
+      "claim_type_id": "claim_type:nonpayment"
+    },
+    {
+      "id": "claim:756liberty:deregulation",
+      "name": "High rent vacancy decontrol exemption",
+      "claim_description": "Petitioner's claim that apartment was lawfully deregulated in 2008 and is exempt from rent stabilization due to high rent vacancy",
+      "claimant": "756 Liberty Realty LLC",
+      "respondent_party": "Juan Garcia and Pilar Guevara",
+      "relief_sought": ["Exempt apartment from rent stabilization"],
+      "claim_status": "unproven",
+      "claim_type_id": "claim_type:deregulation_challenge"
+    },
+    {
+      "id": "claim:756liberty:overcharge",
+      "name": "Rent overcharge counterclaim",
+      "claim_description": "Respondents' counterclaim that apartment remains rent stabilized and petitioner charged illegal rent",
+      "claimant": "Juan Garcia and Pilar Guevara",
+      "respondent_party": "756 Liberty Realty LLC",
+      "relief_sought": ["Return of overcharged rent", "Rent-stabilized lease"],
+      "claim_status": "proven",
+      "claim_type_id": "claim_type:rent_overcharge"
+    }
+  ],
+  
+  "evidence": [
+    {
+      "id": "evid:dhcr_registrations",
+      "name": "DHCR registration records",
+      "evidence_type": "documentary",
+      "description": "Three conflicting DHCR registrations showing different apartment designations (1R, 1Right, 1Stright) with inconsistent rent history and exemption claims",
+      "evidence_context": "presented",
+      "evidence_source_type": "case",
+      "source_quote": "the registrations were rife with errors, as petitioner's witness conceded",
+      "linked_claim_ids": ["claim:756liberty:nonpayment", "claim:756liberty:deregulation", "claim:756liberty:overcharge"]
+    },
+    {
+      "id": "evid:lease_agreements",
+      "name": "Lease agreements",
+      "evidence_type": "documentary",
+      "description": "Leases showing rent history from 2004-2009 including Mora ($1,118), Perez ($1,508.06), Gordon ($1,800), Miller ($2,160)",
+      "evidence_context": "presented",
+      "evidence_source_type": "case",
+      "linked_claim_ids": ["claim:756liberty:nonpayment", "claim:756liberty:overcharge"]
+    },
+    {
+      "id": "evid:discovery_response",
+      "name": "Petitioner's discovery response",
+      "evidence_type": "documentary",
+      "description": "Petitioner's admission that no documents exist for individual apartment improvements despite claiming $200 IAI in 2005",
+      "evidence_context": "presented",
+      "evidence_source_type": "case",
+      "source_quote": "No documents responsive to this demand still exist notwithstanding there was an IAI for $200.00 in 2005",
+      "linked_claim_ids": ["claim:756liberty:deregulation"]
+    },
+    {
+      "id": "evid:witness_testimony",
+      "name": "Witness testimony of Deodat Lowton",
+      "evidence_type": "testimonial",
+      "description": "Testimony admitting conflicting DHCR registrations, gut renovation claims without documentation, and errors in registration filings",
+      "evidence_context": "presented",
+      "evidence_source_type": "case",
+      "source_quote": "he testified that he did not have any of these documents",
+      "linked_claim_ids": ["claim:756liberty:deregulation"]
+    },
+    {
+      "id": "evid:rent_ledger",
+      "name": "Rent ledger",
+      "evidence_type": "documentary",
+      "description": "Document showing $137,700 owed through March 2025",
+      "evidence_context": "presented",
+      "evidence_source_type": "case",
+      "linked_claim_ids": ["claim:756liberty:nonpayment"]
+    }
+  ],
+  
+  "required_evidence": [
+    {
+      "id": "evid:req:iai_docs",
+      "name": "IAI renovation documentation",
+      "evidence_type": "documentary",
+      "description": "Invoices, receipts, contracts proving Individual Apartment Improvement costs",
+      "evidence_context": "required",
+      "evidence_source_type": "case",
+      "evidence_source_reference": "Charles Birdoff & Co. v. DHCR; 756 Liberty Realty LLC v Garcia",
+      "is_critical": true,
+      "evidence_examples": ["invoices", "receipts", "contractor contracts", "scope of work"],
+      "linked_claim_type_id": "claim_type:deregulation_challenge"
+    },
+    {
+      "id": "evid:req:rent_rider",
+      "name": "Rent stabilization rider",
+      "evidence_type": "documentary",
+      "description": "Written notice to first tenant after deregulation explaining how and why apartment is no longer rent stabilized",
+      "evidence_context": "required",
+      "evidence_source_type": "statute",
+      "evidence_source_reference": "NYC Admin Code § 26-504.2; RSC § 2522.5(c)(3)",
+      "is_critical": true,
+      "linked_claim_type_id": "claim_type:deregulation_challenge"
+    }
+  ],
+  
+  "outcomes": [
+    {
+      "id": "outcome:756liberty:dismissed",
+      "name": "Petition dismissed with prejudice",
+      "outcome_type": "dismissal",
+      "disposition": "dismissed_with_prejudice",
+      "description": "Court dismisses the petition with prejudice, determines apartment is subject to rent regulation, and directs petitioner to offer proper rent regulated renewal lease",
+      "decision_maker": "Hon. Kevin C. McClanahan",
+      "linked_claim_ids": ["claim:756liberty:nonpayment", "claim:756liberty:deregulation"]
+    },
+    {
+      "id": "outcome:756liberty:overcharge_found",
+      "name": "Apartment remains rent stabilized",
+      "outcome_type": "judgment",
+      "disposition": "granted",
+      "description": "Court determines apartment remains subject to rent regulation based on petitioner's failure to prove lawful deregulation",
+      "linked_claim_ids": ["claim:756liberty:overcharge"]
+    }
+  ],
+  
+  "damages": [
+    {
+      "id": "damages:756liberty:unpaid_rent",
+      "name": "$45,900 unpaid rent claim",
+      "damage_type": "monetary",
+      "amount": 45900.00,
+      "status": "denied",
+      "description": "Amount petitioner sought for unpaid rent from February 2017 through April 2019 - denied due to failed proof of deregulation",
+      "linked_outcome_id": "outcome:756liberty:dismissed"
+    },
+    {
+      "id": "damages:756liberty:rent_overcharge",
+      "name": "Rent overcharge damages",
+      "damage_type": "monetary",
+      "amount": null,
+      "status": "potential",
+      "description": "Potential damages respondents may be entitled to from rent overcharge counterclaim (amount to be determined based on legal regulated rent)",
+      "linked_outcome_id": "outcome:756liberty:overcharge_found"
+    },
+    {
+      "id": "damages:756liberty:renewal_lease",
+      "name": "Rent regulated renewal lease",
+      "damage_type": "injunctive",
+      "status": "awarded",
+      "description": "Court directs petitioner to offer respondent a proper rent regulated renewal lease based on the ascertainable legal rent",
+      "linked_outcome_id": "outcome:756liberty:overcharge_found"
+    }
+  ],
+  
+  "proof_chains": [
+    {
+      "claim_id": "claim:756liberty:deregulation",
+      "claim_description": "High rent vacancy decontrol exemption",
+      "required_evidence": [
+        {"id": "evid:req:iai_docs", "description": "IAI renovation documentation", "is_critical": true, "status": "missing"},
+        {"id": "evid:req:rent_rider", "description": "Rent stabilization rider", "is_critical": true, "status": "missing"}
+      ],
+      "presented_evidence": [
+        {"id": "evid:dhcr_registrations", "description": "Conflicting DHCR registrations"},
+        {"id": "evid:discovery_response", "description": "Admission of no IAI documentation"},
+        {"id": "evid:witness_testimony", "description": "Testimony admitting errors and no documents"}
+      ],
+      "completeness_score": 0.0,
+      "satisfied_count": 0,
+      "missing_count": 2,
+      "critical_gaps": [
+        "No documentation proving IAI cost (invoices, receipts, contracts)",
+        "Rent stabilization rider not provided to first deregulated tenant"
+      ],
+      "outcome": {
+        "id": "outcome:756liberty:dismissed",
+        "disposition": "dismissed_with_prejudice"
+      }
+    }
+  ],
+  
+  "relationships": [
+    {"source_id": "claim:756liberty:nonpayment", "target_id": "evid:dhcr_registrations", "type": "HAS_EVIDENCE"},
+    {"source_id": "claim:756liberty:nonpayment", "target_id": "evid:lease_agreements", "type": "HAS_EVIDENCE"},
+    {"source_id": "claim:756liberty:nonpayment", "target_id": "evid:rent_ledger", "type": "HAS_EVIDENCE"},
+    {"source_id": "claim:756liberty:deregulation", "target_id": "evid:dhcr_registrations", "type": "HAS_EVIDENCE"},
+    {"source_id": "claim:756liberty:deregulation", "target_id": "evid:discovery_response", "type": "HAS_EVIDENCE"},
+    {"source_id": "claim:756liberty:deregulation", "target_id": "evid:witness_testimony", "type": "HAS_EVIDENCE"},
+    {"source_id": "claim:756liberty:deregulation", "target_id": "evid:req:iai_docs", "type": "REQUIRES"},
+    {"source_id": "claim:756liberty:deregulation", "target_id": "evid:req:rent_rider", "type": "REQUIRES"},
+    {"source_id": "evid:dhcr_registrations", "target_id": "outcome:756liberty:dismissed", "type": "SUPPORTS"},
+    {"source_id": "evid:discovery_response", "target_id": "outcome:756liberty:dismissed", "type": "SUPPORTS"},
+    {"source_id": "evid:witness_testimony", "target_id": "outcome:756liberty:dismissed", "type": "SUPPORTS"},
+    {"source_id": "outcome:756liberty:dismissed", "target_id": "damages:756liberty:unpaid_rent", "type": "IMPLY"},
+    {"source_id": "outcome:756liberty:overcharge_found", "target_id": "damages:756liberty:rent_overcharge", "type": "IMPLY"},
+    {"source_id": "outcome:756liberty:overcharge_found", "target_id": "damages:756liberty:renewal_lease", "type": "IMPLY"},
+    {"source_id": "damages:756liberty:unpaid_rent", "target_id": "claim:756liberty:nonpayment", "type": "RESOLVE"},
+    {"source_id": "damages:756liberty:renewal_lease", "target_id": "claim:756liberty:overcharge", "type": "RESOLVE"}
+  ]
+}
+

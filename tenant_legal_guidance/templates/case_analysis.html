@@ -1407,33 +1407,100 @@
     <div class="main-container">
         <!-- Input section at top -->
         <div class="input-section">
-            <h1>🏛️ Tenant Case Analysis</h1>
-            <p>Get legal guidance for your tenant case using our AI-powered analysis system</p>
+            <h1>🏛️ Tenant Legal Guidance</h1>
+            <p>Get legal guidance for your tenant situation using our AI-powered analysis system</p>
             
-            <div class="input-controls">
-                <div class="input-group">
-                    <h3>📝 Describe Your Case</h3>
-                    <textarea id="caseText" placeholder="Describe your tenant case here... Include details about what happened, when, what notices you received, any court dates, and your rent status."></textarea>
-                </div>
-                
-                <div class="input-group">
-                    <h3>💡 Try an Example Case</h3>
-                    <div class="example-controls">
-                        <select id="exampleSelect" onchange="updateExampleDescription()">
-                            <option value="">-- Select an example case --</option>
-                        </select>
-                        <button onclick="loadExampleCase()" id="loadExampleBtn" disabled>📋 Load</button>
+            <!-- Mode Toggle with Clear Descriptions -->
+            <div style="max-width: 900px; margin: 0 auto 30px; padding: 20px; background: #f8f9fa; border-radius: 12px; border: 2px solid #e0e0e0;">
+                <h3 style="text-align: center; margin-top: 0; color: #2c3e50; font-size: 20px;">What would you like to do?</h3>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px;">
+                    <!-- Analyze My Case Card -->
+                    <div id="modeMyCaseCard" onclick="switchMode('myCase')" style="padding: 20px; background: white; border: 3px solid #3498db; border-radius: 12px; cursor: pointer; transition: all 0.3s; box-shadow: 0 6px 12px rgba(52, 152, 219, 0.3);" onmouseover="this.style.transform='scale(1.02)'; this.style.boxShadow='0 6px 12px rgba(0,0,0,0.15)'" onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 6px 12px rgba(52, 152, 219, 0.3)'">
+                        <div style="font-size: 48px; text-align: center; margin-bottom: 10px;">🎯</div>
+                        <h4 style="text-align: center; margin: 0 0 10px 0; color: #2c3e50; font-size: 18px;">Analyze My Case</h4>
+                        <p style="font-size: 14px; color: #7f8c8d; text-align: center; margin: 0; line-height: 1.5;">
+                            <strong>I'm in a situation right now</strong> and want to know:<br/>
+                            • What legal claims can I make?<br/>
+                            • What evidence do I need?<br/>
+                            • What outcomes can I expect?
+                        </p>
+                        <div style="text-align: center; margin-top: 15px; color: #3498db; font-weight: bold; font-size: 14px;">→ Use this for guidance</div>
                     </div>
-                    <div id="exampleDescription" class="example-description" style="display: none;">
-                        <p id="exampleDescText"></p>
+                    
+                    <!-- Analyze Case Document Card -->
+                    <div id="modeCaseDocCard" onclick="switchMode('caseDoc')" style="padding: 20px; background: white; border: 3px solid #95a5a6; border-radius: 12px; cursor: pointer; transition: all 0.3s; box-shadow: 0 4px 6px rgba(0,0,0,0.1);" onmouseover="this.style.transform='scale(1.02)'; this.style.boxShadow='0 6px 12px rgba(0,0,0,0.15)'" onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 4px 6px rgba(0,0,0,0.1)'">
+                        <div style="font-size: 48px; text-align: center; margin-bottom: 10px;">📄</div>
+                        <h4 style="text-align: center; margin: 0 0 10px 0; color: #2c3e50; font-size: 18px;">Extract from Case Document</h4>
+                        <p style="font-size: 14px; color: #7f8c8d; text-align: center; margin: 0; line-height: 1.5;">
+                            <strong>I have a completed case document</strong> (court decision, case file) and want to:<br/>
+                            • Extract legal claims, evidence, outcomes<br/>
+                            • Build the knowledge graph<br/>
+                            • Learn from past cases
+                        </p>
+                        <div style="text-align: center; margin-top: 15px; color: #95a5a6; font-weight: bold; font-size: 14px;">→ Use this for ingestion</div>
                     </div>
                 </div>
-                
-                <div class="input-group">
-                    <h3>🔍 Analysis</h3>
-                    <div class="button-group">
-                        <button onclick="analyzeCase()" id="analyzeBtn">Analyze Case</button>
-                        <button onclick="clearAnalysis()" id="clearBtn" style="background-color: #95a5a6;">Clear</button>
+            </div>
+            
+            <!-- Case Document Mode -->
+            <div id="caseDocMode" class="mode-content" style="display: none;">
+                <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin-bottom: 20px; border-radius: 4px; max-width: 1200px; margin-left: auto; margin-right: auto;">
+                    <p style="margin: 0; color: #856404; font-size: 14px;">
+                        <strong>📚 Knowledge Building Mode:</strong> This mode extracts legal claims, evidence, outcomes, and damages from completed case documents (court decisions, case files) to build the knowledge graph. Use this when you have a finished case document to learn from.
+                    </p>
+                </div>
+                <div class="input-controls">
+                    <div class="input-group">
+                        <h3>📄 Paste Case Document</h3>
+                        <textarea id="caseText" placeholder="Paste a complete case document here (court decision, case file, etc.)... The system will extract legal claims, evidence, outcomes, and damages to build the knowledge graph."></textarea>
+                    </div>
+                    
+                    <div class="input-group">
+                        <h3>💡 Try an Example Case</h3>
+                        <div class="example-controls">
+                            <select id="exampleSelect" onchange="updateExampleDescription()">
+                                <option value="">-- Select an example case --</option>
+                            </select>
+                            <button onclick="loadExampleCase()" id="loadExampleBtn" disabled>📋 Load</button>
+                        </div>
+                        <div id="exampleDescription" class="example-description" style="display: none;">
+                            <p id="exampleDescText"></p>
+                        </div>
+                    </div>
+                    
+                    <div class="input-group">
+                        <h3>🔍 Analysis</h3>
+                        <div class="button-group">
+                            <button onclick="analyzeCase()" id="analyzeBtn">Analyze Case</button>
+                            <button onclick="clearAnalysis()" id="clearBtn" style="background-color: #95a5a6;">Clear</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Analyze My Case Mode -->
+            <div id="myCaseMode" class="mode-content" style="display: none;">
+                <div class="input-controls" style="grid-template-columns: 1fr;">
+                    <div class="input-group">
+                        <h3>📝 Describe Your Situation</h3>
+                        <textarea id="situationText" placeholder="Describe your legal situation in detail. Include what happened, when, what documents you have, any communications, etc.&#10;&#10;Example: 'My landlord is claiming my apartment was deregulated in 2010 when the rent hit $2,500. They're trying to evict me for non-payment of $2,200/month rent, but I think the apartment should still be rent-stabilized. The building was built before 1974 and has more than 6 units. I've been here since 2015 and never got any paperwork about deregulation. I have my lease, some DHCR records, and letters from the landlord.'" style="height: 180px;"></textarea>
+                        <p style="font-size: 14px; color: #7f8c8d; margin-top: 8px;">
+                            💡 <strong>Tip:</strong> Mention any documents, records, or evidence you have in your description. We'll automatically identify them!
+                        </p>
+                    </div>
+                    <div class="input-group" style="display: none;" id="evidenceGroup">
+                        <h3>📑 Additional Evidence (Optional)</h3>
+                        <textarea id="evidenceText" placeholder="Optionally list additional evidence items, one per line. Most evidence will be auto-detected from your description above." style="height: 100px;"></textarea>
+                        <p style="font-size: 12px; color: #7f8c8d; margin-top: 4px;">
+                            Leave empty to auto-detect from your description
+                        </p>
+                    </div>
+                    <div class="input-group">
+                        <h3>🔍 Analysis</h3>
+                        <div class="button-group">
+                            <button onclick="analyzeMyCase()" id="analyzeMyCaseBtn">🎯 Analyze My Case</button>
+                            <button onclick="clearMyCase()" id="clearMyCaseBtn" style="background-color: #95a5a6;">Clear</button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1691,6 +1758,252 @@
 
         // Store case text globally for evidence matching
         let currentCaseText = '';
+        
+        // Mode switching
+        function switchMode(mode) {
+            const caseDocMode = document.getElementById('caseDocMode');
+            const myCaseMode = document.getElementById('myCaseMode');
+            const caseDocCard = document.getElementById('modeCaseDocCard');
+            const myCaseCard = document.getElementById('modeMyCaseCard');
+            
+            if (mode === 'caseDoc') {
+                caseDocMode.style.display = 'block';
+                myCaseMode.style.display = 'none';
+                // Update card styles
+                caseDocCard.style.border = '3px solid #3498db';
+                caseDocCard.style.boxShadow = '0 6px 12px rgba(52, 152, 219, 0.3)';
+                myCaseCard.style.border = '3px solid #95a5a6';
+                myCaseCard.style.boxShadow = '0 4px 6px rgba(0,0,0,0.1)';
+            } else {
+                caseDocMode.style.display = 'none';
+                myCaseMode.style.display = 'block';
+                // Update card styles
+                myCaseCard.style.border = '3px solid #3498db';
+                myCaseCard.style.boxShadow = '0 6px 12px rgba(52, 152, 219, 0.3)';
+                caseDocCard.style.border = '3px solid #95a5a6';
+                caseDocCard.style.boxShadow = '0 4px 6px rgba(0,0,0,0.1)';
+            }
+        }
+        
+        // Analyze My Case function
+        async function analyzeMyCase() {
+            const situation = document.getElementById('situationText').value.trim();
+            const evidenceText = document.getElementById('evidenceText').value.trim();
+            
+            if (!situation) {
+                alert('Please describe your situation before analyzing.');
+                return;
+            }
+            
+            // Parse evidence (one per line) - optional, will auto-extract if empty
+            const evidence_i_have = evidenceText
+                .split('\n')
+                .map(line => line.trim())
+                .filter(line => line.length > 0);
+            
+            // Show loading with message about auto-extraction
+            showLoadingState();
+            const loadingSteps = document.querySelectorAll('.loading-step');
+            if (loadingSteps.length > 0) {
+                loadingSteps[0].querySelector('.loading-step-text').textContent = 
+                    evidence_i_have.length > 0 ? 'Analyzing your situation and evidence...' : 'Extracting evidence from your description...';
+            }
+            
+            document.getElementById('results').classList.remove('active');
+            document.getElementById('analyzeMyCaseBtn').disabled = true;
+            
+            try {
+                const response = await fetch('/api/v1/analyze-my-case', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        situation: situation,
+                        evidence_i_have: evidence_i_have.length > 0 ? evidence_i_have : [],  // Empty array triggers auto-extraction
+                        jurisdiction: 'NYC'
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                // Display results
+                displayAnalyzeMyCaseResults(data);
+                
+                // Show results section
+                document.getElementById('results').classList.add('active');
+                showTab('analyzeMyCase', null);
+                
+            } catch (error) {
+                console.error('Analyze my case failed:', error);
+                alert('Failed to analyze your case. Please try again.');
+            } finally {
+                document.getElementById('analyzeMyCaseBtn').disabled = false;
+                hideLoadingState();
+            }
+        }
+        
+        function displayAnalyzeMyCaseResults(data) {
+            // Create or update the analyze-my-case tab content
+            let tabContent = document.getElementById('analyzeMyCase-tab');
+            if (!tabContent) {
+                // Create the tab if it doesn't exist
+                const tabs = document.querySelector('.tabs');
+                const newTab = document.createElement('button');
+                newTab.className = 'tab';
+                newTab.onclick = (e) => showTab('analyzeMyCase', e);
+                newTab.textContent = '🎯 Analyze My Case';
+                tabs.appendChild(newTab);
+                
+                const resultsDiv = document.getElementById('results');
+                tabContent = document.createElement('div');
+                tabContent.id = 'analyzeMyCase-tab';
+                tabContent.className = 'tab-content';
+                resultsDiv.appendChild(tabContent);
+            }
+            
+            // Use extracted_evidence from response, or fallback to collecting from matches
+            const extractedEvidence = data.extracted_evidence || [];
+            if (extractedEvidence.length === 0 && data.possible_claims) {
+                // Fallback: collect from evidence matches
+                const allDetectedEvidence = new Set();
+                data.possible_claims.forEach(claim => {
+                    claim.evidence_matches?.forEach(ev => {
+                        if (ev.user_evidence_description) {
+                            allDetectedEvidence.add(ev.user_evidence_description);
+                        }
+                    });
+                });
+                extractedEvidence.push(...Array.from(allDetectedEvidence));
+            }
+            
+            tabContent.innerHTML = `
+                <div class="analysis-content">
+                    <h2>🎯 Your Legal Situation Analysis</h2>
+                    
+                    ${extractedEvidence.length > 0 ? `
+                        <div class="section" style="background: #e8f5e9; border-left: 4px solid #4caf50; padding: 15px; margin-bottom: 20px; border-radius: 4px;">
+                            <h3>📑 Evidence Detected from Your Description</h3>
+                            <ul style="margin: 10px 0; padding-left: 20px;">
+                                ${extractedEvidence.map(ev => `<li>${ev}</li>`).join('')}
+                            </ul>
+                            <p style="font-size: 14px; color: #555; margin-top: 10px; margin-bottom: 0;">
+                                💡 These items were automatically identified from your situation description.
+                            </p>
+                        </div>
+                    ` : ''}
+                    
+                    ${data.possible_claims && data.possible_claims.length > 0 ? `
+                        <div class="section">
+                            <h3>📋 Possible Claims (${data.possible_claims.length})</h3>
+                            ${data.possible_claims.map((claim, idx) => `
+                                <div class="proof-chain accordion" style="margin-bottom: 20px;">
+                                    <div class="proof-chain-header" onclick="toggleAccordion(this)">
+                                        <div class="header-left">
+                                            <span style="font-size: 24px; margin-right: 10px;">${idx + 1}</span>
+                                            <div>
+                                                <strong>${claim.claim_type_name}</strong>
+                                                <div style="font-size: 14px; color: #7f8c8d; margin-top: 4px;">
+                                                    Match Score: ${(claim.match_score * 100).toFixed(0)}% | 
+                                                    Evidence Strength: <span style="color: ${claim.evidence_strength === 'strong' ? '#2ecc71' : claim.evidence_strength === 'moderate' ? '#f39c12' : '#e74c3c'}">${claim.evidence_strength.toUpperCase()}</span> | 
+                                                    Completeness: ${(claim.completeness_score * 100).toFixed(0)}%
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="proof-chain-content">
+                                        <h4>📊 Evidence Assessment</h4>
+                                        <div style="margin: 15px 0;">
+                                            ${claim.evidence_matches && claim.evidence_matches.length > 0 ? `
+                                                <table style="width: 100%; border-collapse: collapse;">
+                                                    <thead>
+                                                        <tr style="background: #f8f9fa;">
+                                                            <th style="padding: 10px; text-align: left; border-bottom: 2px solid #ddd;">Evidence</th>
+                                                            <th style="padding: 10px; text-align: center; border-bottom: 2px solid #ddd;">Status</th>
+                                                            <th style="padding: 10px; text-align: center; border-bottom: 2px solid #ddd;">Critical</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        ${claim.evidence_matches.map(ev => `
+                                                            <tr>
+                                                                <td style="padding: 10px; border-bottom: 1px solid #eee;">
+                                                                    ${ev.evidence_name}
+                                                                    ${ev.user_evidence_description ? `<div style="font-size: 12px; color: #7f8c8d; margin-top: 4px;">✓ ${ev.user_evidence_description}</div>` : ''}
+                                                                </td>
+                                                                <td style="padding: 10px; text-align: center; border-bottom: 1px solid #eee;">
+                                                                    <span style="padding: 4px 8px; border-radius: 4px; background: ${ev.status === 'matched' ? '#d4edda' : ev.status === 'partial' ? '#fff3cd' : '#f8d7da'}; color: ${ev.status === 'matched' ? '#155724' : ev.status === 'partial' ? '#856404' : '#721c24'};">
+                                                                        ${ev.status.toUpperCase()}
+                                                                    </span>
+                                                                </td>
+                                                                <td style="padding: 10px; text-align: center; border-bottom: 1px solid #eee;">
+                                                                    ${ev.is_critical ? '⚠️' : ''}
+                                                                </td>
+                                                            </tr>
+                                                        `).join('')}
+                                                    </tbody>
+                                                </table>
+                                            ` : '<p>No evidence requirements defined.</p>'}
+                                        </div>
+                                        
+                                        ${claim.evidence_gaps && claim.evidence_gaps.length > 0 ? `
+                                            <h4>⚠️ Missing Evidence</h4>
+                                            <div style="margin: 15px 0;">
+                                                ${claim.evidence_gaps.map(gap => `
+                                                    <div style="padding: 12px; margin: 8px 0; border-left: 4px solid ${gap.is_critical ? '#e74c3c' : '#f39c12'}; background: #fff3cd; border-radius: 4px;">
+                                                        <strong>${gap.evidence_name}</strong> ${gap.is_critical ? '<span style="color: #e74c3c;">(CRITICAL)</span>' : ''}
+                                                        <div style="margin-top: 8px; font-size: 14px; color: #555;">
+                                                            💡 ${gap.how_to_get}
+                                                        </div>
+                                                    </div>
+                                                `).join('')}
+                                            </div>
+                                        ` : ''}
+                                        
+                                        ${claim.predicted_outcome ? `
+                                            <h4>📈 Outcome Prediction</h4>
+                                            <div style="padding: 15px; background: ${claim.predicted_outcome.outcome_type === 'favorable' ? '#d4edda' : claim.predicted_outcome.outcome_type === 'mixed' ? '#fff3cd' : '#f8d7da'}; border-radius: 8px; margin: 15px 0;">
+                                                <div style="font-size: 18px; font-weight: bold; margin-bottom: 8px;">
+                                                    ${claim.predicted_outcome.disposition.toUpperCase()} 
+                                                    (${(claim.predicted_outcome.probability * 100).toFixed(0)}% probability)
+                                                </div>
+                                                <div style="font-size: 14px; color: #555;">
+                                                    ${claim.predicted_outcome.reasoning}
+                                                </div>
+                                            </div>
+                                        ` : ''}
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    ` : '<p>No matching claim types found. Try describing your situation in more detail.</p>'}
+                    
+                    ${data.next_steps && data.next_steps.length > 0 ? `
+                        <div class="section">
+                            <h3>🎯 Next Steps</h3>
+                            <ol style="line-height: 2;">
+                                ${data.next_steps.map(step => `<li>${step}</li>`).join('')}
+                            </ol>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+            
+            tabContent.classList.add('active');
+        }
+        
+        function toggleAccordion(header) {
+            const content = header.nextElementSibling;
+            const isCollapsed = content.classList.contains('collapsed');
+            content.classList.toggle('collapsed', !isCollapsed);
+        }
+        
+        function clearMyCase() {
+            document.getElementById('situationText').value = '';
+            document.getElementById('evidenceText').value = '';
+            document.getElementById('results').classList.remove('active');
+        }
         
         async function analyzeCase(forceRefresh = false) {
             console.log('=== ANALYZE CASE START ===');

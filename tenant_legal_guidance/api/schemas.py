@@ -111,3 +111,169 @@ class KGChatRequest(BaseModel):
 
     message: str
     context_id: str | None = None
+
+
+# ============================================================================
+# Legal Claim Proving System Schemas
+# ============================================================================
+
+class ClaimExtractionRequest(BaseModel):
+    """Request model for extracting legal claims from a document."""
+
+    text: str
+    metadata: SourceMetadata | None = None
+
+
+class ProofChainRequest(BaseModel):
+    """Request model for retrieving a proof chain for a claim."""
+
+    claim_id: str
+
+
+class ExtractedClaimSchema(BaseModel):
+    """Response schema for an extracted legal claim."""
+
+    id: str
+    name: str
+    claim_description: str
+    claimant: str
+    respondent_party: str | None = None
+    claim_type: str | None = None
+    relief_sought: list[str] = []
+    claim_status: str = "asserted"
+    source_quote: str | None = None
+
+
+class ExtractedEvidenceSchema(BaseModel):
+    """Response schema for extracted evidence."""
+
+    id: str
+    name: str
+    evidence_type: str
+    description: str
+    evidence_context: str = "presented"
+    evidence_source_type: str = "case"
+    source_quote: str | None = None
+    is_critical: bool = False
+    linked_claim_ids: list[str] = []
+
+
+class ExtractedOutcomeSchema(BaseModel):
+    """Response schema for extracted outcome."""
+
+    id: str
+    name: str
+    outcome_type: str
+    disposition: str
+    description: str
+    decision_maker: str | None = None
+    linked_claim_ids: list[str] = []
+
+
+class ExtractedDamagesSchema(BaseModel):
+    """Response schema for extracted damages."""
+
+    id: str
+    name: str
+    damage_type: str
+    amount: float | None = None
+    status: str = "claimed"
+    description: str = ""
+    linked_outcome_id: str | None = None
+
+
+class ClaimExtractionResponse(BaseModel):
+    """Response model for claim extraction."""
+
+    document_id: str
+    claims: list[ExtractedClaimSchema] = []
+    evidence: list[ExtractedEvidenceSchema] = []
+    outcomes: list[ExtractedOutcomeSchema] = []
+    damages: list[ExtractedDamagesSchema] = []
+    relationships: list[dict] = []
+
+
+# ============================================================================
+# Analyze My Case Schemas
+# ============================================================================
+
+class AnalyzeMyCaseRequest(BaseModel):
+    """Request model for analyzing a user's legal situation."""
+
+    situation: str
+    evidence_i_have: list[str] = []
+    jurisdiction: str = "NYC"
+
+
+class EvidenceMatchSchema(BaseModel):
+    """Schema for evidence matching result."""
+
+    evidence_id: str
+    evidence_name: str
+    match_score: float
+    user_evidence_description: str | None = None
+    is_critical: bool = False
+    status: str  # "matched", "partial", "missing"
+
+
+class EvidenceGapSchema(BaseModel):
+    """Schema for evidence gap."""
+
+    evidence_name: str
+    is_critical: bool
+    status: str
+    how_to_get: str
+
+
+class ClaimTypeMatchSchema(BaseModel):
+    """Schema for claim type match result."""
+
+    claim_type_id: str
+    claim_type_name: str
+    canonical_name: str
+    match_score: float
+    evidence_matches: list[EvidenceMatchSchema]
+    evidence_strength: str  # "strong", "moderate", "weak"
+    evidence_gaps: list[EvidenceGapSchema]
+    completeness_score: float
+    predicted_outcome: dict | None = None  # OutcomePrediction as dict
+
+
+class AnalyzeMyCaseResponse(BaseModel):
+    """Response model for analyze my case."""
+
+    possible_claims: list[ClaimTypeMatchSchema]
+    next_steps: list[str]
+    extracted_evidence: list[str] | None = None  # Evidence auto-extracted from situation
+    similar_cases: list[dict] | None = None
+
+
+class ProofChainEvidenceSchema(BaseModel):
+    """Schema for evidence in a proof chain."""
+
+    evidence_id: str
+    evidence_type: str
+    description: str
+    is_critical: bool
+    context: str  # "required", "presented", "missing"
+    source_reference: str | None = None
+    satisfied_by: list[str] | None = None
+    satisfies: str | None = None
+
+
+class ProofChainSchema(BaseModel):
+    """Schema for a complete proof chain."""
+
+    claim_id: str
+    claim_description: str
+    claim_type: str | None = None
+    claimant: str | None = None
+    required_evidence: list[ProofChainEvidenceSchema] = []
+    presented_evidence: list[ProofChainEvidenceSchema] = []
+    missing_evidence: list[ProofChainEvidenceSchema] = []
+    outcome: dict | None = None
+    damages: list[dict] | None = None
+    completeness_score: float = 0.0
+    satisfied_count: int = 0
+    missing_count: int = 0
+    critical_gaps: list[str] = []

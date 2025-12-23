@@ -9,12 +9,21 @@ class RelationshipType(Enum):
     AWARDS = auto()  # REMEDY -> DAMAGES
     APPLIES_TO = auto()  # LAW -> TENANT_ISSUE
     PROHIBITS = auto()  # LAW -> landlord action concept
-    REQUIRES = auto()  # LAW -> EVIDENCE/DOCUMENT
+    REQUIRES = auto()  # LAW/CLAIM -> EVIDENCE/DOCUMENT (required evidence)
     AVAILABLE_VIA = auto()  # REMEDY -> LEGAL_PROCEDURE
     FILED_IN = auto()  # CASE/PROCEDURE -> JURISDICTION
     PROVIDED_BY = auto()  # LEGAL_SERVICE -> TENANT
     SUPPORTED_BY = auto()  # TACTIC/REMEDY -> TENANT_GROUP/LEGAL_SERVICE
     RESULTS_IN = auto()  # TACTIC/REMEDY -> OUTCOME
+    
+    # Legal claim proving system relationships (NEW)
+    SUPPORTS = auto()  # EVIDENCE -> OUTCOME (presented evidence supports outcome)
+    IMPLY = auto()  # OUTCOME -> DAMAGES (outcome implies damages)
+    RESOLVE = auto()  # DAMAGES -> LEGAL_CLAIM (damages resolve claim)
+    HAS_EVIDENCE = auto()  # LEGAL_CLAIM -> EVIDENCE (presented evidence for claim)
+    SATISFIES = auto()  # EVIDENCE (presented) -> EVIDENCE (required) (matching)
+    IS_TYPE_OF = auto()  # LEGAL_CLAIM -> CLAIM_TYPE (taxonomy link)
+    REQUIRED_FOR = auto()  # EVIDENCE (required) -> CLAIM_TYPE (required evidence for type)
 
 
 class LegalRelationship(BaseModel):

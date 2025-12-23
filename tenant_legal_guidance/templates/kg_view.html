@@ -267,6 +267,13 @@
 
         // --- Entity Type Styling ---
         const entityColors = {
+            // Claim proving entities (primary)
+            LEGAL_CLAIM: '#3498db',      // Blue - legal claims
+            EVIDENCE: '#2ecc71',          // Green - evidence
+            LEGAL_OUTCOME: '#9b59b6',     // Purple - outcomes
+            DAMAGES: '#e67e22',           // Orange - damages
+            CLAIM_TYPE: '#1abc9c',        // Teal - claim types
+            // Legacy entity types
             TENANT_ISSUE: '#e74c3c',
             STATUTE: '#2980b9',
             REGULATION: '#3498db',
@@ -277,10 +284,18 @@
             LEGAL_CONCEPT: '#1abc9c',
             JURISDICTION: '#7f8c8d',
             TEXT_CHUNK: '#95a5a6',
+            LAW: '#2980b9',
             DEFAULT: '#bdc3c7',
         };
 
          const entityShapes = {
+            // Claim proving entities (primary)
+            LEGAL_CLAIM: 'diamond',       // Diamond - claims stand out
+            EVIDENCE: 'dot',              // Dot - evidence items
+            LEGAL_OUTCOME: 'star',        // Star - outcomes are important
+            DAMAGES: 'triangle',          // Triangle - damages
+            CLAIM_TYPE: 'hexagon',        // Hexagon - taxonomy
+            // Legacy entity types
             TENANT_ISSUE: 'star',
             STATUTE: 'box',
             REGULATION: 'box',
@@ -291,6 +306,7 @@
             LEGAL_CONCEPT: 'dot',
             JURISDICTION: 'square',
             TEXT_CHUNK: 'box',
+            LAW: 'box',
             DEFAULT: 'ellipse'
          };
 
@@ -298,12 +314,19 @@
             if (!typeStr) return 'DEFAULT';
             const upper = String(typeStr).toUpperCase();
             const map = {
+                // Claim proving entities (primary)
+                'LEGAL_CLAIM': 'LEGAL_CLAIM', 'legal_claim': 'LEGAL_CLAIM',
+                'EVIDENCE': 'EVIDENCE', 'evidence': 'EVIDENCE',
+                'LEGAL_OUTCOME': 'LEGAL_OUTCOME', 'legal_outcome': 'LEGAL_OUTCOME',
+                'DAMAGES': 'DAMAGES', 'damages': 'DAMAGES',
+                'CLAIM_TYPE': 'CLAIM_TYPE', 'claim_type': 'CLAIM_TYPE',
+                // Legacy entity types
                 'TENANT_ISSUE': 'TENANT_ISSUE', 'tenant_issue': 'TENANT_ISSUE',
-                'LAW': 'STATUTE', 'law': 'STATUTE',
+                'LAW': 'LAW', 'law': 'LAW',
                 'REGULATION': 'REGULATION', 'regulation': 'REGULATION',
                 'COURT_CASE': 'CASE', 'court_case': 'CASE',
                 'REMEDY': 'REMEDY', 'remedy': 'REMEDY',
-                'EVIDENCE': 'EVIDENCE_TYPE', 'evidence': 'EVIDENCE_TYPE',
+                'EVIDENCE_TYPE': 'EVIDENCE', 'evidence_type': 'EVIDENCE',
                 'LEGAL_PROCEDURE': 'LEGAL_PROCEDURE', 'legal_procedure': 'LEGAL_PROCEDURE',
                 'LEGAL_CONCEPT': 'LEGAL_CONCEPT', 'legal_concept': 'LEGAL_CONCEPT',
                 'JURISDICTION': 'JURISDICTION', 'jurisdiction': 'JURISDICTION',

@@ -41,6 +41,17 @@ class EntityType(str, Enum):
     # Geographic and jurisdictional
     JURISDICTION = "jurisdiction"  # Geographic areas, court systems
 
+    # Legal claim proving system entities (NEW)
+    LEGAL_CLAIM = "legal_claim"  # Assertion of a legal right or cause of action
+
+
+class EvidenceContext(str, Enum):
+    """Context for evidence entities - distinguishes required vs. presented evidence."""
+    
+    REQUIRED = "required"  # What must be proven (from statutes/guides/precedent)
+    PRESENTED = "presented"  # What was actually provided (from case documents)
+    MISSING = "missing"  # Required but not found/satisfied in case
+
 
 class SourceType(str, Enum):
     """Types of sources in the knowledge graph."""
@@ -234,6 +245,58 @@ class LegalEntity(BaseModel):
     )
     
     attributes: dict[str, str] = Field(default_factory=dict)
+    
+    # Legal claim fields (NEW - for LEGAL_CLAIM entity type)
+    claim_description: str | None = Field(
+        None, description="Full description of the legal claim"
+    )
+    claimant: str | None = Field(
+        None, description="Party asserting the claim (e.g., 'respondents', 'petitioner')"
+    )
+    respondent_party: str | None = Field(
+        None, description="Party the claim is against"
+    )
+    claim_type: str | None = Field(
+        None, description="Claim type string (e.g., 'DEREGULATION_CHALLENGE', 'RENT_OVERCHARGE')"
+    )
+    relief_sought: list[str] | None = Field(
+        None, description="What the claimant is seeking"
+    )
+    claim_status: str | None = Field(
+        None, description="Status: 'asserted', 'proven', 'unproven', 'dismissed', 'settled'"
+    )
+    proof_completeness: float | None = Field(
+        None, ge=0.0, le=1.0, description="0.0-1.0, % of required evidence satisfied"
+    )
+    gaps: list[str] | None = Field(
+        None, description="Descriptions of missing required evidence"
+    )
+    
+    # Evidence context fields (NEW - extends EVIDENCE entity type)
+    evidence_context: str | None = Field(
+        None, description="Context: 'required', 'presented', or 'missing'"
+    )
+    evidence_source_type: str | None = Field(
+        None, description="Source type: 'statute', 'guide', or 'case'"
+    )
+    evidence_source_reference: str | None = Field(
+        None, description="e.g., 'NYC Admin Code § 26-504.2' or '756 Liberty v Garcia'"
+    )
+    evidence_examples: list[str] | None = Field(
+        None, description="Examples: ['invoices', 'receipts', 'contracts']"
+    )
+    is_critical: bool | None = Field(
+        None, description="If missing, claim cannot succeed"
+    )
+    matches_required_id: str | None = Field(
+        None, description="For presented evidence: ID of required evidence it satisfies"
+    )
+    linked_claim_id: str | None = Field(
+        None, description="For presented evidence: which claim this supports"
+    )
+    linked_claim_type: str | None = Field(
+        None, description="For required evidence: which claim type needs this (e.g., 'DEREGULATION_CHALLENGE')"
+    )
 
     @field_validator("entity_type", mode="before")
     @classmethod

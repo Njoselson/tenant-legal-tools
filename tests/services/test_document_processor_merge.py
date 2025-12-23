@@ -41,7 +41,9 @@ def test_deduplicate_entities_simple(mock_vector_store):
     e2.attributes["section"] = "26-501"
 
     # Build a thin processor with dummy deps
-    dp = DocumentProcessor(deepseek_client=AsyncMock(), knowledge_graph=MagicMock(), vector_store=mock_vector_store)
+    dp = DocumentProcessor(
+        deepseek_client=AsyncMock(), knowledge_graph=MagicMock(), vector_store=mock_vector_store
+    )
 
     deduped, relmap = dp._deduplicate_entities([e1, e2])
     assert len(deduped) == 1
@@ -56,7 +58,7 @@ def test_deduplicate_entities_simple(mock_vector_store):
 @pytest.mark.asyncio
 async def test_semantic_merge_entities_thresholds(monkeypatch, mock_vector_store):
     """OBSOLETE: This test is for _semantic_merge_entities which was removed.
-    
+
     The feature was replaced with simpler hash-based ID generation where
     same entity name → same ID automatically, eliminating the need for
     semantic similarity matching during ingestion.
@@ -67,7 +69,9 @@ async def test_semantic_merge_entities_thresholds(monkeypatch, mock_vector_store
 def test_update_relationship_references_skips_self_edges(mock_vector_store):
     from tenant_legal_guidance.models.relationships import LegalRelationship, RelationshipType
 
-    dp = DocumentProcessor(deepseek_client=AsyncMock(), knowledge_graph=MagicMock(), vector_store=mock_vector_store)
+    dp = DocumentProcessor(
+        deepseek_client=AsyncMock(), knowledge_graph=MagicMock(), vector_store=mock_vector_store
+    )
 
     rels = [
         LegalRelationship(source_id="a", target_id="b", relationship_type=RelationshipType.ENABLES),

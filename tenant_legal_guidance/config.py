@@ -18,6 +18,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 # Get the project root directory (parent of tenant_legal_guidance package)
 _PROJECT_ROOT = Path(__file__).parent.parent
 
+
 class AppSettings(BaseSettings):
     # Pydantic Settings v2 config
     model_config: SettingsConfigDict = SettingsConfigDict(

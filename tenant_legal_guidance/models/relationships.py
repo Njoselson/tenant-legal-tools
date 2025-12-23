@@ -15,7 +15,7 @@ class RelationshipType(Enum):
     PROVIDED_BY = auto()  # LEGAL_SERVICE -> TENANT
     SUPPORTED_BY = auto()  # TACTIC/REMEDY -> TENANT_GROUP/LEGAL_SERVICE
     RESULTS_IN = auto()  # TACTIC/REMEDY -> OUTCOME
-    
+
     # Legal claim proving system relationships (NEW)
     SUPPORTS = auto()  # EVIDENCE -> OUTCOME (presented evidence supports outcome)
     IMPLY = auto()  # OUTCOME -> DAMAGES (outcome implies damages)
@@ -36,17 +36,13 @@ class LegalRelationship(BaseModel):
     )
     weight: float = 1.0
     attributes: dict = Field(default_factory=dict)
-    
+
     # Relationship strength (NEW)
     strength: float = Field(
-        1.0,
-        ge=0.0,
-        le=1.0,
-        description="How strong is this relationship? (0-1)"
+        1.0, ge=0.0, le=1.0, description="How strong is this relationship? (0-1)"
     )
     evidence_level: str | None = Field(
-        None,
-        description="Evidence level: 'required', 'helpful', 'sufficient'"
+        None, description="Evidence level: 'required', 'helpful', 'sufficient'"
     )
 
     @field_validator("relationship_type", mode="before")
@@ -70,16 +66,16 @@ class LegalRelationship(BaseModel):
                         f"Invalid value '{v}' for relationship_type. Allowed: {[e.name for e in RelationshipType]}"
                     )
         return v
-    
+
     def to_api_dict(self) -> dict:
         """
         Serialize relationship to consistent API response format.
-        
+
         Returns:
             dict with serialized relationship data ready for JSON response
         """
         from tenant_legal_guidance.utils.entity_helpers import (
             serialize_relationship_for_api,
         )
-        
+
         return serialize_relationship_for_api(self)

@@ -10,7 +10,6 @@ from tenant_legal_guidance.models.entities import (
     EntityType,
     LegalEntity,
     SourceAuthority,
-    SourceMetadata,
     SourceType,
 )
 from tenant_legal_guidance.models.relationships import LegalRelationship, RelationshipType
@@ -21,10 +20,10 @@ from tenant_legal_guidance.utils.text import canonicalize_text, sha256
 class ArangoDBGraph:
     def __init__(
         self,
-        host: str = None,
-        db_name: str = None,
-        username: str = None,
-        password: str = None,
+        host: str | None = None,
+        db_name: str | None = None,
+        username: str | None = None,
+        password: str | None = None,
         max_retries: int = 3,
         retry_delay: int = 2,
     ):
@@ -51,7 +50,7 @@ class ArangoDBGraph:
         """
         try:
             from tenant_legal_guidance.utils.entity_helpers import get_entity_type_from_id
-            
+
             if ":" in entity_id:
                 try:
                     et = get_entity_type_from_id(entity_id)
@@ -496,14 +495,14 @@ class ArangoDBGraph:
     ) -> str:
         try:
             from tenant_legal_guidance.utils.text import generate_uuid_from_text
-            
+
             if not source_id:
                 # Fallback: generate from locator if no source_id provided
                 source_id = generate_uuid_from_text(locator)
-            
+
             if not sha256:
                 sha256 = sha256(locator or "")
-            
+
             coll = self.db.collection("sources")
             doc = {
                 "_key": source_id,  # Use UUID as key
@@ -608,17 +607,21 @@ class ArangoDBGraph:
         """Register source and prepare chunks for vector DB. Returns chunk docs (not persisted to Arango)."""
         try:
             from tenant_legal_guidance.utils.text import generate_uuid_from_text
-            
+
             canon = canonicalize_text(full_text)
             content_hash = sha256(canon)
-            
+
             # NEW: Use UUID instead of "src:{hash}"
             source_id = generate_uuid_from_text(full_text)
-            
+
             # Store both UUID and content hash
-            sid = self.upsert_source(
-                locator=locator, kind=kind, title=title, jurisdiction=jurisdiction, 
-                sha256=content_hash, source_id=source_id
+            self.upsert_source(
+                locator=locator,
+                kind=kind,
+                title=title,
+                jurisdiction=jurisdiction,
+                sha256=content_hash,
+                source_id=source_id,
             )
             # Store full text blob for audit/provenance
             blob_id = self.upsert_text_blob(canon)
@@ -635,7 +638,7 @@ class ArangoDBGraph:
             )
             # Generate stable chunk IDs (caller will use as Qdrant point IDs)
             chunk_ids = []
-            for idx, ch in enumerate(chunks):
+            for idx, _ch in enumerate(chunks):
                 # Update chunk ID format to use UUID
                 chunk_ids.append(f"{source_id}:{idx}")  # UUID:index format
             return {
@@ -670,11 +673,7 @@ class ArangoDBGraph:
         try:
             src_sha = source_id.split(":", 1)[1] if ":" in source_id else ""
             qid = f"q:{src_sha}:{int(start_offset)}:{int(end_offset)}"
-            qsha = (
-                sha256(canonicalize_text(quote_text or ""))
-                if quote_text is not None
-                else None
-            )
+            qsha = sha256(canonicalize_text(quote_text or "")) if quote_text is not None else None
             coll = self.db.collection("quotes")
             doc = {
                 "_key": qid,
@@ -702,7 +701,7 @@ class ArangoDBGraph:
         quote_id: str | None = None,
         citation: str | None = None,
         chunk_id: str | None = None,
-        chunk_index: int | None = None
+        chunk_index: int | None = None,
     ) -> bool:
         try:
             coll = self.db.collection("provenance")
@@ -783,7 +782,7 @@ class ArangoDBGraph:
                 entities_coll = self.db.collection("entities")
                 # Try both with and without prefix for _key lookup
                 has_by_key = entities_coll.has(entity_id)
-                # Also try without prefix if entity_id contains ":" 
+                # Also try without prefix if entity_id contains ":"
                 has_by_id_only = False
                 if ":" in entity_id and not has_by_key:
                     # Try looking up just the suffix part
@@ -791,7 +790,7 @@ class ArangoDBGraph:
                     if entities_coll.has(id_suffix):
                         entity_id = id_suffix
                         has_by_id_only = True
-                
+
                 if has_by_key or has_by_id_only:
                     data = entities_coll.get(entity_id)
                     # Try to infer entity type from the 'type' field or from the ID prefix
@@ -799,9 +798,9 @@ class ArangoDBGraph:
                         get_entity_type_from_id,
                         normalize_entity_type,
                     )
-                    
+
                     entity_type = None
-                    
+
                     # First try: 'type' field in document
                     type_str = data.get("type", "")
                     if type_str:
@@ -809,27 +808,30 @@ class ArangoDBGraph:
                             entity_type = normalize_entity_type(type_str)
                         except (ValueError, KeyError):
                             pass
-                    
+
                     # Second try: infer from ID prefix if 'type' field failed or is missing
                     if not entity_type and ":" in entity_id:
                         try:
                             entity_type = get_entity_type_from_id(entity_id)
                         except ValueError:
                             pass
-                    
+
                     if entity_type:
                         return self._parse_entity_from_doc(data, entity_type)
                     else:
                         # Fall through if we can't parse it - this means the entity exists but is malformed
-                        self.logger.warning(f"Found entity {entity_id} in consolidated collection but could not infer type (type field: '{type_str}'), will try legacy collections")
+                        self.logger.warning(
+                            f"Found entity {entity_id} in consolidated collection but could not infer type (type field: '{type_str}'), will try legacy collections"
+                        )
         except Exception as e:
             self.logger.debug(f"Failed to get entity from consolidated collection: {e}")
-        
+
         # FALLBACK: Check type-specific collections (legacy storage)
         # Extract entity type from ID prefix using utility
         if ":" in entity_id:
             try:
                 from tenant_legal_guidance.utils.entity_helpers import get_entity_type_from_id
+
                 entity_type = get_entity_type_from_id(entity_id)
             except ValueError:
                 entity_type = None
@@ -902,7 +904,7 @@ class ArangoDBGraph:
     def _parse_entity_from_doc(self, data: dict, entity_type: EntityType) -> LegalEntity:
         """Parse ArangoDB document into LegalEntity object."""
         from tenant_legal_guidance.utils.entity_helpers import normalize_entity_type
-        
+
         # Extract source metadata from stored data
         stored_metadata = data.get("source_metadata", {})
 
@@ -925,22 +927,32 @@ class ArangoDBGraph:
         # Map ArangoDB document to LegalEntity fields
         # Fields to exclude from attributes (handled separately at top level)
         excluded_fields = {
-            "_key", "type", "name", "description", "source_metadata", "jurisdiction",
-            "provenance", "mentions_count", "best_quote", "all_quotes", "chunk_ids",
-            "source_ids", "outcome", "ruling_type", "relief_granted", "damages_awarded",
-            "_id", "_rev"  # ArangoDB internal fields
+            "_key",
+            "type",
+            "name",
+            "description",
+            "source_metadata",
+            "jurisdiction",
+            "provenance",
+            "mentions_count",
+            "best_quote",
+            "all_quotes",
+            "chunk_ids",
+            "source_ids",
+            "outcome",
+            "ruling_type",
+            "relief_granted",
+            "damages_awarded",
+            "_id",
+            "_rev",  # ArangoDB internal fields
         }
-        
+
         entity_data = {
             "id": data["_key"],  # Use _key as id
             "entity_type": valid_entity_type,
             "name": data.get("name", ""),
             "description": data.get("description", ""),
-            "attributes": {
-                k: v
-                for k, v in data.items()
-                if k not in excluded_fields
-            },
+            "attributes": {k: v for k, v in data.items() if k not in excluded_fields},
             "source_metadata": {
                 "source": stored_metadata.get(
                     "source", data["_key"]
@@ -966,7 +978,7 @@ class ArangoDBGraph:
                 entity_data["mentions_count"] = int(data.get("mentions_count") or 0)
             except Exception:
                 entity_data["mentions_count"] = 0
-        
+
         # Add quote support fields (NEW)
         if "best_quote" in data:
             entity_data["best_quote"] = data.get("best_quote")
@@ -976,7 +988,7 @@ class ArangoDBGraph:
             entity_data["chunk_ids"] = data.get("chunk_ids")
         if "source_ids" in data:
             entity_data["source_ids"] = data.get("source_ids")
-        
+
         # Add case outcome fields (NEW)
         if "outcome" in data:
             entity_data["outcome"] = data.get("outcome")
@@ -986,7 +998,7 @@ class ArangoDBGraph:
             entity_data["relief_granted"] = data.get("relief_granted")
         if "damages_awarded" in data:
             entity_data["damages_awarded"] = data.get("damages_awarded")
-        
+
         return LegalEntity(**entity_data)
 
     def add_entity(self, entity: LegalEntity, overwrite: bool = False) -> bool:
@@ -1038,7 +1050,7 @@ class ArangoDBGraph:
         }
         if top_level_jurisdiction:
             doc["jurisdiction"] = top_level_jurisdiction
-        
+
         # Add quote support fields (NEW)
         if entity.best_quote:
             doc["best_quote"] = entity.best_quote
@@ -1050,7 +1062,7 @@ class ArangoDBGraph:
             doc["source_ids"] = entity.source_ids
         if entity.mentions_count is not None:
             doc["mentions_count"] = entity.mentions_count
-        
+
         # Add case outcome fields (NEW)
         if entity.outcome:
             doc["outcome"] = entity.outcome
@@ -1060,7 +1072,7 @@ class ArangoDBGraph:
             doc["relief_granted"] = entity.relief_granted
         if entity.damages_awarded is not None:
             doc["damages_awarded"] = entity.damages_awarded
-        
+
         # Add legal claim fields (for LEGAL_CLAIM entity type)
         if entity.claim_description:
             doc["claim_description"] = entity.claim_description
@@ -1078,7 +1090,7 @@ class ArangoDBGraph:
             doc["proof_completeness"] = entity.proof_completeness
         if entity.gaps:
             doc["gaps"] = entity.gaps
-        
+
         # Add evidence context fields (for EVIDENCE entity type)
         if entity.evidence_context:
             doc["evidence_context"] = entity.evidence_context
@@ -1086,7 +1098,7 @@ class ArangoDBGraph:
             doc["evidence_source_type"] = entity.evidence_source_type
         if entity.is_critical is not None:
             doc["is_critical"] = entity.is_critical
-        
+
         # Add linked_claim_type for evidence (required evidence links to claim type string)
         if entity.linked_claim_type:
             doc["linked_claim_type"] = entity.linked_claim_type
@@ -1302,7 +1314,9 @@ class ArangoDBGraph:
                 },
             )
             if list(cur):
-                self.logger.debug(f"[KG] Skipping duplicate relationship: {relationship.source_id} --{relationship.relationship_type.name}--> {relationship.target_id}")
+                self.logger.debug(
+                    f"[KG] Skipping duplicate relationship: {relationship.source_id} --{relationship.relationship_type.name}--> {relationship.target_id}"
+                )
                 return False
         except Exception as e:
             self.logger.debug(f"Edge dedup check failed (continuing): {e}")
@@ -1393,7 +1407,7 @@ class ArangoDBGraph:
 
     def _collection_for_entity_id(self, entity_id: str) -> str | None:
         """Infer vertex collection name from id prefix.
-        
+
         NOTE: All entities are now stored in the unified 'entities' collection,
         so this always returns 'entities' (not type-specific collections).
         """
@@ -1401,7 +1415,7 @@ class ArangoDBGraph:
             # Check if entity exists in unified collection
             if self.db.collection("entities").has(entity_id):
                 return "entities"
-            
+
             # Fallback: check old type-specific collections for backward compatibility
             if ":" in entity_id:
                 prefix = entity_id.split(":", 1)[0]
@@ -1464,7 +1478,7 @@ class ArangoDBGraph:
                     rel_type = (
                         RelationshipType.UNKNOWN
                         if hasattr(RelationshipType, "UNKNOWN")
-                        else list(RelationshipType)[0]
+                        else next(iter(RelationshipType))
                     )
 
                 rels.append(
@@ -1490,12 +1504,12 @@ class ArangoDBGraph:
     ) -> list[dict]:
         """
         Query relationships by source, target, and/or type.
-        
+
         Args:
             source_id: Filter by source entity ID
             target_id: Filter by target entity ID
             relationship_type: Filter by relationship type (string or enum)
-            
+
         Returns:
             List of relationship dicts with source_id, target_id, type, etc.
         """
@@ -1507,31 +1521,31 @@ class ArangoDBGraph:
                 rel_type_str = str(relationship_type)
             else:
                 rel_type_str = None
-            
+
             # Build AQL query
             filters = []
             bind_vars = {}
-            
+
             if source_id:
                 coll_name = self._collection_for_entity_id(source_id)
                 if coll_name:
                     filters.append("e._from == CONCAT(@source_coll, '/', @source_key)")
                     bind_vars["source_coll"] = coll_name
                     bind_vars["source_key"] = source_id
-            
+
             if target_id:
                 coll_name = self._collection_for_entity_id(target_id)
                 if coll_name:
                     filters.append("e._to == CONCAT(@target_coll, '/', @target_key)")
                     bind_vars["target_coll"] = coll_name
                     bind_vars["target_key"] = target_id
-            
+
             if rel_type_str:
                 filters.append("e.type == @rel_type")
                 bind_vars["rel_type"] = rel_type_str
-            
+
             filter_clause = " AND ".join(filters) if filters else "true"
-            
+
             aql = f"""
             FOR e IN edges
                 FILTER {filter_clause}
@@ -1546,10 +1560,10 @@ class ArangoDBGraph:
                     attributes: e.attributes
                 }}
             """
-            
+
             cursor = self.db.aql.execute(aql, bind_vars=bind_vars)
             return list(cursor)
-            
+
         except Exception as e:
             self.logger.error(f"get_relationships error: {e}")
             return []
@@ -1573,7 +1587,7 @@ class ArangoDBGraph:
                 coll_name = self._collection_for_entity_id(nid)
                 if not coll_name:
                     continue
-                    
+
                 # Outbound edges
                 if dir_filter_out:
                     aql_out = """
@@ -1601,7 +1615,7 @@ class ArangoDBGraph:
                                 continue
                         except (KeyError, ValueError):
                             continue
-                            
+
                         rels.append(
                             LegalRelationship(
                                 source_id=nid,
@@ -1625,7 +1639,7 @@ class ArangoDBGraph:
                                     self.logger.debug(f"Unknown entity type: {type_str}")
                         except Exception as fetch_err:
                             self.logger.debug(f"Failed to fetch neighbor {to_id}: {fetch_err}")
-                            
+
                 # Inbound edges
                 if dir_filter_in:
                     aql_in = """
@@ -1653,7 +1667,7 @@ class ArangoDBGraph:
                                 continue
                         except (KeyError, ValueError):
                             continue
-                            
+
                         rels.append(
                             LegalRelationship(
                                 source_id=from_id,
@@ -1677,7 +1691,7 @@ class ArangoDBGraph:
                                     self.logger.debug(f"Unknown entity type: {type_str}")
                         except Exception as fetch_err:
                             self.logger.debug(f"Failed to fetch neighbor {from_id}: {fetch_err}")
-                            
+
             return list(neighbors.values()), rels
         except Exception as e:
             self.logger.error(f"get_neighbors error: {e}")
@@ -1714,9 +1728,7 @@ class ArangoDBGraph:
         }
         return [t for t in tokens if t and t not in stop]
 
-    def _sim_score(
-        self, name_a: str, desc_a: str | None, name_b: str, desc_b: str | None
-    ) -> float:
+    def _sim_score(self, name_a: str, desc_a: str | None, name_b: str, desc_b: str | None) -> float:
         if not name_a or not name_b:
             return 0.0
         a, b = name_a.strip().lower(), name_b.strip().lower()
@@ -1782,7 +1794,7 @@ class ArangoDBGraph:
         # Rewire edges from drop to keep
         for rel_type in RelationshipType:
             edge_name = self._get_collection_for_relationship(rel_type)
-            edges = self.db.collection(edge_name)
+            self.db.collection(edge_name)
             # Update outbound
             aql_out = """
             FOR e IN @@edge
@@ -2105,14 +2117,14 @@ class ArangoDBGraph:
         self, name: str, entity_type: str, limit: int = 3
     ) -> list[dict[str, object]]:
         """Search for existing entities using BM25 fulltext search.
-        
+
         Used by entity resolution to find potential duplicates before creating new entities.
-        
+
         Args:
             name: Entity name to search for
             entity_type: Entity type (e.g., 'law', 'remedy')
             limit: Maximum number of results to return
-            
+
         Returns:
             List of matching entities with their BM25 scores, sorted by relevance
         """
@@ -2132,13 +2144,13 @@ class ArangoDBGraph:
                     score: BM25(doc)
                 }
             """
-            
+
             bind_vars = {
                 "name": name,
                 "entity_type": entity_type,
                 "limit": limit,
             }
-            
+
             try:
                 cursor = self.db.aql.execute(query, bind_vars=bind_vars)
                 results = list(cursor)
@@ -2158,7 +2170,7 @@ class ArangoDBGraph:
                     results = list(cursor)
                     return results
                 raise
-                
+
         except Exception as e:
             self.logger.error(f"Error in search_similar_entities for '{name}': {e}")
             # Return empty list on failure (graceful degradation)
@@ -2169,7 +2181,7 @@ class ArangoDBGraph:
         Returns a dict of collection -> updated_count.
         """
         from tenant_legal_guidance.utils.entity_helpers import normalize_entity_type
-        
+
         updated_counts: dict[str, int] = {}
         for entity_type in EntityType:
             collection_name = self._get_collection_for_entity(entity_type)
@@ -2203,9 +2215,7 @@ class ArangoDBGraph:
                 updated_counts[collection_name] = -1
         return updated_counts
 
-    def compute_next_steps(
-        self, issues: list[str], jurisdiction: str | None = None
-    ) -> list[dict]:
+    def compute_next_steps(self, issues: list[str], jurisdiction: str | None = None) -> list[dict]:
         """Compute deterministic next steps from issues through applicable laws, remedies, procedures, and evidence.
         This is a heuristic placeholder; refine with AQL/graph traversal later.
         """
@@ -2236,7 +2246,7 @@ class ArangoDBGraph:
                     "evidence": [],
                 }
                 # Heuristic associations by keywords
-                law_text = (law.get("name", "") + " " + law.get("description", "")).lower()
+                (law.get("name", "") + " " + law.get("description", "")).lower()
 
                 # Remedies
                 for r in remedies_coll.all():
@@ -2443,10 +2453,10 @@ class ArangoDBGraph:
     def get_required_evidence_for_claim_type(self, claim_type: str) -> list[dict]:
         """
         Get required evidence for a claim type string.
-        
+
         Args:
             claim_type: The claim type string (e.g., "DEREGULATION_CHALLENGE")
-            
+
         Returns:
             List of evidence entities with context="required" and linked_claim_type=claim_type
         """
@@ -2463,11 +2473,11 @@ class ArangoDBGraph:
         except Exception as e:
             self.logger.error(f"Failed to get required evidence for {claim_type}: {e}")
             return []
-    
+
     def get_all_claim_types(self) -> list[str]:
         """
         Get all unique claim type strings from stored claims.
-        
+
         Returns:
             List of claim type strings (e.g., ["DEREGULATION_CHALLENGE", "RENT_OVERCHARGE"])
         """

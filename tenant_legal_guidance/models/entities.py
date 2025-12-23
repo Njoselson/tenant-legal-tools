@@ -47,7 +47,7 @@ class EntityType(str, Enum):
 
 class EvidenceContext(str, Enum):
     """Context for evidence entities - distinguishes required vs. presented evidence."""
-    
+
     REQUIRED = "required"  # What must be proven (from statutes/guides/precedent)
     PRESENTED = "presented"  # What was actually provided (from case documents)
     MISSING = "missing"  # Required but not found/satisfied in case
@@ -75,14 +75,14 @@ class SourceAuthority(str, Enum):
 
 class LegalDocumentType(str, Enum):
     """Types of legal documents that can be ingested."""
-    
-    COURT_OPINION = "court_opinion"           # Court case decisions (produces CASE_DOCUMENT)
-    STATUTE = "statute"                       # Laws, codes, regulations
-    LEGAL_GUIDE = "legal_guide"              # Tenant handbooks, how-to guides
-    TENANT_HANDBOOK = "tenant_handbook"      # Organization materials
-    LEGAL_MEMO = "legal_memo"                # Internal legal analysis
+
+    COURT_OPINION = "court_opinion"  # Court case decisions (produces CASE_DOCUMENT)
+    STATUTE = "statute"  # Laws, codes, regulations
+    LEGAL_GUIDE = "legal_guide"  # Tenant handbooks, how-to guides
+    TENANT_HANDBOOK = "tenant_handbook"  # Organization materials
+    LEGAL_MEMO = "legal_memo"  # Internal legal analysis
     ADVOCACY_DOCUMENT = "advocacy_document"  # Policy papers, reports
-    UNKNOWN = "unknown"                       # Auto-detect or default
+    UNKNOWN = "unknown"  # Auto-detect or default
 
 
 class SourceMetadata(BaseModel):
@@ -168,27 +168,24 @@ class LegalEntity(BaseModel):
     mentions_count: int | None = Field(
         default=None, description="How many times this entity was observed across sources"
     )
-    
+
     # Quote support (NEW)
     best_quote: dict[str, str] | None = Field(
         default=None,
-        description="Best quote highlighting this entity: {text, source_id, chunk_id, explanation}"
+        description="Best quote highlighting this entity: {text, source_id, chunk_id, explanation}",
     )
     all_quotes: list[dict[str, str]] = Field(
-        default_factory=list,
-        description="All quotes from all sources mentioning this entity"
+        default_factory=list, description="All quotes from all sources mentioning this entity"
     )
-    
+
     # Chunk linkage (NEW)
     chunk_ids: list[str] = Field(
-        default_factory=list,
-        description="All chunk IDs where this entity is mentioned"
+        default_factory=list, description="All chunk IDs where this entity is mentioned"
     )
-    
+
     # Source tracking (NEW for multi-source provenance)
     source_ids: list[str] = Field(
-        default_factory=list,
-        description="All source UUIDs that mention this entity"
+        default_factory=list, description="All source UUIDs that mention this entity"
     )
 
     # Tenant-specific fields
@@ -215,7 +212,7 @@ class LegalEntity(BaseModel):
         None, ge=0, le=1, description="Estimated success rate (0.0-1.0)"
     )
     evidence_required: list[str] | None = None
-    
+
     # Case document fields (NEW)
     case_name: str | None = None  # "756 Liberty Realty LLC v Garcia"
     court: str | None = None  # "NYC Housing Court"
@@ -225,53 +222,40 @@ class LegalEntity(BaseModel):
     holdings: list[str] | None = None  # Key legal holdings
     procedural_history: str | None = None
     citations: list[str] | None = None  # Case law citations within document
-    
+
     # Case outcome fields (NEW)
     outcome: str | None = Field(
         None,
-        description="Case outcome: 'plaintiff_win', 'defendant_win', 'settlement', 'dismissed'"
+        description="Case outcome: 'plaintiff_win', 'defendant_win', 'settlement', 'dismissed'",
     )
     ruling_type: str | None = Field(
-        None,
-        description="Type of ruling: 'judgment', 'summary_judgment', 'dismissal'"
+        None, description="Type of ruling: 'judgment', 'summary_judgment', 'dismissal'"
     )
     relief_granted: list[str] | None = Field(
-        None,
-        description="Relief granted: ['rent_reduction', 'attorney_fees', 'repairs_ordered']"
+        None, description="Relief granted: ['rent_reduction', 'attorney_fees', 'repairs_ordered']"
     )
-    damages_awarded: float | None = Field(
-        None,
-        description="Monetary damages awarded (if any)"
-    )
-    
+    damages_awarded: float | None = Field(None, description="Monetary damages awarded (if any)")
+
     attributes: dict[str, str] = Field(default_factory=dict)
-    
+
     # Legal claim fields (NEW - for LEGAL_CLAIM entity type)
-    claim_description: str | None = Field(
-        None, description="Full description of the legal claim"
-    )
+    claim_description: str | None = Field(None, description="Full description of the legal claim")
     claimant: str | None = Field(
         None, description="Party asserting the claim (e.g., 'respondents', 'petitioner')"
     )
-    respondent_party: str | None = Field(
-        None, description="Party the claim is against"
-    )
+    respondent_party: str | None = Field(None, description="Party the claim is against")
     claim_type: str | None = Field(
         None, description="Claim type string (e.g., 'DEREGULATION_CHALLENGE', 'RENT_OVERCHARGE')"
     )
-    relief_sought: list[str] | None = Field(
-        None, description="What the claimant is seeking"
-    )
+    relief_sought: list[str] | None = Field(None, description="What the claimant is seeking")
     claim_status: str | None = Field(
         None, description="Status: 'asserted', 'proven', 'unproven', 'dismissed', 'settled'"
     )
     proof_completeness: float | None = Field(
         None, ge=0.0, le=1.0, description="0.0-1.0, % of required evidence satisfied"
     )
-    gaps: list[str] | None = Field(
-        None, description="Descriptions of missing required evidence"
-    )
-    
+    gaps: list[str] | None = Field(None, description="Descriptions of missing required evidence")
+
     # Evidence context fields (NEW - extends EVIDENCE entity type)
     evidence_context: str | None = Field(
         None, description="Context: 'required', 'presented', or 'missing'"
@@ -285,9 +269,7 @@ class LegalEntity(BaseModel):
     evidence_examples: list[str] | None = Field(
         None, description="Examples: ['invoices', 'receipts', 'contracts']"
     )
-    is_critical: bool | None = Field(
-        None, description="If missing, claim cannot succeed"
-    )
+    is_critical: bool | None = Field(None, description="If missing, claim cannot succeed")
     matches_required_id: str | None = Field(
         None, description="For presented evidence: ID of required evidence it satisfies"
     )
@@ -295,7 +277,8 @@ class LegalEntity(BaseModel):
         None, description="For presented evidence: which claim this supports"
     )
     linked_claim_type: str | None = Field(
-        None, description="For required evidence: which claim type needs this (e.g., 'DEREGULATION_CHALLENGE')"
+        None,
+        description="For required evidence: which claim type needs this (e.g., 'DEREGULATION_CHALLENGE')",
     )
 
     @field_validator("entity_type", mode="before")
@@ -324,16 +307,16 @@ class LegalEntity(BaseModel):
             except ValueError:
                 raise ValueError(f"Invalid datetime format: {v}")
         return v
-    
+
     def to_api_dict(self) -> dict:
         """
         Serialize entity to consistent API response format.
-        
+
         Returns:
             dict with serialized entity data ready for JSON response
         """
         from tenant_legal_guidance.utils.entity_helpers import (
             serialize_entity_for_api,
         )
-        
+
         return serialize_entity_for_api(self)

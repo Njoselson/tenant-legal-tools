@@ -2,7 +2,6 @@
 API request/response schemas for the Tenant Legal Guidance System.
 """
 
-
 from pydantic import BaseModel
 
 from tenant_legal_guidance.models.documents import InputType
@@ -117,6 +116,7 @@ class KGChatRequest(BaseModel):
 # Legal Claim Proving System Schemas
 # ============================================================================
 
+
 class ClaimExtractionRequest(BaseModel):
     """Request model for extracting legal claims from a document."""
 
@@ -196,6 +196,7 @@ class ClaimExtractionResponse(BaseModel):
 # ============================================================================
 # Analyze My Case Schemas
 # ============================================================================
+
 
 class AnalyzeMyCaseRequest(BaseModel):
     """Request model for analyzing a user's legal situation."""

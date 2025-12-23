@@ -44,7 +44,7 @@ async def lifespan(app: FastAPI):
         from tenant_legal_guidance.services.vector_store import QdrantVectorStore
 
         # QdrantVectorStore() constructor already calls _ensure_collection() which creates if missing
-        vector_store = QdrantVectorStore()
+        QdrantVectorStore()
         logger.info("Qdrant collection ensured (non-destructive)")
     except Exception as e:
         logger.error(f"Failed to initialize Qdrant collection: {e}")

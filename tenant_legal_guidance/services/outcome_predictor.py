@@ -7,7 +7,6 @@ based on precedent.
 
 import logging
 from dataclasses import dataclass
-from typing import Any
 
 from tenant_legal_guidance.graph.arango_graph import ArangoDBGraph
 from tenant_legal_guidance.services.deepseek import DeepSeekClient
@@ -16,6 +15,7 @@ from tenant_legal_guidance.services.deepseek import DeepSeekClient
 @dataclass
 class OutcomePrediction:
     """Predicted outcome for a claim."""
+
     outcome_type: str  # "favorable", "unfavorable", "mixed"
     disposition: str  # "granted", "dismissed", "settled", etc.
     probability: float  # 0.0-1.0
@@ -25,7 +25,7 @@ class OutcomePrediction:
 
 class OutcomePredictor:
     """Predict case outcomes based on similar cases."""
-    
+
     def __init__(
         self,
         knowledge_graph: ArangoDBGraph,
@@ -34,7 +34,7 @@ class OutcomePredictor:
         self.kg = knowledge_graph
         self.llm_client = llm_client
         self.logger = logging.getLogger(__name__)
-    
+
     async def find_similar_cases(
         self,
         claim_type: str,
@@ -43,12 +43,12 @@ class OutcomePredictor:
     ) -> list[dict]:
         """
         Find similar cases based on claim type.
-        
+
         Args:
             claim_type: The claim type string (e.g., "DEREGULATION_CHALLENGE")
             situation: Optional situation description for semantic matching
             limit: Maximum number of cases to return
-            
+
         Returns:
             List of similar case documents with outcomes
         """
@@ -72,7 +72,7 @@ class OutcomePredictor:
                     claim_id: claim._key
                 }
             """
-            
+
             cursor = self.kg.db.aql.execute(
                 aql,
                 bind_vars={
@@ -80,28 +80,27 @@ class OutcomePredictor:
                     "limit": limit,
                 },
             )
-            
+
             cases = list(cursor)
-            
-            # Score similarity based on evidence profile
-            scored_cases = []
-            for case in cases:
-                # Simple scoring: count matching evidence
-                # In future, could use embeddings for semantic similarity
-                score = self._score_case_similarity(case, evidence_profile)
-                scored_cases.append({
+
+            # Note: Scoring by evidence profile would require evidence_profile parameter
+            # For now, return cases as-is (scoring can be done later when evidence is available)
+            scored_cases = [
+                {
                     **case,
-                    "similarity_score": score,
-                })
-            
+                    "similarity_score": 0.5,  # Default score when no evidence profile available
+                }
+                for case in cases
+            ]
+
             # Sort by similarity and return top N
             scored_cases.sort(key=lambda x: x["similarity_score"], reverse=True)
             return scored_cases[:limit]
-            
+
         except Exception as e:
             self.logger.error(f"Failed to find similar cases: {e}")
             return []
-    
+
     def _score_case_similarity(
         self,
         case: dict,
@@ -111,18 +110,18 @@ class OutcomePredictor:
         # Simple scoring: if case has similar evidence, higher score
         # This is a placeholder - could be enhanced with embeddings
         claim = case.get("claim", {})
-        claim_evidence = claim.get("attributes", {}).get("linked_claim_ids", "")
-        
+        claim.get("attributes", {}).get("linked_claim_ids", "")
+
         # Count how many evidence items from profile appear in case
         matches = 0
         for evid in evidence_profile:
             if evid.get("status") == "matched":
                 matches += 1
-        
+
         # Normalize to 0-1
         total_evidence = len(evidence_profile) if evidence_profile else 1
         return matches / total_evidence if total_evidence > 0 else 0.0
-    
+
     async def predict_outcomes(
         self,
         claim_type: str,
@@ -131,12 +130,12 @@ class OutcomePredictor:
     ) -> OutcomePrediction:
         """
         Predict outcome based on similar cases and evidence strength.
-        
+
         Args:
             claim_type: The claim type string (e.g., "DEREGULATION_CHALLENGE")
             evidence_strength: "strong", "moderate", or "weak"
             similar_cases: List of similar cases from find_similar_cases
-            
+
         Returns:
             OutcomePrediction with probability and reasoning
         """
@@ -166,20 +165,20 @@ class OutcomePredictor:
                     similar_cases=[],
                     reasoning="Weak evidence profile suggests case may be dismissed.",
                 )
-        
+
         # Analyze similar cases
         favorable_count = 0
         total_count = len(similar_cases)
-        
+
         for case in similar_cases:
             outcome = case.get("outcome")
             if outcome:
                 disposition = outcome.get("disposition", "").lower()
                 if disposition in ["granted", "favorable", "won", "successful"]:
                     favorable_count += 1
-        
+
         favorable_rate = favorable_count / total_count if total_count > 0 else 0.0
-        
+
         # Adjust based on evidence strength
         if evidence_strength == "strong":
             probability = min(0.95, favorable_rate + 0.15)
@@ -187,7 +186,7 @@ class OutcomePredictor:
             probability = favorable_rate
         else:
             probability = max(0.05, favorable_rate - 0.15)
-        
+
         # Determine outcome type
         if probability >= 0.70:
             outcome_type = "favorable"
@@ -198,12 +197,12 @@ class OutcomePredictor:
         else:
             outcome_type = "unfavorable"
             disposition = "dismissed"
-        
+
         # Generate reasoning
         reasoning = f"Based on {total_count} similar case(s): {favorable_count} favorable, {total_count - favorable_count} unfavorable. "
         reasoning += f"Evidence strength: {evidence_strength}. "
         reasoning += f"Predicted probability: {probability:.0%}"
-        
+
         return OutcomePrediction(
             outcome_type=outcome_type,
             disposition=disposition,
@@ -211,4 +210,3 @@ class OutcomePredictor:
             similar_cases=similar_cases,
             reasoning=reasoning,
         )
-

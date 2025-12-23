@@ -23,10 +23,8 @@ from tenant_legal_guidance.services.claim_extractor import ClaimExtractor
 from tenant_legal_guidance.services.deepseek import DeepSeekClient
 from tenant_legal_guidance.utils.text import canonicalize_text, sha256
 
-
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -55,19 +53,19 @@ async def process_source(
     document_type = entry.get("document_type", "unknown")
     authority = entry.get("authority", "unknown")
     jurisdiction = entry.get("jurisdiction", "NYC")
-    
+
     logger.info(f"Processing: {title}")
-    
+
     try:
         # Fetch text
         logger.info(f"Fetching text from {locator}...")
         text = await fetch_text_from_url(locator)
-        
+
         if not text or len(text) < 100:
             logger.warning(f"Insufficient text from {locator}")
             stats["skipped"] += 1
             return {"status": "skipped", "reason": "insufficient_text"}
-        
+
         # Create source metadata
         source_hash = sha256(text)
         source_metadata = SourceMetadata(
@@ -77,27 +75,29 @@ async def process_source(
             jurisdiction=jurisdiction,
             document_type=document_type,
         )
-        
+
         # Extract claims
         logger.info(f"Extracting claims from {title}...")
         result = await extractor.extract_full_proof_chain_single(
             text=text,
             metadata=source_metadata,
         )
-        
-        logger.info(f"Extracted: {len(result.claims)} claims, {len(result.evidence)} evidence, {len(result.outcomes)} outcomes, {len(result.damages)} damages")
-        
+
+        logger.info(
+            f"Extracted: {len(result.claims)} claims, {len(result.evidence)} evidence, {len(result.outcomes)} outcomes, {len(result.damages)} damages"
+        )
+
         # Store to graph
-        logger.info(f"Storing to graph...")
+        logger.info("Storing to graph...")
         stored = await extractor.store_to_graph(result, source_metadata=source_metadata)
-        
+
         stats["processed"] += 1
         stats["claims"] += stored.get("claims", 0)
         stats["evidence"] += stored.get("evidence", 0)
         stats["outcomes"] += stored.get("outcomes", 0)
         stats["damages"] += stored.get("damages", 0)
         stats["relationships"] += stored.get("relationships", 0)
-        
+
         return {
             "status": "success",
             "title": title,
@@ -107,7 +107,7 @@ async def process_source(
             "outcomes": len(result.outcomes),
             "damages": len(result.damages),
         }
-        
+
     except Exception as e:
         logger.error(f"Failed to process {title}: {e}", exc_info=True)
         stats["failed"] += 1
@@ -125,7 +125,7 @@ async def process_manifest(
 ) -> dict:
     """Process all sources from manifest."""
     logger.info(f"Reading manifest: {manifest_path}")
-    
+
     # Read manifest
     entries = []
     with manifest_path.open("r") as f:
@@ -137,15 +137,15 @@ async def process_manifest(
                     entries.append(entry)
                 except json.JSONDecodeError as e:
                     logger.warning(f"Invalid JSON line: {line[:100]}... Error: {e}")
-    
+
     logger.info(f"Found {len(entries)} sources in manifest")
-    
+
     # Initialize system
     settings = get_settings()
     llm = DeepSeekClient(settings.deepseek_api_key)
     kg = ArangoDBGraph()
     extractor = ClaimExtractor(knowledge_graph=kg, llm_client=llm)
-    
+
     # Process sources
     stats = {
         "processed": 0,
@@ -157,29 +157,31 @@ async def process_manifest(
         "damages": 0,
         "relationships": 0,
     }
-    
+
     results = []
-    
+
     # Process with concurrency limit
     semaphore = asyncio.Semaphore(concurrency)
-    
+
     async def process_with_limit(entry):
         async with semaphore:
             return await process_source(entry, extractor, stats)
-    
+
     tasks = [process_with_limit(entry) for entry in entries]
-    
+
     with tqdm(total=len(entries), desc="Processing sources") as pbar:
         for coro in asyncio.as_completed(tasks):
             result = await coro
             results.append(result)
             pbar.update(1)
             if result["status"] == "success":
-                pbar.set_postfix({
-                    "claims": stats["claims"],
-                    "evidence": stats["evidence"],
-                })
-    
+                pbar.set_postfix(
+                    {
+                        "claims": stats["claims"],
+                        "evidence": stats["evidence"],
+                    }
+                )
+
     return {
         "stats": stats,
         "results": results,
@@ -205,42 +207,44 @@ def main():
         type=Path,
         help="Path to save ingestion report JSON",
     )
-    
+
     args = parser.parse_args()
-    
+
     if not args.manifest.exists():
         logger.error(f"Manifest not found: {args.manifest}")
         sys.exit(1)
-    
+
     # Process manifest
-    summary = asyncio.run(process_manifest(
-        manifest_path=args.manifest,
-        concurrency=args.concurrency,
-    ))
-    
+    summary = asyncio.run(
+        process_manifest(
+            manifest_path=args.manifest,
+            concurrency=args.concurrency,
+        )
+    )
+
     # Print summary
     stats = summary["stats"]
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("INGESTION SUMMARY")
-    print("="*60)
+    print("=" * 60)
     print(f"Processed: {stats['processed']}")
     print(f"Failed: {stats['failed']}")
     print(f"Skipped: {stats['skipped']}")
-    print(f"\nExtracted:")
+    print("\nExtracted:")
     print(f"  Claims: {stats['claims']}")
     print(f"  Evidence: {stats['evidence']}")
     print(f"  Outcomes: {stats['outcomes']}")
     print(f"  Damages: {stats['damages']}")
     print(f"  Relationships: {stats['relationships']}")
-    print("="*60)
-    
+    print("=" * 60)
+
     # Save report if requested
     if args.report:
         args.report.parent.mkdir(parents=True, exist_ok=True)
         with args.report.open("w") as f:
             json.dump(summary, f, indent=2)
         logger.info(f"Report saved to {args.report}")
-    
+
     # Exit with error if any failed
     if stats["failed"] > 0:
         sys.exit(1)
@@ -248,4 +252,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

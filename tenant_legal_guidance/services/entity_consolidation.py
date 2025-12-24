@@ -121,7 +121,7 @@ class EntityConsolidationService:
         """
         # Map type strings to EntityType when possible using utility
         from tenant_legal_guidance.utils.entity_helpers import normalize_entity_type
-        
+
         type_filter: list[EntityType] | None = None
         if types:
             type_filter = []

@@ -18,34 +18,37 @@ logger = logging.getLogger(__name__)
 def normalize_entity_type(value: str | EntityType) -> EntityType:
     """
     Normalize entity type from string or EntityType to EntityType enum.
-    
+
     Accepts:
     - EntityType enum instances (returns as-is)
-    - String matching enum name ("LAW") 
+    - String matching enum name ("LAW")
     - String matching enum value ("law")
-    
+
     Returns:
         EntityType enum instance
-        
+
     Raises:
         ValueError: if value cannot be normalized
     """
     # If already an EntityType, return it
     if isinstance(value, EntityType):
         return value
-    
+
+    # Normalize string
+    value_str = str(value).strip().upper()
+
     # Try by name first (e.g., "LAW" -> EntityType.LAW)
     try:
-        return EntityType[value]
+        return EntityType[value_str]
     except KeyError:
         pass
-    
+
     # Try by value (e.g., "law" -> EntityType.LAW)
     try:
-        return EntityType(value)
+        return EntityType(value_str.lower())
     except ValueError:
         pass
-    
+
     # If both failed, raise error
     raise ValueError(
         f"Cannot normalize '{value}' to EntityType. "
@@ -57,34 +60,34 @@ def normalize_entity_type(value: str | EntityType) -> EntityType:
 def normalize_relationship_type(value: str | RelationshipType) -> RelationshipType:
     """
     Normalize relationship type from string or RelationshipType to RelationshipType enum.
-    
+
     Accepts:
     - RelationshipType enum instances (returns as-is)
     - String matching enum name ("VIOLATES")
     - String matching enum name (case-insensitive)
-    
+
     Returns:
         RelationshipType enum instance
-        
+
     Raises:
         ValueError: if value cannot be normalized
     """
     # If already a RelationshipType, return it
     if isinstance(value, RelationshipType):
         return value
-    
+
     # Try exact name match first (e.g., "VIOLATES")
     try:
         return RelationshipType[value]
     except KeyError:
         pass
-    
+
     # Try case-insensitive name match
     value_lower = value.lower() if isinstance(value, str) else str(value).lower()
     for rt in RelationshipType:
         if rt.name.lower() == value_lower:
             return rt
-    
+
     # If all attempts failed, raise error
     raise ValueError(
         f"Cannot normalize '{value}' to RelationshipType. "
@@ -95,10 +98,10 @@ def normalize_relationship_type(value: str | RelationshipType) -> RelationshipTy
 def serialize_source_metadata(metadata: SourceMetadata | dict) -> dict:
     """
     Serialize source metadata to dictionary for API responses.
-    
+
     Args:
         metadata: SourceMetadata Pydantic model or dict
-        
+
     Returns:
         dict with serialized metadata
     """
@@ -110,31 +113,31 @@ def serialize_source_metadata(metadata: SourceMetadata | dict) -> dict:
     else:
         logger.warning(f"Unexpected metadata type: {type(metadata)}")
         return {}
-    
+
     # Ensure all enum fields are serialized as strings
     for key in ["source_type", "authority", "document_type"]:
         if key in result and hasattr(result[key], "value"):
             result[key] = result[key].value
-    
+
     return result
 
 
 def serialize_entity_for_api(entity: LegalEntity) -> dict:
     """
     Serialize LegalEntity to consistent API response format.
-    
+
     Args:
         entity: LegalEntity instance
-        
+
     Returns:
         dict with serialized entity data
     """
     # Serialize source metadata
     source_metadata = serialize_source_metadata(entity.source_metadata)
-    
+
     # Get entity type value (always use .value)
     entity_type_value = entity.entity_type.value
-    
+
     return {
         "id": entity.id,
         "name": entity.name,
@@ -160,16 +163,16 @@ def serialize_entity_for_api(entity: LegalEntity) -> dict:
 def serialize_relationship_for_api(rel: LegalRelationship) -> dict:
     """
     Serialize LegalRelationship to consistent API response format.
-    
+
     Args:
         rel: LegalRelationship instance
-        
+
     Returns:
         dict with serialized relationship data
     """
     # Get relationship type name (for RelationshipType with auto(), name is the identifier)
     rel_type_name = rel.relationship_type.name
-    
+
     return {
         "source_id": rel.source_id,
         "target_id": rel.target_id,
@@ -185,10 +188,10 @@ def serialize_relationship_for_api(rel: LegalRelationship) -> dict:
 def normalize_entity_id_prefix(entity_id: str) -> str:
     """
     Extract and normalize entity type from entity ID prefix.
-    
+
     Args:
         entity_id: Entity ID in format "prefix:rest"
-        
+
     Returns:
         Normalized entity type as string (value, not name)
     """
@@ -207,13 +210,13 @@ def normalize_entity_id_prefix(entity_id: str) -> str:
 def get_entity_type_from_id(entity_id: str) -> EntityType:
     """
     Extract EntityType from entity ID.
-    
+
     Args:
         entity_id: Entity ID in format "prefix:rest"
-        
+
     Returns:
         EntityType enum
-        
+
     Raises:
         ValueError: if prefix cannot be normalized
     """
@@ -221,4 +224,3 @@ def get_entity_type_from_id(entity_id: str) -> EntityType:
         prefix = entity_id.split(":", 1)[0]
         return normalize_entity_type(prefix)
     raise ValueError(f"Entity ID '{entity_id}' has no prefix")
-

@@ -2,8 +2,6 @@
 Document processing service for the Tenant Legal Guidance System.
 """
 
-import asyncio
-import hashlib
 import json
 import logging
 import re
@@ -28,10 +26,16 @@ RELATIONSHIP_INFERENCE_RULES = {
     (EntityType.REMEDY, EntityType.DAMAGES): RelationshipType.AWARDS,
     (EntityType.LAW, EntityType.EVIDENCE): RelationshipType.REQUIRES,
     (EntityType.LAW, EntityType.DOCUMENT): RelationshipType.REQUIRES,
-    (EntityType.TENANT_ISSUE, EntityType.REMEDY): RelationshipType.APPLIES_TO,  # Issue can be resolved by remedy
+    (
+        EntityType.TENANT_ISSUE,
+        EntityType.REMEDY,
+    ): RelationshipType.APPLIES_TO,  # Issue can be resolved by remedy
     (EntityType.REMEDY, EntityType.LEGAL_PROCEDURE): RelationshipType.AVAILABLE_VIA,
     (EntityType.LEGAL_PROCEDURE, EntityType.LEGAL_OUTCOME): RelationshipType.ENABLES,
-    (EntityType.TENANT_ISSUE, EntityType.LAW): RelationshipType.VIOLATES,  # Reverse: issue violates law
+    (
+        EntityType.TENANT_ISSUE,
+        EntityType.LAW,
+    ): RelationshipType.VIOLATES,  # Reverse: issue violates law
 }
 from tenant_legal_guidance.services.case_analyzer import CaseAnalyzer
 from tenant_legal_guidance.services.case_metadata_extractor import CaseMetadataExtractor
@@ -39,6 +43,7 @@ from tenant_legal_guidance.services.concept_grouping import ConceptGroupingServi
 from tenant_legal_guidance.services.deepseek import DeepSeekClient
 from tenant_legal_guidance.services.embeddings import EmbeddingsService
 from tenant_legal_guidance.services.entity_consolidation import EntityConsolidationService
+from tenant_legal_guidance.services.entity_resolver import EntityResolver
 from tenant_legal_guidance.services.entity_service import EntityService
 from tenant_legal_guidance.services.vector_store import QdrantVectorStore
 from tenant_legal_guidance.utils.text import canonicalize_text, sha256
@@ -52,6 +57,7 @@ class DocumentProcessor:
         deepseek_client: DeepSeekClient,
         knowledge_graph: ArangoDBGraph,
         vector_store: "QdrantVectorStore | None" = None,
+        enable_entity_search: bool = True,
     ):
         self.deepseek = deepseek_client
         self.knowledge_graph = knowledge_graph
@@ -68,6 +74,11 @@ class DocumentProcessor:
         self.case_analyzer = CaseAnalyzer(self.knowledge_graph, self.deepseek)
         # Initialize entity service for consistent entity extraction and canonicalization
         self.entity_service = EntityService(self.deepseek, self.knowledge_graph)
+        # Initialize entity resolver for search-before-insert consolidation
+        self.enable_entity_search = enable_entity_search
+        self.entity_resolver = (
+            EntityResolver(self.knowledge_graph, self.deepseek) if enable_entity_search else None
+        )
 
     async def ingest_document(
         self, text: str, metadata: SourceMetadata, force_reprocess: bool = False
@@ -104,7 +115,7 @@ class DocumentProcessor:
             try:
                 sources_coll = self.knowledge_graph.db.collection("sources")
                 if sources_coll.has(source_id_check):
-                    existing_source = sources_coll.get(source_id_check)
+                    sources_coll.get(source_id_check)
                     self.logger.info(
                         f"Source already processed (SHA256: {text_sha[:12]}...), skipping extraction. "
                         f"Use force_reprocess=True to reprocess."
@@ -126,7 +137,6 @@ class DocumentProcessor:
         chunk_ids: list[str] = []
         chunk_docs: list[dict] = []
         source_id: str | None = None
-        blob_id: str | None = None
         try:
             reg = self.knowledge_graph.register_source_with_text(
                 locator=locator,
@@ -137,7 +147,7 @@ class DocumentProcessor:
                 chunk_size=3500,
             )
             source_id = reg.get("source_id")
-            blob_id = reg.get("blob_id")
+            reg.get("blob_id")
             chunk_ids = reg.get("chunk_ids", [])
             chunk_docs = reg.get("chunk_docs", [])
         except Exception as e:
@@ -149,7 +159,7 @@ class DocumentProcessor:
         # Step 2: Deduplicate entities and update relationship references
         entities, relationship_map = self._deduplicate_entities(entities)
         relationships = self._update_relationship_references(relationships, relationship_map)
-        
+
         # Step 2.25: Infer additional relationships (Pass 2: implicit)
         inferred_relationships = self._infer_relationships(entities, relationships)
         self.logger.info(
@@ -157,20 +167,79 @@ class DocumentProcessor:
         )
         relationships.extend(inferred_relationships)
 
-        # Step 2.5: No longer needed - hash-based IDs ensure same entity → same ID automatically
-        # Semantic merge removed - BM25 search handles entity matching during retrieval
+        # Step 2.5: Entity resolution - search for existing entities before creating new ones
+        entity_resolution_map: dict[str, str | None] = {}
+        consolidation_stats = {
+            "auto_merged": 0,
+            "llm_confirmed": 0,
+            "create_new": 0,
+            "cache_hits": 0,
+            "search_failures": 0,
+        }
+
+        if self.enable_entity_search and self.entity_resolver:
+            try:
+                self.logger.info(
+                    f"[EntityResolution] Resolving {len(entities)} entities to existing entities..."
+                )
+                entity_resolution_map = await self.entity_resolver.resolve_entities(
+                    entities, auto_merge_threshold=0.95
+                )
+
+                # Count resolution outcomes
+                for _entity_id, resolved_id in entity_resolution_map.items():
+                    if resolved_id:
+                        consolidation_stats["auto_merged"] += 1
+                    else:
+                        consolidation_stats["create_new"] += 1
+
+                self.logger.info(
+                    f"[EntityResolution] Complete: {consolidation_stats['auto_merged']} merged, "
+                    f"{consolidation_stats['create_new']} new"
+                )
+
+                # Update relationship references with resolved entity IDs
+                relationships = self._update_relationship_references_with_resolution(
+                    relationships, entity_resolution_map
+                )
+
+            except Exception as e:
+                self.logger.error(
+                    f"[EntityResolution] Entity resolution failed, falling back to normal flow: {e}",
+                    exc_info=True,
+                )
+                entity_resolution_map = {}
+        else:
+            self.logger.debug("[EntityResolution] Entity search disabled, skipping resolution")
 
         # Step 3: Add entities to graph with quotes and multi-source consolidation
         added_entities = []
         for entity in entities:
-            
-            # NEW: Check if entity exists in KG (for multi-source tracking)
-            existing_entity = self.knowledge_graph.get_entity(entity.id)
-            
+            # Check if entity was resolved to an existing entity
+            resolved_entity_id = entity_resolution_map.get(entity.id)
+
+            # If resolved, fetch the existing entity
+            existing_entity = None
+            if resolved_entity_id:
+                # Entity should be merged with existing entity
+                existing_entity = self.knowledge_graph.get_entity(resolved_entity_id)
+                if existing_entity:
+                    self.logger.info(
+                        f"[EntityResolution] Entity '{entity.name}' resolved to existing '{existing_entity.name}' (ID: {resolved_entity_id})"
+                    )
+                else:
+                    # Resolved ID doesn't exist (shouldn't happen, but handle gracefully)
+                    self.logger.warning(
+                        f"[EntityResolution] Resolved entity ID {resolved_entity_id} not found, creating new"
+                    )
+            else:
+                # Check if entity exists by its original ID (for backwards compatibility)
+                existing_entity = self.knowledge_graph.get_entity(entity.id)
+
             if existing_entity:
                 # ENTITY EXISTS - Add this source's info
                 self.logger.info(f"Entity {entity.id} exists, adding new source provenance")
-                
+
                 # Get the LLM-provided quote and update its metadata
                 new_quote = entity.best_quote
                 if new_quote:
@@ -185,21 +254,22 @@ class DocumentProcessor:
                     # If not found, use first chunk as fallback
                     if not quote_chunk_id and chunk_ids:
                         quote_chunk_id = chunk_ids[0]
-                    
+
                     new_quote["source_id"] = source_id
                     new_quote["chunk_id"] = quote_chunk_id
-                
+
                 # All chunks belong to this entity
                 new_chunk_ids = [ch_id for ch_id in chunk_ids if ch_id]
-                
+
                 # Merge with existing entity
                 updated_entity = self._merge_entity_sources(
                     existing_entity=existing_entity,
+                    new_entity=entity,  # Pass new entity for comparison
                     new_quote=new_quote,
                     new_chunk_ids=new_chunk_ids,
-                    new_source_id=source_id or metadata.source
+                    new_source_id=source_id or metadata.source,
                 )
-                
+
                 # Update entity in KG (overwrite=True)
                 if self.knowledge_graph.add_entity(updated_entity, overwrite=True):
                     added_entities.append(updated_entity)
@@ -220,20 +290,22 @@ class DocumentProcessor:
                     # If not found, use first chunk as fallback
                     if not quote_chunk_id and chunk_ids:
                         quote_chunk_id = chunk_ids[0]
-                    
+
                     best_quote["source_id"] = source_id
                     best_quote["chunk_id"] = quote_chunk_id
                     entity.best_quote = best_quote
                     entity.all_quotes = [best_quote]
-                
+
                 # Link entity to ALL chunks from this source (entity belongs to entire document)
                 entity.chunk_ids = [ch_id for ch_id in chunk_ids if ch_id]
-                entity.source_ids = [source_id or metadata.source] if source_id or metadata.source else []
-                
+                entity.source_ids = (
+                    [source_id or metadata.source] if source_id or metadata.source else []
+                )
+
                 # Add to KG (overwrite=False for new entities)
                 if self.knowledge_graph.add_entity(entity, overwrite=False):
                     added_entities.append(entity)
-            
+
             # Build a provenance entry with a sentence-level quote from the source if available
             quote_text, quote_offset = self._extract_best_quote(text or "", entity)
             # Attach normalized provenance with hashed quote
@@ -271,7 +343,7 @@ class DocumentProcessor:
                             chunk_index = int(chunk_entity_id.split(":")[-1])
                         except ValueError:
                             chunk_index = None
-                    
+
                     attached = self.knowledge_graph.attach_provenance(
                         subject_type="ENTITY",
                         subject_id=entity.id,
@@ -284,7 +356,7 @@ class DocumentProcessor:
                         quote_id=quote_id,
                         citation=None,
                         chunk_id=chunk_entity_id,
-                        chunk_index=chunk_index
+                        chunk_index=chunk_index,
                     )
             except Exception as e:
                 self.logger.debug(f"attach_provenance failed: {e}")
@@ -317,24 +389,26 @@ class DocumentProcessor:
                 case_document_entity = await self.case_metadata_extractor.extract_case_metadata(
                     text, metadata, source_id
                 )
-                
+
                 if case_document_entity:
                     # Add the CASE_DOCUMENT entity to the knowledge graph
                     if self.knowledge_graph.add_entity(case_document_entity, overwrite=False):
                         added_entities.append(case_document_entity)
-                        self.logger.info(f"Created CASE_DOCUMENT entity: {case_document_entity.case_name}")
-                        
+                        self.logger.info(
+                            f"Created CASE_DOCUMENT entity: {case_document_entity.case_name}"
+                        )
+
                         # Attach provenance for the case document
                         self.knowledge_graph.attach_provenance(
                             subject_type="ENTITY",
                             subject_id=case_document_entity.id,
                             source_id=source_id,
                             chunk_id=None,  # Document-level entity
-                            chunk_index=None
+                            chunk_index=None,
                         )
                     else:
                         self.logger.warning("Failed to add CASE_DOCUMENT entity to knowledge graph")
-                        
+
             except Exception as e:
                 self.logger.error(f"Stage 2 document-level synthesis failed: {e}", exc_info=True)
 
@@ -344,33 +418,34 @@ class DocumentProcessor:
             try:
                 self.logger.info("Performing enhanced case analysis with proof chains")
                 case_analysis_results = await self.case_analyzer.analyze_case_enhanced(
-                    text, 
-                    jurisdiction=metadata.jurisdiction
+                    text, jurisdiction=metadata.jurisdiction
                 )
-                
+
                 # Extract additional entities from case analysis
                 if case_analysis_results and case_analysis_results.proof_chains:
                     analysis_entities = await self._extract_entities_from_case_analysis(
                         case_analysis_results, metadata, source_id
                     )
-                    
+
                     # Add analysis entities to the knowledge graph
                     for entity in analysis_entities:
                         if self.knowledge_graph.add_entity(entity, overwrite=False):
                             added_entities.append(entity)
                             self.logger.info(f"Added analysis entity: {entity.name}")
-                            
+
                             # Attach provenance
                             self.knowledge_graph.attach_provenance(
                                 subject_type="ENTITY",
                                 subject_id=entity.id,
                                 source_id=source_id,
                                 chunk_id=None,
-                                chunk_index=None
+                                chunk_index=None,
                             )
-                
-                self.logger.info(f"Case analysis completed with {len(case_analysis_results.proof_chains) if case_analysis_results else 0} proof chains")
-                
+
+                self.logger.info(
+                    f"Case analysis completed with {len(case_analysis_results.proof_chains) if case_analysis_results else 0} proof chains"
+                )
+
             except Exception as e:
                 self.logger.error(f"Enhanced case analysis failed: {e}", exc_info=True)
 
@@ -407,56 +482,63 @@ class DocumentProcessor:
                 payloads = []
                 for i, ch in enumerate(chunk_docs):
                     enrichment = enriched_metadata[i] if i < len(enriched_metadata) else {}
-                    
+
                     # NEW: Compute chunk-specific content hash
                     chunk_content_hash = sha256(ch.get("text", ""))
-                    
+
                     # NEW: Calculate prev/next chunk IDs
-                    prev_chunk_id = f"{source_id}:{i-1}" if i > 0 else None
-                    next_chunk_id = f"{source_id}:{i+1}" if i < len(chunk_docs)-1 else None
-                    
+                    prev_chunk_id = f"{source_id}:{i - 1}" if i > 0 else None
+                    next_chunk_id = f"{source_id}:{i + 1}" if i < len(chunk_docs) - 1 else None
+
                     payloads.append(
                         {
                             "chunk_id": chunk_ids[i],  # Format: "UUID:index"
-                            "source_id": source_id,    # NEW: UUID for filtering
-                            "chunk_index": i,          # NEW: For ordering
+                            "source_id": source_id,  # NEW: UUID for filtering
+                            "chunk_index": i,  # NEW: For ordering
                             "content_hash": chunk_content_hash,  # NEW: For integrity
-                            
                             # Sequential navigation (NEW)
                             "prev_chunk_id": prev_chunk_id,
                             "next_chunk_id": next_chunk_id,
-                            
                             # Document metadata
                             "source": locator,
                             "source_type": kind,
                             "doc_title": getattr(metadata, "title", None) or "",
-                            "document_type": metadata.document_type.value if metadata.document_type else "unknown",  # NEW
+                            "document_type": (
+                                metadata.document_type.value
+                                if metadata.document_type
+                                else "unknown"
+                            ),  # NEW
                             "jurisdiction": getattr(metadata, "jurisdiction", None) or "",
                             "organization": getattr(metadata, "organization", None) or "",
                             "tags": [],  # Extract from metadata if available
-                            
                             # Entity linkage
                             "entities": entity_ids,  # All entities from this doc
-                            
                             # Chunk enrichment
                             "description": enrichment.get("description", ""),
                             "proves": enrichment.get("proves", ""),
                             "references": enrichment.get("references", ""),
-                            
                             # Content
                             "text": ch.get("text", ""),
                             "token_count": ch.get("token_count", 0),
-                            
                             # Link to CASE_DOCUMENT if applicable (NEW)
                             "doc_metadata": {
-                                "case_document_id": case_document_entity.id if case_document_entity else None
+                                "case_document_id": (
+                                    case_document_entity.id if case_document_entity else None
+                                )
                             },
-                            
                             # Case-specific metadata (if available)
-                            "case_name": case_document_entity.case_name if case_document_entity else None,
+                            "case_name": (
+                                case_document_entity.case_name if case_document_entity else None
+                            ),
                             "court": case_document_entity.court if case_document_entity else None,
-                            "docket_number": case_document_entity.docket_number if case_document_entity else None,
-                            "decision_date": case_document_entity.decision_date.isoformat() if case_document_entity and case_document_entity.decision_date else None
+                            "docket_number": (
+                                case_document_entity.docket_number if case_document_entity else None
+                            ),
+                            "decision_date": (
+                                case_document_entity.decision_date.isoformat()
+                                if case_document_entity and case_document_entity.decision_date
+                                else None
+                            ),
                         }
                     )
                 # Upsert to Qdrant
@@ -476,6 +558,7 @@ class DocumentProcessor:
             "concept_groups": concept_groups,
             "case_document": case_document_entity,  # NEW: Include case document entity
             "case_analysis": case_analysis_results,  # NEW: Include case analysis results
+            "consolidation_stats": consolidation_stats,  # NEW: Include entity consolidation statistics
         }
 
     async def _enrich_chunks_metadata_batch(
@@ -552,9 +635,9 @@ Ensure array has exactly {len(batch)} objects."""
         # Use EntityService for extraction (provides canonicalization)
         all_entities = []
         all_relationships = []
-        
+
         for i, chunk in enumerate(chunks):
-            self.logger.info(f"Processing chunk {i+1}/{len(chunks)} with EntityService")
+            self.logger.info(f"Processing chunk {i + 1}/{len(chunks)} with EntityService")
             try:
                 chunk_entities, chunk_rels = await self.entity_service.extract_entities_from_text(
                     chunk, metadata=metadata, context="ingestion"
@@ -562,46 +645,46 @@ Ensure array has exactly {len(batch)} objects."""
                 all_entities.extend(chunk_entities)
                 all_relationships.extend(chunk_rels)
             except Exception as e:
-                self.logger.error(f"Entity extraction failed for chunk {i+1}: {e}", exc_info=True)
-        
+                self.logger.error(f"Entity extraction failed for chunk {i + 1}: {e}", exc_info=True)
+
         # Convert raw relationship dicts to LegalRelationship objects
         relationship_objects = []
         entity_map = {e.name: e for e in all_entities}
-        
+
         for rel_data in all_relationships:
             try:
                 source_name = rel_data.get("source_id")
                 target_name = rel_data.get("target_id")
                 rel_type_str = rel_data.get("type")
-                
+
                 # Find entities by name
                 source_entity = entity_map.get(source_name)
                 target_entity = entity_map.get(target_name)
-                
+
                 if not source_entity or not target_entity:
                     continue
-                
+
                 # Parse relationship type
                 try:
                     rel_type = RelationshipType[rel_type_str]
                 except (KeyError, ValueError):
                     self.logger.warning(f"Invalid relationship type: {rel_type_str}")
                     continue
-                
+
                 relationship = LegalRelationship(
                     source_id=source_entity.id,
                     target_id=target_entity.id,
                     relationship_type=rel_type,
-                    attributes=rel_data.get("attributes", {})
+                    attributes=rel_data.get("attributes", {}),
                 )
                 relationship_objects.append(relationship)
             except Exception as e:
                 self.logger.error(f"Error creating relationship: {e}")
-        
+
         self.logger.info(
             f"Extracted {len(all_entities)} entities and {len(relationship_objects)} relationships using EntityService"
         )
-        
+
         return all_entities, relationship_objects
 
     def _split_text_into_chunks(self, text: str, chunk_size: int) -> list[str]:
@@ -649,7 +732,7 @@ Ensure array has exactly {len(batch)} objects."""
         deduplicated_entities = []
         relationship_map = {}  # Maps old IDs to new IDs
 
-        for (entity_type, name), group in entity_groups.items():
+        for (_entity_type, _name), group in entity_groups.items():
             if len(group) == 1:
                 # No duplicates, keep as is
                 deduplicated_entities.append(group[0])
@@ -706,48 +789,87 @@ Ensure array has exactly {len(batch)} objects."""
 
         return updated_relationships
 
+    def _update_relationship_references_with_resolution(
+        self, relationships: list[LegalRelationship], resolution_map: dict[str, str | None]
+    ) -> list[LegalRelationship]:
+        """Update relationship source and target IDs based on entity resolution map.
+
+        Args:
+            relationships: List of relationships to update
+            resolution_map: Dict mapping extracted entity IDs to existing entity IDs (or None if new)
+
+        Returns:
+            Updated relationships with resolved entity IDs
+        """
+        updated_relationships = []
+        for relationship in relationships:
+            # Update source and target IDs if they were resolved to existing entities
+            source_id = resolution_map.get(relationship.source_id)
+            if source_id is None:
+                # Not resolved, keep original ID
+                source_id = relationship.source_id
+
+            target_id = resolution_map.get(relationship.target_id)
+            if target_id is None:
+                # Not resolved, keep original ID
+                target_id = relationship.target_id
+
+            # Skip self-referential relationships
+            if source_id == target_id:
+                self.logger.debug(f"Skipping self-referential relationship: {source_id}")
+                continue
+
+            # Create new relationship with updated IDs
+            updated_relationship = LegalRelationship(
+                source_id=source_id,
+                target_id=target_id,
+                relationship_type=relationship.relationship_type,
+                attributes=relationship.attributes,
+            )
+            updated_relationships.append(updated_relationship)
+
+        return updated_relationships
+
     def _infer_relationships(
-        self, 
-        entities: list[LegalEntity], 
-        existing_relationships: list[LegalRelationship]
+        self, entities: list[LegalEntity], existing_relationships: list[LegalRelationship]
     ) -> list[LegalRelationship]:
         """
         Infer additional relationships based on entity type patterns.
-        
+
         This is Pass 2 of relationship extraction - finding implicit relationships
         that the LLM might have missed based on common legal patterns.
-        
+
         Args:
             entities: List of entities extracted from document
             existing_relationships: Relationships already extracted (to avoid duplicates)
-            
+
         Returns:
             List of inferred relationships
         """
         inferred = []
-        
+
         # Build entity lookup by ID and type
-        entity_by_id = {e.id: e for e in entities}
+        {e.id: e for e in entities}
         entities_by_type = {}
         for e in entities:
             if e.entity_type not in entities_by_type:
                 entities_by_type[e.entity_type] = []
             entities_by_type[e.entity_type].append(e)
-        
+
         # Build set of existing relationship pairs to avoid duplicates
         existing_pairs = {
             (rel.source_id, rel.target_id, rel.relationship_type.value)
             for rel in existing_relationships
         }
-        
+
         # Apply inference rules
         for (source_type, target_type), rel_type in RELATIONSHIP_INFERENCE_RULES.items():
             source_entities = entities_by_type.get(source_type, [])
             target_entities = entities_by_type.get(target_type, [])
-            
+
             if not source_entities or not target_entities:
                 continue
-            
+
             # For each source-target pair of these types, check if we should infer a relationship
             for source_entity in source_entities:
                 for target_entity in target_entities:
@@ -755,34 +877,36 @@ Ensure array has exactly {len(batch)} objects."""
                     pair_key = (source_entity.id, target_entity.id, rel_type.value)
                     if pair_key in existing_pairs:
                         continue
-                    
+
                     # Infer relationship if entities are contextually related
-                    if self._should_infer_relationship(source_entity, target_entity, source_type, target_type):
+                    if self._should_infer_relationship(
+                        source_entity, target_entity, source_type, target_type
+                    ):
                         inferred_rel = LegalRelationship(
                             source_id=source_entity.id,
                             target_id=target_entity.id,
                             relationship_type=rel_type,
-                            attributes={"inferred": True, "confidence": "medium"}
+                            attributes={"inferred": True, "confidence": "medium"},
                         )
                         inferred.append(inferred_rel)
                         existing_pairs.add(pair_key)  # Mark as added
-                        
+
                         self.logger.debug(
                             f"Inferred relationship: {source_entity.name} --{rel_type.value}--> {target_entity.name}"
                         )
-        
+
         return inferred
 
     def _should_infer_relationship(
-        self, 
-        source_entity: LegalEntity, 
+        self,
+        source_entity: LegalEntity,
         target_entity: LegalEntity,
         source_type: EntityType,
-        target_type: EntityType
+        target_type: EntityType,
     ) -> bool:
         """
         Determine if we should infer a relationship between two entities.
-        
+
         Uses heuristics like:
         - Name/description overlap
         - Jurisdiction match
@@ -791,34 +915,47 @@ Ensure array has exactly {len(batch)} objects."""
         # Check for name/description overlap (token-based)
         source_text = f"{source_entity.name} {source_entity.description or ''}".lower()
         target_text = f"{target_entity.name} {target_entity.description or ''}".lower()
-        
+
         # Extract meaningful tokens (simple inline tokenization)
         def tokenize(text):
-            tokens = re.findall(r'\w+', text.lower())
-            stop_words = {'the', 'a', 'an', 'and', 'or', 'to', 'of', 'in', 'on', 'for', 'by', 'with'}
+            tokens = re.findall(r"\w+", text.lower())
+            stop_words = {
+                "the",
+                "a",
+                "an",
+                "and",
+                "or",
+                "to",
+                "of",
+                "in",
+                "on",
+                "for",
+                "by",
+                "with",
+            }
             return {t for t in tokens if t not in stop_words and len(t) > 2}
-        
+
         source_tokens = tokenize(source_text)
         target_tokens = tokenize(target_text)
-        
+
         # If there's significant token overlap, likely related
         overlap = len(source_tokens & target_tokens) if source_tokens and target_tokens else 0
         if overlap >= 2:  # At least 2 shared meaningful tokens
             return True
-        
+
         # Check for jurisdiction match (same jurisdiction suggests relevance)
         source_juris = self._get_entity_jurisdiction(source_entity)
         target_juris = self._get_entity_jurisdiction(target_entity)
-        
+
         if source_juris and target_juris:
             if source_juris.lower() == target_juris.lower():
                 # Same jurisdiction + matching types = likely related
                 # But be conservative - only infer if there's at least 1 token overlap
                 if overlap >= 1:
                     return True
-        
+
         return False
-    
+
     def _get_entity_jurisdiction(self, entity: LegalEntity) -> str | None:
         """Extract jurisdiction from entity."""
         if entity.attributes and "jurisdiction" in entity.attributes:
@@ -935,7 +1072,7 @@ Ensure array has exactly {len(batch)} objects."""
                 "mentions_count": mentions_count,
                 "attributes": attributes,
             }
-            
+
             # Add quote fields if present
             if "best_quote" in doc:
                 entity_kwargs["best_quote"] = doc.get("best_quote")
@@ -945,7 +1082,7 @@ Ensure array has exactly {len(batch)} objects."""
                 entity_kwargs["chunk_ids"] = doc.get("chunk_ids")
             if "source_ids" in doc:
                 entity_kwargs["source_ids"] = doc.get("source_ids")
-            
+
             # Add case outcome fields if present
             if "outcome" in doc:
                 entity_kwargs["outcome"] = doc.get("outcome")
@@ -955,7 +1092,7 @@ Ensure array has exactly {len(batch)} objects."""
                 entity_kwargs["relief_granted"] = doc.get("relief_granted")
             if "damages_awarded" in doc:
                 entity_kwargs["damages_awarded"] = doc.get("damages_awarded")
-            
+
             return LegalEntity(**entity_kwargs)
         except Exception as e:
             self.logger.warning(f"Error converting document to entity: {e}")
@@ -1018,8 +1155,8 @@ Ensure array has exactly {len(batch)} objects."""
                 else:
                     base = 0.0
                 # Token overlap on name (simple tokenization)
-                name_tokens = set(re.findall(r'\w+', entity.name.lower()))
-                sent_tokens = set(re.findall(r'\w+', s.lower()))
+                name_tokens = set(re.findall(r"\w+", entity.name.lower()))
+                sent_tokens = set(re.findall(r"\w+", s.lower()))
                 overlap = 0.0
                 if name_tokens and sent_tokens:
                     inter = len(name_tokens & sent_tokens)
@@ -1045,16 +1182,13 @@ Ensure array has exactly {len(batch)} objects."""
             return best_sentence, int(best_start)
         except Exception:
             return None, None
-    
+
     async def _extract_entities_from_case_analysis(
-        self, 
-        case_analysis_results, 
-        metadata: SourceMetadata, 
-        source_id: str
+        self, case_analysis_results, metadata: SourceMetadata, source_id: str
     ) -> list[LegalEntity]:
         """Extract additional entities from case analysis results."""
         entities = []
-        
+
         try:
             # Extract entities from proof chains
             for proof_chain in case_analysis_results.proof_chains:
@@ -1071,11 +1205,11 @@ Ensure array has exactly {len(batch)} objects."""
                             "strength_assessment": proof_chain.strength_assessment,
                             "evidence_present": ",".join(proof_chain.evidence_present),
                             "evidence_needed": ",".join(proof_chain.evidence_needed),
-                            "extraction_method": "case_analysis"
-                        }
+                            "extraction_method": "case_analysis",
+                        },
                     )
                     entities.append(issue_entity)
-                
+
                 # Create entities for remedies
                 for remedy in proof_chain.remedies:
                     if remedy.name:
@@ -1088,11 +1222,11 @@ Ensure array has exactly {len(batch)} objects."""
                             attributes={
                                 "success_rate": remedy.success_rate,
                                 "reasoning": remedy.reasoning,
-                                "extraction_method": "case_analysis"
-                            }
+                                "extraction_method": "case_analysis",
+                            },
                         )
                         entities.append(remedy_entity)
-                
+
                 # Create entities for applicable laws
                 for law in proof_chain.applicable_laws:
                     if law.get("name"):
@@ -1104,70 +1238,134 @@ Ensure array has exactly {len(batch)} objects."""
                             source_metadata=metadata,
                             attributes={
                                 "source": law.get("source", ""),
-                                "extraction_method": "case_analysis"
-                            }
+                                "extraction_method": "case_analysis",
+                            },
                         )
                         entities.append(law_entity)
-            
+
             self.logger.info(f"Extracted {len(entities)} additional entities from case analysis")
             return entities
-            
+
         except Exception as e:
             self.logger.error(f"Failed to extract entities from case analysis: {e}", exc_info=True)
             return []
-    
+
     def _merge_entity_sources(
         self,
         existing_entity: LegalEntity,
+        new_entity: LegalEntity,
         new_quote: dict[str, str],
         new_chunk_ids: list[str],
-        new_source_id: str
+        new_source_id: str,
     ) -> LegalEntity:
         """
-        Merge new source information into existing entity.
-        
+        Merge new source information into existing entity with intelligent updates.
+
         Strategy:
-        - Keep best_quote as the highest-quality quote across all sources
+        - Use better name (more complete/canonical version)
+        - Merge descriptions (keep longest or most informative)
+        - Update metadata with most authoritative source
+        - Keep best_quote as highest-quality quote
         - Add new quote to all_quotes list
         - Append new chunk_ids (deduplicated)
         - Append new source_id (deduplicated)
         - Increment mentions_count
         """
-        # Add to all_quotes (deduplicate by quote text)
+        # 1. Update NAME if new one is better (more complete)
+        # Prefer longer, more descriptive names
+        if len(new_entity.name) > len(existing_entity.name):
+            self.logger.info(
+                f"[Merge] Updating entity name: '{existing_entity.name}' → '{new_entity.name}'"
+            )
+            existing_entity.name = new_entity.name
+
+        # 2. Update DESCRIPTION if new one is better (longer and non-empty)
+        existing_desc = existing_entity.description or ""
+        new_desc = new_entity.description or ""
+        if new_desc and len(new_desc) > len(existing_desc):
+            self.logger.info(
+                f"[Merge] Updating entity description: '{existing_desc[:50]}...' → '{new_desc[:50]}...'"
+            )
+            existing_entity.description = new_desc
+
+        # 3. Update METADATA with most authoritative source
+        existing_authority = existing_entity.source_metadata.authority
+        new_authority = new_entity.source_metadata.authority
+
+        # Authority ranking (higher is better)
+        authority_rank = {
+            "BINDING_LEGAL_AUTHORITY": 6,
+            "PERSUASIVE_AUTHORITY": 5,
+            "OFFICIAL_INTERPRETIVE": 4,
+            "REPUTABLE_SECONDARY": 3,
+            "PRACTICAL_SELF_HELP": 2,
+            "INFORMATIONAL_ONLY": 1,
+        }
+
+        existing_rank = authority_rank.get(str(existing_authority), 0)
+        new_rank = authority_rank.get(str(new_authority), 0)
+
+        if new_rank > existing_rank:
+            self.logger.info(
+                f"[Merge] Updating source metadata: {existing_authority} → {new_authority}"
+            )
+            existing_entity.source_metadata = new_entity.source_metadata
+
+        # 4. Merge ATTRIBUTES (keep all unique attributes)
+        if new_entity.attributes:
+            if not existing_entity.attributes:
+                existing_entity.attributes = {}
+            for key, value in new_entity.attributes.items():
+                # Don't overwrite existing attributes, but add new ones
+                if key not in existing_entity.attributes:
+                    existing_entity.attributes[key] = value
+
+        # 5. Add to all_quotes (deduplicate by quote text)
         if not existing_entity.all_quotes:
             existing_entity.all_quotes = []
-        
+
         # Check if this quote already exists (compare by text content)
         if new_quote:
             new_quote_text = new_quote.get("text", "")
             quote_exists = False
             for existing_quote in existing_entity.all_quotes:
-                if isinstance(existing_quote, dict) and existing_quote.get("text", "") == new_quote_text:
+                if (
+                    isinstance(existing_quote, dict)
+                    and existing_quote.get("text", "") == new_quote_text
+                ):
                     quote_exists = True
                     break
-            
+
             if not quote_exists and new_quote_text:
                 existing_entity.all_quotes.append(new_quote)
-            
-            # Update best_quote if new quote is better (or if none exists)
-            # For simplicity, just keep the first one or the one with non-empty text
-            if not existing_entity.best_quote or (new_quote.get("text") and not existing_entity.best_quote.get("text")):
+
+            # Update best_quote if new quote is better (longer/more complete)
+            if not existing_entity.best_quote:
                 existing_entity.best_quote = new_quote
-        
-        # Merge chunk_ids (deduplicate)
+            elif new_quote.get("text"):
+                existing_text = existing_entity.best_quote.get("text", "")
+                new_text = new_quote.get("text", "")
+                if len(new_text) > len(existing_text):
+                    existing_entity.best_quote = new_quote
+
+        # 6. Merge chunk_ids (deduplicate)
         if not existing_entity.chunk_ids:
             existing_entity.chunk_ids = []
         for chunk_id in new_chunk_ids:
             if chunk_id and chunk_id not in existing_entity.chunk_ids:
                 existing_entity.chunk_ids.append(chunk_id)
-        
-        # Merge source_ids (deduplicate)
+
+        # 7. Merge source_ids (deduplicate)
         if not existing_entity.source_ids:
             existing_entity.source_ids = []
         if new_source_id and new_source_id not in existing_entity.source_ids:
             existing_entity.source_ids.append(new_source_id)
-        
-        # Update mentions_count
-        existing_entity.mentions_count = len(existing_entity.source_ids) if existing_entity.source_ids else (existing_entity.mentions_count or 0) + 1
-        
+
+        # 8. Update mentions_count
+        existing_entity.mentions_count = (
+            len(existing_entity.source_ids)
+            if existing_entity.source_ids
+            else (existing_entity.mentions_count or 0) + 1
+        )
+
         return existing_entity

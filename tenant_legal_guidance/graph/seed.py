@@ -181,10 +181,10 @@ def main():
 
     if args.__dict__.get("ny_habitability"):
         added = seed_ny_habitability()
-        print({"status": "ok", "added": added})
+        print(f"✅ Seeded {added} entities for NY Habitability")
         sys.exit(0)
 
-    print("No action specified. Use --ny-habitability")
+    print("No action specified. Use --ny-habitability or --claim-types")
     sys.exit(1)
 
 

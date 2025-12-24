@@ -9,12 +9,12 @@ including main case analysis, issue identification, evidence extraction, etc.
 def get_main_case_analysis_prompt(case_text: str, context: str, json_spec: str) -> str:
     """
     Generate the main comprehensive legal case analysis prompt.
-    
+
     Args:
         case_text: The tenant's case description
         context: Relevant legal context from knowledge graph
         json_spec: JSON specification for citations
-        
+
     Returns:
         Formatted prompt string
     """
@@ -80,10 +80,10 @@ Be thorough but accessible. Use specific legal terminology when appropriate."""
 def get_evidence_extraction_prompt(case_text: str) -> str:
     """
     Generate prompt for extracting evidence mentioned in a case.
-    
+
     Args:
         case_text: The tenant's case description
-        
+
     Returns:
         Formatted prompt string
     """
@@ -106,16 +106,16 @@ If a category has no items, use an empty array []."""
 def get_graph_chain_analysis_prompt(case_text: str, chain_context: list[str]) -> str:
     """
     Generate prompt for analyzing how a legal chain from the KG applies to a case.
-    
+
     Args:
         case_text: The tenant's case description
         chain_context: List of formatted chain steps from knowledge graph
-        
+
     Returns:
         Formatted prompt string
     """
-    chain_str = '\n'.join(['• ' + c for c in chain_context])
-    
+    chain_str = "\n".join(["• " + c for c in chain_context])
+
     return f"""You are analyzing how this verified legal chain applies to the tenant's specific case.
 
 TENANT'S CASE: {case_text[:2000]}
@@ -136,11 +136,11 @@ Return ONLY valid JSON:
 def get_issue_identification_prompt(case_text: str, sources_text: str) -> str:
     """
     Generate prompt for identifying legal issues in a case (Stage 1).
-    
+
     Args:
         case_text: The tenant's case description
         sources_text: Available legal sources
-        
+
     Returns:
         Formatted prompt string
     """
@@ -158,20 +158,17 @@ Return JSON array:"""
 
 
 def get_issue_analysis_prompt(
-    issue: str,
-    case_text: str,
-    relevant_context: str,
-    is_retry: bool = False
+    issue: str, case_text: str, relevant_context: str, is_retry: bool = False
 ) -> str:
     """
     Generate prompt for analyzing a specific issue with applicable laws.
-    
+
     Args:
         issue: The specific issue to analyze
         case_text: The tenant's case description
         relevant_context: Relevant sources with [S#] markers
         is_retry: Whether this is a shorter retry version
-        
+
     Returns:
         Formatted prompt string
     """
@@ -191,7 +188,7 @@ Return JSON:
     "strength_assessment": "strong|moderate|weak",
     "reasoning": "Brief..."
 }}"""
-    
+
     # Full version
     return f"""Analyze the issue of "{issue}" in this tenant case using ONLY the provided sources.
 
@@ -239,20 +236,17 @@ Return ONLY valid JSON (no markdown):
 
 
 def get_case_summary_prompt(
-    case_text: str,
-    issues_summary: str,
-    overall_strength: str,
-    sources_text: str
+    case_text: str, issues_summary: str, overall_strength: str, sources_text: str
 ) -> str:
     """
     Generate prompt for creating a final case summary.
-    
+
     Args:
         case_text: The tenant's case description
         issues_summary: Summary of identified issues
         overall_strength: Overall assessment of case strength
         sources_text: Available sources with [S#] markers
-        
+
     Returns:
         Formatted prompt string
     """
@@ -267,5 +261,3 @@ Sources (cite with [S#]):
 {sources_text[:1000] if sources_text else "Limited sources"}
 
 Summary (cite sources):"""
-
-

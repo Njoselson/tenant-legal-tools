@@ -1,0 +1,52 @@
+Getting database statistics...
+uv run python -m tenant_legal_guidance.scripts.reset_database --stats
+Connecting to ArangoDB...
+Connected to database: tenant_legal_kg
+
+
+============================================================
+DATABASE STATISTICS
+============================================================
+  actors                                  0 documents
+  applies_to                              0 documents
+  available_via                           0 documents
+  awards                                  0 documents
+  campaigns                               0 documents
+  court_cases                             0 documents
+  damages                                 0 documents
+  documents                               0 documents
+  edges                                  85 documents
+  enables                                 0 documents
+  entities                               70 documents
+  events                                  0 documents
+  evidence                                0 documents
+  filed_in                                0 documents
+  government_entities                     0 documents
+  jurisdictions                           0 documents
+  landlords                               0 documents
+  laws                                    0 documents
+  legal_concepts                          0 documents
+  legal_outcomes                          0 documents
+  legal_procedures                        0 documents
+  legal_services                          0 documents
+  mentions                                0 documents
+  organizing_outcomes                     0 documents
+  prohibits                               0 documents
+  provenance                             71 documents
+  provided_by                             0 documents
+  quotes                                 49 documents
+  remedies                                0 documents
+  requires                                0 documents
+  results_in                              0 documents
+  sources                                 4 documents
+  supported_by                            0 documents
+  tactics                                 0 documents
+  tenant_groups                           0 documents
+  tenant_issues                           0 documents
+  tenants                                 0 documents
+  text_blobs                              4 documents
+  violates                                0 documents
+------------------------------------------------------------
+  TOTAL                                 283 documents
+============================================================
+

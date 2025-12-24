@@ -16,6 +16,7 @@ from tenant_legal_guidance.models.entities import EntityType, LegalEntity
 from tenant_legal_guidance.services.deepseek import DeepSeekClient
 from tenant_legal_guidance.services.entity_service import EntityService
 from tenant_legal_guidance.services.retrieval import HybridRetriever
+from tenant_legal_guidance.services.vector_store import QdrantVectorStore
 
 
 @dataclass
@@ -99,7 +100,7 @@ class CaseAnalyzer:
         self,
         graph: ArangoDBGraph,
         llm_client: DeepSeekClient,
-        vector_store: "QdrantVectorStore | None" = None,
+        vector_store: QdrantVectorStore | None = None,
     ):
         self.graph = graph
         self.llm_client = llm_client
@@ -154,10 +155,10 @@ class CaseAnalyzer:
         return found_terms
 
     def retrieve_relevant_entities(
-        self, 
+        self,
         key_terms: list[str],
         linked_entity_ids: list[str] | None = None,
-        query_entities: list[LegalEntity] | None = None
+        query_entities: list[LegalEntity] | None = None,
     ) -> dict[str, Any]:
         """Retrieve relevant entities and chunks using hybrid retrieval (vector + ArangoSearch + KG)."""
         # Build query from key terms
@@ -166,16 +167,16 @@ class CaseAnalyzer:
         # Use hybrid retriever (vector search + entity search + KG expansion)
         # Pass linked entity IDs for direct lookup and neighbor expansion
         results = self.retriever.retrieve(
-            query_text, 
-            top_k_chunks=20, 
-            top_k_entities=50, 
+            query_text,
+            top_k_chunks=20,
+            top_k_entities=50,
             expand_neighbors=True,
-            linked_entity_ids=linked_entity_ids or []
+            linked_entity_ids=linked_entity_ids or [],
         )
 
         chunks = results.get("chunks", [])
         entities = results.get("entities", [])
-        
+
         # Add query entities to the entity list (for transparency)
         if query_entities:
             # Convert query entities with proper IDs (use linked IDs if available)
@@ -254,7 +255,7 @@ class CaseAnalyzer:
         return "\n".join(context_parts)
 
     def build_sources_index(
-        self, entities: list[Any], chunks: list[dict] = None, max_sources: int = 20
+        self, entities: list[Any], chunks: list[dict] | None = None, max_sources: int = 20
     ) -> tuple[str, dict[str, dict[str, Any]]]:
         """Create a numbered sources list and a map S# -> source details for prompting and UI.
         Handles both LegalEntity objects, dicts from API calls, and chunk dicts from vector search.
@@ -309,12 +310,12 @@ class CaseAnalyzer:
             doc_title = chunk.get("doc_title", "")
             source_url = chunk.get("source", "")
             organization = chunk.get("organization") or "NYC Admin"
-            
+
             # Better entity name that includes organization
             entity_name = f"{doc_title or 'Legal Document'}"
             if organization:
                 entity_name += f" ({organization})"
-            
+
             candidates.append(
                 {
                     "entity_id": chunk.get("chunk_id"),
@@ -326,7 +327,9 @@ class CaseAnalyzer:
                     "authority": "reputable_secondary",  # Default for chunks
                     "quote": chunk.get("text") or "",  # No truncation - full chunk text
                     "full_text": chunk.get("text"),  # Full chunk text (same as quote for chunks)
-                    "surrounding_context": chunk.get("surrounding_text"),  # If available from retrieval
+                    "surrounding_context": chunk.get(
+                        "surrounding_text"
+                    ),  # If available from retrieval
                     "provenance_id": None,
                     "anchor_url": source_url,
                     "document_type": chunk.get("document_type"),
@@ -411,40 +414,40 @@ class CaseAnalyzer:
         for idx, c in enumerate(final, start=1):
             sid = f"S{idx}"
             citations_map[sid] = c
-            
+
             # Build comprehensive label with organization
             label_bits = []
             if c.get("entity_name"):
                 label_bits.append(c["entity_name"])
             elif c.get("title"):
                 label_bits.append(c["title"])
-            
+
             # Add organization if available
             if c.get("organization"):
                 label_bits.append(c["organization"])
-            
+
             # Add jurisdiction if available
             if c.get("jurisdiction"):
                 label_bits.append(str(c["jurisdiction"]))
-            
+
             # Build source line
             if label_bits:
                 src_line = f"[{sid}] {' — '.join(b for b in label_bits if b)}"
             else:
                 src_line = f"[{sid}] Source"
-            
+
             # Add URL
             url = c.get("anchor_url") or c.get("source")
             if url and isinstance(url, str):
                 src_line += f" | {url}"
-            
+
             # Add quote preview (longer for context)
             if c.get("quote"):
                 q = c["quote"].strip().replace("\n", " ")
                 if len(q) > 400:  # Increased from 220 to 400 chars
                     q = q[:397] + "…"
                 src_line += f'\n> "{q}"'
-            
+
             sources_lines.append(src_line)
 
         return ("\n".join(sources_lines) if sources_lines else ""), citations_map
@@ -522,7 +525,6 @@ class CaseAnalyzer:
             "next_steps": [],
         }
         structured_sections: dict[str, Any] | None = None
-        citations_map_placeholder: dict[str, dict[str, Any]] | None = None
 
         # Try JSON first
         try:
@@ -580,12 +582,12 @@ class CaseAnalyzer:
         number_regex = re.compile(r"^\s*(?:\d+\.|\(\d+\)|\d+\))\s+(.*)")
 
         for line in lines:
-            line = line.strip()
-            if not line:
+            stripped_line = line.strip()
+            if not stripped_line:
                 continue
 
             # Detect section headers (more flexible matching)
-            normalized = re.sub(r"[^A-Z ]", "", line.upper())
+            normalized = re.sub(r"[^A-Z ]", "", stripped_line.upper())
             if "CASE SUMMARY" in normalized:
                 current_section = "case_summary"
                 continue
@@ -628,17 +630,17 @@ class CaseAnalyzer:
                         continue
 
             # Paragraphs for summary/risk
-            if current_section == "case_summary" and not line.startswith("#"):
+            if current_section == "case_summary" and not stripped_line.startswith("#"):
                 if sections["case_summary"]:
-                    sections["case_summary"] += " " + line
+                    sections["case_summary"] += " " + stripped_line
                 else:
-                    sections["case_summary"] = line
+                    sections["case_summary"] = stripped_line
                 continue
-            if current_section == "risk_assessment" and not line.startswith("#"):
+            if current_section == "risk_assessment" and not stripped_line.startswith("#"):
                 if sections["risk_assessment"]:
-                    sections["risk_assessment"] += " " + line
+                    sections["risk_assessment"] += " " + stripped_line
                 else:
-                    sections["risk_assessment"] = line
+                    sections["risk_assessment"] = stripped_line
                 continue
 
         guidance = LegalGuidance(**sections)
@@ -802,7 +804,7 @@ If a category has no items, use an empty array []."""
 
         # Check what's present vs needed
         all_present = []
-        for category, items in evidence_present.items():
+        for _category, items in evidence_present.items():
             all_present.extend(items)
 
         # Common critical requirements for tenant cases
@@ -966,7 +968,7 @@ If a category has no items, use an empty array []."""
     ) -> list[dict]:
         """Extract legal elements from graph chains and LLM analysis."""
         elements = []
-        
+
         # Get required evidence from graph chains
         required_evidence_types = set()
         for chain_data in graph_chains:
@@ -974,73 +976,85 @@ If a category has no items, use an empty array []."""
             for node in chain:
                 if isinstance(node, dict) and node.get("type") == "evidence":
                     required_evidence_types.add(node.get("name", ""))
-        
+
         # Match with LLM analysis
         evidence_present = llm_analysis.get("evidence_present", [])
-        evidence_needed = llm_analysis.get("evidence_needed", [])
-        
+        llm_analysis.get("evidence_needed", [])
+
         # Build element list
         for evidence_type in required_evidence_types:
             if not evidence_type:
                 continue
             satisfied = any(evidence_type.lower() in ep.lower() for ep in evidence_present)
-            elements.append({
-                "element_name": evidence_type,
-                "required": True,
-                "satisfied": satisfied,
-                "evidence": [ep for ep in evidence_present if evidence_type.lower() in ep.lower()] if satisfied else []
-            })
-        
+            elements.append(
+                {
+                    "element_name": evidence_type,
+                    "required": True,
+                    "satisfied": satisfied,
+                    "evidence": (
+                        [ep for ep in evidence_present if evidence_type.lower() in ep.lower()]
+                        if satisfied
+                        else []
+                    ),
+                }
+            )
+
         return elements
 
     def _verify_chain_against_graph(
-        self, issue: str, laws: list[dict], remedies: list[RemedyOption], entities: list[LegalEntity]
+        self,
+        issue: str,
+        laws: list[dict],
+        remedies: list[RemedyOption],
+        entities: list[LegalEntity],
     ) -> dict[str, bool]:
         """Verify proof chain elements exist in knowledge graph."""
         verification = {
             "laws_apply_to_issue": True,
             "remedies_enabled_by_laws": True,
-            "graph_path_exists": True
+            "graph_path_exists": True,
         }
-        
+
         try:
             # Build entity lookup
             entity_by_name = {e.name.lower(): e for e in entities}
-            
+
             # Check laws apply to issue
             for law_dict in laws:
                 law_name = law_dict.get("name", "").lower()
                 if law_name not in entity_by_name:
                     verification["laws_apply_to_issue"] = False
                     continue
-            
+
             # Check remedies enabled by laws
             for remedy in remedies[:3]:  # Check top 3
                 remedy_name = remedy.name.lower()
                 if remedy_name not in entity_by_name:
                     verification["remedies_enabled_by_laws"] = False
                     continue
-                
+
                 # Check if any law enables this remedy
                 remedy_entity = entity_by_name[remedy_name]
                 law_entities = [
-                    entity_by_name.get(l.get("name", "").lower())
-                    for l in laws
-                    if l.get("name", "").lower() in entity_by_name
+                    entity_by_name.get(law_item.get("name", "").lower())
+                    for law_item in laws
+                    if law_item.get("name", "").lower() in entity_by_name
                 ]
-                
+
                 if law_entities:
                     relationships = self.graph.get_relationships_among(
                         [remedy_entity.id] + [le.id for le in law_entities if le]
                     )
-                    has_enables = any("ENABLE" in str(rel.relationship_type).upper() for rel in relationships)
+                    has_enables = any(
+                        "ENABLE" in str(rel.relationship_type).upper() for rel in relationships
+                    )
                     if not has_enables:
                         verification["remedies_enabled_by_laws"] = False
-        
+
         except Exception as e:
             self.logger.warning(f"Verification failed: {e}")
             verification["graph_path_exists"] = False
-        
+
         return verification
 
     def generate_next_steps(
@@ -1208,13 +1222,15 @@ If a category has no items, use an empty array []."""
             f"Extracted {len(query_entities)} entities from query: "
             f"{[f'{e.entity_type.value}:{e.name}' for e in query_entities[:5]]}"
         )
-        
+
         # Step 2: Link query entities to KG entities (NEW)
         self.logger.info("Linking query entities to knowledge graph...")
-        entity_link_map = await self.entity_service.link_entities_to_kg(query_entities, threshold=0.85)
+        entity_link_map = await self.entity_service.link_entities_to_kg(
+            query_entities, threshold=0.85
+        )
         linked_entity_ids = list(entity_link_map.values())
         self.logger.info(f"Linked {len(linked_entity_ids)} query entities to KG entities")
-        
+
         # Step 3: Extract key terms (existing, for backward compatibility)
         key_terms = self.extract_key_terms(case_text)
         self.logger.info(f"Extracted key terms: {key_terms}")
@@ -1222,9 +1238,7 @@ If a category has no items, use an empty array []."""
         # Step 4: Retrieve relevant entities and chunks (ENHANCED)
         # Pass both key terms AND linked entity IDs for comprehensive retrieval
         relevant_data = self.retrieve_relevant_entities(
-            key_terms, 
-            linked_entity_ids=linked_entity_ids,
-            query_entities=query_entities
+            key_terms, linked_entity_ids=linked_entity_ids, query_entities=query_entities
         )
         chunks = relevant_data.get("chunks", [])
         entities = relevant_data.get("entities", [])
@@ -1243,22 +1257,20 @@ If a category has no items, use an empty array []."""
         # Step 5: GRAPH-FIRST - Get verified graph chains for each issue
         proof_chains = []
         evidence_present = await self.extract_evidence_from_case(case_text)
-        
+
         for issue in issues[:5]:  # Limit to top 5 issues
             # Get graph chains FIRST (ground truth from knowledge graph)
             graph_chains = self.graph.build_legal_chains(
-                issues=[issue],
-                jurisdiction=jurisdiction,
-                limit=10
+                issues=[issue], jurisdiction=jurisdiction, limit=10
             )
-            
+
             self.logger.info(f"Got {len(graph_chains)} graph chains for issue: {issue}")
-            
+
             if len(graph_chains) == 0:
                 # No graph chains = weak/unknown issue
                 self.logger.warning(f"No graph chains found for {issue} - skipping")
                 continue
-            
+
             # Extract entities from first chain as ground truth
             chain_data = graph_chains[0].get("chain", [])
             chain_entities = {}
@@ -1268,16 +1280,16 @@ If a category has no items, use an empty array []."""
                     entity_name = node.get("name", "")
                     chain_entities[entity_type] = chain_entities.get(entity_type, [])
                     chain_entities[entity_type].append(entity_name)
-            
+
             # Now ask LLM to explain THIS chain in context of user's case
             analysis = await self._analyze_issue_with_graph_chain(
                 issue, case_text, graph_chains, entities, chunks, sources_text, jurisdiction
             )
-            
+
             if not analysis or isinstance(analysis, Exception):
                 self.logger.warning(f"Issue analysis failed for {issue}")
                 continue
-            
+
             # Extract actual law/remedy names from graph chain
             laws_from_chain = []
             remedies_from_chain = []
@@ -1285,33 +1297,33 @@ If a category has no items, use an empty array []."""
                 chain = chain_data.get("chain", [])
                 for node in chain:
                     if node.get("type") == "law":
-                        laws_from_chain.append({"name": node.get("name", ""), "cite": node.get("cite")})
+                        laws_from_chain.append(
+                            {"name": node.get("name", ""), "cite": node.get("cite")}
+                        )
                     elif node.get("type") == "remedy":
                         remedies_from_chain.append(node.get("name", ""))
-            
+
             # Rank remedies (using graph chain ones first)
-            ranked_remedies = self.rank_remedies(
-                issue, entities, chunks, 0.5, jurisdiction
-            )
-            
+            ranked_remedies = self.rank_remedies(issue, entities, chunks, 0.5, jurisdiction)
+
             # Prioritize remedies that are in graph chain
             chain_remedy_names = set(remedies_from_chain)
             ranked_remedies_sorted = sorted(
                 ranked_remedies,
                 key=lambda r: (r.name.lower() in chain_remedy_names, -r.estimated_probability),
-                reverse=True
+                reverse=True,
             )
-            
+
             # Extract legal elements
             legal_elements = self._extract_elements_from_chains(graph_chains, analysis)
-            
+
             # Calculate strength based on evidence vs requirements
             present_count = sum(len(v) for v in evidence_present.values())
             required_count = len(legal_elements)
             evidence_strength = (
                 min(1.0, present_count / max(1, required_count)) if required_count > 0 else 0.3
             )
-            
+
             # Determine strength assessment
             if evidence_strength >= 0.7:
                 strength_assessment = "strong"
@@ -1319,11 +1331,13 @@ If a category has no items, use an empty array []."""
                 strength_assessment = "moderate"
             else:
                 strength_assessment = "weak"
-            
+
             # Build proof chain with graph as foundation
             proof_chain = LegalProofChain(
                 issue=issue,
-                applicable_laws=laws_from_chain[:5] if laws_from_chain else analysis.get("applicable_laws", []),
+                applicable_laws=(
+                    laws_from_chain[:5] if laws_from_chain else analysis.get("applicable_laws", [])
+                ),
                 evidence_present=analysis.get("evidence_present", []),
                 evidence_needed=analysis.get("evidence_needed", []),
                 strength_score=evidence_strength,
@@ -1335,7 +1349,7 @@ If a category has no items, use an empty array []."""
                 legal_elements=legal_elements,
                 verification_status={"graph_path_exists": True, "verified": True},
             )
-            
+
             proof_chains.append(proof_chain)
 
         # Step 7: Analyze evidence gaps
@@ -1416,27 +1430,36 @@ If a category has no items, use an empty array []."""
         return enhanced_guidance
 
     async def _analyze_issue_with_graph_chain(
-        self, issue: str, case_text: str, graph_chains: list[dict],
-        entities: list, chunks: list[dict], sources_text: str, jurisdiction: str | None
+        self,
+        issue: str,
+        case_text: str,
+        graph_chains: list[dict],
+        entities: list,
+        chunks: list[dict],
+        sources_text: str,
+        jurisdiction: str | None,
     ) -> dict:
         """Analyze issue using graph chain as ground truth, asking LLM to explain how it applies."""
-        
+
         # Format graph chain as context
         chain_context = []
         for chain_data in graph_chains[:2]:  # Use first 2 chains
             chain = chain_data.get("chain", [])
-            chain_str = " → ".join([
-                f"{node.get('type', '')}: {node.get('name', '')}" 
-                for node in chain if node.get("type")
-            ])
+            chain_str = " → ".join(
+                [
+                    f"{node.get('type', '')}: {node.get('name', '')}"
+                    for node in chain
+                    if node.get("type")
+                ]
+            )
             chain_context.append(chain_str)
-        
+
         prompt = f"""You are analyzing how this verified legal chain applies to the tenant's specific case.
 
 TENANT'S CASE: {case_text[:2000]}
 
 VERIFIED LEGAL CHAIN (from knowledge graph):
-{chr(10).join(['• ' + c for c in chain_context])}
+{chr(10).join(["• " + c for c in chain_context])}
 
 Your task: Explain how each step of this chain applies to the tenant's specific case. Reference exact facts from the case (dates, amounts, descriptions).
 
@@ -1446,7 +1469,7 @@ Return ONLY valid JSON:
     "evidence_needed": ["List what evidence is needed but not mentioned"],
     "reasoning": "Explain how the graph chain applies to THIS specific case, citing tenant's own words"
 }}"""
-        
+
         try:
             response = await self.llm_client.chat_completion(prompt)
             json_match = re.search(r"\{[\s\S]*\}", response)
@@ -1454,11 +1477,11 @@ Return ONLY valid JSON:
                 return json.loads(json_match.group(0))
         except Exception as e:
             self.logger.warning(f"Failed to analyze issue with graph chain: {e}")
-        
+
         return {
             "evidence_present": [],
             "evidence_needed": [],
-            "reasoning": "Unable to analyze with graph chain"
+            "reasoning": "Unable to analyze with graph chain",
         }
 
     async def _identify_issues(self, case_text: str, sources_text: str) -> list[str]:

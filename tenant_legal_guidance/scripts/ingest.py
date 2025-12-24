@@ -338,11 +338,11 @@ async def process_manifest(
     entries: list[ManifestEntry] = []
     with manifest_path.open("r", encoding="utf-8") as f:
         for line_num, line in enumerate(f, start=1):
-            line = line.strip()
-            if not line:
+            stripped_line = line.strip()
+            if not stripped_line:
                 continue
             try:
-                data = json.loads(line)
+                data = json.loads(stripped_line)
                 entry = ManifestEntry(**data)
                 entries.append(entry)
             except Exception as e:
@@ -426,6 +426,12 @@ def main():
         help="Skip sources that have been processed (requires checkpoint)",
     )
 
+    parser.add_argument(
+        "--skip-entity-search",
+        action="store_true",
+        help="Skip entity resolution search (for debugging/testing)",
+    )
+
     parser.add_argument("--report", type=Path, help="Output report file (JSON)")
 
     args = parser.parse_args()
@@ -436,8 +442,13 @@ def main():
 
     try:
         # Initialize system
-        logger.info("Initializing TenantLegalSystem...")
-        system = TenantLegalSystem(deepseek_api_key=args.deepseek_key)
+        enable_entity_search = not args.skip_entity_search
+        logger.info(
+            f"Initializing TenantLegalSystem (entity_search={'enabled' if enable_entity_search else 'disabled'})..."
+        )
+        system = TenantLegalSystem(
+            deepseek_api_key=args.deepseek_key, enable_entity_search=enable_entity_search
+        )
 
         # Determine manifest path
         manifest_path = args.manifest

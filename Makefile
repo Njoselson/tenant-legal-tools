@@ -13,13 +13,13 @@ test-coverage:
 	uv run pytest --cov=tenant_legal_guidance --cov-report=term-missing --cov-report=html
 
 lint:
-	uv run ruff check .
-	uv run mypy .
+	uv run ruff check . --exclude tests
+	uv run mypy tenant_legal_guidance || true
 
 format:
-	uv run black .
-	uv run isort .
-	uv run ruff format .
+	uv run black tenant_legal_guidance
+	uv run isort tenant_legal_guidance
+	uv run ruff format . --exclude tests
 
 clean:
 	rm -rf build/

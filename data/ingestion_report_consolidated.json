@@ -1,0 +1,11 @@
+{
+  "total": 4,
+  "processed": 4,
+  "skipped": 0,
+  "failed": 0,
+  "added_entities": 108,
+  "added_relationships": 79,
+  "elapsed_seconds": 308.190373,
+  "avg_per_source": 77.04759325,
+  "errors": []
+}

@@ -150,7 +150,7 @@ class CHTUScraper:
                 continue
 
         # Light clean-up: keep only links that look like documents/resources, not site nav
-        filtered = [l for l in links if self._looks_like_resource(l)]
+        filtered = [link for link in links if self._looks_like_resource(link)]
         return filtered
 
     def scrape(self) -> list[ResourceLink]:

@@ -9,8 +9,6 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    # Only deploy if CI tests pass (if you want to require tests first)
-    # needs: [test, lint]
     
     steps:
       - name: Checkout code
@@ -71,4 +69,3 @@ jobs:
         run: |
           echo "🎉 Deployment to Hetzner completed!"
           echo "Your app should be live at: https://tenantlegal.ddns.net"
-

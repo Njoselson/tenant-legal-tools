@@ -138,6 +138,10 @@ Return ONLY the JSON array, nothing else.
         Returns:
             List of matching claim types with evidence assessment
         """
+        # Early return for empty/whitespace-only inputs to avoid expensive API calls
+        if not situation or not situation.strip():
+            return [], []
+
         # Get all unique claim types from stored claims
         all_claim_types = self.kg.get_all_claim_types()
 
@@ -154,7 +158,15 @@ Return ONLY the JSON array, nothing else.
 
         # Build claim types with required evidence
         claim_types_data = []
-        for claim_type_str in all_claim_types:
+        for claim_type_item in all_claim_types:
+            # Handle both string and dict formats
+            if isinstance(claim_type_item, dict):
+                claim_type_str = claim_type_item.get("canonical_name") or claim_type_item.get(
+                    "name", ""
+                )
+            else:
+                claim_type_str = str(claim_type_item)
+
             required_evidence = self.kg.get_required_evidence_for_claim_type(claim_type_str)
             claim_types_data.append(
                 {

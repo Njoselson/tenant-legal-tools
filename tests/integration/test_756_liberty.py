@@ -35,10 +35,8 @@ def expected_output():
     return json.loads(fixture_path.read_text())
 
 
-@pytest.fixture
-def deepseek_client():
-    """Create a real DeepSeek client for integration tests."""
-    return DeepSeekClient()
+# Note: deepseek_client fixture is now in tests/conftest.py and returns a mock by default
+# Use deepseek_client_real for tests that need real LLM calls
 
 
 # ============================================================================
@@ -135,6 +133,7 @@ class TestExpectedOutputValidation:
 
 
 @pytest.mark.integration
+@pytest.mark.slow
 @pytest.mark.skipif(
     not Path(__file__).parent.parent.parent.joinpath(".env").exists(),
     reason="No .env file with API keys",
@@ -143,7 +142,8 @@ class TestLiveExtraction:
     """Integration tests that call the real LLM."""
 
     @pytest.mark.asyncio
-    async def test_extract_claims_from_case(self, case_text, deepseek_client, expected_output):
+    @pytest.mark.slow
+    async def test_extract_claims_from_case(self, case_text, deepseek_client_real, expected_output):
         """Extract claims and compare to expected output."""
         extractor = ClaimExtractor(llm_client=deepseek_client)
 
@@ -166,8 +166,9 @@ class TestLiveExtraction:
         )
 
     @pytest.mark.asyncio
+    @pytest.mark.slow
     async def test_full_extraction_matches_expected(
-        self, case_text, deepseek_client, expected_output
+        self, case_text, deepseek_client_real, expected_output
     ):
         """Full extraction should match expected output structure."""
         extractor = ClaimExtractor(llm_client=deepseek_client)
@@ -186,7 +187,8 @@ class TestLiveExtraction:
         assert "SUPPORTS" in rel_types
 
     @pytest.mark.asyncio
-    async def test_extraction_captures_case_details(self, case_text, deepseek_client):
+    @pytest.mark.slow
+    async def test_extraction_captures_case_details(self, case_text, deepseek_client_real):
         """Extraction should capture key case details."""
         extractor = ClaimExtractor(llm_client=deepseek_client)
 
@@ -313,6 +315,7 @@ class TestGraphPersistence:
         # Create a test claim entity
         from tenant_legal_guidance.models.entities import (
             EntityType,
+            LegalDocumentType,
             LegalEntity,
             SourceMetadata,
             SourceType,
@@ -325,7 +328,8 @@ class TestGraphPersistence:
             description="Landlord claims high-rent vacancy deregulation",
             source_metadata=SourceMetadata(
                 source="756 Liberty Realty LLC v Garcia",
-                source_type=SourceType.COURT_CASE,
+                source_type=SourceType.FILE,
+                document_type=LegalDocumentType.COURT_OPINION,
             ),
             claim_description="Landlord claims high-rent vacancy deregulation",
             claimant="756 Liberty Realty LLC",
@@ -345,6 +349,7 @@ class TestGraphPersistence:
 
         from tenant_legal_guidance.models.entities import (
             EntityType,
+            LegalDocumentType,
             LegalEntity,
             SourceMetadata,
             SourceType,
@@ -357,7 +362,8 @@ class TestGraphPersistence:
             description="Landlord failed to provide invoices for alleged improvements",
             source_metadata=SourceMetadata(
                 source="756 Liberty Realty LLC v Garcia",
-                source_type=SourceType.COURT_CASE,
+                source_type=SourceType.FILE,
+                document_type=LegalDocumentType.COURT_OPINION,
             ),
             evidence_context="presented",
             is_critical=True,
@@ -410,9 +416,18 @@ class TestGraphPersistence:
         """Clean up test entities after tests."""
         kg = arango_available
 
-        # Delete test entities
-        kg.delete_entity("test:claim:756_liberty_1")
-        kg.delete_entity("test:evidence:756_liberty_1")
+        # Delete test entities directly from collections since "test:" prefix isn't recognized
+        from tenant_legal_guidance.models.entities import EntityType
+        
+        # Try to delete from claim collection
+        claim_coll = kg.db.collection(kg._get_collection_for_entity(EntityType.LEGAL_CLAIM))
+        if claim_coll.has("test:claim:756_liberty_1"):
+            claim_coll.delete("test:claim:756_liberty_1")
+        
+        # Try to delete from evidence collection
+        evidence_coll = kg.db.collection(kg._get_collection_for_entity(EntityType.EVIDENCE))
+        if evidence_coll.has("test:evidence:756_liberty_1"):
+            evidence_coll.delete("test:evidence:756_liberty_1")
 
         # Verify deleted
         assert not kg.entity_exists("test:claim:756_liberty_1")
@@ -437,6 +452,9 @@ class TestFullRoundTrip:
             if not settings.deepseek_api_key:
                 pytest.skip("No DEEPSEEK_API_KEY configured")
 
+            # Use real client for slow integration tests
+            from tests.conftest import deepseek_client_real as real_client_fixture
+            # For now, create directly since fixture might not be available in nested fixture
             llm = DeepSeekClient(settings.deepseek_api_key)
             kg = ArangoDBGraph()
             extractor = ClaimExtractor(llm_client=llm, kg=kg)
@@ -446,6 +464,7 @@ class TestFullRoundTrip:
             pytest.skip(f"Services not available: {e}")
 
     @pytest.mark.asyncio
+    @pytest.mark.slow
     async def test_extract_store_fetch_756_liberty(self, services, case_file):
         """
         Full round-trip test:
@@ -458,7 +477,11 @@ class TestFullRoundTrip:
         case_text = case_file.read_text()
 
         # Extract
-        from tenant_legal_guidance.models.entities import SourceMetadata, SourceType
+        from tenant_legal_guidance.models.entities import (
+            LegalDocumentType,
+            SourceMetadata,
+            SourceType,
+        )
 
         result = await extractor.extract_full_proof_chain_single(case_text)
         assert len(result.claims) >= 1, "Should extract at least one claim"
@@ -466,7 +489,8 @@ class TestFullRoundTrip:
         # Store
         source_meta = SourceMetadata(
             source="756 Liberty Realty LLC v Garcia",
-            source_type=SourceType.COURT_CASE,
+            source_type=SourceType.FILE,
+            document_type=LegalDocumentType.COURT_OPINION,
             jurisdiction="NYC Housing Court",
         )
         stored = await extractor.store_to_graph(result, source_meta)
@@ -503,6 +527,7 @@ class TestFullRoundTrip:
 
 
 @pytest.mark.integration
+@pytest.mark.slow
 @pytest.mark.skipif(
     not Path(__file__).parent.parent.parent.joinpath(".env").exists(),
     reason="No .env file with API keys",
@@ -527,7 +552,8 @@ class TestAnalyzeMyCaseLive:
         return json.loads(fixture_path.read_text())
 
     @pytest.mark.asyncio
-    async def test_analyze_my_case_finds_relevant_claims(self, user_scenario, deepseek_client):
+    @pytest.mark.slow
+    async def test_analyze_my_case_finds_relevant_claims(self, user_scenario, deepseek_client_real):
         """
         Given a tenant situation similar to 756 Liberty defendant,
         The system should identify relevant claim types.
@@ -551,8 +577,9 @@ class TestAnalyzeMyCaseLive:
         # assert "DEREGULATION_CHALLENGE" in claim_types
 
     @pytest.mark.asyncio
+    @pytest.mark.slow
     async def test_analyze_my_case_identifies_evidence_strength(
-        self, user_scenario, deepseek_client
+        self, user_scenario, deepseek_client_real
     ):
         """
         Given a tenant's evidence list,
@@ -564,7 +591,8 @@ class TestAnalyzeMyCaseLive:
         # because 756 Liberty established this as a required element
 
     @pytest.mark.asyncio
-    async def test_analyze_my_case_predicts_outcome(self, user_scenario, deepseek_client):
+    @pytest.mark.slow
+    async def test_analyze_my_case_predicts_outcome(self, user_scenario, deepseek_client_real):
         """
         Given evidence similar to 756 Liberty defendant,
         The system should predict a favorable outcome based on precedent.
@@ -576,7 +604,8 @@ class TestAnalyzeMyCaseLive:
         # - 756 Liberty resulted in dismissal of landlord's claim
 
     @pytest.mark.asyncio
-    async def test_analyze_my_case_cites_precedent(self, user_scenario, deepseek_client):
+    @pytest.mark.slow
+    async def test_analyze_my_case_cites_precedent(self, user_scenario, deepseek_client_real):
         """
         The system should cite 756 Liberty as relevant precedent.
         """

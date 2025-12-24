@@ -34,15 +34,18 @@ def normalize_entity_type(value: str | EntityType) -> EntityType:
     if isinstance(value, EntityType):
         return value
 
+    # Normalize string
+    value_str = str(value).strip().upper()
+
     # Try by name first (e.g., "LAW" -> EntityType.LAW)
     try:
-        return EntityType[value]
+        return EntityType[value_str]
     except KeyError:
         pass
 
     # Try by value (e.g., "law" -> EntityType.LAW)
     try:
-        return EntityType(value)
+        return EntityType(value_str.lower())
     except ValueError:
         pass
 

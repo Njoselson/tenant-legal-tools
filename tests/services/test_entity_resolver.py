@@ -36,7 +36,7 @@ def sample_entities():
     """Sample entities for testing."""
     metadata = SourceMetadata(
         source="test_source",
-        source_type=SourceType.LEGAL_DOCUMENT,
+        source_type=SourceType.FILE,
         authority="BINDING_LEGAL_AUTHORITY",
     )
 
@@ -237,7 +237,7 @@ async def test_resolve_entities_batch_llm_confirmation(
 async def test_resolve_entities_cache_hits(mock_knowledge_graph, mock_llm):
     """Test that within-batch caching avoids duplicate searches."""
     metadata = SourceMetadata(
-        source="test", source_type=SourceType.LEGAL_DOCUMENT, authority="BINDING_LEGAL_AUTHORITY"
+        source="test", source_type=SourceType.FILE, authority="BINDING_LEGAL_AUTHORITY"
     )
 
     # Two entities with the same name and type

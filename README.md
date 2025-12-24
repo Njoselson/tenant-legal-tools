@@ -289,7 +289,7 @@ tenant_legal_guidance/
 | `retrieval.py` | Hybrid search | Case analyzer |
 | `embeddings.py` | Vector generation | Document processor |
 | `vector_store.py` | Qdrant operations | Document processor, retrieval |
-| `chtu_scraper.py` | Web scraping | Resource processor |
+| `chtu_scraper.py` | Web scraping | `scrape_chtu_resources.py` script |
 | `deepseek.py` | LLM client | All services |
 
 ### Running Tests

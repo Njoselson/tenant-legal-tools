@@ -30,13 +30,40 @@ jobs:
             
             echo "🚀 Starting deployment..."
             
-            # Navigate to project directory
-            cd /opt/tenant_legal_guidance
+            # Install prerequisites if needed (first time setup)
+            if ! command -v git &> /dev/null; then
+              echo "📦 Installing Git..."
+              apt update && apt install -y git
+            fi
             
-            # Pull latest code
-            echo "📥 Pulling latest code..."
-            git fetch origin
-            git reset --hard origin/main
+            if ! command -v docker &> /dev/null; then
+              echo "🐳 Installing Docker..."
+              curl -fsSL https://get.docker.com -o get-docker.sh
+              sh get-docker.sh
+              rm get-docker.sh
+            fi
+            
+            if ! command -v docker compose &> /dev/null && ! docker compose version &> /dev/null; then
+              echo "🐳 Installing Docker Compose..."
+              apt install -y docker-compose-plugin
+            fi
+            
+            # Check if directory exists, clone if not
+            if [ ! -d "/opt/tenant_legal_guidance" ]; then
+              echo "📦 Cloning repository (first time setup)..."
+              mkdir -p /opt
+              cd /opt
+              git clone https://github.com/${{ github.repository }}.git tenant_legal_guidance
+              cd tenant_legal_guidance
+            else
+              # Navigate to project directory
+              cd /opt/tenant_legal_guidance
+              
+              # Pull latest code
+              echo "📥 Pulling latest code..."
+              git fetch origin
+              git reset --hard origin/main
+            fi
             
             # Rebuild and restart services
             echo "🔨 Building Docker images..."

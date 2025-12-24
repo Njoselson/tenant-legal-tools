@@ -147,7 +147,6 @@ class TestRemedyRanking:
         assert remedies[0].jurisdiction_match is True
         assert remedies[0].estimated_probability > remedies[1].estimated_probability
 
-
     @pytest.mark.slow
     def test_citation_includes_all_metadata(self, case_analyzer):
         entities = [

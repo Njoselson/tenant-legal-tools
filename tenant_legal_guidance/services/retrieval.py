@@ -97,7 +97,7 @@ class HybridRetriever:
                 )
             except Exception as e:
                 self.logger.error(f"Direct entity lookup failed: {e}")
-        
+
         # Step 3: Entity text search (ArangoSearch - for broader context)
         try:
             entity_hits = self.kg.search_entities_by_text(
@@ -113,15 +113,15 @@ class HybridRetriever:
             try:
                 # Collect all entity IDs for neighbor expansion
                 expansion_ids = []
-                
+
                 # Add linked entities (highest priority - from query)
                 if results["linked_entities"]:
                     expansion_ids.extend([e.id for e in results["linked_entities"]])
-                
+
                 # Add top text-matched entities
                 if results["entities"]:
                     expansion_ids.extend([e.id for e in results["entities"][:20]])
-                
+
                 # Get neighbors for all expansion seeds
                 if expansion_ids:
                     neighbors, neighbor_rels = self.kg.get_neighbors(
@@ -138,23 +138,23 @@ class HybridRetriever:
 
         # Step 5: Deduplicate entities (combine linked + direct hits + neighbors)
         all_entities = {}
-        
+
         # Add linked entities first (highest priority)
         for e in results.get("linked_entities", []):
             all_entities[e.id] = e
-        
+
         # Add text-matched entities
         for e in results.get("entities", []):
             if e.id not in all_entities:
                 all_entities[e.id] = e
-        
+
         # Add neighbors
         for e in results.get("neighbors", []):
             if e.id not in all_entities:
                 all_entities[e.id] = e
-        
+
         results["entities"] = list(all_entities.values())
-        
+
         self.logger.info(
             f"Total unique entities after deduplication: {len(results['entities'])} "
             f"(linked: {len(results.get('linked_entities', []))}, "

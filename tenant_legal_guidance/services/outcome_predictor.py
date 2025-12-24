@@ -39,6 +39,7 @@ class OutcomePredictor:
         self,
         claim_type: str,
         situation: str | None = None,
+        evidence_profile: list[dict] | None = None,
         limit: int = 5,
     ) -> list[dict]:
         """
@@ -47,6 +48,7 @@ class OutcomePredictor:
         Args:
             claim_type: The claim type string (e.g., "DEREGULATION_CHALLENGE")
             situation: Optional situation description for semantic matching
+            evidence_profile: Optional list of evidence matches to score similarity
             limit: Maximum number of cases to return
 
         Returns:
@@ -83,15 +85,22 @@ class OutcomePredictor:
 
             cases = list(cursor)
 
-            # Note: Scoring by evidence profile would require evidence_profile parameter
-            # For now, return cases as-is (scoring can be done later when evidence is available)
-            scored_cases = [
-                {
-                    **case,
-                    "similarity_score": 0.5,  # Default score when no evidence profile available
-                }
-                for case in cases
-            ]
+            # Score similarity based on evidence profile
+            scored_cases = []
+            for case in cases:
+                if evidence_profile:
+                    # Simple scoring: count matching evidence
+                    # In future, could use embeddings for semantic similarity
+                    score = self._score_case_similarity(case, evidence_profile)
+                else:
+                    # Default score when no evidence profile available
+                    score = 0.5
+                scored_cases.append(
+                    {
+                        **case,
+                        "similarity_score": score,
+                    }
+                )
 
             # Sort by similarity and return top N
             scored_cases.sort(key=lambda x: x["similarity_score"], reverse=True)

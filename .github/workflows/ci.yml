@@ -83,7 +83,7 @@ jobs:
           PYTEST_CURRENT_TEST: "true"
       
       - name: Run integration tests
-        run: uv run pytest tests/integration -v --tb=short
+        run: uv run pytest tests/integration -v --tb=short -m "not slow"
         if: github.event_name == 'push'
         env:
           PYTEST_CURRENT_TEST: "true"

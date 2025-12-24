@@ -5,159 +5,8 @@ This module centralizes all prompts used throughout the system, making them
 easier to maintain, version, and experiment with.
 """
 
-from tenant_legal_guidance.models.entities import EntityType, SourceMetadata
+from tenant_legal_guidance.models.entities import EntityType
 from tenant_legal_guidance.models.relationships import RelationshipType
-
-
-def get_entity_extraction_prompt(
-    chunk: str,
-    metadata: SourceMetadata,
-    chunk_num: int,
-    total_chunks: int,
-    include_quotes: bool = True,
-) -> str:
-    """
-    Generate prompt for extracting entities and relationships from legal text.
-
-    This prompt instructs the LLM to extract structured entities with supporting
-    quotes directly from the source text.
-
-    Args:
-        chunk: The text chunk to analyze
-        metadata: Source metadata
-        chunk_num: Current chunk number
-        total_chunks: Total number of chunks
-        include_quotes: Whether to request supporting quotes (default: True)
-
-    Returns:
-        Formatted prompt string
-    """
-    types_list = "|".join([e.name for e in EntityType])
-    rel_types_list = "|".join([r.name for r in RelationshipType])
-
-    # Supporting quote fields (optional)
-    quote_field = (
-        '"supporting_quote": "Direct quote from the text that best describes this entity (1-3 sentences)",'
-        if include_quotes
-        else ""
-    )
-    quote_instruction = (
-        """- Supporting quote: A direct quote from the text (1-3 sentences) that best describes or defines this entity
-"""
-        if include_quotes
-        else ""
-    )
-    quote_guidelines = (
-        """
-IMPORTANT: For each entity's supporting_quote, extract the most relevant sentence(s) from the actual text that:
-- Directly mentions, defines, or explains the entity
-- Is a complete, grammatically correct sentence
-- Is 1-3 sentences long (prefer shorter)
-- Provides clear context about what the entity is or does
-"""
-        if include_quotes
-        else ""
-    )
-
-    return f"""Analyze this legal text and extract structured information about tenants, buildings, issues, and legal concepts.
-
-Text: {chunk}
-Source: {metadata.source}
-Chunk: {chunk_num} of {total_chunks}
-
-Extract the following information in JSON format:
-
-1. Entities (must use these exact types):
-   # Legal entities
-   - LAW: Legal statutes, regulations, or case law
-   - REMEDY: Available legal remedies or actions
-   - COURT_CASE: Specific court cases and decisions
-   - LEGAL_PROCEDURE: Court processes, administrative procedures
-   - DAMAGES: Monetary compensation or penalties
-   - LEGAL_CONCEPT: Legal concepts and principles
-
-   # Organizing entities
-   - TENANT_GROUP: Associations, unions, block groups
-   - CAMPAIGN: Specific organizing campaigns
-   - TACTIC: Rent strikes, protests, lobbying, direct action
-
-   # Parties
-   - TENANT: Individual or family tenants
-   - LANDLORD: Property owners, management companies
-   - LEGAL_SERVICE: Legal aid, attorneys, law firms
-   - GOVERNMENT_ENTITY: Housing authorities, courts, agencies
-
-   # Outcomes
-   - LEGAL_OUTCOME: Court decisions, settlements, legal victories
-   - ORGANIZING_OUTCOME: Policy changes, building wins, power building
-
-   # Issues and events
-   - TENANT_ISSUE: Housing problems, violations
-   - EVENT: Specific incidents, violations, filings
-
-   # Documentation and evidence
-   - DOCUMENT: Legal documents, evidence
-   - EVIDENCE: Proof, documentation
-
-   # Geographic and jurisdictional
-   - JURISDICTION: Geographic areas, court systems
-
-2. Relationships (MUST use ONLY these exact types - no other types allowed):
-   - VIOLATES: When an ACTOR violates a LAW
-   - ENABLES: When a LAW enables a REMEDY
-   - AWARDS: When a REMEDY awards DAMAGES
-   - APPLIES_TO: When a LAW applies to a TENANT_ISSUE
-   - PROHIBITS: When a LAW prohibits an action
-   - REQUIRES: When a LAW requires EVIDENCE/DOCUMENT
-   - AVAILABLE_VIA: When a REMEDY is available via a LEGAL_PROCEDURE
-   - FILED_IN: When a CASE/PROCEDURE is filed in a JURISDICTION
-   - PROVIDED_BY: When a service is provided by a LEGAL_SERVICE
-   - SUPPORTED_BY: When a TACTIC/REMEDY is supported by a TENANT_GROUP/LEGAL_SERVICE
-   - RESULTS_IN: When a TACTIC/REMEDY results in an OUTCOME
-   
-   CRITICAL: Use ONLY the relationship types listed above. Do not create new types.
-
-For each entity, include:
-- Type (must be one of: [{types_list}])
-- Name
-- Description
-- Jurisdiction (e.g., 'NYC', 'California', 'Federal', '9th Circuit', 'New York State', 'Los Angeles')
-- Relevant attributes (dates, amounts, status, etc.)
-{quote_instruction}- Source reference: {metadata.source}
-
-For each relationship, include:
-- Source entity name (must match an entity name exactly)
-- Target entity name (must match an entity name exactly)
-- Type (must be EXACTLY one of: [{rel_types_list}]) - NO other types allowed
-- Attributes (conditions, weight, etc.)
-
-IMPORTANT: Relationship types are strictly validated. Only use the exact types listed above.
-{quote_guidelines}
-Return a JSON object with this structure:
-{{
-    "entities": [
-        {{
-            "type": "LAW|REMEDY|COURT_CASE|LEGAL_PROCEDURE|DAMAGES|LEGAL_CONCEPT|TENANT_GROUP|CAMPAIGN|TACTIC|TENANT|LANDLORD|LEGAL_SERVICE|GOVERNMENT_ENTITY|LEGAL_OUTCOME|ORGANIZING_OUTCOME|TENANT_ISSUE|EVENT|DOCUMENT|EVIDENCE|JURISDICTION",
-            "name": "Entity name",
-            "description": "Brief description",
-            "jurisdiction": "Applicable jurisdiction",
-            {quote_field}
-            "attributes": {{
-                // Type-specific attributes
-            }}
-        }}
-    ],
-    "relationships": [
-        {{
-            "source_id": "source_entity_name",
-            "target_id": "target_entity_name",
-            "type": "VIOLATES|ENABLES|AWARDS|APPLIES_TO|PROHIBITS|REQUIRES|AVAILABLE_VIA|FILED_IN|PROVIDED_BY|SUPPORTED_BY|RESULTS_IN",
-            "attributes": {{
-                // Relationship attributes
-            }}
-        }}
-    ]
-}}"""
 
 
 def get_simple_entity_extraction_prompt(
@@ -195,38 +44,18 @@ Focus on identifying: what problems they're experiencing, what laws might apply,
 Extract the following information in JSON format:
 
 1. Entities (must use these exact types):
-   # Legal entities
+   # Core legal entities (proof chain focused)
    - LAW: Legal statutes, regulations, or case law
    - REMEDY: Available legal remedies or actions
-   - COURT_CASE: Specific court cases and decisions
    - LEGAL_PROCEDURE: Court processes, administrative procedures
-   - DAMAGES: Monetary compensation or penalties
-   - LEGAL_CONCEPT: Legal concepts and principles
-
-   # Organizing entities
-   - TENANT_GROUP: Associations, unions, block groups
-   - CAMPAIGN: Specific organizing campaigns
-   - TACTIC: Rent strikes, protests, lobbying, direct action
-
-   # Parties
-   - TENANT: Individual or family tenants
-   - LANDLORD: Property owners, management companies
-   - LEGAL_SERVICE: Legal aid, attorneys, law firms
-   - GOVERNMENT_ENTITY: Housing authorities, courts, agencies
-
-   # Outcomes
+   - LEGAL_CLAIM: Assertion of a legal right or cause of action (claims made in cases)
+   - EVIDENCE: Proof, documentation, facts supporting claims
    - LEGAL_OUTCOME: Court decisions, settlements, legal victories
-   - ORGANIZING_OUTCOME: Policy changes, building wins, power building
-
-   # Issues and events
-   - TENANT_ISSUE: Housing problems, violations
-   - EVENT: Specific incidents, violations, filings
-
-   # Documentation and evidence
-   - DOCUMENT: Legal documents, evidence
-   - EVIDENCE: Proof, documentation
-
-   # Geographic and jurisdictional
+   - DAMAGES: Monetary compensation or penalties
+   - CASE_DOCUMENT: Court case opinions/decisions as whole documents
+   
+   # Context entities (for user queries and case analysis)
+   - TENANT_ISSUE: Housing problems, violations, tenant situations
    - JURISDICTION: Geographic areas, court systems
 
 2. Relationships (MUST use ONLY these exact types):

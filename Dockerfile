@@ -20,9 +20,17 @@ COPY . .
 RUN /root/.local/bin/uv venv && \
     . .venv/bin/activate && \
     /root/.local/bin/uv pip install --upgrade pip && \
+    # Install CPU-only PyTorch first (prevents CUDA packages from being installed)
+    echo "Installing CPU-only PyTorch (this may take a few minutes)..." && \
+    /root/.local/bin/uv pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu && \
+    echo "Installing project dependencies..." && \
+    # Install package (torch should not be reinstalled since CPU version satisfies >=2.2.0)
     /root/.local/bin/uv pip install -e ".[dev]" && \
+    echo "Installing additional packages..." && \
     /root/.local/bin/uv add markdown pydantic-settings qdrant-client sentence-transformers && \
+    echo "Installing SpaCy model..." && \
     /root/.local/bin/uv pip install https://github.com/explosion/spacy-models/releases/download/en_core_web_lg-3.8.0/en_core_web_lg-3.8.0-py3-none-any.whl && \
+    echo "Build complete! Installed packages:" && \
     /root/.local/bin/uv pip list
 
 # Expose the port the app runs on

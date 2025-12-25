@@ -26,7 +26,7 @@ jobs:
       - name: Deploy to server
         timeout-minutes: 30
         run: |
-          ssh ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} << 'EOF'
+          ssh -o ServerAliveInterval=60 -o ServerAliveCountMax=3 ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} << 'EOF'
             set -e
             
             echo "🚀 Starting deployment..."
@@ -67,8 +67,9 @@ jobs:
             fi
             
             # Rebuild and restart services
-            echo "🔨 Building Docker images..."
-            docker compose build
+            echo "🔨 Building Docker images (this may take 10-15 minutes)..."
+            # Build with progress output to keep connection alive
+            docker compose build --progress=plain
             
             echo "🔄 Restarting services..."
             docker compose down

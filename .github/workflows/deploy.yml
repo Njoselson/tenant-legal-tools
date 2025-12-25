@@ -94,18 +94,9 @@ jobs:
               echo "🔑 Generated new ARANGO_PASSWORD (first time setup)"
             fi
             
-            cat > .env << ENVEOF
-DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
-ARANGO_HOST=http://arangodb:8529
-ARANGO_DB_NAME=tenant_legal_kg
-ARANGO_USERNAME=root
-ARANGO_PASSWORD=${ARANGO_PASSWORD}
-QDRANT_URL=http://qdrant:6333
-QDRANT_COLLECTION=legal_chunks
-EMBEDDING_MODEL_NAME=sentence-transformers/all-MiniLM-L6-v2
-LOG_LEVEL=INFO
-DEBUG=false
-ENVEOF
+            printf 'DEEPSEEK_API_KEY=%s\nARANGO_HOST=http://arangodb:8529\nARANGO_DB_NAME=tenant_legal_kg\nARANGO_USERNAME=root\nARANGO_PASSWORD=%s\nQDRANT_URL=http://qdrant:6333\nQDRANT_COLLECTION=legal_chunks\nEMBEDDING_MODEL_NAME=sentence-transformers/all-MiniLM-L6-v2\nLOG_LEVEL=INFO\nDEBUG=false\n' \
+              "${DEEPSEEK_API_KEY}" \
+              "${ARANGO_PASSWORD}" > .env
             chmod 600 .env
             echo "✅ .env file created/updated"
             

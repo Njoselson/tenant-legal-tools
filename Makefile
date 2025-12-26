@@ -1,4 +1,4 @@
-.PHONY: install test lint format clean db-stats db-reset db-drop build-manifest ingest-manifest reingest-all vector-status
+.PHONY: install test lint format clean db-stats db-reset db-drop db-cleanup build-manifest ingest-manifest reingest-all vector-status
 
 install:
 	uv pip install -e ".[dev]"
@@ -48,6 +48,10 @@ db-reset:
 db-drop:
 	@echo "Dropping entire database (WARNING: DESTRUCTIVE)..."
 	uv run python -m tenant_legal_guidance.scripts.reset_database --drop --yes
+
+db-cleanup:
+	@echo "Cleaning up old entity attributes (relief_sought, is_critical)..."
+	uv run python -m tenant_legal_guidance.scripts.cleanup_old_attributes
 
 # Ingestion targets
 build-manifest:

@@ -39,7 +39,7 @@ def mock_arango_client():
 @pytest.fixture(scope="session")
 def arango_graph(mock_arango_client, arango_config):
     """Create a test instance of ArangoDBGraph."""
-    with patch("tenant_legal_guidance.main.ArangoClient", return_value=mock_arango_client):
+    with patch("tenant_legal_guidance.graph.arango_graph.ArangoClient", return_value=mock_arango_client):
         graph = ArangoDBGraph(
             host=arango_config["host"],
             db_name=arango_config["db_name"],

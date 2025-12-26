@@ -163,6 +163,48 @@ class AppSettings(BaseSettings):
         description="Timeout for individual dependency health checks",
     )
 
+    # PII Anonymization
+    anonymize_pii_enabled: bool = Field(
+        default=True,
+        alias="ANONYMIZE_PII_ENABLED",
+        description="Enable PII anonymization for user input before storage",
+    )
+    anonymize_names: bool = Field(
+        default=True,
+        alias="ANONYMIZE_NAMES",
+        description="Anonymize names in user input",
+    )
+    anonymize_emails: bool = Field(
+        default=True,
+        alias="ANONYMIZE_EMAILS",
+        description="Anonymize email addresses in user input",
+    )
+    anonymize_phones: bool = Field(
+        default=True,
+        alias="ANONYMIZE_PHONES",
+        description="Anonymize phone numbers in user input",
+    )
+    anonymize_addresses: bool = Field(
+        default=True,
+        alias="ANONYMIZE_ADDRESSES",
+        description="Anonymize addresses in user input",
+    )
+    anonymize_ssn: bool = Field(
+        default=True,
+        alias="ANONYMIZE_SSN",
+        description="Anonymize Social Security Numbers in user input",
+    )
+    anonymize_dates: bool = Field(
+        default=False,
+        alias="ANONYMIZE_DATES",
+        description="Anonymize specific dates (default: False - keep for legal context)",
+    )
+    anonymize_financial: bool = Field(
+        default=False,
+        alias="ANONYMIZE_FINANCIAL",
+        description="Anonymize financial amounts (default: False - keep for legal context)",
+    )
+
     # Note: class Config removed in favor of model_config above (pydantic v2)
 
     @model_validator(mode="after")

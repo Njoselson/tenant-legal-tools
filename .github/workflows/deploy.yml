@@ -28,8 +28,11 @@ jobs:
         env:
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
           ARANGO_PASSWORD_SECRET: ${{ secrets.ARANGO_PASSWORD }}
+          CORS_ALLOWED_ORIGINS: ${{ secrets.CORS_ALLOWED_ORIGINS }}
+          PRODUCTION_MODE: ${{ secrets.PRODUCTION_MODE || 'true' }}
+          ANONYMIZE_PII_ENABLED: ${{ secrets.ANONYMIZE_PII_ENABLED || 'true' }}
         run: |
-          ssh -o ServerAliveInterval=60 -o ServerAliveCountMax=3 ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} "DEEPSEEK_API_KEY='${DEEPSEEK_API_KEY}' ARANGO_PASSWORD_SECRET='${ARANGO_PASSWORD_SECRET}' bash -s" << 'EOF'
+          ssh -o ServerAliveInterval=60 -o ServerAliveCountMax=3 ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} "DEEPSEEK_API_KEY='${DEEPSEEK_API_KEY}' ARANGO_PASSWORD_SECRET='${ARANGO_PASSWORD_SECRET}' CORS_ALLOWED_ORIGINS='${CORS_ALLOWED_ORIGINS}' PRODUCTION_MODE='${PRODUCTION_MODE}' ANONYMIZE_PII_ENABLED='${ANONYMIZE_PII_ENABLED}' bash -s" << 'EOF'
             set -e
             
             echo "🚀 Starting deployment..."
@@ -94,9 +97,39 @@ jobs:
               echo "🔑 Generated new ARANGO_PASSWORD (first time setup)"
             fi
             
-            printf 'DEEPSEEK_API_KEY=%s\nARANGO_HOST=http://arangodb:8529\nARANGO_DB_NAME=tenant_legal_kg\nARANGO_USERNAME=root\nARANGO_PASSWORD=%s\nQDRANT_URL=http://qdrant:6333\nQDRANT_COLLECTION=legal_chunks\nEMBEDDING_MODEL_NAME=sentence-transformers/all-MiniLM-L6-v2\nLOG_LEVEL=INFO\nDEBUG=false\n' \
-              "${DEEPSEEK_API_KEY}" \
-              "${ARANGO_PASSWORD}" > .env
+            # Set production configuration defaults
+            PRODUCTION_MODE="${PRODUCTION_MODE:-true}"
+            CORS_ORIGINS="${CORS_ALLOWED_ORIGINS:-https://tenantlegal.ddns.net}"
+            ANONYMIZE_PII="${ANONYMIZE_PII_ENABLED:-true}"
+            
+            # Create .env file with all production settings
+            cat > .env <<ENVEOF
+DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+ARANGO_HOST=http://arangodb:8529
+ARANGO_DB_NAME=tenant_legal_kg
+ARANGO_USERNAME=root
+ARANGO_PASSWORD=${ARANGO_PASSWORD}
+QDRANT_URL=http://qdrant:6333
+QDRANT_COLLECTION=legal_chunks
+EMBEDDING_MODEL_NAME=sentence-transformers/all-MiniLM-L6-v2
+LOG_LEVEL=INFO
+DEBUG=false
+PRODUCTION_MODE=${PRODUCTION_MODE}
+CORS_ALLOWED_ORIGINS=${CORS_ORIGINS}
+RATE_LIMIT_ENABLED=true
+RATE_LIMIT_PER_MINUTE=100
+RATE_LIMIT_PER_MINUTE_AUTHENTICATED=200
+CACHE_ENABLED=true
+CACHE_TTL_SECONDS=3600
+ANONYMIZE_PII_ENABLED=${ANONYMIZE_PII}
+ANONYMIZE_NAMES=true
+ANONYMIZE_EMAILS=true
+ANONYMIZE_PHONES=true
+ANONYMIZE_ADDRESSES=true
+ANONYMIZE_SSN=true
+ANONYMIZE_DATES=false
+ANONYMIZE_FINANCIAL=false
+ENVEOF
             chmod 600 .env
             echo "✅ .env file created/updated"
             

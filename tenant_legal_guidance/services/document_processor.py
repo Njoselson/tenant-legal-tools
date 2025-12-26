@@ -79,6 +79,14 @@ class DocumentProcessor:
         self.entity_resolver = (
             EntityResolver(self.knowledge_graph, self.deepseek) if enable_entity_search else None
         )
+        # Initialize proof chain service for unified proof chain processing
+        from tenant_legal_guidance.services.proof_chain import ProofChainService
+
+        self.proof_chain_service = ProofChainService(
+            knowledge_graph=self.knowledge_graph,
+            vector_store=self.vector_store,
+            llm_client=self.deepseek,
+        )
 
     async def ingest_document(
         self, text: str, metadata: SourceMetadata, force_reprocess: bool = False
@@ -133,39 +141,92 @@ class DocumentProcessor:
             except Exception as e:
                 self.logger.debug(f"Error checking existing source: {e}")
 
-        # Step 0.5: Register source + prepare chunks (now for Qdrant only)
+        # Step 0.5: Register source + prepare chunks (uses recursive_char_chunks with 3000/200 config)
         chunk_ids: list[str] = []
         chunk_docs: list[dict] = []
         source_id: str | None = None
         try:
+            # register_source_with_text uses build_chunk_docs which internally uses recursive_char_chunks
+            # with settings.chunk_chars_target (3000) and settings.chunk_overlap_chars (200)
             reg = self.knowledge_graph.register_source_with_text(
                 locator=locator,
                 kind=kind,
                 full_text=text or "",
                 title=getattr(metadata, "title", None),
                 jurisdiction=getattr(metadata, "jurisdiction", None),
-                chunk_size=3500,
+                chunk_size=self.settings.chunk_chars_target,  # 3000 - will use settings value
             )
             source_id = reg.get("source_id")
-            reg.get("blob_id")
             chunk_ids = reg.get("chunk_ids", [])
             chunk_docs = reg.get("chunk_docs", [])
+            self.logger.info(
+                f"Registered source {source_id} with {len(chunk_docs)} chunks (using recursive_char_chunks with {self.settings.chunk_chars_target}/{self.settings.chunk_overlap_chars})"
+            )
         except Exception as e:
             self.logger.debug(f"register_source_with_text failed: {e}")
 
-        # Step 1: Extract entities and relationships using LLM (Pass 1: explicit)
-        entities, relationships = await self._extract_structured_data(text, metadata)
+        # Step 1: Extract proof chains using unified proof chain service (replaces regular entity extraction)
+        proof_chains = []
+        proof_chain_entity_ids = []  # Track entity IDs from proof chains
+        entities = []  # Will be populated from proof chain entities
+        relationships = []  # Will be populated from proof chain relationships
+        try:
+            self.logger.info("Extracting proof chains from document (unified extraction)")
+            proof_chains = await self.proof_chain_service.extract_proof_chains(text, metadata)
+            # Collect entity IDs from proof chains for chunk linking
+            for chain in proof_chains:
+                proof_chain_entity_ids.append(chain.claim_id)
+                # Add evidence, outcome, damages IDs
+                for ev in chain.presented_evidence:
+                    proof_chain_entity_ids.append(ev.evidence_id)
+                if chain.outcome:
+                    proof_chain_entity_ids.append(chain.outcome["id"])
+                if chain.damages:
+                    for dmg in chain.damages:
+                        proof_chain_entity_ids.append(dmg["id"])
+
+            # Extract entities from proof chains (they're already stored, but we need them for processing)
+            # Get entities from the knowledge graph that were just stored
+            for entity_id in proof_chain_entity_ids:
+                entity = self.knowledge_graph.get_entity(entity_id)
+                if entity:
+                    # entity is already a LegalEntity object
+                    entities.append(entity)
+
+            # Get relationships from proof chains (they're already stored, but we need them for processing)
+            # Relationships are already stored in the graph during extract_proof_chains
+
+            self.logger.info(
+                f"Extracted {len(proof_chains)} proof chains with {len(proof_chain_entity_ids)} entities"
+            )
+        except Exception as e:
+            self.logger.error(f"Proof chain extraction failed: {e}", exc_info=True)
+            # Fallback: if proof chain extraction fails completely, we could do regular extraction
+            # But for now, we'll just log the error and continue with empty entities
+            self.logger.warning(
+                "Continuing with empty entity list - proof chain extraction is required"
+            )
 
         # Step 2: Deduplicate entities and update relationship references
-        entities, relationship_map = self._deduplicate_entities(entities)
-        relationships = self._update_relationship_references(relationships, relationship_map)
+        # Note: Proof chain entities are already deduplicated during extraction, but we still
+        # need to handle any edge cases and update relationship references
+        if entities:
+            entities, relationship_map = self._deduplicate_entities(entities)
+            # Relationships from proof chains are already stored, but we can still update references
+            if relationships:
+                relationships = self._update_relationship_references(
+                    relationships, relationship_map
+                )
 
         # Step 2.25: Infer additional relationships (Pass 2: implicit)
-        inferred_relationships = self._infer_relationships(entities, relationships)
-        self.logger.info(
-            f"Inferred {len(inferred_relationships)} additional relationships from entity patterns"
-        )
-        relationships.extend(inferred_relationships)
+        # Note: For proof chain entities, relationships are already established during extraction
+        # We can still infer additional relationships for context, but this is optional
+        if entities:
+            inferred_relationships = self._infer_relationships(entities, relationships)
+            self.logger.info(
+                f"Inferred {len(inferred_relationships)} additional relationships from entity patterns"
+            )
+            relationships.extend(inferred_relationships)
 
         # Step 2.5: Entity resolution - search for existing entities before creating new ones
         entity_resolution_map: dict[str, str | None] = {}
@@ -477,8 +538,10 @@ class DocumentProcessor:
 
                 # Compute embeddings
                 embeddings = self.embeddings_svc.embed(chunk_texts)
-                # Build payloads with entity refs
+                # Build payloads with entity refs (include proof chain entities)
                 entity_ids = [e.id for e in added_entities]
+                # Add proof chain entity IDs to chunk payloads
+                all_entity_ids = list(set(entity_ids + proof_chain_entity_ids))
                 payloads = []
                 for i, ch in enumerate(chunk_docs):
                     enrichment = enriched_metadata[i] if i < len(enriched_metadata) else {}
@@ -511,8 +574,8 @@ class DocumentProcessor:
                             "jurisdiction": getattr(metadata, "jurisdiction", None) or "",
                             "organization": getattr(metadata, "organization", None) or "",
                             "tags": [],  # Extract from metadata if available
-                            # Entity linkage
-                            "entities": entity_ids,  # All entities from this doc
+                            # Entity linkage (include proof chain entities)
+                            "entities": all_entity_ids,  # All entities from this doc (including proof chain entities)
                             # Chunk enrichment
                             "description": enrichment.get("description", ""),
                             "proves": enrichment.get("proves", ""),
@@ -545,6 +608,23 @@ class DocumentProcessor:
                 self.vector_store.upsert_chunks(chunk_ids, embeddings, payloads)
                 chunk_count = len(chunk_ids)
                 self.logger.info(f"Successfully persisted {chunk_count} chunks to Qdrant")
+
+                # Step 6.5: Link proof chain entities to chunks (bidirectional linking)
+                if proof_chain_entity_ids and chunk_ids:
+                    try:
+                        self.logger.info(
+                            f"Linking {len(proof_chain_entity_ids)} proof chain entities to {len(chunk_ids)} chunks"
+                        )
+                        for entity_id in proof_chain_entity_ids:
+                            entity = self.knowledge_graph.get_entity(entity_id)
+                            if entity:
+                                # entity is already a LegalEntity object
+                                self.proof_chain_service._link_entity_to_chunks(entity, chunk_ids)
+                        self.logger.info("Successfully linked proof chain entities to chunks")
+                    except Exception as e:
+                        self.logger.warning(
+                            f"Failed to link proof chain entities to chunks: {e}", exc_info=True
+                        )
             except Exception as e:
                 self.logger.error(f"Failed to persist chunks to Qdrant: {e}", exc_info=True)
 
@@ -559,6 +639,7 @@ class DocumentProcessor:
             "case_document": case_document_entity,  # NEW: Include case document entity
             "case_analysis": case_analysis_results,  # NEW: Include case analysis results
             "consolidation_stats": consolidation_stats,  # NEW: Include entity consolidation statistics
+            "proof_chains": proof_chains,  # NEW: Include extracted proof chains
         }
 
     async def _enrich_chunks_metadata_batch(

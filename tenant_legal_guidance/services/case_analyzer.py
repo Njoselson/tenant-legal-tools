@@ -16,6 +16,11 @@ from tenant_legal_guidance.models.entities import EntityType, LegalEntity
 from tenant_legal_guidance.services.deepseek import DeepSeekClient
 from tenant_legal_guidance.services.entity_service import EntityService
 from tenant_legal_guidance.services.retrieval import HybridRetriever
+from tenant_legal_guidance.services.security import (
+    detect_prompt_injection,
+    sanitize_for_llm,
+    validate_llm_output,
+)
 from tenant_legal_guidance.services.vector_store import QdrantVectorStore
 
 
@@ -111,6 +116,18 @@ class CaseAnalyzer:
         self.md = markdown.Markdown(extensions=["nl2br", "fenced_code", "tables"])
         # Initialize entity service for entity extraction and linking
         self.entity_service = EntityService(llm_client, graph)
+        # Initialize proof chain service for unified proof chain processing
+        from tenant_legal_guidance.services.proof_chain import ProofChainService
+
+        self.proof_chain_service = ProofChainService(
+            knowledge_graph=graph,
+            vector_store=vector_store,
+            llm_client=llm_client,
+        )
+        # Initialize claim matcher for matching situations to claim types
+        from tenant_legal_guidance.services.claim_matcher import ClaimMatcher
+
+        self.claim_matcher = ClaimMatcher(knowledge_graph=graph, llm_client=llm_client)
 
     def extract_key_terms(self, text: str) -> list[str]:
         """Extract key legal terms from case text."""
@@ -453,7 +470,17 @@ class CaseAnalyzer:
         return ("\n".join(sources_lines) if sources_lines else ""), citations_map
 
     async def generate_legal_analysis(self, case_text: str, context: str) -> str:
-        """Generate legal analysis using LLM."""
+        """Generate legal analysis using LLM with security protections."""
+        from tenant_legal_guidance.prompts_case_analysis import get_main_case_analysis_prompt
+
+        # Check for prompt injection attempts
+        if detect_prompt_injection(case_text):
+            self.logger.warning("Potential prompt injection detected in case text")
+            # Log but continue - sanitization will handle it
+
+        # Sanitize input
+        sanitized_case_text = sanitize_for_llm(case_text)
+
         json_spec = (
             "At the end, include a JSON code block (```json ... ```) with the following structure:\n"
             "{\n"
@@ -470,44 +497,19 @@ class CaseAnalyzer:
             "}\n"
             "Use concise items and ensure citations reference only the provided [S#] sources.\n"
         )
-        prompt = (
-            "You are a legal expert specializing in tenant rights and housing law.\n"
-            "Analyze the following tenant case and provide comprehensive legal guidance.\n\n"
-            "Case Description:\n"
-            f"{case_text}\n\n"
-            "Relevant Legal Context:\n"
-            f"{context}\n\n"
-            "Cite your claims using inline citation markers like [S1], [S2], etc. Each substantive claim should have at least one citation.\n"
-            + json_spec
-            + "\nPlease provide a structured analysis with the following sections. Use clear markdown formatting:\n\n"
-            "## CASE SUMMARY\n"
-            "Provide a clear, concise summary of the case and the main legal issues.\n\n"
-            "## LEGAL ISSUES\n"
-            "List the key legal issues identified in this case. Use bullet points and be specific.\n"
-            "- Issue 1\n- Issue 2\n- Issue 3\n\n"
-            "## RELEVANT LAWS\n"
-            "Identify relevant laws, regulations, and legal precedents that apply to this case.\n"
-            "- Law 1\n- Law 2\n- Law 3\n\n"
-            "## RECOMMENDED ACTIONS\n"
-            "Provide specific, actionable recommendations for the tenant.\n"
-            "- Action 1\n- Action 2\n- Action 3\n\n"
-            "## EVIDENCE NEEDED\n"
-            "List what evidence the tenant should gather to support their case.\n"
-            "- Evidence 1\n- Evidence 2\n- Evidence 3\n\n"
-            "## LEGAL RESOURCES\n"
-            "Suggest relevant legal resources, organizations, or services that could help.\n"
-            "- Resource 1\n- Resource 2\n- Resource 3\n\n"
-            "## RISK ASSESSMENT\n"
-            "Assess the risks and potential outcomes for the tenant. Include both positive and negative scenarios.\n\n"
-            "## NEXT STEPS\n"
-            "Provide a clear action plan with immediate next steps.\n"
-            "- Step 1\n- Step 2\n- Step 3\n\n"
-            "Be thorough but accessible. Use specific legal terminology when appropriate.\n"
-        )
+
+        # Use secure prompt generation
+        prompt = get_main_case_analysis_prompt(sanitized_case_text, context, json_spec)
 
         try:
             response = await self.llm_client.chat_completion(prompt)
-            return response
+            # Validate output before returning
+            validated_response = validate_llm_output(response)
+            return validated_response
+        except ValueError as e:
+            # Security validation failed
+            self.logger.error(f"LLM output validation failed: {e}")
+            return "Unable to generate analysis due to security validation. Please try again with different input."
         except Exception as e:
             self.logger.error(f"Error generating legal analysis: {e}")
             return f"Error generating legal analysis: {e}"
@@ -726,26 +728,21 @@ class CaseAnalyzer:
         return f"<ul>{''.join(html_items)}</ul>"
 
     async def extract_evidence_from_case(self, case_text: str) -> dict[str, list[str]]:
-        """Extract evidence mentioned in the case text using LLM."""
-        prompt = f"""Extract all evidence mentioned in this tenant case:
+        """Extract evidence mentioned in the case text using LLM with security protections."""
+        from tenant_legal_guidance.prompts_case_analysis import get_evidence_extraction_prompt
 
-{case_text}
+        # Sanitize input
+        sanitized_case_text = sanitize_for_llm(case_text)
 
-Return ONLY valid JSON (no markdown, no explanation):
-{{
-    "documents": ["lease agreement", "rent receipts"],
-    "photos": ["photos of mold in bathroom"],
-    "communications": ["text messages from landlord"],
-    "witnesses": ["neighbor testimony"],
-    "official_records": ["HPD complaint #12345"]
-}}
-
-If a category has no items, use an empty array []."""
+        # Use secure prompt generation
+        prompt = get_evidence_extraction_prompt(sanitized_case_text)
 
         try:
             response = await self.llm_client.chat_completion(prompt)
+            # Validate output before parsing
+            validated_response = validate_llm_output(response)
             # Try to parse JSON
-            json_match = re.search(r"\{[\s\S]*\}", response)
+            json_match = re.search(r"\{[\s\S]*\}", validated_response)
             if json_match:
                 data = json.loads(json_match.group(0))
                 return {
@@ -1246,111 +1243,66 @@ If a category has no items, use an empty array []."""
         # Step 3: Build sources index
         sources_text, citations_map = self.build_sources_index(entities, chunks=chunks)
 
-        # Step 4: Stage 1 - Identify Issues
-        issues = await self._identify_issues(case_text, sources_text)
-        self.logger.info(f"Identified {len(issues)} issues: {issues}")
+        # Step 4: Match situation to claim types (unified proof chain approach)
+        self.logger.info("Matching situation to claim types...")
+        (
+            claim_type_matches,
+            extracted_evidence,
+        ) = await self.claim_matcher.match_situation_to_claim_types(
+            case_text, jurisdiction=jurisdiction or "NYC"
+        )
+        self.logger.info(f"Matched {len(claim_type_matches)} claim types")
 
-        if not issues:
-            # Fallback to key terms
-            issues = key_terms[:3] if key_terms else ["general tenant rights"]
-
-        # Step 5: GRAPH-FIRST - Get verified graph chains for each issue
-        proof_chains = []
+        # Step 5: BUILD PROOF CHAINS - Use ProofChainService for each matched claim type
+        built_proof_chains = []  # ProofChain objects from ProofChainService
         evidence_present = await self.extract_evidence_from_case(case_text)
 
-        for issue in issues[:5]:  # Limit to top 5 issues
-            # Get graph chains FIRST (ground truth from knowledge graph)
-            graph_chains = self.graph.build_legal_chains(
-                issues=[issue], jurisdiction=jurisdiction, limit=10
-            )
+        # Process each matched claim type
+        for claim_match in claim_type_matches[:5]:  # Limit to top 5 matches
+            claim_type = claim_match.canonical_name
+            self.logger.info(f"Building proof chains for claim type: {claim_type}")
 
-            self.logger.info(f"Got {len(graph_chains)} graph chains for issue: {issue}")
+            # Get claim IDs for this claim type
+            claim_ids = self.graph.get_claims_by_type(claim_type, limit=5)
 
-            if len(graph_chains) == 0:
-                # No graph chains = weak/unknown issue
-                self.logger.warning(f"No graph chains found for {issue} - skipping")
+            if not claim_ids:
+                self.logger.warning(f"No claims found for claim type {claim_type} - skipping")
                 continue
 
-            # Extract entities from first chain as ground truth
-            chain_data = graph_chains[0].get("chain", [])
-            chain_entities = {}
-            for node in chain_data:
-                if isinstance(node, dict) and node.get("type"):
-                    entity_type = node["type"]
-                    entity_name = node.get("name", "")
-                    chain_entities[entity_type] = chain_entities.get(entity_type, [])
-                    chain_entities[entity_type].append(entity_name)
+            # Build proof chains for each claim
+            for claim_id in claim_ids:
+                try:
+                    proof_chain = await self.proof_chain_service.build_proof_chain(claim_id)
+                    if proof_chain:
+                        built_proof_chains.append(proof_chain)
+                        self.logger.info(f"Built proof chain for claim {claim_id}")
+                except Exception as e:
+                    self.logger.warning(
+                        f"Failed to build proof chain for {claim_id}: {e}", exc_info=True
+                    )
 
-            # Now ask LLM to explain THIS chain in context of user's case
-            analysis = await self._analyze_issue_with_graph_chain(
-                issue, case_text, graph_chains, entities, chunks, sources_text, jurisdiction
+        # Step 6: Convert ProofChain objects to LegalProofChain format and synthesize
+        proof_chains = []  # LegalProofChain objects for return
+
+        if not built_proof_chains:
+            self.logger.warning(
+                "No proof chains built from matched claim types - returning empty proof chains. "
+                "This may indicate no matching claims in the knowledge graph for the user's situation."
             )
+        else:
+            # Process each built proof chain - synthesize and convert to LegalProofChain
+            for built_chain in built_proof_chains:
+                # Synthesize proof chain explanation using LLM
+                synthesis = await self._synthesize_proof_chain(
+                    built_chain, case_text, entities, chunks, sources_text, jurisdiction
+                )
 
-            if not analysis or isinstance(analysis, Exception):
-                self.logger.warning(f"Issue analysis failed for {issue}")
-                continue
-
-            # Extract actual law/remedy names from graph chain
-            laws_from_chain = []
-            remedies_from_chain = []
-            for chain_data in graph_chains:
-                chain = chain_data.get("chain", [])
-                for node in chain:
-                    if node.get("type") == "law":
-                        laws_from_chain.append(
-                            {"name": node.get("name", ""), "cite": node.get("cite")}
-                        )
-                    elif node.get("type") == "remedy":
-                        remedies_from_chain.append(node.get("name", ""))
-
-            # Rank remedies (using graph chain ones first)
-            ranked_remedies = self.rank_remedies(issue, entities, chunks, 0.5, jurisdiction)
-
-            # Prioritize remedies that are in graph chain
-            chain_remedy_names = set(remedies_from_chain)
-            ranked_remedies_sorted = sorted(
-                ranked_remedies,
-                key=lambda r: (r.name.lower() in chain_remedy_names, -r.estimated_probability),
-                reverse=True,
-            )
-
-            # Extract legal elements
-            legal_elements = self._extract_elements_from_chains(graph_chains, analysis)
-
-            # Calculate strength based on evidence vs requirements
-            present_count = sum(len(v) for v in evidence_present.values())
-            required_count = len(legal_elements)
-            evidence_strength = (
-                min(1.0, present_count / max(1, required_count)) if required_count > 0 else 0.3
-            )
-
-            # Determine strength assessment
-            if evidence_strength >= 0.7:
-                strength_assessment = "strong"
-            elif evidence_strength >= 0.4:
-                strength_assessment = "moderate"
-            else:
-                strength_assessment = "weak"
-
-            # Build proof chain with graph as foundation
-            proof_chain = LegalProofChain(
-                issue=issue,
-                applicable_laws=(
-                    laws_from_chain[:5] if laws_from_chain else analysis.get("applicable_laws", [])
-                ),
-                evidence_present=analysis.get("evidence_present", []),
-                evidence_needed=analysis.get("evidence_needed", []),
-                strength_score=evidence_strength,
-                strength_assessment=strength_assessment,
-                remedies=ranked_remedies_sorted[:5],
-                next_steps=[],
-                reasoning=analysis.get("reasoning", ""),
-                graph_chains=graph_chains,
-                legal_elements=legal_elements,
-                verification_status={"graph_path_exists": True, "verified": True},
-            )
-
-            proof_chains.append(proof_chain)
+                # Convert ProofChain to LegalProofChain format
+                legal_proof_chain = self._convert_proof_chain_to_legal_proof_chain(
+                    built_chain, synthesis, entities, chunks, jurisdiction
+                )
+                if legal_proof_chain:
+                    proof_chains.append(legal_proof_chain)
 
         # Step 7: Analyze evidence gaps
         applicable_laws = [
@@ -1483,6 +1435,173 @@ Return ONLY valid JSON:
             "evidence_needed": [],
             "reasoning": "Unable to analyze with graph chain",
         }
+
+    async def _synthesize_proof_chain(
+        self,
+        proof_chain,
+        case_text: str,
+        entities: list,
+        chunks: list[dict],
+        sources_text: str,
+        jurisdiction: str | None,
+    ) -> dict:
+        """
+        Synthesize an explanation of a proof chain in the context of the user's case.
+
+        Args:
+            proof_chain: ProofChain object from ProofChainService
+            case_text: User's case description
+            entities: Retrieved entities
+            chunks: Retrieved chunks
+            sources_text: Formatted sources text
+            jurisdiction: Optional jurisdiction
+
+        Returns:
+            Dictionary with synthesis results (evidence_present, evidence_needed, reasoning, applicable_laws)
+        """
+        # Format proof chain for prompt
+        claim_desc = proof_chain.claim_description or proof_chain.claim_id
+        required_ev = [
+            f"• {ev.description} ({'CRITICAL' if ev.is_critical else 'helpful'})"
+            for ev in (proof_chain.required_evidence or [])
+        ]
+        presented_ev = [f"• {ev.description}" for ev in (proof_chain.presented_evidence or [])]
+        missing_ev = [
+            f"• {ev.description} ({'CRITICAL' if ev.is_critical else 'helpful'})"
+            for ev in (proof_chain.missing_evidence or [])
+        ]
+
+        prompt = f"""Analyze how this proof chain applies to the tenant's specific case.
+
+CLAIM: {claim_desc}
+Claim Type: {proof_chain.claim_type or "Unknown"}
+Completeness: {proof_chain.completeness_score:.1%}
+
+REQUIRED EVIDENCE:
+{chr(10).join(required_ev) if required_ev else "None specified"}
+
+PRESENTED EVIDENCE:
+{chr(10).join(presented_ev) if presented_ev else "None found"}
+
+MISSING EVIDENCE:
+{chr(10).join(missing_ev) if missing_ev else "None - all requirements satisfied"}
+
+TENANT'S CASE:
+{case_text[:2000]}
+
+AVAILABLE SOURCES:
+{sources_text[:1500] if sources_text else "No sources"}
+
+Your task: Explain how this proof chain applies to the tenant's specific case, referencing exact facts from their description.
+
+Return ONLY valid JSON:
+{{
+    "evidence_present": ["List evidence items tenant mentioned having"],
+    "evidence_needed": ["List evidence items still needed from missing_evidence list"],
+    "reasoning": "Explain how the proof chain applies to THIS specific case, citing tenant's own words",
+    "applicable_laws": [{{"name": "Law name", "cite": "Citation"}}]
+}}"""
+
+        try:
+            response = await self.llm_client.chat_completion(prompt)
+            json_match = re.search(r"\{[\s\S]*\}", response)
+            if json_match:
+                return json.loads(json_match.group(0))
+        except Exception as e:
+            self.logger.warning(f"Failed to synthesize proof chain: {e}")
+
+        return {
+            "evidence_present": [],
+            "evidence_needed": [],
+            "reasoning": "Unable to synthesize proof chain",
+            "applicable_laws": [],
+        }
+
+    def _convert_proof_chain_to_legal_proof_chain(
+        self,
+        proof_chain,
+        synthesis: dict,
+        entities: list,
+        chunks: list[dict],
+        jurisdiction: str | None,
+    ) -> LegalProofChain | None:
+        """
+        Convert a ProofChain object to LegalProofChain format.
+
+        Args:
+            proof_chain: ProofChain object from ProofChainService
+            synthesis: Synthesis results from _synthesize_proof_chain
+            entities: Retrieved entities
+            chunks: Retrieved chunks
+            jurisdiction: Optional jurisdiction
+
+        Returns:
+            LegalProofChain object or None
+        """
+        # Extract issue name from claim description
+        issue = proof_chain.claim_description or proof_chain.claim_id
+        if len(issue) > 100:
+            issue = issue[:97] + "..."
+
+        # Extract applicable laws from synthesis or entities
+        applicable_laws = synthesis.get("applicable_laws", [])
+
+        # Calculate evidence strength from proof chain completeness
+        evidence_strength = proof_chain.completeness_score
+        if evidence_strength >= 0.7:
+            strength_assessment = "strong"
+        elif evidence_strength >= 0.4:
+            strength_assessment = "moderate"
+        else:
+            strength_assessment = "weak"
+
+        # Extract evidence present/needed
+        evidence_present = synthesis.get("evidence_present", [])
+        evidence_needed = synthesis.get("evidence_needed", [])
+
+        # Rank remedies (from entities or proof chain outcome)
+        ranked_remedies = []
+        if proof_chain.outcome:
+            # Try to find remedy entities from outcome
+            outcome_desc = proof_chain.outcome.get("description", "")
+            ranked_remedies = self.rank_remedies(
+                issue, entities, chunks, evidence_strength, jurisdiction
+            )
+
+        # Extract legal elements from required evidence
+        legal_elements = []
+        if proof_chain.required_evidence:
+            for ev in proof_chain.required_evidence:
+                legal_elements.append(
+                    {
+                        "element": ev.description,
+                        "status": (
+                            "satisfied"
+                            if ev.id in [p.id for p in (proof_chain.presented_evidence or [])]
+                            else "missing"
+                        ),
+                        "is_critical": ev.is_critical,
+                    }
+                )
+
+        return LegalProofChain(
+            issue=issue,
+            applicable_laws=applicable_laws[:10],
+            evidence_present=evidence_present,
+            evidence_needed=evidence_needed,
+            strength_score=evidence_strength,
+            strength_assessment=strength_assessment,
+            remedies=ranked_remedies[:5],
+            next_steps=[],
+            reasoning=synthesis.get("reasoning", ""),
+            graph_chains=[],  # Proof chain is already graph-based
+            legal_elements=legal_elements,
+            verification_status={
+                "graph_path_exists": True,
+                "verified": True,
+                "completeness_score": proof_chain.completeness_score,
+            },
+        )
 
     async def _identify_issues(self, case_text: str, sources_text: str) -> list[str]:
         """Stage 1: Identify legal issues in the case."""

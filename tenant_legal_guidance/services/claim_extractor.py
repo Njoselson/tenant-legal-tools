@@ -10,6 +10,7 @@ This service implements claim-centric sequential extraction:
 
 import json
 import logging
+import re
 from dataclasses import dataclass, field
 
 from tenant_legal_guidance.graph.arango_graph import ArangoDBGraph
@@ -278,76 +279,6 @@ class ClaimExtractor:
 
         return damages_list
 
-    async def extract_full_proof_chain(
-        self,
-        text: str,
-        metadata: SourceMetadata | None = None,
-    ) -> ClaimExtractionResult:
-        """
-        Extract complete proof chains: claims → evidence → outcomes → damages.
-
-        This is the main entry point for claim-centric sequential extraction.
-
-        Args:
-            text: The full text of the legal document
-            metadata: Optional source metadata
-
-        Returns:
-            Complete ClaimExtractionResult with all entities and relationships
-        """
-        self.logger.info("Starting full proof chain extraction")
-
-        # Step 1: Extract claims
-        result = await self.extract_claims(text, metadata)
-
-        # Step 2: For each claim, extract evidence
-        for claim in result.claims:
-            evidence = await self.extract_evidence_for_claim(text, claim, metadata)
-            result.evidence.extend(evidence)
-
-            # Create HAS_EVIDENCE relationships
-            for evid in evidence:
-                result.relationships.append(
-                    {"source_id": claim.id, "target_id": evid.id, "type": "HAS_EVIDENCE"}
-                )
-
-        # Step 3: Extract outcomes
-        result.outcomes = await self.extract_outcomes(text, result.claims, metadata)
-
-        # Create SUPPORTS relationships (evidence → outcome)
-        for outcome in result.outcomes:
-            for evid in result.evidence:
-                if any(cid in outcome.linked_claim_ids for cid in evid.linked_claim_ids):
-                    result.relationships.append(
-                        {"source_id": evid.id, "target_id": outcome.id, "type": "SUPPORTS"}
-                    )
-
-        # Step 4: Extract damages
-        result.damages = await self.extract_damages(text, result.outcomes, metadata)
-
-        # Create IMPLY relationships (outcome → damages)
-        for dmg in result.damages:
-            if dmg.linked_outcome_id:
-                result.relationships.append(
-                    {"source_id": dmg.linked_outcome_id, "target_id": dmg.id, "type": "IMPLY"}
-                )
-
-                # Create RESOLVE relationships (damages → claim)
-                for outcome in result.outcomes:
-                    if outcome.id == dmg.linked_outcome_id:
-                        for claim_id in outcome.linked_claim_ids:
-                            result.relationships.append(
-                                {"source_id": dmg.id, "target_id": claim_id, "type": "RESOLVE"}
-                            )
-
-        self.logger.info(
-            f"Extraction complete: {len(result.claims)} claims, "
-            f"{len(result.evidence)} evidence, {len(result.outcomes)} outcomes, "
-            f"{len(result.damages)} damages, {len(result.relationships)} relationships"
-        )
-
-        return result
-
     def _generate_document_id(self, text: str, metadata: SourceMetadata | None) -> str:
         """Generate a unique document ID."""
         import hashlib
@@ -359,15 +290,53 @@ class ClaimExtractor:
         return f"doc:{content_hash}"
 
     def _parse_json_response(self, response: str) -> dict | None:
-        """Parse JSON from LLM response."""
+        """Parse JSON from LLM response with multiple fallback strategies."""
+
+        # Try direct parsing first
         try:
-            # Try to find JSON in the response
-            start = response.find("{")
-            end = response.rfind("}") + 1
-            if start >= 0 and end > start:
+            return json.loads(response.strip())
+        except json.JSONDecodeError:
+            pass
+
+        # Try extracting from markdown code block
+        json_match = re.search(r"```json\s*([\s\S]*?)\s*```", response, re.DOTALL)
+        if json_match:
+            try:
+                return json.loads(json_match.group(1).strip())
+            except json.JSONDecodeError:
+                pass
+
+        # Try extracting from code block without language specifier
+        json_match = re.search(r"```\s*([\s\S]*?)\s*```", response, re.DOTALL)
+        if json_match:
+            try:
+                return json.loads(json_match.group(1).strip())
+            except json.JSONDecodeError:
+                pass
+
+        # Try finding JSON object between first { and last }
+        start = response.find("{")
+        end = response.rfind("}") + 1
+        if start >= 0 and end > start:
+            try:
                 return json.loads(response[start:end])
-        except json.JSONDecodeError as e:
-            self.logger.warning(f"Failed to parse JSON: {e}")
+            except json.JSONDecodeError as e:
+                self.logger.warning(f"Failed to parse JSON: {e}")
+
+        # Try to fix common JSON issues and retry
+        try:
+            # Remove trailing commas before } or ]
+            fixed = re.sub(r",\s*}", "}", response)
+            fixed = re.sub(r",\s*]", "]", fixed)
+            # Try parsing the fixed version
+            start = fixed.find("{")
+            end = fixed.rfind("}") + 1
+            if start >= 0 and end > start:
+                return json.loads(fixed[start:end])
+        except (json.JSONDecodeError, Exception):
+            pass
+
+        self.logger.warning("Failed to parse JSON response after all fallback strategies")
         return None
 
     def _parse_claim_data(self, data: dict, doc_id: str, index: int) -> ExtractedClaim | None:
@@ -729,164 +698,6 @@ class ClaimExtractor:
         claim_type = claim.name.upper().replace(" ", "_").replace("-", "_")[:50]
         self.logger.info(f"Generated claim type '{claim_type}' from claim name '{claim.name}'")
         return claim_type
-
-    async def store_to_graph(
-        self,
-        result: ClaimExtractionResult,
-        source_metadata: SourceMetadata | None = None,
-    ) -> dict:
-        """
-        Store extracted entities and relationships to the knowledge graph.
-
-        Args:
-            result: The ClaimExtractionResult to persist
-            source_metadata: Optional source metadata for provenance
-
-        Returns:
-            dict with counts of stored entities and relationships
-        """
-        if not self.kg:
-            self.logger.warning("No knowledge graph configured, skipping storage")
-            return {"stored": False, "reason": "no_knowledge_graph"}
-
-        self.logger.info(f"Storing extraction results to graph: {result.document_id}")
-
-        stored = {
-            "claims": 0,
-            "evidence": 0,
-            "outcomes": 0,
-            "damages": 0,
-            "relationships": 0,
-        }
-
-        # Build source metadata for provenance
-        if source_metadata is None:
-            source_metadata = SourceMetadata(
-                source=result.document_id,
-                source_type=SourceType.FILE,
-            )
-
-        # Store claims as LEGAL_CLAIM entities
-        for claim in result.claims:
-            # Extract claim type string
-            claim_type = await self._extract_claim_type(claim)
-
-            entity = LegalEntity(
-                id=claim.id,
-                entity_type=EntityType.LEGAL_CLAIM,
-                name=claim.name,
-                description=claim.claim_description,
-                source_metadata=source_metadata,
-                # Legal claim specific fields
-                claim_description=claim.claim_description,
-                claimant=claim.claimant,
-                respondent_party=claim.respondent_party,
-                claim_type=claim_type,  # Claim type string
-                relief_sought=claim.relief_sought,
-                claim_status=claim.claim_status,
-            )
-            if self.kg.add_entity(entity, overwrite=True):
-                stored["claims"] += 1
-
-        # Store evidence as EVIDENCE entities
-        for evid in result.evidence:
-            entity = LegalEntity(
-                id=evid.id,
-                entity_type=EntityType.EVIDENCE,
-                name=evid.name,
-                description=evid.description,
-                source_metadata=source_metadata,
-                # Evidence specific fields
-                evidence_context=evid.evidence_context,
-                evidence_source_type=evid.evidence_source_type,
-                is_critical=evid.is_critical,
-                attributes={
-                    "evidence_type": evid.evidence_type,
-                    "source_quote": evid.source_quote or "",
-                    "linked_claim_ids": ",".join(evid.linked_claim_ids),
-                },
-            )
-            if self.kg.add_entity(entity, overwrite=True):
-                stored["evidence"] += 1
-
-        # Store outcomes as LEGAL_OUTCOME entities
-        for outcome in result.outcomes:
-            entity = LegalEntity(
-                id=outcome.id,
-                entity_type=EntityType.LEGAL_OUTCOME,
-                name=outcome.name,
-                description=outcome.description,
-                source_metadata=source_metadata,
-                # Outcome specific fields
-                outcome=outcome.disposition,
-                ruling_type=outcome.outcome_type,
-                attributes={
-                    "decision_maker": outcome.decision_maker or "",
-                    "linked_claim_ids": ",".join(outcome.linked_claim_ids),
-                },
-            )
-            if self.kg.add_entity(entity, overwrite=True):
-                stored["outcomes"] += 1
-
-        # Store damages as DAMAGES entities
-        for dmg in result.damages:
-            entity = LegalEntity(
-                id=dmg.id,
-                entity_type=EntityType.DAMAGES,
-                name=dmg.name,
-                description=dmg.description,
-                source_metadata=source_metadata,
-                # Damages specific fields
-                damages_awarded=dmg.amount,
-                attributes={
-                    "damage_type": dmg.damage_type,
-                    "status": dmg.status,
-                    "linked_outcome_id": dmg.linked_outcome_id or "",
-                },
-            )
-            if self.kg.add_entity(entity, overwrite=True):
-                stored["damages"] += 1
-
-        # Store relationships
-        for rel in result.relationships:
-            try:
-                rel_type = RelationshipType[rel["type"]]
-                relationship = LegalRelationship(
-                    source_id=rel["source_id"],
-                    target_id=rel["target_id"],
-                    relationship_type=rel_type,
-                )
-                if self.kg.add_relationship(relationship):
-                    stored["relationships"] += 1
-            except (KeyError, ValueError) as e:
-                self.logger.warning(f"Failed to store relationship {rel}: {e}")
-
-        self.logger.info(
-            f"Stored to graph: {stored['claims']} claims, {stored['evidence']} evidence, "
-            f"{stored['outcomes']} outcomes, {stored['damages']} damages, "
-            f"{stored['relationships']} relationships"
-        )
-
-        return stored
-
-    async def extract_and_store(
-        self,
-        text: str,
-        metadata: SourceMetadata | None = None,
-    ) -> tuple[ClaimExtractionResult, dict]:
-        """
-        Extract claims and store to graph in one operation.
-
-        Args:
-            text: The legal document text
-            metadata: Optional source metadata
-
-        Returns:
-            Tuple of (extraction_result, storage_counts)
-        """
-        result = await self.extract_full_proof_chain_single(text, metadata)
-        stored = await self.store_to_graph(result, metadata)
-        return result, stored
 
     def get_stored_claims(self, document_id: str) -> list[dict]:
         """

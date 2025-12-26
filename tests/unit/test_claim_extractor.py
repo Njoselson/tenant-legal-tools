@@ -367,63 +367,56 @@ class TestFullProofChainExtraction:
     @pytest.mark.asyncio
     async def test_full_extraction_flow(self, claim_extractor, mock_llm_client, sample_case_text):
         """Integration test: full claim → evidence → outcome → damages flow."""
-        # Mock sequential LLM calls
-        mock_llm_client.chat_completion.side_effect = [
-            # Claims
-            json.dumps(
-                {
-                    "claims": [
-                        {
-                            "name": "Non-payment",
-                            "description": "Rent claim",
-                            "claimant": "Landlord",
-                            "status": "dismissed",
-                        }
-                    ]
-                }
-            ),
-            # Evidence for claim
-            json.dumps(
-                {
-                    "evidence": [
-                        {
-                            "name": "Rent ledger",
-                            "type": "documentary",
-                            "description": "Shows balance",
-                        }
-                    ]
-                }
-            ),
-            # Outcomes
-            json.dumps(
-                {
-                    "outcomes": [
-                        {
-                            "name": "Petition dismissed",
-                            "type": "dismissal",
-                            "disposition": "dismissed",
-                            "linked_claims": ["Non-payment"],
-                        }
-                    ]
-                }
-            ),
-            # Damages
-            json.dumps(
-                {
-                    "damages": [
-                        {
-                            "name": "Rent denied",
-                            "type": "monetary",
-                            "amount": 45900,
-                            "status": "denied",
-                            "linked_outcome": "Petition dismissed",
-                        }
-                    ]
-                }
-            ),
-        ]
+        # Mock single LLM call (megaprompt) - extract_full_proof_chain_single makes one call
+        mock_llm_client.chat_completion.return_value = json.dumps(
+            {
+                "claims": [
+                    {
+                        "id": "claim_0",
+                        "name": "Non-payment",
+                        "description": "Rent claim",
+                        "claimant": "Landlord",
+                        "status": "dismissed",
+                    }
+                ],
+                "evidence": [
+                    {
+                        "id": "evid_0",
+                        "name": "Rent ledger",
+                        "type": "documentary",
+                        "description": "Shows balance",
+                        "claim_ids": ["claim_0"],
+                    }
+                ],
+                "outcomes": [
+                    {
+                        "id": "outcome_0",
+                        "name": "Petition dismissed",
+                        "type": "dismissal",
+                        "disposition": "dismissed",
+                        "claim_ids": ["claim_0"],
+                    }
+                ],
+                "damages": [
+                    {
+                        "id": "damage_0",
+                        "name": "Rent denied",
+                        "type": "monetary",
+                        "amount": 45900,
+                        "status": "denied",
+                        "linked_outcome": "outcome_0",
+                    }
+                ],
+                "relationships": [
+                    {"source": "claim_0", "target": "evid_0", "type": "HAS_EVIDENCE"},
+                    {"source": "evid_0", "target": "outcome_0", "type": "SUPPORTS"},
+                    {"source": "outcome_0", "target": "claim_0", "type": "RESOLVE"},
+                    {"source": "outcome_0", "target": "damage_0", "type": "IMPLY"},
+                ],
+            }
+        )
 
-        result = await claim_extractor.extract_full_proof_chain(sample_case_text)
+        result = await claim_extractor.extract_full_proof_chain_single(sample_case_text)
 
         assert len(result.claims) == 1
         assert len(result.evidence) == 1
@@ -442,36 +435,54 @@ class TestFullProofChainExtraction:
         self, claim_extractor, mock_llm_client, sample_case_text
     ):
         """Verify relationship structure is correct."""
-        mock_llm_client.chat_completion.side_effect = [
-            json.dumps({"claims": [{"name": "Claim1", "description": "desc", "claimant": "A"}]}),
-            json.dumps({"evidence": [{"name": "Evidence1", "type": "doc", "description": "desc"}]}),
-            json.dumps(
-                {
-                    "outcomes": [
-                        {
-                            "name": "Outcome1",
-                            "type": "judgment",
-                            "disposition": "granted",
-                            "linked_claims": ["Claim1"],
-                        }
-                    ]
-                }
-            ),
-            json.dumps(
-                {
-                    "damages": [
-                        {
-                            "name": "Damages1",
-                            "type": "monetary",
-                            "status": "awarded",
-                            "linked_outcome": "Outcome1",
-                        }
-                    ]
-                }
-            ),
-        ]
+        # Mock single LLM call (megaprompt) - extract_full_proof_chain_single makes one call
+        mock_llm_client.chat_completion.return_value = json.dumps(
+            {
+                "claims": [
+                    {
+                        "id": "claim_0",
+                        "name": "Claim1",
+                        "description": "desc",
+                        "claimant": "A",
+                    }
+                ],
+                "evidence": [
+                    {
+                        "id": "evid_0",
+                        "name": "Evidence1",
+                        "type": "doc",
+                        "description": "desc",
+                        "claim_ids": ["claim_0"],
+                    }
+                ],
+                "outcomes": [
+                    {
+                        "id": "outcome_0",
+                        "name": "Outcome1",
+                        "type": "judgment",
+                        "disposition": "granted",
+                        "claim_ids": ["claim_0"],
+                    }
+                ],
+                "damages": [
+                    {
+                        "id": "damage_0",
+                        "name": "Damages1",
+                        "type": "monetary",
+                        "status": "awarded",
+                        "linked_outcome": "outcome_0",
+                    }
+                ],
+                "relationships": [
+                    {"source": "claim_0", "target": "evid_0", "type": "HAS_EVIDENCE"},
+                    {"source": "evid_0", "target": "outcome_0", "type": "SUPPORTS"},
+                    {"source": "outcome_0", "target": "damage_0", "type": "IMPLY"},
+                    {"source": "outcome_0", "target": "claim_0", "type": "RESOLVE"},
+                ],
+            }
+        )
 
-        result = await claim_extractor.extract_full_proof_chain(sample_case_text)
+        result = await claim_extractor.extract_full_proof_chain_single(sample_case_text)
 
         # Check HAS_EVIDENCE: claim → evidence
         has_evidence = [r for r in result.relationships if r["type"] == "HAS_EVIDENCE"]
@@ -487,10 +498,10 @@ class TestFullProofChainExtraction:
         assert len(implies) == 1
         assert implies[0]["source_id"].startswith("legal_outcome:")
 
-        # Check RESOLVE: damages → claim
+        # Check RESOLVE: outcome → claim
         resolves = [r for r in result.relationships if r["type"] == "RESOLVE"]
         assert len(resolves) == 1
-        assert resolves[0]["source_id"].startswith("damages:")
+        assert resolves[0]["source_id"].startswith("legal_outcome:")
 
 
 # ============================================================================

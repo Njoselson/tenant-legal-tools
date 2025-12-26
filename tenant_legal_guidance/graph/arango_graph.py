@@ -918,11 +918,58 @@ class ArangoDBGraph:
             try:
                 valid_entity_type = normalize_entity_type(stored_type)
             except ValueError:
-                # If stored type is invalid, log it and use the collection's entity type
-                self.logger.warning(
-                    f"Invalid entity type '{stored_type}' for entity {data.get('_key', 'unknown')}, using {entity_type.value}"
-                )
-                valid_entity_type = entity_type
+                # If stored type is invalid, try to infer from entity ID prefix
+                entity_id = data.get("_key", "")
+                if ":" in entity_id:
+                    prefix = entity_id.split(":", 1)[0]
+                    # Handle legacy claim_type: prefix (should be legal_claim:)
+                    if prefix == "claim_type":
+                        self.logger.debug(
+                            f"Entity {entity_id} has legacy 'claim_type:' prefix, treating as LEGAL_CLAIM"
+                        )
+                        valid_entity_type = EntityType.LEGAL_CLAIM
+                    else:
+                        # Try to map prefix to entity type
+                        prefix_mapping = {
+                            "law": EntityType.LAW,
+                            "remedy": EntityType.REMEDY,
+                            "legal_claim": EntityType.LEGAL_CLAIM,
+                            "evidence": EntityType.EVIDENCE,
+                            "legal_outcome": EntityType.LEGAL_OUTCOME,
+                            "damages": EntityType.DAMAGES,
+                            "jurisdiction": EntityType.JURISDICTION,
+                            "case_document": EntityType.CASE_DOCUMENT,
+                            "tenant": EntityType.TENANT,
+                            "landlord": EntityType.LANDLORD,
+                            "legal_service": EntityType.LEGAL_SERVICE,
+                            "government_entity": EntityType.GOVERNMENT_ENTITY,
+                            "document": EntityType.DOCUMENT,
+                            "legal_concept": EntityType.LEGAL_CONCEPT,
+                            "legal_procedure": EntityType.LEGAL_PROCEDURE,
+                            "tenant_group": EntityType.TENANT_GROUP,
+                            "campaign": EntityType.CAMPAIGN,
+                            "tactic": EntityType.TACTIC,
+                            "tenant_issue": EntityType.TENANT_ISSUE,
+                            "event": EntityType.EVENT,
+                            "organizing_outcome": EntityType.ORGANIZING_OUTCOME,
+                        }
+                        if prefix in prefix_mapping:
+                            valid_entity_type = prefix_mapping[prefix]
+                            self.logger.debug(
+                                f"Inferred entity type '{valid_entity_type.value}' from prefix '{prefix}' for {entity_id}"
+                            )
+                        else:
+                            # Fallback to collection's entity type
+                            self.logger.warning(
+                                f"Invalid entity type '{stored_type}' for entity {entity_id}, using {entity_type.value}"
+                            )
+                            valid_entity_type = entity_type
+                else:
+                    # No prefix, use collection's entity type
+                    self.logger.warning(
+                        f"Invalid entity type '{stored_type}' for entity {entity_id}, using {entity_type.value}"
+                    )
+                    valid_entity_type = entity_type
 
         # Map ArangoDB document to LegalEntity fields
         # Fields to exclude from attributes (handled separately at top level)
@@ -943,16 +990,72 @@ class ArangoDBGraph:
             "ruling_type",
             "relief_granted",
             "damages_awarded",
+            # Legal claim fields (stored as top-level, not in attributes)
+            "claim_description",
+            "claimant",
+            "respondent_party",
+            "claim_type",
+            "relief_sought",
+            "claim_status",
             "_id",
             "_rev",  # ArangoDB internal fields
         }
+
+        # Build attributes dict, converting non-string values to strings
+        # (Pydantic requires attributes to be dict[str, str])
+        # Fields that should NEVER be in attributes (they're direct fields or excluded)
+        excluded_from_attributes = {
+            "relief_sought",  # Direct field (list[str]) - NEVER in attributes
+            "is_critical",  # Direct field on evidence (bool) - NEVER in attributes
+            "claim_description",
+            "claimant",
+            "respondent_party",
+            "claim_type",
+            "claim_status",
+        }
+
+        # Get raw attributes, excluding both excluded_fields AND excluded_from_attributes
+        raw_attributes = {
+            k: v
+            for k, v in data.items()
+            if k not in excluded_fields and k not in excluded_from_attributes
+        }
+
+        # Also check if there's a nested attributes dict in old data
+        # OLD DATA FIX: Old entities have relief_sought/is_critical stored in attributes dict
+        old_attributes = data.get("attributes", {})
+        if isinstance(old_attributes, dict):
+            # Merge old attributes, but STRICTLY exclude problematic fields
+            for k, v in old_attributes.items():
+                # NEVER include these fields in attributes - they're direct fields
+                if k in excluded_from_attributes:
+                    continue
+                if k not in excluded_fields:
+                    raw_attributes[k] = v
+
+        # Convert all values to strings (Pydantic requirement)
+        attributes = {}
+        for k, v in raw_attributes.items():
+            # Handle old data: convert lists/booleans to strings
+            if isinstance(v, list | tuple):
+                attributes[k] = ", ".join(str(item) for item in v)
+            elif isinstance(v, bool):
+                attributes[k] = str(v).lower()
+            elif v is None:
+                attributes[k] = ""
+            else:
+                attributes[k] = str(v)
+
+        # Final safety check: remove any problematic fields that might have slipped through
+        for field in excluded_from_attributes:
+            attributes.pop(field, None)
 
         entity_data = {
             "id": data["_key"],  # Use _key as id
             "entity_type": valid_entity_type,
             "name": data.get("name", ""),
             "description": data.get("description", ""),
-            "attributes": {k: v for k, v in data.items() if k not in excluded_fields},
+            "attributes": attributes,
             "source_metadata": {
                 "source": stored_metadata.get(
                     "source", data["_key"]
@@ -999,7 +1102,73 @@ class ArangoDBGraph:
         if "damages_awarded" in data:
             entity_data["damages_awarded"] = data.get("damages_awarded")
 
-        return LegalEntity(**entity_data)
+        # Add legal claim fields (NEW)
+        if "claim_description" in data:
+            entity_data["claim_description"] = data.get("claim_description")
+        if "claimant" in data:
+            entity_data["claimant"] = data.get("claimant")
+        if "respondent_party" in data:
+            entity_data["respondent_party"] = data.get("respondent_party")
+        if "claim_type" in data:
+            entity_data["claim_type"] = data.get("claim_type")
+        if "relief_sought" in data:
+            relief_sought = data.get("relief_sought")
+            # Handle old data: convert list to list[str] if needed
+            if isinstance(relief_sought, list):
+                entity_data["relief_sought"] = [str(item) for item in relief_sought]
+            elif isinstance(relief_sought, str):
+                # Try to parse if it's a JSON string
+                try:
+                    import json
+
+                    parsed = json.loads(relief_sought)
+                    if isinstance(parsed, list):
+                        entity_data["relief_sought"] = [str(item) for item in parsed]
+                    else:
+                        entity_data["relief_sought"] = [relief_sought]
+                except (json.JSONDecodeError, ValueError):
+                    entity_data["relief_sought"] = [relief_sought]
+            else:
+                entity_data["relief_sought"] = []
+        if "claim_status" in data:
+            entity_data["claim_status"] = data.get("claim_status")
+
+        # Handle is_critical for evidence entities (if stored incorrectly in attributes)
+        if "is_critical" in data and entity_data.get("entity_type") == EntityType.EVIDENCE:
+            is_critical = data.get("is_critical")
+            if isinstance(is_critical, bool):
+                entity_data["is_critical"] = is_critical
+            elif isinstance(is_critical, str):
+                entity_data["is_critical"] = is_critical.lower() == "true"
+            # Don't set if not present (it's optional)
+
+        try:
+            return LegalEntity(**entity_data)
+        except Exception as e:
+            # Handle old data with invalid attribute types
+            # Try to clean up attributes one more time
+            if "attributes" in str(e).lower() and (
+                "relief_sought" in str(e) or "is_critical" in str(e)
+            ):
+                self.logger.warning(
+                    f"Cleaning up old data for entity {entity_data.get('id', 'unknown')}: {e}"
+                )
+                # Remove problematic fields from attributes
+                cleaned_attributes = {
+                    k: v
+                    for k, v in entity_data.get("attributes", {}).items()
+                    if k not in ["relief_sought", "is_critical"]
+                }
+                entity_data["attributes"] = cleaned_attributes
+                try:
+                    return LegalEntity(**entity_data)
+                except Exception as e2:
+                    self.logger.error(
+                        f"Failed to parse entity {entity_data.get('id', 'unknown')} even after cleanup: {e2}"
+                    )
+                    raise
+            else:
+                raise
 
     def add_entity(self, entity: LegalEntity, overwrite: bool = False) -> bool:
         """Add a legal entity to consolidated 'entities' collection."""
@@ -2493,4 +2662,29 @@ class ArangoDBGraph:
             return [row for row in cursor]
         except Exception as e:
             self.logger.error(f"Failed to get claim types: {e}")
+            return []
+
+    def get_claims_by_type(self, claim_type: str, limit: int = 10) -> list[str]:
+        """
+        Get claim entity IDs for a specific claim type.
+
+        Args:
+            claim_type: The claim type string (e.g., "DEREGULATION_CHALLENGE")
+            limit: Maximum number of claim IDs to return
+
+        Returns:
+            List of claim entity IDs (e.g., ["legal_claim:doc:...", ...])
+        """
+        try:
+            aql = """
+            FOR claim IN entities
+                FILTER claim.type == "legal_claim"
+                FILTER claim.claim_type == @claim_type
+                LIMIT @limit
+                RETURN claim._key
+            """
+            cursor = self.db.aql.execute(aql, bind_vars={"claim_type": claim_type, "limit": limit})
+            return [row for row in cursor]
+        except Exception as e:
+            self.logger.error(f"Failed to get claims by type {claim_type}: {e}")
             return []

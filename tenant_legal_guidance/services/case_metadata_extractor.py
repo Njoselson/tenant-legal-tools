@@ -133,13 +133,63 @@ Focus on:
 Return only valid JSON, no additional text.
 """
 
+        import json
+
         try:
-            response = await self.llm_client.complete(prompt)
+            response = await self.llm_client.chat_completion(prompt)
 
-            # Parse JSON response
-            import json
+            # Try multiple parsing strategies
+            case_data = None
 
-            case_data = json.loads(response.strip())
+            # Strategy 1: Direct parsing
+            try:
+                case_data = json.loads(response.strip())
+            except json.JSONDecodeError:
+                pass
+
+            # Strategy 2: Extract from markdown code block
+            if not case_data:
+                json_match = re.search(r"```json\s*([\s\S]*?)\s*```", response, re.DOTALL)
+                if json_match:
+                    try:
+                        case_data = json.loads(json_match.group(1).strip())
+                    except json.JSONDecodeError:
+                        pass
+
+            # Strategy 3: Extract from code block without language
+            if not case_data:
+                json_match = re.search(r"```\s*([\s\S]*?)\s*```", response, re.DOTALL)
+                if json_match:
+                    try:
+                        case_data = json.loads(json_match.group(1).strip())
+                    except json.JSONDecodeError:
+                        pass
+
+            # Strategy 4: Find JSON object between first { and last }
+            if not case_data:
+                start = response.find("{")
+                end = response.rfind("}") + 1
+                if start >= 0 and end > start:
+                    try:
+                        case_data = json.loads(response[start:end])
+                    except json.JSONDecodeError:
+                        pass
+
+            # Strategy 5: Try to fix common JSON issues
+            if not case_data:
+                try:
+                    fixed = re.sub(r",\s*}", "}", response)
+                    fixed = re.sub(r",\s*]", "]", fixed)
+                    start = fixed.find("{")
+                    end = fixed.rfind("}") + 1
+                    if start >= 0 and end > start:
+                        case_data = json.loads(fixed[start:end])
+                except (json.JSONDecodeError, Exception):
+                    pass
+
+            if not case_data:
+                self.logger.error("Failed to parse LLM response as JSON after all strategies")
+                return None
 
             # Validate required fields
             if not case_data.get("case_name"):
@@ -148,9 +198,6 @@ Return only valid JSON, no additional text.
 
             return case_data
 
-        except json.JSONDecodeError as e:
-            self.logger.error(f"Failed to parse LLM response as JSON: {e}")
-            return None
         except Exception as e:
             self.logger.error(f"LLM extraction failed: {e}")
             return None

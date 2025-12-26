@@ -6,7 +6,7 @@ import logging
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 from tenant_legal_guidance.api.schemas import (
@@ -15,7 +15,6 @@ from tenant_legal_guidance.api.schemas import (
     CaseAnalysisRequest,
     ChainsRequest,
     ClaimExtractionRequest,
-    ClaimExtractionResponse,
     ClaimTypeMatchSchema,
     ConsolidateAllRequest,
     ConsolidateRequest,
@@ -25,10 +24,6 @@ from tenant_legal_guidance.api.schemas import (
     EvidenceGapSchema,
     EvidenceMatchSchema,
     ExpandRequest,
-    ExtractedClaimSchema,
-    ExtractedDamagesSchema,
-    ExtractedEvidenceSchema,
-    ExtractedOutcomeSchema,
     GenerateAnalysisRequest,
     HybridSearchRequest,
     KGChatRequest,
@@ -38,11 +33,19 @@ from tenant_legal_guidance.api.schemas import (
     ProofChainSchema,
     RetrieveEntitiesRequest,
 )
-from tenant_legal_guidance.models.entities import EntityType, SourceMetadata, SourceType
+from tenant_legal_guidance.models.entities import SourceMetadata, SourceType
 from tenant_legal_guidance.services.case_analyzer import CaseAnalyzer
 from tenant_legal_guidance.services.entity_consolidation import EntityConsolidationService
+from tenant_legal_guidance.services.security import (
+    detect_prompt_injection,
+    sanitize_for_llm,
+)
 from tenant_legal_guidance.services.tenant_system import TenantLegalSystem
 from tenant_legal_guidance.utils.analysis_cache import get_cached_analysis, set_cached_analysis
+from tenant_legal_guidance.utils.health_check import (
+    calculate_overall_status,
+    check_all_dependencies,
+)
 
 # Initialize router
 router = APIRouter()
@@ -411,14 +414,25 @@ async def analyze_case(
 ) -> dict:
     """Analyze a tenant case using RAG on the knowledge graph (legacy endpoint)."""
     try:
-        logger.info(f"Analyzing case: {request.case_text[:100]}...")
+        # Security: Validate and sanitize input
+        if detect_prompt_injection(request.case_text):
+            logger.warning("Potential prompt injection detected in analyze-case request")
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid input detected. Please provide a valid case description.",
+            )
+
+        # Sanitize input
+        sanitized_case_text = sanitize_for_llm(request.case_text)
+
+        logger.info(f"Analyzing case: {sanitized_case_text[:100]}...")
         # Check cache if example_id is present
         if request.example_id and not request.force_refresh:
             cached = get_cached_analysis(request.example_id)
             if cached:
                 logger.info(f"Returning cached analysis for example_id={request.example_id}")
                 return cached
-        guidance = await case_analyzer.analyze_case(request.case_text)
+        guidance = await case_analyzer.analyze_case(sanitized_case_text)
 
         # Convert markdown to HTML for better display
         result = {
@@ -606,30 +620,46 @@ async def get_example_cases() -> dict:
 
 
 @router.get("/api/health")
-async def health(system: TenantLegalSystem = Depends(get_system)) -> dict:
-    try:
-        # Query normalized entities collection and group by type
-        kg = system.knowledge_graph
-        aql = """
-        FOR doc IN entities
-            COLLECT type = doc.type WITH COUNT INTO count
-            RETURN {type: type, count: count}
-        """
-        try:
-            results = list(kg.db.aql.execute(aql))
-            counts = {r["type"]: r["count"] for r in results}
-            # Ensure all entity types are present (with 0 count if missing)
-            for entity_type in EntityType:
-                if entity_type.value not in counts:
-                    counts[entity_type.value] = 0
-        except Exception as e:
-            logger.warning(f"Failed to get entity counts from entities collection: {e}")
-            counts = {et.value: 0 for et in EntityType}
+async def health(request: Request) -> JSONResponse:
+    """Production health check endpoint reporting status of all critical dependencies."""
+    from datetime import datetime
 
-        return {"status": "ok", "entity_counts": counts}
+    request_id = getattr(request.state, "request_id", "unknown")
+    try:
+        # Check all dependencies concurrently
+        dependencies_status = await check_all_dependencies()
+
+        # Calculate overall status
+        overall_status = calculate_overall_status(dependencies_status)
+
+        # Convert to dict format
+        dependencies_dict = {name: status.to_dict() for name, status in dependencies_status.items()}
+
+        response = {
+            "status": overall_status,
+            "timestamp": datetime.utcnow().isoformat(),
+            "dependencies": dependencies_dict,
+            "version": "1.0.0",
+        }
+
+        # Return appropriate status code
+        status_code = (
+            200 if overall_status == "healthy" else (503 if overall_status == "unhealthy" else 200)
+        )
+
+        return JSONResponse(content=response, status_code=status_code)
     except Exception as e:
-        logger.error(f"Health check failed: {e}")
-        return {"status": "error", "message": str(e)}
+        logger.error(f"Health check failed: {e}", exc_info=True, extra={"request_id": request_id})
+        return JSONResponse(
+            status_code=503,
+            content={
+                "status": "unhealthy",
+                "timestamp": datetime.utcnow().isoformat(),
+                "dependencies": {},
+                "version": "1.0.0",
+                "error": "Health check failed",
+            },
+        )
 
 
 @router.get("/api/health/search")
@@ -1080,94 +1110,93 @@ async def get_entity_quote(entity_id: str, system: TenantLegalSystem = Depends(g
 # ============================================================================
 
 
-@router.post("/api/v1/claims/extract", response_model=ClaimExtractionResponse)
+@router.post("/api/v1/claims/extract", response_model=list[ProofChainSchema])
 async def extract_claims(
     request: ClaimExtractionRequest, system: TenantLegalSystem = Depends(get_system)
-) -> ClaimExtractionResponse:
+) -> list[ProofChainSchema]:
     """
-    Extract legal claims, evidence, outcomes, and damages from a document.
+    Extract proof chains from a document.
 
-    This is the main entry point for the legal claim proving system.
-    Performs claim-centric sequential extraction:
-    1. Extract all claims from the document
-    2. For each claim, extract related evidence
-    3. Extract outcomes linked to claims
-    4. Extract damages linked to outcomes
-    5. Build relationships between entities
+    This endpoint uses the unified ProofChainService for extraction.
+    Extracts proof chains and stores entities in both ArangoDB and Qdrant with dual storage.
+
+    Returns list of ProofChain objects directly (unified format).
     """
     try:
-        from tenant_legal_guidance.services.claim_extractor import ClaimExtractor
+        from tenant_legal_guidance.services.proof_chain import ProofChainService
 
-        logger.info(f"Extracting claims from document ({len(request.text)} chars)")
+        logger.info(f"Extracting proof chains from document ({len(request.text)} chars)")
 
-        # Create extractor with the system's LLM client
-        extractor = ClaimExtractor(llm_client=system.deepseek)
+        # Create proof chain service with system dependencies
+        proof_chain_service = ProofChainService(
+            knowledge_graph=system.knowledge_graph,
+            vector_store=system.vector_store,
+            llm_client=system.deepseek,
+        )
 
-        # Run full proof chain extraction
-        result = await extractor.extract_full_proof_chain(
+        # Extract proof chains (this stores entities in both DBs)
+        proof_chains = await proof_chain_service.extract_proof_chains(
             text=request.text,
             metadata=request.metadata,
         )
 
-        # Convert to response schema
-        return ClaimExtractionResponse(
-            document_id=result.document_id,
-            claims=[
-                ExtractedClaimSchema(
-                    id=c.id,
-                    name=c.name,
-                    claim_description=c.claim_description,
-                    claimant=c.claimant,
-                    respondent_party=c.respondent_party,
-                    claim_type=c.claim_type,
-                    relief_sought=c.relief_sought,
-                    claim_status=c.claim_status,
-                    source_quote=c.source_quote,
-                )
-                for c in result.claims
-            ],
-            evidence=[
-                ExtractedEvidenceSchema(
-                    id=e.id,
-                    name=e.name,
-                    evidence_type=e.evidence_type,
-                    description=e.description,
-                    evidence_context=e.evidence_context,
-                    evidence_source_type=e.evidence_source_type,
-                    source_quote=e.source_quote,
-                    is_critical=e.is_critical,
-                    linked_claim_ids=e.linked_claim_ids,
-                )
-                for e in result.evidence
-            ],
-            outcomes=[
-                ExtractedOutcomeSchema(
-                    id=o.id,
-                    name=o.name,
-                    outcome_type=o.outcome_type,
-                    disposition=o.disposition,
-                    description=o.description,
-                    decision_maker=o.decision_maker,
-                    linked_claim_ids=o.linked_claim_ids,
-                )
-                for o in result.outcomes
-            ],
-            damages=[
-                ExtractedDamagesSchema(
-                    id=d.id,
-                    name=d.name,
-                    damage_type=d.damage_type,
-                    amount=d.amount,
-                    status=d.status,
-                    description=d.description,
-                    linked_outcome_id=d.linked_outcome_id,
-                )
-                for d in result.damages
-            ],
-            relationships=result.relationships,
-        )
+        # Convert ProofChain objects to ProofChainSchema
+        return [
+            ProofChainSchema(
+                claim_id=chain.claim_id,
+                claim_description=chain.claim_description,
+                claim_type=chain.claim_type,
+                claimant=chain.claimant,
+                required_evidence=[
+                    ProofChainEvidenceSchema(
+                        evidence_id=ev.evidence_id,
+                        evidence_type=ev.evidence_type,
+                        description=ev.description,
+                        is_critical=ev.is_critical,
+                        context=ev.context,
+                        source_reference=ev.source_reference,
+                        satisfied_by=ev.satisfied_by,
+                        satisfies=ev.satisfies,
+                    )
+                    for ev in (chain.required_evidence or [])
+                ],
+                presented_evidence=[
+                    ProofChainEvidenceSchema(
+                        evidence_id=ev.evidence_id,
+                        evidence_type=ev.evidence_type,
+                        description=ev.description,
+                        is_critical=ev.is_critical,
+                        context=ev.context,
+                        source_reference=ev.source_reference,
+                        satisfied_by=ev.satisfied_by,
+                        satisfies=ev.satisfies,
+                    )
+                    for ev in (chain.presented_evidence or [])
+                ],
+                missing_evidence=[
+                    ProofChainEvidenceSchema(
+                        evidence_id=ev.evidence_id,
+                        evidence_type=ev.evidence_type,
+                        description=ev.description,
+                        is_critical=ev.is_critical,
+                        context=ev.context,
+                        source_reference=ev.source_reference,
+                        satisfied_by=ev.satisfied_by,
+                        satisfies=ev.satisfies,
+                    )
+                    for ev in (chain.missing_evidence or [])
+                ],
+                outcome=chain.outcome,
+                damages=chain.damages,
+                completeness_score=chain.completeness_score,
+                satisfied_count=chain.satisfied_count,
+                missing_count=chain.missing_count,
+                critical_gaps=chain.critical_gaps or [],
+            )
+            for chain in proof_chains
+        ]
     except Exception as e:
-        logger.error(f"Claim extraction failed: {e}", exc_info=True)
+        logger.error(f"Proof chain extraction failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -1433,7 +1462,12 @@ async def get_document_proof_chains(
     try:
         from tenant_legal_guidance.services.proof_chain import ProofChainService
 
-        proof_chain_service = ProofChainService(system.knowledge_graph)
+        # Use unified ProofChainService with all dependencies
+        proof_chain_service = ProofChainService(
+            knowledge_graph=system.knowledge_graph,
+            vector_store=system.vector_store,
+            llm_client=system.deepseek,
+        )
 
         # Find all claims from this document
         # Claims have a source_document_id or similar field
@@ -1451,7 +1485,8 @@ async def get_document_proof_chains(
         # Build proof chains for each claim
         proof_chains = []
         for claim in document_claims:
-            proof_chain = await proof_chain_service.build_proof_chain(claim["_key"])
+            claim_id = claim.get("_key")
+            proof_chain = await proof_chain_service.build_proof_chain(claim_id)
             if proof_chain:
                 # Convert to schema
                 proof_chains.append(

@@ -2,6 +2,7 @@
 FastAPI application initialization for the Tenant Legal Guidance System.
 """
 
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
@@ -20,12 +21,15 @@ from tenant_legal_guidance.domain.errors import (
     ValidationFailed,
 )
 from tenant_legal_guidance.observability.middleware import RequestIdAndTimingMiddleware
+from tenant_legal_guidance.observability.rate_limiter import setup_rate_limiter
 from tenant_legal_guidance.services.case_analyzer import CaseAnalyzer
+from tenant_legal_guidance.services.security import validate_request_size
 from tenant_legal_guidance.services.tenant_system import TenantLegalSystem
 from tenant_legal_guidance.utils.logging import setup_logging
 
 # Initialize logging
 logger = setup_logging()
+app_logger = logging.getLogger(__name__)
 
 settings = get_settings()
 
@@ -70,13 +74,21 @@ app = FastAPI(
 )
 
 # Configure CORS
+cors_origins = (
+    settings.cors_allowed_origins
+    if settings.production_mode and settings.cors_allowed_origins
+    else settings.cors_allow_origins
+)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_allow_origins,  # In production, replace with specific origins
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Setup rate limiting
+setup_rate_limiter(app)
 
 # Mount static files
 app.mount("/static", StaticFiles(directory=settings.static_dir), name="static")
@@ -88,30 +100,136 @@ app.include_router(router)
 app.add_middleware(RequestIdAndTimingMiddleware)
 
 
-# Domain exception handlers -> HTTP mapping
+# Add request size validation middleware
+@app.middleware("http")
+async def validate_request_size_middleware(request: Request, call_next):
+    """Validate request body size before processing."""
+    content_length = request.headers.get("content-length")
+    if content_length:
+        try:
+            validate_request_size(int(content_length), settings.max_request_size_mb)
+        except ValueError as e:
+            request_id = getattr(request.state, "request_id", "unknown")
+            app_logger.warning(f"Request too large: {e}", extra={"request_id": request_id})
+            return JSONResponse(
+                status_code=413,
+                content={
+                    "error": f"Request body too large. Maximum size: {settings.max_request_size_mb}MB",
+                    "request_id": request_id,
+                },
+            )
+    return await call_next(request)
+
+
+# User-friendly error messages mapping
+ERROR_MESSAGES = {
+    ResourceNotFound: "The requested resource was not found.",
+    ValidationFailed: "The request data is invalid. Please check your input.",
+    ConflictError: "A conflict occurred while processing your request.",
+    ServiceUnavailable: "Service temporarily unavailable. Please try again later.",
+    DomainError: "An error occurred while processing your request.",
+    ValueError: "Invalid input provided. Please check your request.",
+}
+
+
+def get_user_friendly_error(exc: Exception) -> str:
+    """Get user-friendly error message for exception."""
+    exc_type = type(exc)
+    return ERROR_MESSAGES.get(exc_type, "An error occurred. Please try again later.")
+
+
+# Domain exception handlers -> HTTP mapping with user-friendly messages
 @app.exception_handler(ResourceNotFound)
 async def handle_not_found(request: Request, exc: ResourceNotFound):
-    return JSONResponse(status_code=404, content={"detail": str(exc) or "Not found"})
+    request_id = getattr(request.state, "request_id", "unknown")
+    app_logger.error(f"Resource not found: {exc}", exc_info=True, extra={"request_id": request_id})
+    return JSONResponse(
+        status_code=404,
+        content={
+            "error": get_user_friendly_error(exc),
+            "request_id": request_id,
+        },
+    )
 
 
 @app.exception_handler(ValidationFailed)
 async def handle_validation(request: Request, exc: ValidationFailed):
-    return JSONResponse(status_code=422, content={"detail": str(exc) or "Validation failed"})
+    request_id = getattr(request.state, "request_id", "unknown")
+    app_logger.warning(f"Validation failed: {exc}", extra={"request_id": request_id})
+    return JSONResponse(
+        status_code=422,
+        content={
+            "error": get_user_friendly_error(exc),
+            "request_id": request_id,
+        },
+    )
 
 
 @app.exception_handler(ConflictError)
 async def handle_conflict(request: Request, exc: ConflictError):
-    return JSONResponse(status_code=409, content={"detail": str(exc) or "Conflict"})
+    request_id = getattr(request.state, "request_id", "unknown")
+    app_logger.warning(f"Conflict: {exc}", extra={"request_id": request_id})
+    return JSONResponse(
+        status_code=409,
+        content={
+            "error": get_user_friendly_error(exc),
+            "request_id": request_id,
+        },
+    )
 
 
 @app.exception_handler(ServiceUnavailable)
 async def handle_service_unavailable(request: Request, exc: ServiceUnavailable):
-    return JSONResponse(status_code=503, content={"detail": str(exc) or "Service unavailable"})
+    request_id = getattr(request.state, "request_id", "unknown")
+    app_logger.error(f"Service unavailable: {exc}", exc_info=True, extra={"request_id": request_id})
+    return JSONResponse(
+        status_code=503,
+        content={
+            "error": get_user_friendly_error(exc),
+            "request_id": request_id,
+        },
+    )
 
 
 @app.exception_handler(DomainError)
 async def handle_domain_error(request: Request, exc: DomainError):
-    return JSONResponse(status_code=400, content={"detail": str(exc) or "Domain error"})
+    request_id = getattr(request.state, "request_id", "unknown")
+    app_logger.error(f"Domain error: {exc}", exc_info=True, extra={"request_id": request_id})
+    return JSONResponse(
+        status_code=400,
+        content={
+            "error": get_user_friendly_error(exc),
+            "request_id": request_id,
+        },
+    )
+
+
+@app.exception_handler(ValueError)
+async def handle_value_error(request: Request, exc: ValueError):
+    """Handle ValueError (e.g., from input validation)."""
+    request_id = getattr(request.state, "request_id", "unknown")
+    app_logger.warning(f"Value error: {exc}", extra={"request_id": request_id})
+    return JSONResponse(
+        status_code=400,
+        content={
+            "error": get_user_friendly_error(exc),
+            "request_id": request_id,
+        },
+    )
+
+
+@app.exception_handler(Exception)
+async def handle_generic_exception(request: Request, exc: Exception):
+    """Handle all other exceptions with user-friendly message."""
+    request_id = getattr(request.state, "request_id", "unknown")
+    app_logger.error(f"Unhandled exception: {exc}", exc_info=True, extra={"request_id": request_id})
+    return JSONResponse(
+        status_code=500,
+        content={
+            "error": "An unexpected error occurred. Please try again later.",
+            "request_id": request_id,
+        },
+    )
 
 
 @app.get("/api/_healthz")

@@ -12,7 +12,7 @@ from __future__ import annotations
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import Field
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Get the project root directory (parent of tenant_legal_guidance package)
@@ -71,7 +71,130 @@ class AppSettings(BaseSettings):
         default=True, alias="USE_ENTITY_FIRST_RETRIEVAL"
     )  # Toggle entity-aware vs keyword-only retrieval during analysis
 
+    # Production Mode
+    production_mode: bool = Field(
+        default=False,
+        alias="PRODUCTION_MODE",
+        description="Enable production mode (disables debug features, enables security measures)",
+    )
+
+    # Rate Limiting
+    rate_limit_enabled: bool = Field(
+        default=True,
+        alias="RATE_LIMIT_ENABLED",
+        description="Enable rate limiting middleware",
+    )
+    rate_limit_per_minute: int = Field(
+        default=100,
+        alias="RATE_LIMIT_PER_MINUTE",
+        description="Maximum requests per minute per IP",
+    )
+    rate_limit_per_minute_authenticated: int = Field(
+        default=200,
+        alias="RATE_LIMIT_PER_MINUTE_AUTHENTICATED",
+        description="Maximum requests per minute for API key authenticated requests",
+    )
+
+    # Caching
+    cache_ttl_seconds: int = Field(
+        default=3600,
+        alias="CACHE_TTL_SECONDS",
+        description="Time-to-live for cached responses in seconds",
+    )
+    cache_enabled: bool = Field(
+        default=True,
+        alias="CACHE_ENABLED",
+        description="Enable response caching",
+    )
+
+    # Request Limits
+    max_request_size_mb: int = Field(
+        default=10,
+        alias="MAX_REQUEST_SIZE_MB",
+        description="Maximum request body size in megabytes",
+    )
+    request_timeout_seconds: int = Field(
+        default=300,
+        alias="REQUEST_TIMEOUT_SECONDS",
+        description="Request timeout in seconds",
+    )
+
+    # CORS (Production)
+    cors_allowed_origins_raw: str = Field(
+        default="",
+        alias="CORS_ALLOWED_ORIGINS",
+        description="Comma-separated list of allowed CORS origins (required in production)",
+    )
+
+    @property
+    def cors_allowed_origins(self) -> list[str]:
+        """Parse CORS allowed origins from comma-separated string."""
+        if not self.cors_allowed_origins_raw:
+            # Fallback to existing cors_allow_origins if CORS_ALLOWED_ORIGINS not set
+            return self.cors_allow_origins
+        return [
+            origin.strip() for origin in self.cors_allowed_origins_raw.split(",") if origin.strip()
+        ]
+
+    # API Keys (Optional Authentication)
+    api_keys_raw: str = Field(
+        default="",
+        alias="API_KEYS",
+        description="API keys for optional authentication (format: key1:name1,key2:name2)",
+    )
+
+    @property
+    def api_keys(self) -> dict[str, str]:
+        """Parse API keys from environment variable format."""
+        if not self.api_keys_raw:
+            return {}
+        result: dict[str, str] = {}
+        for pair in self.api_keys_raw.split(","):
+            pair = pair.strip()
+            if ":" in pair:
+                key, name = pair.split(":", 1)
+                result[key.strip()] = name.strip()
+        return result
+
+    # Health Check
+    health_check_timeout_seconds: int = Field(
+        default=5,
+        alias="HEALTH_CHECK_TIMEOUT_SECONDS",
+        description="Timeout for individual dependency health checks",
+    )
+
     # Note: class Config removed in favor of model_config above (pydantic v2)
+
+    @model_validator(mode="after")
+    def validate_production_settings(self) -> AppSettings:
+        """Validate production settings after initialization."""
+        if self.production_mode:
+            # CORS validation
+            if not self.cors_allowed_origins:
+                raise ValueError("CORS_ALLOWED_ORIGINS must be set when PRODUCTION_MODE=true")
+            if "*" in self.cors_allowed_origins:
+                raise ValueError("CORS_ALLOWED_ORIGINS cannot contain '*' in production mode")
+            # Debug validation
+            if self.debug:
+                raise ValueError("DEBUG must be false when PRODUCTION_MODE=true")
+
+        # Rate limiting validation
+        if self.rate_limit_per_minute <= 0:
+            raise ValueError("RATE_LIMIT_PER_MINUTE must be greater than 0")
+        if self.rate_limit_per_minute_authenticated < self.rate_limit_per_minute:
+            raise ValueError("RATE_LIMIT_PER_MINUTE_AUTHENTICATED must be >= RATE_LIMIT_PER_MINUTE")
+
+        # Caching validation
+        if self.cache_ttl_seconds <= 0:
+            raise ValueError("CACHE_TTL_SECONDS must be greater than 0")
+
+        # Request limits validation
+        if not (1 <= self.max_request_size_mb <= 100):
+            raise ValueError("MAX_REQUEST_SIZE_MB must be between 1 and 100")
+        if self.request_timeout_seconds <= 0:
+            raise ValueError("REQUEST_TIMEOUT_SECONDS must be greater than 0")
+
+        return self
 
 
 @lru_cache

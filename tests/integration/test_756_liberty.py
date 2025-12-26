@@ -145,7 +145,7 @@ class TestLiveExtraction:
     @pytest.mark.slow
     async def test_extract_claims_from_case(self, case_text, deepseek_client_real, expected_output):
         """Extract claims and compare to expected output."""
-        extractor = ClaimExtractor(llm_client=deepseek_client)
+        extractor = ClaimExtractor(llm_client=deepseek_client_real)
 
         result = await extractor.extract_claims(case_text)
 
@@ -171,9 +171,9 @@ class TestLiveExtraction:
         self, case_text, deepseek_client_real, expected_output
     ):
         """Full extraction should match expected output structure."""
-        extractor = ClaimExtractor(llm_client=deepseek_client)
+        extractor = ClaimExtractor(llm_client=deepseek_client_real)
 
-        result = await extractor.extract_full_proof_chain(case_text)
+        result = await extractor.extract_full_proof_chain_single(case_text)
 
         # Verify extraction completeness
         assert len(result.claims) >= 2, "Should have at least 2 claims"
@@ -190,9 +190,9 @@ class TestLiveExtraction:
     @pytest.mark.slow
     async def test_extraction_captures_case_details(self, case_text, deepseek_client_real):
         """Extraction should capture key case details."""
-        extractor = ClaimExtractor(llm_client=deepseek_client)
+        extractor = ClaimExtractor(llm_client=deepseek_client_real)
 
-        result = await extractor.extract_full_proof_chain(case_text)
+        result = await extractor.extract_full_proof_chain_single(case_text)
 
         # Check for key evidence items
         evidence_names = [e.name.lower() for e in result.evidence]
@@ -465,65 +465,30 @@ class TestFullRoundTrip:
 
     @pytest.mark.asyncio
     @pytest.mark.slow
-    async def test_extract_store_fetch_756_liberty(self, services, case_file):
+    async def test_extract_756_liberty(self, services, case_file):
         """
-        Full round-trip test:
-        1. Extract from 756 Liberty case
-        2. Store to ArangoDB
-        3. Fetch back and verify
+        Test extraction from 756 Liberty case.
+        
+        Note: Storage is now handled by ProofChainService.extract_proof_chains()
+        which is tested in ProofChainService tests. This test verifies extraction only.
         """
         extractor = services["extractor"]
-        kg = services["kg"]
         case_text = case_file.read_text()
 
         # Extract
-        from tenant_legal_guidance.models.entities import (
-            LegalDocumentType,
-            SourceMetadata,
-            SourceType,
-        )
-
         result = await extractor.extract_full_proof_chain_single(case_text)
         assert len(result.claims) >= 1, "Should extract at least one claim"
 
-        # Store
-        source_meta = SourceMetadata(
-            source="756 Liberty Realty LLC v Garcia",
-            source_type=SourceType.FILE,
-            document_type=LegalDocumentType.COURT_OPINION,
-            jurisdiction="NYC Housing Court",
-        )
-        stored = await extractor.store_to_graph(result, source_meta)
-        assert stored["claims"] >= 1, "Should store at least one claim"
-
-        # Fetch back
-        aql = """
-        FOR doc IN entities
-            FILTER doc.type == "legal_claim"
-            FILTER CONTAINS(doc._key, "756_liberty")
-            RETURN doc
-        """
-        cursor = kg.db.aql.execute(aql)
-        fetched_claims = list(cursor)
-
-        assert len(fetched_claims) >= 1, "Should fetch stored claims"
-
-        # Verify content
-        claim_names = [c.get("name", "") for c in fetched_claims]
+        # Verify extraction content
+        claim_names = [c.name.lower() for c in result.claims]
         # Should have found the deregulation/overcharge claims
-        assert any("deregulation" in n.lower() or "overcharge" in n.lower() for n in claim_names), (
+        assert any("deregulation" in n or "overcharge" in n for n in claim_names), (
             f"Expected deregulation claim, got: {claim_names}"
         )
 
-        # Clean up (optional - could leave for manual inspection)
-        for claim in result.claims:
-            kg.delete_entity(claim.id)
-        for evid in result.evidence:
-            kg.delete_entity(evid.id)
-        for outcome in result.outcomes:
-            kg.delete_entity(outcome.id)
-        for dmg in result.damages:
-            kg.delete_entity(dmg.id)
+        # Verify relationships were created
+        rel_types = {r["type"] for r in result.relationships}
+        assert "HAS_EVIDENCE" in rel_types, "Should have HAS_EVIDENCE relationships"
 
 
 @pytest.mark.integration

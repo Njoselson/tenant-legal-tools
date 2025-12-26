@@ -36,6 +36,7 @@ from tenant_legal_guidance.api.schemas import (
 from tenant_legal_guidance.models.entities import SourceMetadata, SourceType
 from tenant_legal_guidance.services.case_analyzer import CaseAnalyzer
 from tenant_legal_guidance.services.entity_consolidation import EntityConsolidationService
+from tenant_legal_guidance.services.anonymization import anonymize_pii
 from tenant_legal_guidance.services.security import (
     detect_prompt_injection,
     sanitize_for_llm,
@@ -82,11 +83,28 @@ async def analyze_consultation(
 ) -> dict:
     """Analyze a legal consultation and extract structured information."""
     try:
+        # Anonymize PII before processing
+        from tenant_legal_guidance.config import get_settings
+        settings = get_settings()
+        if settings.anonymize_pii_enabled:
+            anonymized_text = anonymize_pii(
+                request.text,
+                anonymize_names=settings.anonymize_names,
+                anonymize_emails=settings.anonymize_emails,
+                anonymize_phones=settings.anonymize_phones,
+                anonymize_addresses=settings.anonymize_addresses,
+                anonymize_ssn=settings.anonymize_ssn,
+                anonymize_dates=settings.anonymize_dates,
+                anonymize_financial=settings.anonymize_financial,
+            )
+        else:
+            anonymized_text = request.text
+
         metadata = SourceMetadata(
             source="consultation", source_type=SourceType.INTERNAL, created_at=datetime.utcnow()
         )
 
-        result = await system.ingest_legal_source(text=request.text, metadata=metadata)
+        result = await system.ingest_legal_source(text=anonymized_text, metadata=metadata)
         return result
     except Exception as e:
         logger.error(f"Error analyzing consultation: {e}", exc_info=True)
@@ -333,10 +351,27 @@ async def retrieve_entities(
 ) -> dict:
     """Retrieve relevant entities from the knowledge graph based on case text."""
     try:
-        logger.info(f"Retrieving entities for case: {request.case_text[:100]}...")
+        # Anonymize PII before processing
+        from tenant_legal_guidance.config import get_settings
+        settings = get_settings()
+        if settings.anonymize_pii_enabled:
+            anonymized_case_text = anonymize_pii(
+                request.case_text,
+                anonymize_names=settings.anonymize_names,
+                anonymize_emails=settings.anonymize_emails,
+                anonymize_phones=settings.anonymize_phones,
+                anonymize_addresses=settings.anonymize_addresses,
+                anonymize_ssn=settings.anonymize_ssn,
+                anonymize_dates=settings.anonymize_dates,
+                anonymize_financial=settings.anonymize_financial,
+            )
+        else:
+            anonymized_case_text = request.case_text
+
+        logger.info(f"Retrieving entities for case: {anonymized_case_text[:100]}...")
 
         # Extract key terms from case text
-        key_terms = case_analyzer.extract_key_terms(request.case_text)
+        key_terms = case_analyzer.extract_key_terms(anonymized_case_text)
         logger.info(f"Extracted key terms: {key_terms}")
 
         # Retrieve relevant entities
@@ -366,7 +401,24 @@ async def generate_analysis(
 ) -> dict:
     """Generate legal analysis using retrieved entities and LLM."""
     try:
-        logger.info(f"Generating analysis for case: {request.case_text[:100]}...")
+        # Anonymize PII before processing
+        from tenant_legal_guidance.config import get_settings
+        settings = get_settings()
+        if settings.anonymize_pii_enabled:
+            anonymized_case_text = anonymize_pii(
+                request.case_text,
+                anonymize_names=settings.anonymize_names,
+                anonymize_emails=settings.anonymize_emails,
+                anonymize_phones=settings.anonymize_phones,
+                anonymize_addresses=settings.anonymize_addresses,
+                anonymize_ssn=settings.anonymize_ssn,
+                anonymize_dates=settings.anonymize_dates,
+                anonymize_financial=settings.anonymize_financial,
+            )
+        else:
+            anonymized_case_text = request.case_text
+
+        logger.info(f"Generating analysis for case: {anonymized_case_text[:100]}...")
         logger.info(f"Using {len(request.relevant_entities)} relevant entities")
 
         # Format the entities for LLM context
@@ -380,7 +432,7 @@ async def generate_analysis(
             context += "\n\nSOURCES (use [S#] to cite):\n" + sources_text
 
         # Generate legal analysis
-        llm_response = await case_analyzer.generate_legal_analysis(request.case_text, context)
+        llm_response = await case_analyzer.generate_legal_analysis(anonymized_case_text, context)
 
         # Parse the response into structured guidance
         guidance = case_analyzer.parse_llm_response(llm_response)
@@ -425,14 +477,31 @@ async def analyze_case(
         # Sanitize input
         sanitized_case_text = sanitize_for_llm(request.case_text)
 
-        logger.info(f"Analyzing case: {sanitized_case_text[:100]}...")
+        # Anonymize PII before processing and storage
+        from tenant_legal_guidance.config import get_settings
+        settings = get_settings()
+        if settings.anonymize_pii_enabled:
+            anonymized_case_text = anonymize_pii(
+                sanitized_case_text,
+                anonymize_names=settings.anonymize_names,
+                anonymize_emails=settings.anonymize_emails,
+                anonymize_phones=settings.anonymize_phones,
+                anonymize_addresses=settings.anonymize_addresses,
+                anonymize_ssn=settings.anonymize_ssn,
+                anonymize_dates=settings.anonymize_dates,
+                anonymize_financial=settings.anonymize_financial,
+            )
+        else:
+            anonymized_case_text = sanitized_case_text
+
+        logger.info(f"Analyzing case: {anonymized_case_text[:100]}...")
         # Check cache if example_id is present
         if request.example_id and not request.force_refresh:
             cached = get_cached_analysis(request.example_id)
             if cached:
                 logger.info(f"Returning cached analysis for example_id={request.example_id}")
                 return cached
-        guidance = await case_analyzer.analyze_case(sanitized_case_text)
+        guidance = await case_analyzer.analyze_case(anonymized_case_text)
 
         # Convert markdown to HTML for better display
         result = {
@@ -473,7 +542,35 @@ async def analyze_case_enhanced(
 ) -> dict:
     """Enhanced case analysis with proof chains, evidence gaps, and remedy ranking."""
     try:
-        logger.info(f"Enhanced analysis for case: {request.case_text[:100]}...")
+        # Security: Validate and sanitize input
+        if detect_prompt_injection(request.case_text):
+            logger.warning("Potential prompt injection detected in analyze-case-enhanced request")
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid input detected. Please provide a valid case description.",
+            )
+
+        # Sanitize input
+        sanitized_case_text = sanitize_for_llm(request.case_text)
+
+        # Anonymize PII before processing and storage
+        from tenant_legal_guidance.config import get_settings
+        settings = get_settings()
+        if settings.anonymize_pii_enabled:
+            anonymized_case_text = anonymize_pii(
+                sanitized_case_text,
+                anonymize_names=settings.anonymize_names,
+                anonymize_emails=settings.anonymize_emails,
+                anonymize_phones=settings.anonymize_phones,
+                anonymize_addresses=settings.anonymize_addresses,
+                anonymize_ssn=settings.anonymize_ssn,
+                anonymize_dates=settings.anonymize_dates,
+                anonymize_financial=settings.anonymize_financial,
+            )
+        else:
+            anonymized_case_text = sanitized_case_text
+
+        logger.info(f"Enhanced analysis for case: {anonymized_case_text[:100]}...")
 
         # Check cache if example_id is present
         cache_key = f"enhanced_{request.example_id}" if request.example_id else None
@@ -486,9 +583,8 @@ async def analyze_case_enhanced(
                 return cached
 
         # Run enhanced analysis
-
         guidance = await case_analyzer.analyze_case_enhanced(
-            request.case_text, request.jurisdiction
+            anonymized_case_text, request.jurisdiction
         )
 
         # Convert dataclasses to dicts for JSON serialization
@@ -1267,8 +1363,42 @@ async def analyze_my_case(
         from tenant_legal_guidance.services.claim_matcher import ClaimMatcher
         from tenant_legal_guidance.services.outcome_predictor import OutcomePredictor
 
+        # Anonymize PII before processing
+        from tenant_legal_guidance.config import get_settings
+        settings = get_settings()
+        if settings.anonymize_pii_enabled:
+            anonymized_situation = anonymize_pii(
+                request.situation,
+                anonymize_names=settings.anonymize_names,
+                anonymize_emails=settings.anonymize_emails,
+                anonymize_phones=settings.anonymize_phones,
+                anonymize_addresses=settings.anonymize_addresses,
+                anonymize_ssn=settings.anonymize_ssn,
+                anonymize_dates=settings.anonymize_dates,
+                anonymize_financial=settings.anonymize_financial,
+            )
+            # Anonymize evidence list if provided
+            anonymized_evidence = None
+            if request.evidence_i_have:
+                anonymized_evidence = [
+                    anonymize_pii(
+                        ev,
+                        anonymize_names=settings.anonymize_names,
+                        anonymize_emails=settings.anonymize_emails,
+                        anonymize_phones=settings.anonymize_phones,
+                        anonymize_addresses=settings.anonymize_addresses,
+                        anonymize_ssn=settings.anonymize_ssn,
+                        anonymize_dates=settings.anonymize_dates,
+                        anonymize_financial=settings.anonymize_financial,
+                    )
+                    for ev in request.evidence_i_have
+                ]
+        else:
+            anonymized_situation = request.situation
+            anonymized_evidence = request.evidence_i_have
+
         logger.info(
-            f"Analyzing case: {len(request.situation)} chars, {len(request.evidence_i_have) if request.evidence_i_have else 0} evidence items (auto-extract: {not request.evidence_i_have or len(request.evidence_i_have) == 0})"
+            f"Analyzing case: {len(anonymized_situation)} chars, {len(anonymized_evidence) if anonymized_evidence else 0} evidence items (auto-extract: {not anonymized_evidence or len(anonymized_evidence) == 0})"
         )
 
         # Create matcher and predictor
@@ -1283,8 +1413,8 @@ async def analyze_my_case(
 
         # Match situation to claim types (auto-extract evidence if not provided)
         claim_matches, extracted_evidence = await matcher.match_situation_to_claim_types(
-            situation=request.situation,
-            evidence_i_have=request.evidence_i_have or [],
+            situation=anonymized_situation,
+            evidence_i_have=anonymized_evidence or [],
             auto_extract_evidence=True,  # Auto-extract from situation if evidence not provided
             jurisdiction=request.jurisdiction,
         )
@@ -1294,7 +1424,7 @@ async def analyze_my_case(
             # Find similar cases
             similar_cases = await predictor.find_similar_cases(
                 claim_type=match.canonical_name,
-                situation=request.situation,
+                situation=anonymized_situation,
             )
 
             # Predict outcome
@@ -1316,7 +1446,7 @@ async def analyze_my_case(
         # Generate next steps
         next_steps = await matcher.generate_next_steps(
             claim_matches=claim_matches,
-            situation=request.situation,
+            situation=anonymized_situation,
         )
 
         # Collect similar cases from all matches

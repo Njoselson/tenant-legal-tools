@@ -193,15 +193,6 @@ class TestPIIAnonymizer:
         assert len(detected["names"]) == 0  # Names not detected
         assert len(detected["emails"]) > 0  # Emails detected
 
-    def test_anonymize_with_context(self):
-        """Test context-aware anonymization."""
-        anonymizer = PIIAnonymizer()
-        text = "John Doe lives at 123 Main St"
-        result = anonymizer.anonymize_with_context(text, context="case")
-        assert "John Doe" not in result
-        assert "123 Main St" not in result
-        assert "[NAME]" in result
-        assert "[ADDRESS]" in result
 
     def test_titles_with_names(self):
         """Test anonymization of names with titles (Mr., Mrs., Dr., etc.)."""

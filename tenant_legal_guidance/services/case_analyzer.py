@@ -1941,7 +1941,7 @@ Be specific and actionable. Focus on what this data means for the tenant's case.
                 }
             )
 
-        return next_steps[:12]  # Top 12 steps (increased from 10)
+        return next_steps[:10]  # Top 10 steps
 
     async def analyze_case(self, case_text: str) -> LegalGuidance:
         """Main method to analyze a tenant case using RAG."""

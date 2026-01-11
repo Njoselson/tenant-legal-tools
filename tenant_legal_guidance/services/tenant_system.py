@@ -40,6 +40,7 @@ class TenantLegalSystem:
         self.document_processor = DocumentProcessor(
             self.deepseek, self.knowledge_graph, enable_entity_search=enable_entity_search
         )
+        self.vector_store = self.document_processor.vector_store
         self.logger = logging.getLogger(__name__)
         self.logger.info(
             f"Initialized TenantLegalSystem with embedded Knowledge Graph "

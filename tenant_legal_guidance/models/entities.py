@@ -250,6 +250,14 @@ class LegalEntity(BaseModel):
     claim_type: str | None = Field(
         None, description="Claim type string (e.g., 'DEREGULATION_CHALLENGE', 'RENT_OVERCHARGE')"
     )
+    relief_sought: list[str] | None = Field(None, description="What the claimant is seeking")
+    claim_status: str | None = Field(
+        None, description="Status: 'asserted', 'proven', 'unproven', 'dismissed', 'settled'"
+    )
+    proof_completeness: float | None = Field(
+        None, ge=0.0, le=1.0, description="0.0-1.0, % of required evidence satisfied"
+    )
+    gaps: list[str] | None = Field(None, description="Descriptions of missing required evidence")
 
 
 @dataclass
@@ -273,14 +281,6 @@ class LegalElement:
             self.evidence_types = []
         if self.case_law_examples is None:
             self.case_law_examples = []
-    relief_sought: list[str] | None = Field(None, description="What the claimant is seeking")
-    claim_status: str | None = Field(
-        None, description="Status: 'asserted', 'proven', 'unproven', 'dismissed', 'settled'"
-    )
-    proof_completeness: float | None = Field(
-        None, ge=0.0, le=1.0, description="0.0-1.0, % of required evidence satisfied"
-    )
-    gaps: list[str] | None = Field(None, description="Descriptions of missing required evidence")
 
     # Evidence context fields (NEW - extends EVIDENCE entity type)
     evidence_context: str | None = Field(

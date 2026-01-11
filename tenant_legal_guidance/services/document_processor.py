@@ -7,6 +7,8 @@ import logging
 import re
 from datetime import datetime
 
+import numpy as np
+
 from tenant_legal_guidance.config import get_settings
 from tenant_legal_guidance.graph.arango_graph import ArangoDBGraph
 from tenant_legal_guidance.models.entities import (

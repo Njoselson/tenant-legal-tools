@@ -1239,7 +1239,7 @@ class ArangoDBGraph:
         collection = self.db.collection("entities")
 
         # Convert source metadata to dict and handle datetime serialization
-        source_metadata = entity.source_metadata.dict()
+        source_metadata = entity.source_metadata.model_dump()
         for field in ["created_at", "processed_at", "last_updated"]:
             if source_metadata.get(field):
                 if isinstance(source_metadata[field], datetime):

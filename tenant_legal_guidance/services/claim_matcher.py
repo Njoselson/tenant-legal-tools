@@ -66,13 +66,10 @@ class ClaimMatcher:
         # Create proof chain service if not provided
         if proof_chain_service is None:
             from tenant_legal_guidance.services.vector_store import QdrantVectorStore
-            from tenant_legal_guidance.services.embeddings import EmbeddingsService
             vector_store = QdrantVectorStore()
-            embeddings_svc = EmbeddingsService()
             self.proof_chain_service = ProofChainService(
                 knowledge_graph=knowledge_graph,
                 vector_store=vector_store,
-                embeddings_service=embeddings_svc,
                 llm_client=llm_client,
             )
         else:

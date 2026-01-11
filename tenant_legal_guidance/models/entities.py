@@ -259,6 +259,31 @@ class LegalEntity(BaseModel):
     )
     gaps: list[str] | None = Field(None, description="Descriptions of missing required evidence")
 
+    # Evidence context fields (NEW - extends EVIDENCE entity type)
+    evidence_context: str | None = Field(
+        None, description="Context: 'required', 'presented', or 'missing'"
+    )
+    evidence_source_type: str | None = Field(
+        None, description="Source type: 'statute', 'guide', or 'case'"
+    )
+    evidence_source_reference: str | None = Field(
+        None, description="e.g., 'NYC Admin Code § 26-504.2' or '756 Liberty v Garcia'"
+    )
+    evidence_examples: list[str] | None = Field(
+        None, description="Examples: ['invoices', 'receipts', 'contracts']"
+    )
+    is_critical: bool | None = Field(None, description="If missing, claim cannot succeed")
+    matches_required_id: str | None = Field(
+        None, description="For presented evidence: ID of required evidence it satisfies"
+    )
+    linked_claim_id: str | None = Field(
+        None, description="For presented evidence: which claim this supports"
+    )
+    linked_claim_type: str | None = Field(
+        None,
+        description="For required evidence: which claim type needs this (e.g., 'DEREGULATION_CHALLENGE')",
+    )
+
 
 @dataclass
 class LegalElement:

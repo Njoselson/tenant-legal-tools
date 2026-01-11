@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 
@@ -43,6 +44,7 @@ class EntityType(str, Enum):
 
     # Legal claim proving system entities (NEW)
     LEGAL_CLAIM = "legal_claim"  # Assertion of a legal right or cause of action
+    LEGAL_ELEMENT = "legal_element"  # Specific verifiable element of a legal requirement
 
 
 class EvidenceContext(str, Enum):
@@ -218,9 +220,10 @@ class LegalEntity(BaseModel):
     court: str | None = None  # "NYC Housing Court"
     docket_number: str | None = None
     decision_date: datetime | None = None
+    filing_date: datetime | None = None  # Date case was filed
     parties: dict[str, list[str]] | None = None  # {"plaintiff": [...], "defendant": [...]}
     holdings: list[str] | None = None  # Key legal holdings
-    procedural_history: str | None = None
+    procedural_history: list[dict[str, str]] | None = None  # Timeline of case events [{"event": "filed", "date": "...", "description": "..."}]
     citations: list[str] | None = None  # Case law citations within document
 
     # Case outcome fields (NEW)
@@ -247,6 +250,29 @@ class LegalEntity(BaseModel):
     claim_type: str | None = Field(
         None, description="Claim type string (e.g., 'DEREGULATION_CHALLENGE', 'RENT_OVERCHARGE')"
     )
+
+
+@dataclass
+class LegalElement:
+    """
+    Represents a specific verifiable element of a legal requirement.
+    
+    Used for element-by-element analysis to break down legal requirements
+    into specific verifiable components.
+    """
+    element_id: str
+    element_name: str  # e.g., "Landlord notified of defect"
+    description: str
+    is_critical: bool = True
+    evidence_types: list[str] = None  # e.g., ["written_notice", "email", "text_message"]
+    case_law_examples: list[str] = None  # Entity IDs of cases showing this element
+    statute_reference: str | None = None  # Reference to statute/law requiring this element
+    
+    def __post_init__(self):
+        if self.evidence_types is None:
+            self.evidence_types = []
+        if self.case_law_examples is None:
+            self.case_law_examples = []
     relief_sought: list[str] | None = Field(None, description="What the claimant is seeking")
     claim_status: str | None = Field(
         None, description="Status: 'asserted', 'proven', 'unproven', 'dismissed', 'settled'"

@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Context Builder - Legal Guidance System</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f0f2f5;
+            overflow: hidden;
+        }
+        
+        nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            background: rgba(52, 73, 94, 0.95);
+            padding: 8px 0;
+            text-align: center;
+            z-index: 1000;
+        }
+        
+        nav a {
+            color: white;
+            text-decoration: none;
+            margin: 0 15px;
+            font-weight: bold;
+            font-size: 0.9em;
+        }
+        
+        nav a:hover {
+            text-decoration: underline;
+        }
+        
+        .container {
+            display: flex;
+            height: 100vh;
+            padding-top: 40px; /* Account for nav */
+        }
+        
+        .panel {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            overflow: hidden;
+            border-right: 2px solid #d1d9e6;
+            background-color: #ffffff;
+        }
+        
+        .query-panel {
+            width: 350px;
+            flex-shrink: 0;
+        }
+        
+        .results-panel {
+            width: 500px;
+            flex-shrink: 0;
+        }
+        
+        .preview-panel {
+            flex-grow: 1;
+        }
+        
+        .panel-header {
+            padding: 15px 20px;
+            background-color: #34495e;
+            color: white;
+            font-weight: bold;
+            border-bottom: 2px solid #2c3e50;
+        }
+        
+        .panel-content {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+        
+        .query-input {
+            width: 100%;
+            min-height: 150px;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: inherit;
+            resize: vertical;
+            margin-bottom: 15px;
+        }
+        
+        .search-options {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+        }
+        
+        .search-options label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        
+        .search-options input,
+        .search-options select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-bottom: 12px;
+            font-size: 14px;
+        }
+        
+        .search-options input[type="checkbox"] {
+            width: auto;
+            margin-right: 8px;
+        }
+        
+        .search-btn {
+            width: 100%;
+            padding: 12px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        
+        .search-btn:hover {
+            background-color: #2980b9;
+        }
+        
+        .search-btn:disabled {
+            background-color: #bdc3c7;
+            cursor: not-allowed;
+        }
+        
+        .results-section {
+            margin-bottom: 25px;
+        }
+        
+        .results-section h3 {
+            margin-bottom: 10px;
+            color: #2c3e50;
+            font-size: 16px;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 5px;
+        }
+        
+        .result-item {
+            background-color: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .result-item:hover {
+            background-color: #e9ecef;
+            border-color: #3498db;
+        }
+        
+        .result-item.selected {
+            background-color: #d4edda;
+            border-color: #28a745;
+        }
+        
+        .result-item input[type="checkbox"] {
+            margin-right: 10px;
+        }
+        
+        .result-item-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        
+        .result-item-title {
+            font-weight: 600;
+            color: #2c3e50;
+            flex-grow: 1;
+        }
+        
+        .result-item-score {
+            color: #7f8c8d;
+            font-size: 12px;
+            margin-left: 10px;
+        }
+        
+        .result-item-description {
+            color: #555;
+            font-size: 13px;
+            margin-top: 5px;
+            line-height: 1.5;
+        }
+        
+        .result-item-meta {
+            margin-top: 8px;
+            font-size: 12px;
+            color: #7f8c8d;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .action-btn {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        
+        .btn-primary {
+            background-color: #28a745;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background-color: #218838;
+        }
+        
+        .btn-secondary {
+            background-color: #6c757d;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background-color: #5a6268;
+        }
+        
+        .preview-content {
+            background-color: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 20px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            max-height: calc(100vh - 200px);
+            overflow-y: auto;
+        }
+        
+        .preview-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .preview-actions button {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        
+        .btn-copy {
+            background-color: #17a2b8;
+            color: white;
+        }
+        
+        .btn-copy:hover {
+            background-color: #138496;
+        }
+        
+        .btn-use {
+            background-color: #ffc107;
+            color: #212529;
+        }
+        
+        .btn-use:hover {
+            background-color: #e0a800;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #7f8c8d;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #7f8c8d;
+        }
+        
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <a href="/">Consultation Analyzer</a>
+        <a href="/kg-input">KG Input</a>
+        <a href="/kg-view">KG Viewer</a>
+        <a href="/qdrant-view">Qdrant View</a>
+        <a href="/context-builder">Context Builder</a>
+    </nav>
+    
+    <div class="container">
+        <!-- Query Panel -->
+        <div class="panel query-panel">
+            <div class="panel-header">Query & Search Options</div>
+            <div class="panel-content">
+                <textarea 
+                    id="query-input" 
+                    class="query-input" 
+                    placeholder="Enter case description or semantic query..."
+                ></textarea>
+                
+                <div class="search-options">
+                    <label>
+                        Top K Entities:
+                        <input type="number" id="top-k-entities" value="20" min="1" max="100">
+                    </label>
+                    <label>
+                        Top K Chunks:
+                        <input type="number" id="top-k-chunks" value="20" min="1" max="100">
+                    </label>
+                    <label>
+                        <input type="checkbox" id="expand-neighbors" checked>
+                        Expand Neighbors
+                    </label>
+                    <label>
+                        Entity Types (comma-separated):
+                        <input type="text" id="entity-types" placeholder="law, remedy, legal_procedure">
+                    </label>
+                    <label>
+                        Jurisdiction:
+                        <input type="text" id="jurisdiction" placeholder="NYC">
+                    </label>
+                </div>
+                
+                <button class="search-btn" id="search-btn" onclick="performSearch()">Search</button>
+            </div>
+        </div>
+        
+        <!-- Results Panel -->
+        <div class="panel results-panel">
+            <div class="panel-header">Search Results</div>
+            <div class="panel-content">
+                <div class="action-buttons">
+                    <button class="action-btn btn-secondary" onclick="selectAll()">Select All</button>
+                    <button class="action-btn btn-secondary" onclick="clearSelection()">Clear</button>
+                </div>
+                
+                <div id="results-container">
+                    <div class="empty-state">
+                        <div class="empty-state-icon">🔍</div>
+                        <p>Enter a query and click Search to find entities and chunks</p>
+                    </div>
+                </div>
+                
+                <div class="action-buttons" style="margin-top: 20px;">
+                    <button class="action-btn btn-primary" onclick="buildContext()">Build Context</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Preview Panel -->
+        <div class="panel preview-panel">
+            <div class="panel-header">Context Preview</div>
+            <div class="panel-content">
+                <div id="preview-container">
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📝</div>
+                        <p>Select entities and chunks, then click "Build Context" to see the formatted context</p>
+                    </div>
+                </div>
+                
+                <div class="preview-actions">
+                    <button class="btn-copy" onclick="copyToClipboard()">Copy to Clipboard</button>
+                    <button class="btn-use" onclick="useForAnalysis()">Use for Analysis</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let searchResults = {
+            entities: [],
+            chunks: []
+        };
+        
+        let selectedItems = {
+            entities: new Set(),
+            chunks: new Set()
+        };
+        
+        async function performSearch() {
+            const query = document.getElementById('query-input').value.trim();
+            if (!query) {
+                alert('Please enter a query');
+                return;
+            }
+            
+            const searchBtn = document.getElementById('search-btn');
+            searchBtn.disabled = true;
+            searchBtn.textContent = 'Searching...';
+            
+            const resultsContainer = document.getElementById('results-container');
+            resultsContainer.innerHTML = '<div class="loading">Searching...</div>';
+            
+            try {
+                const requestData = {
+                    query: query,
+                    top_k_entities: parseInt(document.getElementById('top-k-entities').value),
+                    top_k_chunks: parseInt(document.getElementById('top-k-chunks').value),
+                    expand_neighbors: document.getElementById('expand-neighbors').checked,
+                    entity_types: document.getElementById('entity-types').value 
+                        ? document.getElementById('entity-types').value.split(',').map(s => s.trim())
+                        : null,
+                    jurisdiction: document.getElementById('jurisdiction').value || null
+                };
+                
+                const response = await fetch('/api/context/search', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(requestData)
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Search failed: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                searchResults = data;
+                selectedItems.entities.clear();
+                selectedItems.chunks.clear();
+                
+                // Apply pre-selections from URL if any
+                if (window.preselectedEntityIds) {
+                    window.preselectedEntityIds.forEach(id => {
+                        if (data.entities.some(e => e.id === id)) {
+                            selectedItems.entities.add(id);
+                        }
+                    });
+                }
+                if (window.preselectedChunkIds) {
+                    window.preselectedChunkIds.forEach(id => {
+                        if (data.chunks.some(c => (c.chunk_id || c.id) === id)) {
+                            selectedItems.chunks.add(id);
+                        }
+                    });
+                }
+                
+                displayResults(data);
+            } catch (error) {
+                console.error('Search error:', error);
+                resultsContainer.innerHTML = `<div class="empty-state"><p>Error: ${error.message}</p></div>`;
+            } finally {
+                searchBtn.disabled = false;
+                searchBtn.textContent = 'Search';
+            }
+        }
+        
+        function displayResults(data) {
+            const container = document.getElementById('results-container');
+            let html = '';
+            
+            // Display entities
+            if (data.entities && data.entities.length > 0) {
+                html += '<div class="results-section">';
+                html += '<h3>Entities from Knowledge Graph</h3>';
+                data.entities.forEach((entity, index) => {
+                    const isSelected = selectedItems.entities.has(entity.id);
+                    html += `
+                        <div class="result-item ${isSelected ? 'selected' : ''}" onclick="toggleEntity('${entity.id}')">
+                            <div class="result-item-header">
+                                <input type="checkbox" ${isSelected ? 'checked' : ''} 
+                                       onclick="event.stopPropagation(); toggleEntity('${entity.id}')">
+                                <span class="result-item-title">${escapeHtml(entity.name)}</span>
+                                <span class="result-item-score">${entity.type}</span>
+                            </div>
+                            ${entity.description ? `<div class="result-item-description">${escapeHtml(entity.description.substring(0, 150))}${entity.description.length > 150 ? '...' : ''}</div>` : ''}
+                            <div class="result-item-meta">ID: ${entity.id}</div>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+            }
+            
+            // Display chunks
+            if (data.chunks && data.chunks.length > 0) {
+                html += '<div class="results-section">';
+                html += '<h3>Chunks from Qdrant</h3>';
+                data.chunks.forEach((chunk, index) => {
+                    const isSelected = selectedItems.chunks.has(chunk.chunk_id || chunk.id);
+                    const chunkId = chunk.chunk_id || chunk.id;
+                    html += `
+                        <div class="result-item ${isSelected ? 'selected' : ''}" onclick="toggleChunk('${chunkId}')">
+                            <div class="result-item-header">
+                                <input type="checkbox" ${isSelected ? 'checked' : ''} 
+                                       onclick="event.stopPropagation(); toggleChunk('${chunkId}')">
+                                <span class="result-item-title">Chunk ${index + 1}</span>
+                                <span class="result-item-score">Score: ${chunk.score ? chunk.score.toFixed(3) : 'N/A'}</span>
+                            </div>
+                            <div class="result-item-description">${escapeHtml((chunk.text || '').substring(0, 150))}${(chunk.text || '').length > 150 ? '...' : ''}</div>
+                            <div class="result-item-meta">
+                                ${chunk.doc_title ? `Source: ${escapeHtml(chunk.doc_title)}<br>` : ''}
+                                ${chunk.jurisdiction ? `Jurisdiction: ${escapeHtml(chunk.jurisdiction)}` : ''}
+                            </div>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+            }
+            
+            if (!html) {
+                html = '<div class="empty-state"><p>No results found</p></div>';
+            }
+            
+            container.innerHTML = html;
+        }
+        
+        function toggleEntity(entityId) {
+            if (selectedItems.entities.has(entityId)) {
+                selectedItems.entities.delete(entityId);
+            } else {
+                selectedItems.entities.add(entityId);
+            }
+            displayResults(searchResults);
+        }
+        
+        function toggleChunk(chunkId) {
+            if (selectedItems.chunks.has(chunkId)) {
+                selectedItems.chunks.delete(chunkId);
+            } else {
+                selectedItems.chunks.add(chunkId);
+            }
+            displayResults(searchResults);
+        }
+        
+        function selectAll() {
+            searchResults.entities.forEach(e => selectedItems.entities.add(e.id));
+            searchResults.chunks.forEach(c => selectedItems.chunks.add(c.chunk_id || c.id));
+            displayResults(searchResults);
+        }
+        
+        function clearSelection() {
+            selectedItems.entities.clear();
+            selectedItems.chunks.clear();
+            displayResults(searchResults);
+            updatePreview();
+        }
+        
+        async function buildContext() {
+            if (selectedItems.entities.size === 0 && selectedItems.chunks.size === 0) {
+                alert('Please select at least one entity or chunk');
+                return;
+            }
+            
+            const previewContainer = document.getElementById('preview-container');
+            previewContainer.innerHTML = '<div class="loading">Building context...</div>';
+            
+            try {
+                const requestData = {
+                    entity_ids: Array.from(selectedItems.entities),
+                    chunk_ids: Array.from(selectedItems.chunks),
+                    include_sources: true
+                };
+                
+                const response = await fetch('/api/context/build', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(requestData)
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Build failed: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                
+                previewContainer.innerHTML = `
+                    <div class="preview-content">${escapeHtml(data.formatted_context)}</div>
+                    <div style="margin-top: 15px; padding: 10px; background-color: #e9ecef; border-radius: 6px; font-size: 12px;">
+                        <strong>Stats:</strong> ${data.entity_count} entities, ${data.chunk_count} chunks
+                    </div>
+                `;
+                
+                // Store for later use
+                window.currentContext = data;
+            } catch (error) {
+                console.error('Build context error:', error);
+                previewContainer.innerHTML = `<div class="empty-state"><p>Error: ${error.message}</p></div>`;
+            }
+        }
+        
+        function copyToClipboard() {
+            const previewContent = document.querySelector('.preview-content');
+            if (!previewContent) {
+                alert('No context to copy. Build context first.');
+                return;
+            }
+            
+            const text = previewContent.textContent;
+            navigator.clipboard.writeText(text).then(() => {
+                alert('Context copied to clipboard!');
+            }).catch(err => {
+                console.error('Failed to copy:', err);
+                alert('Failed to copy to clipboard');
+            });
+        }
+        
+        function useForAnalysis() {
+            if (!window.currentContext) {
+                alert('Please build context first');
+                return;
+            }
+            
+            // Redirect to case analysis page with context
+            const contextData = encodeURIComponent(JSON.stringify(window.currentContext));
+            window.location.href = `/?context=${contextData}`;
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        function updatePreview() {
+            const previewContainer = document.getElementById('preview-container');
+            if (selectedItems.entities.size === 0 && selectedItems.chunks.size === 0) {
+                previewContainer.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📝</div>
+                        <p>Select entities and chunks, then click "Build Context" to see the formatted context</p>
+                    </div>
+                `;
+            }
+        }
+        
+        // Allow Enter key to trigger search
+        document.getElementById('query-input').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && e.ctrlKey) {
+                performSearch();
+            }
+        });
+        
+        // Handle URL parameters for pre-selection
+        window.addEventListener('DOMContentLoaded', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const entityIds = urlParams.get('entity_ids');
+            const chunkIds = urlParams.get('chunk_ids');
+            
+            if (entityIds || chunkIds) {
+                // If we have pre-selected IDs, we need to load them
+                // For now, just show a message that they can search
+                if (entityIds) {
+                    const ids = entityIds.split(',').map(id => id.trim());
+                    // Store for later use after search
+                    window.preselectedEntityIds = ids;
+                }
+                if (chunkIds) {
+                    const ids = chunkIds.split(',').map(id => id.trim());
+                    window.preselectedChunkIds = ids;
+                }
+            }
+        });
+    </script>
+</body>
+</html>
+

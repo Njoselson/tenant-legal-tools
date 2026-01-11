@@ -13,6 +13,7 @@ from dataclasses import dataclass
 
 from tenant_legal_guidance.graph.arango_graph import ArangoDBGraph
 from tenant_legal_guidance.services.deepseek import DeepSeekClient
+from tenant_legal_guidance.services.proof_chain import ProofChainService
 
 
 @dataclass
@@ -57,10 +58,25 @@ class ClaimMatcher:
         self,
         knowledge_graph: ArangoDBGraph,
         llm_client: DeepSeekClient,
+        proof_chain_service: ProofChainService | None = None,
     ):
         self.kg = knowledge_graph
         self.llm_client = llm_client
         self.logger = logging.getLogger(__name__)
+        # Create proof chain service if not provided
+        if proof_chain_service is None:
+            from tenant_legal_guidance.services.vector_store import QdrantVectorStore
+            from tenant_legal_guidance.services.embeddings import EmbeddingsService
+            vector_store = QdrantVectorStore()
+            embeddings_svc = EmbeddingsService()
+            self.proof_chain_service = ProofChainService(
+                knowledge_graph=knowledge_graph,
+                vector_store=vector_store,
+                embeddings_service=embeddings_svc,
+                llm_client=llm_client,
+            )
+        else:
+            self.proof_chain_service = proof_chain_service
 
     async def extract_evidence_from_situation(
         self,
@@ -156,7 +172,7 @@ Return ONLY the JSON array, nothing else.
                 "SECURITY_DEPOSIT_RETURN",
             ]
 
-        # Build claim types with required evidence
+        # Build claim types with FULL PROOF CHAINS (not just required evidence)
         claim_types_data = []
         for claim_type_item in all_claim_types:
             # Handle both string and dict formats
@@ -167,11 +183,72 @@ Return ONLY the JSON array, nothing else.
             else:
                 claim_type_str = str(claim_type_item)
 
-            required_evidence = self.kg.get_required_evidence_for_claim_type(claim_type_str)
-            claim_types_data.append(
-                {
-                    "canonical_name": claim_type_str,
-                    "display_name": claim_type_str.replace("_", " ").title(),
+            # Get a sample claim of this type to build proof chain
+            claim_ids = self.kg.get_claims_by_type(claim_type_str, limit=1)
+            proof_chain_data = None
+            
+            if claim_ids:
+                try:
+                    # Build proof chain for the first claim of this type
+                    proof_chain = await self.proof_chain_service.build_proof_chain(claim_ids[0])
+                    if proof_chain:
+                        proof_chain_data = {
+                            "required_evidence": [
+                                {
+                                    "id": ev.evidence_id,
+                                    "name": ev.description or ev.evidence_id,
+                                    "description": ev.description or "",
+                                    "is_critical": ev.is_critical,
+                                }
+                                for ev in (proof_chain.required_evidence or [])
+                            ],
+                            "presented_evidence": [
+                                {
+                                    "id": ev.evidence_id,
+                                    "name": ev.description or ev.evidence_id,
+                                    "description": ev.description or "",
+                                }
+                                for ev in (proof_chain.presented_evidence or [])
+                            ],
+                            "missing_evidence": [
+                                {
+                                    "id": ev.evidence_id,
+                                    "name": ev.description or ev.evidence_id,
+                                    "description": ev.description or "",
+                                    "is_critical": ev.is_critical,
+                                }
+                                for ev in (proof_chain.missing_evidence or [])
+                            ],
+                            "applicable_laws": [
+                                {
+                                    "name": law.name if hasattr(law, "name") else str(law),
+                                    "description": getattr(law, "description", "") or "",
+                                }
+                                for law in (proof_chain.applicable_laws or [])
+                            ],
+                            "remedies": [
+                                {
+                                    "name": rem.name if hasattr(rem, "name") else str(rem),
+                                    "description": getattr(rem, "description", "") or "",
+                                }
+                                for rem in (proof_chain.remedies or [])
+                            ],
+                            "completeness_score": proof_chain.completeness_score,
+                            "claim_description": proof_chain.claim_description or "",
+                        }
+                        self.logger.info(
+                            f"Built proof chain for claim type {claim_type_str}: "
+                            f"{len(proof_chain_data['required_evidence'])} required evidence items"
+                        )
+                except Exception as e:
+                    self.logger.warning(
+                        f"Failed to build proof chain for claim type {claim_type_str}: {e}"
+                    )
+            
+            # Fallback to required evidence if proof chain not available
+            if not proof_chain_data:
+                required_evidence = self.kg.get_required_evidence_for_claim_type(claim_type_str)
+                proof_chain_data = {
                     "required_evidence": [
                         {
                             "name": ev.get("name", ""),
@@ -180,6 +257,19 @@ Return ONLY the JSON array, nothing else.
                         }
                         for ev in required_evidence
                     ],
+                    "presented_evidence": [],
+                    "missing_evidence": [],
+                    "applicable_laws": [],
+                    "remedies": [],
+                    "completeness_score": 0.0,
+                    "claim_description": "",
+                }
+            
+            claim_types_data.append(
+                {
+                    "canonical_name": claim_type_str,
+                    "display_name": claim_type_str.replace("_", " ").title(),
+                    "proof_chain": proof_chain_data,
                 }
             )
 
@@ -238,21 +328,70 @@ Return ONLY the JSON array, nothing else.
 
                     # Get required evidence for this claim type
                     required_evidence = self.kg.get_required_evidence_for_claim_type(canonical)
+                    
+                    self.logger.info(
+                        f"Claim type {canonical}: Found {len(required_evidence)} required evidence items in knowledge graph"
+                    )
+                    
+                    # If no required evidence found in graph, use evidence from LLM assessment as fallback
+                    if not required_evidence:
+                        self.logger.warning(
+                            f"No required evidence found in knowledge graph for claim type '{canonical}'. "
+                            f"Using evidence from LLM assessment as fallback."
+                        )
+                        # Extract evidence names from LLM assessment to create fallback list
+                        llm_evidence_names = [
+                            ev_assess.get("required_evidence_name")
+                            for ev_assess in match_data.get("evidence_assessment", [])
+                            if ev_assess.get("required_evidence_name")
+                        ]
+                        if llm_evidence_names:
+                            # Create fallback evidence entities from LLM assessment
+                            for ev_name in llm_evidence_names:
+                                required_evidence.append({
+                                    "_key": f"fallback_{canonical}_{ev_name.lower().replace(' ', '_')}",
+                                    "name": ev_name,
+                                    "description": f"Required evidence for {canonical}",
+                                    "evidence_type": "documentary",
+                                    "is_critical": False
+                                })
 
                     # Convert evidence assessment to EvidenceMatch objects
                     evidence_assessment = []
-                    for ev_assess in match_data.get("evidence_assessment", []):
+                    llm_evidence_assessment = match_data.get("evidence_assessment", [])
+                    
+                    self.logger.info(
+                        f"Claim type {canonical}: LLM returned {len(llm_evidence_assessment)} evidence assessment items"
+                    )
+                    
+                    for ev_assess in llm_evidence_assessment:
                         req_evid_name = ev_assess.get("required_evidence_name")
+                        if not req_evid_name:
+                            continue
 
-                        # Find the required evidence entity
+                        # Find the required evidence entity in knowledge graph
                         req_evid = next(
                             (ev for ev in required_evidence if ev.get("name") == req_evid_name),
                             None,
                         )
+                        
                         if req_evid:
+                            # Found in knowledge graph - use KG entity ID
                             evidence_assessment.append(
                                 EvidenceMatch(
                                     evidence_id=req_evid.get("_key", ""),
+                                    evidence_name=req_evid_name,
+                                    match_score=ev_assess.get("match_score", 0.0),
+                                    user_evidence_description=ev_assess.get("user_evidence_match"),
+                                    is_critical=ev_assess.get("is_critical", False) or req_evid.get("is_critical", False),
+                                    status=ev_assess.get("status", "missing"),
+                                )
+                            )
+                        else:
+                            # Not in knowledge graph - use LLM assessment (this handles missing KG data)
+                            evidence_assessment.append(
+                                EvidenceMatch(
+                                    evidence_id=f"llm_{canonical}_{req_evid_name.lower().replace(' ', '_').replace('/', '_')}",
                                     evidence_name=req_evid_name,
                                     match_score=ev_assess.get("match_score", 0.0),
                                     user_evidence_description=ev_assess.get("user_evidence_match"),
@@ -260,6 +399,14 @@ Return ONLY the JSON array, nothing else.
                                     status=ev_assess.get("status", "missing"),
                                 )
                             )
+                    
+                    # If no evidence assessment from LLM and no required evidence in KG, 
+                    # at least show that evidence requirements couldn't be determined
+                    if not evidence_assessment and not required_evidence:
+                        self.logger.warning(
+                            f"Claim type {canonical}: No evidence requirements in KG and no LLM assessment. "
+                            f"This indicates missing data in the knowledge graph."
+                        )
 
                     # Calculate completeness
                     completeness = self._calculate_completeness(evidence_assessment)

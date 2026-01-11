@@ -529,15 +529,35 @@ def get_analyze_my_case_megaprompt(
 
     This is faster and more coherent than multiple sequential calls.
     """
-    # Build claim types list
-    types_list = "\n".join(
-        [
-            f"- {ct.get('canonical_name', 'N/A')}: {ct.get('display_name', ct.get('name', ''))}"
-            f"\n  Description: {ct.get('description', '')[:200]}"
-            f"\n  Required Evidence: {', '.join([ev.get('name', '') for ev in ct.get('required_evidence', [])[:5]])}"
-            for ct in claim_types
-        ]
-    )
+    # Build claim types list with FULL PROOF CHAINS
+    types_list = []
+    for ct in claim_types:
+        proof_chain = ct.get("proof_chain", {})
+        required_ev = proof_chain.get("required_evidence", [])
+        applicable_laws = proof_chain.get("applicable_laws", [])
+        remedies = proof_chain.get("remedies", [])
+        claim_desc = proof_chain.get("claim_description", "")
+        
+        claim_info = f"- {ct.get('canonical_name', 'N/A')}: {ct.get('display_name', ct.get('name', ''))}"
+        if claim_desc:
+            claim_info += f"\n  Claim Description: {claim_desc[:200]}"
+        if applicable_laws:
+            law_names = ", ".join([law.get("name", "") for law in applicable_laws[:3]])
+            claim_info += f"\n  Applicable Laws: {law_names}"
+        if remedies:
+            remedy_names = ", ".join([rem.get("name", "") for rem in remedies[:3]])
+            claim_info += f"\n  Available Remedies: {remedy_names}"
+        if required_ev:
+            ev_names = ", ".join([ev.get("name", "") for ev in required_ev[:5]])
+            claim_info += f"\n  Required Evidence: {ev_names}"
+            critical_ev = [ev for ev in required_ev if ev.get("is_critical")]
+            if critical_ev:
+                critical_names = ", ".join([ev.get("name", "") for ev in critical_ev[:3]])
+                claim_info += f"\n  CRITICAL Evidence: {critical_names}"
+        
+        types_list.append(claim_info)
+    
+    types_list_str = "\n".join(types_list)
 
     evidence_context = ""
     if user_evidence:
@@ -562,8 +582,17 @@ Analyze this situation and provide a complete analysis in ONE JSON response with
 3. **Assess Evidence**: For each matched claim type, assess which required evidence the tenant has
 4. **Identify Gaps**: List missing critical evidence with actionable advice"""
 
-    additional_context = f"""AVAILABLE CLAIM TYPES:
-{types_list}"""
+    additional_context = f"""AVAILABLE CLAIM TYPES (with full proof chain requirements):
+{types_list_str}
+
+For each claim type, you have:
+- Applicable Laws: The legal statutes/regulations that apply
+- Available Remedies: What relief can be sought
+- Required Evidence: What evidence is needed to prove the claim
+- CRITICAL Evidence: Evidence that is essential (must have)
+- Claim Description: What this claim type is about
+
+Compare the tenant's evidence against the FULL proof chain requirements, not just the evidence list."""
 
     if sanitized_user_evidence:
         evidence_context = "\n\nUSER'S EXPLICIT EVIDENCE LIST:\n" + "\n".join(
@@ -604,12 +633,16 @@ Analyze this situation and provide a complete analysis in ONE JSON response with
 
 Guidelines:
 - extracted_evidence: List ALL evidence items mentioned or implied (documents, records, communications, facts)
-- match_score: 0.0-1.0, how well the situation matches this claim type
-- evidence_assessment: For EACH required evidence item for this claim type, assess if tenant has it
+- match_score: 0.0-1.0, how well the situation matches this claim type (consider applicable laws, remedies, and claim description)
+- evidence_assessment: For EACH required evidence item in the proof chain, assess if tenant has it
+  * Consider the FULL proof chain: applicable laws, remedies, and how evidence connects to them
+  * If tenant has evidence that satisfies the legal requirements (even if not exact name match), mark as matched
+  * Critical evidence is especially important - if missing, note this strongly
 - match_score in evidence_assessment: 1.0 = has it, 0.5 = partial, 0.0 = missing
 - user_evidence_match: Which extracted evidence item matches this required evidence (or null)
 - status: "matched", "partial", or "missing"
-- Only include claim types with match_score >= 0.5"""
+- Only include claim types with match_score >= 0.5
+- When assessing evidence, consider how it relates to the applicable laws and remedies in the proof chain"""
 
     return create_safe_prompt(
         system_instructions=system_instructions,

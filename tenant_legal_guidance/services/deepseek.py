@@ -1,9 +1,12 @@
+import asyncio
 import json
 import logging
 import re
 import ssl
 
 import aiohttp
+
+from tenant_legal_guidance.utils.retry import retry_with_backoff
 
 
 class DeepSeekClient:
@@ -21,8 +24,28 @@ class DeepSeekClient:
         self.ssl_context.check_hostname = True
         self.ssl_context.verify_mode = ssl.CERT_REQUIRED
 
+    @retry_with_backoff(
+        max_retries=3,
+        initial_delay=1.0,
+        max_delay=10.0,
+        exceptions=(aiohttp.ClientError, aiohttp.ServerTimeoutError, asyncio.TimeoutError),
+    )
     async def chat_completion(self, prompt: str) -> str:
-        """Generate a response to a chat prompt using the DeepSeek API."""
+        """Generate a response to a chat prompt using the DeepSeek API.
+        
+        Args:
+            prompt: The user prompt to send to the API
+            
+        Returns:
+            The generated response text
+            
+        Raises:
+            ValueError: If the response format is invalid
+            aiohttp.ClientError: If the API request fails
+        """
+        if not prompt or not prompt.strip():
+            raise ValueError("Prompt cannot be empty")
+        
         try:
             # Construct the API request payload
             payload = {
@@ -44,18 +67,40 @@ class DeepSeekClient:
                     headers=self.headers,
                     json=payload,
                     ssl=self.ssl_context,
+                    timeout=aiohttp.ClientTimeout(total=60),  # 60 second timeout
                 ) as response:
+                    if response.status == 429:
+                        error_text = await response.text()
+                        raise aiohttp.ClientResponseError(
+                            request_info=response.request_info,
+                            history=response.history,
+                            status=429,
+                            message=f"Rate limit exceeded: {error_text}",
+                        )
+                    
                     response.raise_for_status()
                     response_data = await response.json()
 
                     if "choices" in response_data and len(response_data["choices"]) > 0:
                         content = response_data["choices"][0].get("message", {}).get("content", "")
+                        if not content:
+                            raise ValueError(
+                                f"Empty response from API. Response structure: {list(response_data.keys())}"
+                            )
                         return content.strip()
                     else:
-                        raise ValueError("Invalid response format from API")
+                        raise ValueError(
+                            f"Invalid response format from API. Expected 'choices' array, got: {list(response_data.keys())}"
+                        )
 
+        except aiohttp.ClientError as e:
+            self.logger.error(f"HTTP error in chat completion (prompt length: {len(prompt)}): {e}")
+            raise
+        except json.JSONDecodeError as e:
+            self.logger.error(f"JSON decode error in chat completion response: {e}")
+            raise ValueError(f"Invalid JSON response from API: {e}")
         except Exception as e:
-            self.logger.error(f"Error in chat completion: {e!s}")
+            self.logger.error(f"Unexpected error in chat completion: {e!s}", exc_info=True)
             raise
 
     async def extract_legal_concepts(self, text: str) -> dict:

@@ -1,0 +1,209 @@
+{
+  "description": "Test case documents with expected extracted metadata for evaluation",
+  "cases": [
+    {
+      "case_id": "case_001",
+      "case_name": "Smith v. Landlord LLC",
+      "expected_metadata": {
+        "parties": {
+          "plaintiff": ["Smith"],
+          "defendant": ["Landlord LLC"]
+        },
+        "court": "NYC Housing Court",
+        "docket_number": "LT-12345-20/NY",
+        "decision_date": "2020-03-15",
+        "filing_date": "2019-11-01",
+        "outcome": "plaintiff_win",
+        "ruling_type": "judgment",
+        "relief_granted": ["rent_reduction", "repairs_ordered"],
+        "damages_awarded": 5000.0
+      },
+      "expected_entities": [
+        "law:warranty_of_habitability",
+        "remedy:rent_reduction",
+        "tenant_issue:mold_in_apartment"
+      ],
+      "expected_proof_chains": 1,
+      "expected_evidence_count": 3
+    },
+    {
+      "case_id": "case_002",
+      "case_name": "Jones v. Property Management Co.",
+      "expected_metadata": {
+        "parties": {
+          "plaintiff": ["Jones"],
+          "defendant": ["Property Management Co."]
+        },
+        "court": "Civil Court of the City of New York",
+        "docket_number": "LT-67890-21/KI",
+        "decision_date": "2021-06-20",
+        "filing_date": "2021-01-10",
+        "outcome": "defendant_win",
+        "ruling_type": "summary_judgment",
+        "relief_granted": [],
+        "damages_awarded": null
+      },
+      "expected_entities": [
+        "law:rent_stabilization_law",
+        "tenant_issue:rent_overcharge"
+      ],
+      "expected_proof_chains": 1,
+      "expected_evidence_count": 2
+    },
+    {
+      "case_id": "case_003",
+      "case_name": "756 Liberty Realty LLC v Garcia",
+      "expected_metadata": {
+        "parties": {
+          "plaintiff": ["756 Liberty Realty LLC"],
+          "defendant": ["Juan Garcia", "Pilar Guevara"]
+        },
+        "court": "Civil Court of the City of New York, Kings County",
+        "docket_number": "LT-063787-19/KI",
+        "decision_date": "2025-09-05",
+        "filing_date": "2019-08-15",
+        "outcome": "defendant_win",
+        "ruling_type": "judgment",
+        "relief_granted": ["rent_stabilized_lease"],
+        "damages_awarded": null,
+        "procedural_history": [
+          {"event": "filed", "date": "2019-08-15"},
+          {"event": "answered", "date": "2019-09-01"},
+          {"event": "motion", "date": "2020-01-10"},
+          {"event": "decision", "date": "2025-09-05"}
+        ]
+      },
+      "expected_entities": [
+        "law:rent_stabilization_law",
+        "case_document:756_liberty_v_garcia",
+        "tenant_issue:rent_overcharge"
+      ],
+      "expected_proof_chains": 2,
+      "expected_evidence_count": 5
+    },
+    {
+      "case_id": "case_004",
+      "case_name": "Tenant Association v. Building Owner",
+      "expected_metadata": {
+        "parties": {
+          "plaintiff": ["Tenant Association"],
+          "defendant": ["Building Owner"]
+        },
+        "court": "NYC Housing Court",
+        "docket_number": "LT-11111-22/NY",
+        "decision_date": "2022-12-01",
+        "filing_date": "2022-05-15",
+        "outcome": "settlement",
+        "ruling_type": "settlement",
+        "relief_granted": ["repairs_ordered", "rent_reduction"],
+        "damages_awarded": 10000.0
+      },
+      "expected_entities": [
+        "law:warranty_of_habitability",
+        "remedy:rent_reduction",
+        "tenant_issue:lack_of_heat"
+      ],
+      "expected_proof_chains": 1,
+      "expected_evidence_count": 4
+    },
+    {
+      "case_id": "case_005",
+      "case_name": "Brown v. Apartment Corp",
+      "expected_metadata": {
+        "parties": {
+          "plaintiff": ["Brown"],
+          "defendant": ["Apartment Corp"]
+        },
+        "court": "Civil Court of the City of New York",
+        "docket_number": "LT-22222-19/BR",
+        "decision_date": "2019-11-30",
+        "filing_date": "2019-07-01",
+        "outcome": "plaintiff_win",
+        "ruling_type": "judgment",
+        "relief_granted": ["rent_reduction"],
+        "damages_awarded": 3000.0
+      },
+      "expected_entities": [
+        "law:warranty_of_habitability",
+        "remedy:rent_reduction",
+        "evidence:photos_of_conditions"
+      ],
+      "expected_proof_chains": 1,
+      "expected_evidence_count": 3
+    },
+    {
+      "case_id": "case_006",
+      "case_name": "Williams v. Management LLC",
+      "expected_metadata": {
+        "parties": {
+          "plaintiff": ["Williams"],
+          "defendant": ["Management LLC"]
+        },
+        "court": "NYC Housing Court",
+        "docket_number": "LT-33333-20/QN",
+        "decision_date": "2020-08-15",
+        "filing_date": "2020-02-01",
+        "outcome": "dismissed",
+        "ruling_type": "dismissal",
+        "relief_granted": [],
+        "damages_awarded": null
+      },
+      "expected_entities": [
+        "law:rent_stabilization_law"
+      ],
+      "expected_proof_chains": 0,
+      "expected_evidence_count": 1
+    },
+    {
+      "case_id": "case_007",
+      "case_name": "Davis v. Property Owner",
+      "expected_metadata": {
+        "parties": {
+          "plaintiff": ["Davis"],
+          "defendant": ["Property Owner"]
+        },
+        "court": "Civil Court of the City of New York",
+        "docket_number": "LT-44444-21/BX",
+        "decision_date": "2021-04-10",
+        "filing_date": "2020-12-01",
+        "outcome": "plaintiff_win",
+        "ruling_type": "judgment",
+        "relief_granted": ["repairs_ordered"],
+        "damages_awarded": 2000.0
+      },
+      "expected_entities": [
+        "law:warranty_of_habitability",
+        "remedy:hp_action",
+        "tenant_issue:mold_in_apartment"
+      ],
+      "expected_proof_chains": 1,
+      "expected_evidence_count": 3
+    },
+    {
+      "case_id": "case_008",
+      "case_name": "Miller v. Realty Group",
+      "expected_metadata": {
+        "parties": {
+          "plaintiff": ["Miller"],
+          "defendant": ["Realty Group"]
+        },
+        "court": "NYC Housing Court",
+        "docket_number": "LT-55555-19/MN",
+        "decision_date": "2019-10-20",
+        "filing_date": "2019-06-15",
+        "outcome": "plaintiff_win",
+        "ruling_type": "judgment",
+        "relief_granted": ["rent_reduction", "attorney_fees"],
+        "damages_awarded": 7500.0
+      },
+      "expected_entities": [
+        "law:warranty_of_habitability",
+        "remedy:rent_reduction",
+        "evidence:repair_requests"
+      ],
+      "expected_proof_chains": 1,
+      "expected_evidence_count": 3
+    }
+  ]
+}
+

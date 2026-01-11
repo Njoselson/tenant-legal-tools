@@ -239,7 +239,7 @@ class TestPerformanceBenchmarks:
         )
         
         start_time = time.time()
-        result = await system.document_processor.ingest_document(SAMPLE_LEGAL_TEXT, metadata)
+        result = await system.document_processor.ingest_document(SAMPLE_LEGAL_TEXT, metadata, force_reprocess=True)
         ingestion_time = time.time() - start_time
         
         # Should complete in reasonable time (< 30 seconds for small document)

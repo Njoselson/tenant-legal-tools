@@ -71,7 +71,10 @@ class OutcomePredictor:
                 RETURN {
                     claim: claim,
                     outcome: outcome[0],
-                    claim_id: claim._key
+                    claim_id: claim._key,
+                    claim_damages: claim.damages_awarded,
+                    claim_relief: claim.relief_granted,
+                    claim_outcome: claim.outcome
                 }
             """
 
@@ -178,13 +181,114 @@ class OutcomePredictor:
         # Analyze similar cases
         favorable_count = 0
         total_count = len(similar_cases)
+        
+        # DEBUG: Log what outcomes we're seeing
+        self.logger.info(f"Analyzing {total_count} similar cases for outcome prediction")
+        outcome_details = []
 
         for case in similar_cases:
             outcome = case.get("outcome")
+            case_claim = case.get("claim", {})
+            is_favorable = False
+            outcome_info = {}
+            
             if outcome:
-                disposition = outcome.get("disposition", "").lower()
-                if disposition in ["granted", "favorable", "won", "successful"]:
-                    favorable_count += 1
+                # Check multiple fields for favorable indicators
+                disposition = (outcome.get("disposition") or "").lower()
+                outcome_type = (outcome.get("outcome_type") or "").lower()
+                outcome_field = (outcome.get("outcome") or "").lower()
+                
+                # Check damages_awarded (if > 0, that's favorable!)
+                damages_awarded = outcome.get("damages_awarded")
+                if damages_awarded is None:
+                    # Also check in attributes
+                    attrs = outcome.get("attributes", {})
+                    damages_awarded = attrs.get("damages_awarded")
+                    if damages_awarded:
+                        try:
+                            damages_awarded = float(damages_awarded)
+                        except (ValueError, TypeError):
+                            damages_awarded = None
+                
+                # Check relief_granted (if any relief granted, that's favorable!)
+                relief_granted = outcome.get("relief_granted") or []
+                if not relief_granted and isinstance(outcome, dict):
+                    relief_granted = outcome.get("attributes", {}).get("relief_granted") or []
+                
+                # Determine if favorable based on multiple indicators
+                if disposition in ["granted", "favorable", "won", "successful", "awarded"]:
+                    is_favorable = True
+                elif outcome_type in ["judgment", "order"] and disposition not in ["dismissed", "denied"]:
+                    is_favorable = True
+                elif outcome_field in ["plaintiff_win", "tenant_win", "favorable"]:
+                    is_favorable = True
+                elif damages_awarded and damages_awarded > 0:
+                    is_favorable = True
+                    self.logger.info(f"Case marked favorable due to damages_awarded: {damages_awarded}")
+                elif relief_granted and len(relief_granted) > 0:
+                    is_favorable = True
+                    self.logger.info(f"Case marked favorable due to relief_granted: {relief_granted}")
+                
+                outcome_info = {
+                    "disposition": disposition,
+                    "outcome_type": outcome_type,
+                    "outcome": outcome_field,
+                    "damages_awarded": damages_awarded,
+                    "relief_granted": relief_granted,
+                    "is_favorable": is_favorable,
+                }
+            else:
+                # No outcome entity - check if claim has outcome info directly
+                # Check both case-level fields (from query) and claim dict
+                damages = case.get("claim_damages")
+                relief = case.get("claim_relief") or []
+                outcome_field = (case.get("claim_outcome") or "").lower()
+                
+                if not damages and isinstance(case_claim, dict):
+                    damages = case_claim.get("damages_awarded")
+                if not relief and isinstance(case_claim, dict):
+                    relief = case_claim.get("relief_granted") or []
+                if not outcome_field and isinstance(case_claim, dict):
+                    outcome_field = (case_claim.get("outcome") or "").lower()
+                
+                # Convert damages to float if it's a string
+                if damages:
+                    try:
+                        damages = float(damages) if not isinstance(damages, (int, float)) else damages
+                    except (ValueError, TypeError):
+                        damages = None
+                
+                if damages and damages > 0:
+                    is_favorable = True
+                    self.logger.info(f"Case marked favorable due to damages_awarded: {damages}")
+                elif relief and len(relief) > 0:
+                    is_favorable = True
+                    self.logger.info(f"Case marked favorable due to relief_granted: {relief}")
+                elif outcome_field in ["plaintiff_win", "tenant_win", "favorable"]:
+                    is_favorable = True
+                    self.logger.info(f"Case marked favorable due to outcome field: {outcome_field}")
+                
+                outcome_info = {
+                    "from_claim": True,
+                    "damages_awarded": damages,
+                    "relief_granted": relief,
+                    "outcome": outcome_field,
+                    "is_favorable": is_favorable,
+                }
+            
+            if is_favorable:
+                favorable_count += 1
+            
+            outcome_details.append({
+                "claim_id": case.get("claim_id", "unknown"),
+                "claim_name": case_claim.get("name", "unknown") if isinstance(case_claim, dict) else "unknown",
+                **outcome_info,
+            })
+        
+        # DEBUG: Log outcome analysis
+        self.logger.info(f"Outcome analysis: {favorable_count}/{total_count} favorable")
+        for detail in outcome_details[:5]:  # Log first 5
+            self.logger.debug(f"Case outcome: {detail}")
 
         favorable_rate = favorable_count / total_count if total_count > 0 else 0.0
 

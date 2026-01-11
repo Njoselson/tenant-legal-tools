@@ -1,0 +1,72 @@
+{
+  "description": "Proof chain test dataset for evaluation. Each entry has expected proof chain structure.",
+  "proof_chains": [
+    {
+      "issue": "Mold in apartment",
+      "expected_laws": [
+        "law:warranty_of_habitability"
+      ],
+      "expected_remedies": [
+        "remedy:hp_action",
+        "remedy:rent_reduction"
+      ],
+      "expected_evidence": [
+        "evidence:photos_of_conditions",
+        "evidence:repair_requests"
+      ],
+      "case_id": "test_case_001"
+    },
+    {
+      "issue": "Rent overcharge",
+      "expected_laws": [
+        "law:rent_stabilization_law"
+      ],
+      "expected_remedies": [
+        "remedy:rent_reduction"
+      ],
+      "expected_evidence": [
+        "evidence:lease_document"
+      ],
+      "case_id": "test_case_002"
+    },
+    {
+      "issue": "Lack of heat",
+      "expected_laws": [
+        "law:warranty_of_habitability"
+      ],
+      "expected_remedies": [
+        "remedy:hp_action",
+        "remedy:rent_reduction"
+      ],
+      "expected_evidence": [
+        "evidence:repair_requests"
+      ],
+      "case_id": "test_case_003"
+    },
+    {
+      "issue": "Deregulation challenge",
+      "expected_laws": [
+        "law:rent_stabilization_law"
+      ],
+      "expected_remedies": [],
+      "expected_evidence": [
+        "evidence:lease_document"
+      ],
+      "case_id": "test_case_004"
+    },
+    {
+      "issue": "Harassment",
+      "expected_laws": [
+        "law:warranty_of_habitability"
+      ],
+      "expected_remedies": [
+        "remedy:hp_action"
+      ],
+      "expected_evidence": [
+        "evidence:repair_requests"
+      ],
+      "case_id": "test_case_005"
+    }
+  ]
+}
+

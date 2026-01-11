@@ -1,0 +1,108 @@
+{
+  "description": "Query test dataset for retrieval evaluation. Each query has expected retrieval results.",
+  "queries": [
+    {
+      "query_id": "q001",
+      "query_text": "What can I do about mold in my apartment?",
+      "expected_entities": [
+        "law:warranty_of_habitability",
+        "tenant_issue:mold_in_apartment",
+        "remedy:hp_action",
+        "remedy:rent_reduction",
+        "evidence:photos_of_conditions"
+      ],
+      "expected_chunks": [],
+      "expected_claim_types": ["HABITABILITY_VIOLATION"]
+    },
+    {
+      "query_id": "q002",
+      "query_text": "My landlord is charging me more than the legal rent",
+      "expected_entities": [
+        "law:rent_stabilization_law",
+        "tenant_issue:rent_overcharge"
+      ],
+      "expected_chunks": [],
+      "expected_claim_types": ["RENT_OVERCHARGE"]
+    },
+    {
+      "query_id": "q003",
+      "query_text": "How do I file an HP action?",
+      "expected_entities": [
+        "remedy:hp_action",
+        "legal_procedure:file_hp_action"
+      ],
+      "expected_chunks": [],
+      "expected_claim_types": []
+    },
+    {
+      "query_id": "q004",
+      "query_text": "What evidence do I need for a habitability claim?",
+      "expected_entities": [
+        "evidence:photos_of_conditions",
+        "evidence:repair_requests",
+        "law:warranty_of_habitability"
+      ],
+      "expected_chunks": [],
+      "expected_claim_types": ["HABITABILITY_VIOLATION"]
+    },
+    {
+      "query_id": "q005",
+      "query_text": "My apartment has no heat",
+      "expected_entities": [
+        "law:warranty_of_habitability",
+        "remedy:hp_action",
+        "remedy:rent_reduction"
+      ],
+      "expected_chunks": [],
+      "expected_claim_types": ["HABITABILITY_VIOLATION"]
+    },
+    {
+      "query_id": "q006",
+      "query_text": "What is rent stabilization?",
+      "expected_entities": [
+        "law:rent_stabilization_law"
+      ],
+      "expected_chunks": [],
+      "expected_claim_types": []
+    },
+    {
+      "query_id": "q007",
+      "query_text": "Can I get treble damages for rent overcharge?",
+      "expected_entities": [
+        "law:rent_stabilization_law",
+        "tenant_issue:rent_overcharge"
+      ],
+      "expected_chunks": [],
+      "expected_claim_types": ["RENT_OVERCHARGE"]
+    },
+    {
+      "query_id": "q008",
+      "query_text": "What is constructive eviction?",
+      "expected_entities": [],
+      "expected_chunks": [],
+      "expected_claim_types": []
+    },
+    {
+      "query_id": "q009",
+      "query_text": "My landlord says my apartment was deregulated but I think it's still rent stabilized",
+      "expected_entities": [
+        "law:rent_stabilization_law"
+      ],
+      "expected_chunks": [],
+      "expected_claim_types": ["DEREGULATION_CHALLENGE"]
+    },
+    {
+      "query_id": "q010",
+      "query_text": "I need to reduce my rent because of bad conditions",
+      "expected_entities": [
+        "remedy:rent_reduction",
+        "law:warranty_of_habitability",
+        "evidence:photos_of_conditions",
+        "evidence:repair_requests"
+      ],
+      "expected_chunks": [],
+      "expected_claim_types": ["HABITABILITY_VIOLATION"]
+    }
+  ]
+}
+

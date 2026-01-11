@@ -192,6 +192,8 @@
         <a href="/">Consultation Analyzer</a>
         <a href="/kg-input">KG Input</a>
         <a href="/kg-view">KG Viewer</a>
+        <a href="/qdrant-view">Qdrant View</a>
+        <a href="/context-builder">Context Builder</a>
     </nav>
     <div class="container">
         <div id="graph-container"></div>
@@ -209,6 +211,7 @@
                     </div>
                     <div class="actions-row">
                         <button id="load-more-btn" class="action-btn">Load More</button>
+                        <button id="add-to-context-btn" class="action-btn" disabled style="background-color: #28a745; color: white;">Add to Context</button>
                     </div>
                     <div class="actions-row" style="margin-top:8px;">
                         <input id="filter-q" placeholder="Search..." style="flex:1; padding:6px; border:1px solid #ced4da; border-radius:6px; font-size:0.9em;" />
@@ -224,6 +227,9 @@
                     </details>
                     <p class="hint">Tip: Cmd/Ctrl + Click to multi-select</p>
                 </div>
+            </div>
+            <div id="pagination-info" style="background-color: #e9ecef; padding: 10px; border-radius: 6px; margin-bottom: 10px; font-size: 0.9em; color: #495057;">
+                <strong>Graph Status:</strong> <span id="pagination-text">Loading...</span>
             </div>
             <style>
                 .hidden { display: none; }
@@ -254,6 +260,7 @@
         const expandBtn = document.getElementById('expand-btn');
         const consolidateBtn = document.getElementById('consolidate-btn');
         const consolidateAllBtn = document.getElementById('consolidate-all-btn');
+        const addToContextBtn = document.getElementById('add-to-context-btn');
 
         let network = null;
         let graphData = { nodes: [], edges: [] }; // raw arrays
@@ -264,6 +271,8 @@
         let selectedNodeIds = new Set();
         let nextCursor = null;
         let activeFilters = { q: null, types: null, jurisdiction: null };
+        let totalNodeCount = null; // Total nodes in graph (if available from API)
+        let loadedNodeCount = 0; // Total nodes currently loaded
 
         // --- Entity Type Styling ---
         const entityColors = {
@@ -336,12 +345,18 @@
         }
 
         // --- Vis.js Network Initialization ---
+        // Note: Graph uses pagination to handle large graphs efficiently.
+        // Initial load: 10,000 nodes (increased from 100)
+        // API limit: 100,000 nodes (increased from 200)
+        // Use "Load More" button to load additional pages incrementally.
         async function initializeGraph() {
             try {
                 console.log("Fetching graph data (first page)...");
                 nextCursor = null;
+                loadedNodeCount = 0; // Reset loaded count when reinitializing
+                totalNodeCount = null; // Reset total count
                 const params = new URLSearchParams();
-                params.set('limit', '100');
+                params.set('limit', '10000'); // Increased from 100 to allow loading larger graphs
                 if (activeFilters.q) params.set('q', activeFilters.q);
                 if (activeFilters.types) params.set('types', activeFilters.types);
                 if (activeFilters.jurisdiction) params.set('jurisdiction', activeFilters.jurisdiction);
@@ -353,8 +368,11 @@
                 
                 const rawData = await graphResponse.json();
                 nextCursor = rawData.next_cursor ?? null;
+                totalNodeCount = rawData.total_count ?? null;
+                loadedNodeCount = rawData.loaded_count ?? rawData.nodes?.length ?? 0;
                 
                 console.log(`Received ${rawData.nodes?.length} nodes, ${rawData.links?.length} links.`);
+                updatePaginationInfo();
 
                 // Process entity nodes for vis-network
                 const entityNodes = rawData.nodes.map(node => {
@@ -451,6 +469,10 @@
                 nodesDs = new vis.DataSet(nodes);
                 edgesDs = new vis.DataSet(edges);
                 network = new vis.Network(graphContainer, { nodes: nodesDs, edges: edgesDs }, options);
+                
+                // Update loaded count after initial load
+                loadedNodeCount = nodes.length;
+                updatePaginationInfo();
 
                  // --- Event Listeners ---
                  network.on("click", function (params) { handleSelection(params); });
@@ -477,7 +499,7 @@
             try {
                 if (nextCursor == null) return;
                 const params = new URLSearchParams();
-                params.set('limit', '100');
+                params.set('limit', '10000'); // Increased from 100 to allow loading larger graphs
                 params.set('cursor', String(nextCursor));
                 if (activeFilters.q) params.set('q', activeFilters.q);
                 if (activeFilters.types) params.set('types', activeFilters.types);
@@ -486,6 +508,14 @@
                 const page = await resp.json();
                 if (!resp.ok) throw new Error(page && page.detail ? page.detail : 'Load more failed');
                 nextCursor = page.next_cursor ?? null;
+                // Update total count if provided (may be null on subsequent loads)
+                if (page.total_count !== null && page.total_count !== undefined) {
+                    totalNodeCount = page.total_count;
+                }
+                // Update loaded count (add new nodes to existing count)
+                const newNodesCount = page.loaded_count ?? page.nodes?.length ?? 0;
+                loadedNodeCount += newNodesCount;
+                updatePaginationInfo();
 
                 const newNodes = page.nodes.map(node => {
                     // Check if node has chunks/quotes (look in both node and attributes)
@@ -528,9 +558,35 @@
                 const nodesToAdd = newNodes.filter(n => !existingIds.has(n.id));
                 if (nodesToAdd.length) nodesDs.add(nodesToAdd);
                 if (newEdges.length) edgesDs.add(newEdges);
+                
+                // Correct loaded count after deduplication
+                loadedNodeCount = nodesDs.length;
+                updatePaginationInfo();
             } catch (err) {
                 console.error('Load more error:', err);
                 alert(`Error: ${err.message || err}`);
+            }
+        }
+
+        // Update pagination info display
+        function updatePaginationInfo() {
+            const paginationText = document.getElementById('pagination-text');
+            if (!paginationText) return;
+            
+            const currentCount = nodesDs ? nodesDs.length : loadedNodeCount;
+            if (totalNodeCount !== null && totalNodeCount !== undefined) {
+                const percentage = totalNodeCount > 0 ? Math.round((currentCount / totalNodeCount) * 100) : 0;
+                paginationText.textContent = `Showing ${currentCount.toLocaleString()} of ${totalNodeCount.toLocaleString()} nodes (${percentage}%)`;
+                if (nextCursor !== null) {
+                    paginationText.textContent += ' • More available';
+                } else if (currentCount >= totalNodeCount) {
+                    paginationText.textContent += ' • All nodes loaded';
+                }
+            } else {
+                paginationText.textContent = `Loaded ${currentCount.toLocaleString()} nodes`;
+                if (nextCursor !== null) {
+                    paginationText.textContent += ' • More available';
+                }
             }
         }
 
@@ -586,6 +642,18 @@
             if (data.jurisdiction) {
                  detailsHtml += `<p><strong>Jurisdiction:</strong> <code>${escapeHtml(data.jurisdiction)}</code></p>`;
             }
+            // Show multiple sources if available (source_ids)
+            if (data.source_ids && Array.isArray(data.source_ids) && data.source_ids.length > 0) {
+                detailsHtml += `<p><strong>Sources (${data.source_ids.length}):</strong></p><ul>`;
+                data.source_ids.slice(0, 5).forEach((sourceId, idx) => {
+                    detailsHtml += `<li><code>${escapeHtml(String(sourceId))}</code></li>`;
+                });
+                if (data.source_ids.length > 5) {
+                    detailsHtml += `<li>… and ${data.source_ids.length - 5} more</li>`;
+                }
+                detailsHtml += `</ul>`;
+            }
+            
             if (data.source_metadata) {
                 const sm = data.source_metadata;
                 const srcType = sm.source_type || 'N/A';
@@ -593,7 +661,7 @@
                 const sourceText = (typeof src === 'string' && (src.startsWith('http://') || src.startsWith('https://')))
                     ? `<a href="${escapeHtml(src)}" target="_blank">${escapeHtml(src)}</a>`
                     : escapeHtml(String(src || ''));
-                detailsHtml += `<p><strong>Source (${escapeHtml(String(srcType))}):</strong> ${sourceText}</p>`;
+                detailsHtml += `<p><strong>Primary Source (${escapeHtml(String(srcType))}):</strong> ${sourceText}</p>`;
                 if (sm.title) detailsHtml += `<p><strong>Title:</strong> ${escapeHtml(String(sm.title))}</p>`;
                 if (sm.organization) detailsHtml += `<p><strong>Organization:</strong> ${escapeHtml(String(sm.organization))}</p>`;
                 if (sm.created_at) detailsHtml += `<p><strong>Created:</strong> ${escapeHtml(String(sm.created_at))}</p>`;
@@ -654,7 +722,9 @@
                     
                     data.chunks.slice(0, 5).forEach(chunk => {
                         chunksHtml += `<div style="border-bottom:1px solid #eee; padding:6px 0; margin-bottom:6px;">`;
-                        chunksHtml += `<code style="font-size:0.85em; color:#666;">${escapeHtml(chunk.chunk_id || 'N/A')}</code>`;
+                        // Make chunk ID clickable to view chunk details
+                        const chunkId = escapeHtml(chunk.chunk_id || 'N/A');
+                        chunksHtml += `<a href="#" onclick="viewChunkDetails('${chunkId}'); return false;" style="color:#3498db; text-decoration:none; font-weight:600;">📄 ${chunkId}</a>`;
                         if (chunk.doc_title) {
                             chunksHtml += `<br><span style="font-size:0.85em; color:#888;">${escapeHtml(chunk.doc_title)}</span>`;
                         }
@@ -699,9 +769,33 @@
                     if (data.best_quote.explanation) {
                         quoteHtml += `<p style="font-size:0.85em; color:#856404; margin:4px 0 0 0;">${escapeHtml(data.best_quote.explanation)}</p>`;
                     }
+                    if (data.best_quote.source_id) {
+                        quoteHtml += `<p style="font-size:0.85em; color:#856404; margin:4px 0 0 0;"><strong>Source:</strong> <code>${escapeHtml(String(data.best_quote.source_id))}</code></p>`;
+                    }
+                    if (data.best_quote.chunk_id) {
+                        quoteHtml += `<p style="font-size:0.85em; color:#856404; margin:4px 0 0 0;"><strong>Chunk:</strong> <a href="#" onclick="viewChunkDetails('${escapeHtml(String(data.best_quote.chunk_id))}'); return false;" style="color:#3498db;">${escapeHtml(String(data.best_quote.chunk_id))}</a></p>`;
+                    }
                     quoteHtml += `</div>`;
                     
-                    if (data.all_quotes_count && data.all_quotes_count > 1) {
+                    // Show all quotes if available
+                    if (data.all_quotes && Array.isArray(data.all_quotes) && data.all_quotes.length > 1) {
+                        quoteHtml += `<p><strong>All Quotes (${data.all_quotes.length}):</strong></p>`;
+                        quoteHtml += `<div style="max-height:200px; overflow-y:auto; padding:8px; background:#fff; border:1px solid #ddd; border-radius:6px; margin:8px 0;">`;
+                        data.all_quotes.slice(0, 5).forEach((quote, idx) => {
+                            if (quote && quote.text) {
+                                quoteHtml += `<div style="border-bottom:1px solid #eee; padding:6px 0; margin-bottom:6px;">`;
+                                quoteHtml += `<p style="font-style:italic; font-size:0.9em; color:#444; margin:0;">"${escapeHtml(quote.text)}"</p>`;
+                                if (quote.source_id) {
+                                    quoteHtml += `<p style="font-size:0.8em; color:#666; margin:4px 0 0 0;">Source: <code>${escapeHtml(String(quote.source_id))}</code></p>`;
+                                }
+                                quoteHtml += `</div>`;
+                            }
+                        });
+                        if (data.all_quotes.length > 5) {
+                            quoteHtml += `<p style="font-size:0.85em; color:#666;">… and ${data.all_quotes.length - 5} more quotes</p>`;
+                        }
+                        quoteHtml += `</div>`;
+                    } else if (data.all_quotes_count && data.all_quotes_count > 1) {
                         quoteHtml += `<p style="font-size:0.9em; color:#666;"><strong>Note:</strong> This entity appears in ${data.all_quotes_count} source(s)</p>`;
                     }
                     
@@ -713,12 +807,214 @@
             }
         }
 
+        function displayEdgeDetails(edge) {
+            if (!edge || !edge.originalData) {
+                displayDefaultDetails();
+                return;
+            }
+            const data = edge.originalData;
+            let detailsHtml = `<h3>Relationship Details</h3>`;
+            detailsHtml += `<p><strong>Type:</strong> ${escapeHtml(data.label || 'N/A')}</p>`;
+            if (data.source && data.target) {
+                detailsHtml += `<p><strong>From:</strong> <code>${escapeHtml(String(data.source))}</code></p>`;
+                detailsHtml += `<p><strong>To:</strong> <code>${escapeHtml(String(data.target))}</code></p>`;
+            }
+            if (data.conditions) {
+                detailsHtml += `<p><strong>Conditions:</strong> ${escapeHtml(String(data.conditions))}</p>`;
+            }
+            // Show relationship strength if available
+            if (data.strength || (data.attributes && data.attributes.strength_score)) {
+                const strength = data.strength || data.attributes?.strength_score;
+                const strengthNum = typeof strength === 'string' ? parseFloat(strength) : (strength || 0);
+                const strengthPercent = Math.round(strengthNum * 100);
+                let strengthColor = '#e74c3c'; // red
+                if (strengthNum >= 0.7) strengthColor = '#2ecc71'; // green
+                else if (strengthNum >= 0.4) strengthColor = '#f39c12'; // orange
+                detailsHtml += `<p><strong>Strength:</strong> <span style="color:${strengthColor}; font-weight:bold;">${strengthPercent}%</span></p>`;
+            }
+            if (data.attributes && Object.keys(data.attributes).length > 0) {
+                detailsHtml += `<p><strong>Attributes:</strong></p><ul>`;
+                for (const [key, value] of Object.entries(data.attributes)) {
+                    detailsHtml += `<li><code>${escapeHtml(key)}</code>: ${escapeHtml(JSON.stringify(value))}</li>`;
+                }
+                detailsHtml += `</ul>`;
+            }
+            detailsPanel.innerHTML = detailsHtml;
+        }
+
         function displayMultiSelectionDetails(count) {
             detailsPanel.innerHTML = `<h3>Multiple Selection</h3><p>${count} nodes selected.</p>`;
         }
 
         function displayDefaultDetails() {
             detailsPanel.innerHTML = '<h3>Selection Details</h3><p>Click on a node or edge to see details here.</p>';
+        }
+        
+        // Function to view chunk details with enhanced entity navigation
+        async function viewChunkDetails(chunkId, contextSize = 0) {
+            try {
+                // Fetch chunk details, entities, and context in parallel
+                const [adjacentRes, entitiesRes, contextRes] = await Promise.all([
+                    fetch(`/api/chunks/adjacent?chunk_id=${encodeURIComponent(chunkId)}`),
+                    fetch(`/api/chunks/${encodeURIComponent(chunkId)}/entities`),
+                    contextSize > 0 ? fetch(`/api/chunks/${encodeURIComponent(chunkId)}/context?context_size=${contextSize}`) : Promise.resolve(null)
+                ]);
+
+                if (!adjacentRes.ok) {
+                    alert(`Failed to load chunk details: ${adjacentRes.statusText}`);
+                    return;
+                }
+
+                const adjacentData = await adjacentRes.json();
+                const entitiesData = entitiesRes.ok ? await entitiesRes.json() : null;
+                const contextData = contextRes && contextRes.ok ? await contextRes.json() : null;
+
+                // Get current chunk from adjacent data
+                const currentChunk = adjacentData.chunk || {
+                    chunk_id: chunkId,
+                    text: adjacentData.current?.text || '',
+                    chunk_index: adjacentData.current?.chunk_index || 0
+                };
+
+                let chunkHtml = `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                    <h3>Chunk Details: ${escapeHtml(chunkId)}</h3>
+                    <div>
+                        <button onclick="viewChunkDetails('${escapeHtml(chunkId)}', 0)" style="padding:4px 8px; margin:0 2px; font-size:0.85em;">No Context</button>
+                        <button onclick="viewChunkDetails('${escapeHtml(chunkId)}', 2)" style="padding:4px 8px; margin:0 2px; font-size:0.85em;">±2 Chunks</button>
+                        <button onclick="viewChunkDetails('${escapeHtml(chunkId)}', 5)" style="padding:4px 8px; margin:0 2px; font-size:0.85em;">±5 Chunks</button>
+                    </div>
+                </div>`;
+
+                // Chunk metadata
+                chunkHtml += `<p><strong>Chunk ID:</strong> <code>${escapeHtml(currentChunk.chunk_id || chunkId)}</code></p>`;
+                if (currentChunk.chunk_index !== undefined) {
+                    chunkHtml += `<p><strong>Chunk Index:</strong> ${currentChunk.chunk_index}</p>`;
+                }
+                
+                // Source document link for chunk
+                if (entitiesData && entitiesData.source_metadata) {
+                    const sm = entitiesData.source_metadata;
+                    const src = sm.source || '';
+                    const isUrl = typeof src === 'string' && (src.startsWith('http://') || src.startsWith('https://'));
+                    
+                    chunkHtml += `<div style="margin-top:10px; padding:10px; background:#f8f9fa; border:1px solid #dee2e6; border-radius:6px;">
+                        <strong>📄 Source Document</strong>`;
+                    
+                    if (sm.title) {
+                        chunkHtml += `<p style="margin:4px 0; font-weight:600;">${escapeHtml(sm.title)}</p>`;
+                    }
+                    
+                    if (isUrl) {
+                        chunkHtml += `<p style="margin:4px 0;"><a href="${escapeHtml(src)}" target="_blank" rel="noopener noreferrer" 
+                            style="color:#3498db; text-decoration:none; word-break:break-all;">${escapeHtml(src)}</a> 
+                            <span style="color:#6c757d; font-size:0.85em;">(opens in new tab)</span></p>`;
+                    } else if (src) {
+                        chunkHtml += `<p style="margin:4px 0;"><code>${escapeHtml(src)}</code></p>`;
+                    }
+                    
+                    if (sm.organization || sm.jurisdiction || sm.authority) {
+                        chunkHtml += `<div style="margin-top:6px; font-size:0.9em; color:#495057;">`;
+                        if (sm.organization) chunkHtml += `<div><strong>Organization:</strong> ${escapeHtml(sm.organization)}</div>`;
+                        if (sm.jurisdiction) chunkHtml += `<div><strong>Jurisdiction:</strong> ${escapeHtml(sm.jurisdiction)}</div>`;
+                        if (sm.authority) {
+                            const authorityLevel = sm.authority === 'BINDING_LEGAL_AUTHORITY' ? '🔴 Binding' : 
+                                                 sm.authority === 'PERSUASIVE_AUTHORITY' ? '🟡 Persuasive' : 
+                                                 sm.authority === 'INFORMATIONAL_ONLY' ? '🟢 Informational' : escapeHtml(String(sm.authority));
+                            chunkHtml += `<div><strong>Authority:</strong> ${authorityLevel}</div>`;
+                        }
+                        chunkHtml += `</div>`;
+                    }
+                    
+                    chunkHtml += `</div>`;
+                } else if (entitiesData && entitiesData.source_id) {
+                    chunkHtml += `<p><strong>Source ID:</strong> <code>${escapeHtml(String(entitiesData.source_id))}</code></p>`;
+                }
+
+                // Context display (preceding chunks)
+                if (contextData && contextData.preceding && contextData.preceding.length > 0) {
+                    chunkHtml += `<div style="margin:10px 0; padding:8px; background:#f0f0f0; border-left:3px solid #3498db; border-radius:4px;">
+                        <strong>Preceding Context (${contextData.preceding.length} chunks):</strong>`;
+                    contextData.preceding.forEach(ch => {
+                        chunkHtml += `<div style="margin:4px 0; padding:4px; background:#fff; border-radius:3px; font-size:0.9em;">
+                            <a href="#" onclick="viewChunkDetails('${escapeHtml(ch.chunk_id)}', ${contextSize}); return false;" style="color:#3498db; font-weight:600;">Chunk ${ch.chunk_index}</a>
+                            <p style="margin:4px 0; color:#666;">${escapeHtml(ch.text)}</p>
+                        </div>`;
+                    });
+                    chunkHtml += `</div>`;
+                }
+
+                // Current chunk text with entity highlighting
+                if (currentChunk.text) {
+                    let highlightedText = escapeHtml(currentChunk.text);
+                    
+                    // Highlight entity mentions if entities are available
+                    if (entitiesData && entitiesData.entities && entitiesData.entities.length > 0) {
+                        entitiesData.entities.forEach(entity => {
+                            const entityName = escapeHtml(entity.name);
+                            // Simple word boundary replacement for highlighting
+                            const regex = new RegExp(`\\b${entityName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi');
+                            highlightedText = highlightedText.replace(regex, `<mark style="background-color:#fff3cd; padding:2px 4px; border-radius:3px; cursor:pointer;" onclick="selectNode('${escapeHtml(entity.id)}')" title="${escapeHtml(entity.type)}">${entityName}</mark>`);
+                        });
+                    }
+
+                    chunkHtml += `<div style="margin-top:8px; padding:12px; background:#fff; border:1px solid #ddd; border-radius:6px; max-height:400px; overflow:auto;">
+                        <strong>Text:</strong><br>
+                        <span style="white-space:pre-wrap; line-height:1.6;">${highlightedText}</span>
+                    </div>`;
+                }
+
+                // Context display (following chunks)
+                if (contextData && contextData.following && contextData.following.length > 0) {
+                    chunkHtml += `<div style="margin:10px 0; padding:8px; background:#f0f0f0; border-left:3px solid #2ecc71; border-radius:4px;">
+                        <strong>Following Context (${contextData.following.length} chunks):</strong>`;
+                    contextData.following.forEach(ch => {
+                        chunkHtml += `<div style="margin:4px 0; padding:4px; background:#fff; border-radius:3px; font-size:0.9em;">
+                            <a href="#" onclick="viewChunkDetails('${escapeHtml(ch.chunk_id)}', ${contextSize}); return false;" style="color:#3498db; font-weight:600;">Chunk ${ch.chunk_index}</a>
+                            <p style="margin:4px 0; color:#666;">${escapeHtml(ch.text)}</p>
+                        </div>`;
+                    });
+                    chunkHtml += `</div>`;
+                }
+
+                // Entities in chunk (clickable)
+                if (entitiesData && entitiesData.entities && entitiesData.entities.length > 0) {
+                    chunkHtml += `<div style="margin-top:15px; padding:10px; background:#e8f4f8; border-radius:6px;">
+                        <strong>📌 Entities in this chunk (${entitiesData.entities.length}):</strong>
+                        <div style="margin-top:8px; display:flex; flex-wrap:wrap; gap:6px;">`;
+                    entitiesData.entities.forEach(entity => {
+                        chunkHtml += `<a href="#" onclick="selectNode('${escapeHtml(entity.id)}'); return false;" 
+                            style="display:inline-block; padding:6px 12px; background:#fff; border:1px solid #3498db; border-radius:4px; 
+                            color:#3498db; text-decoration:none; font-size:0.9em; cursor:pointer; margin:2px;"
+                            title="${escapeHtml(entity.type)}: ${escapeHtml(entity.description || '')}">
+                            ${escapeHtml(entity.name)}
+                        </a>`;
+                    });
+                    chunkHtml += `</div></div>`;
+                } else if (currentChunk.entities && Array.isArray(currentChunk.entities) && currentChunk.entities.length > 0) {
+                    // Fallback to basic entity list
+                    chunkHtml += `<p><strong>Entities in this chunk (${currentChunk.entities.length}):</strong></p><ul>`;
+                    currentChunk.entities.slice(0, 10).forEach(entityId => {
+                        chunkHtml += `<li><a href="#" onclick="selectNode('${escapeHtml(String(entityId))}'); return false;" style="color:#3498db;">${escapeHtml(String(entityId))}</a></li>`;
+                    });
+                    if (currentChunk.entities.length > 10) {
+                        chunkHtml += `<li>… and ${currentChunk.entities.length - 10} more</li>`;
+                    }
+                    chunkHtml += `</ul>`;
+                }
+
+                // Navigation to adjacent chunks
+                if (adjacentData.prev || adjacentData.next) {
+                    chunkHtml += `<div style="margin-top:15px; padding:10px; background:#f8f9fa; border-radius:6px; display:flex; justify-content:space-between;">
+                        ${adjacentData.prev ? `<button onclick="viewChunkDetails('${escapeHtml(adjacentData.prev.id)}', ${contextSize})" style="padding:6px 12px; background:#3498db; color:white; border:none; border-radius:4px; cursor:pointer;">← Previous (${adjacentData.prev.chunk_index})</button>` : '<span></span>'}
+                        ${adjacentData.next ? `<button onclick="viewChunkDetails('${escapeHtml(adjacentData.next.id)}', ${contextSize})" style="padding:6px 12px; background:#3498db; color:white; border:none; border-radius:4px; cursor:pointer;">Next (${adjacentData.next.chunk_index}) →</button>` : '<span></span>'}
+                    </div>`;
+                }
+                
+                detailsPanel.innerHTML = chunkHtml;
+            } catch (error) {
+                console.error('Error loading chunk details:', error);
+                alert(`Error loading chunk details: ${error.message}`);
+            }
         }
 
         // --- Actions ---
@@ -727,6 +1023,7 @@
             deleteSelectedBtn.disabled = count === 0;
             expandBtn.disabled = count === 0;
             consolidateBtn.disabled = count < 2;
+            addToContextBtn.disabled = count === 0;
         }
 
         deleteSelectedBtn.addEventListener('click', async () => {
@@ -745,6 +1042,16 @@
             const ids = Array.from(selectedNodeIds);
             if (ids.length < 2) return;
             await consolidateNodes(ids);
+        });
+
+        addToContextBtn.addEventListener('click', () => {
+            const ids = Array.from(selectedNodeIds);
+            if (ids.length === 0) return;
+            // Open context builder with selected entity IDs
+            const params = new URLSearchParams({
+                entity_ids: ids.join(',')
+            });
+            window.open(`/context-builder?${params.toString()}`, '_blank');
         });
 
         consolidateAllBtn.addEventListener('click', async () => {

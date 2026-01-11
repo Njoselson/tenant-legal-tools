@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 
@@ -43,6 +44,7 @@ class EntityType(str, Enum):
 
     # Legal claim proving system entities (NEW)
     LEGAL_CLAIM = "legal_claim"  # Assertion of a legal right or cause of action
+    LEGAL_ELEMENT = "legal_element"  # Specific verifiable element of a legal requirement
 
 
 class EvidenceContext(str, Enum):
@@ -218,9 +220,10 @@ class LegalEntity(BaseModel):
     court: str | None = None  # "NYC Housing Court"
     docket_number: str | None = None
     decision_date: datetime | None = None
+    filing_date: datetime | None = None  # Date case was filed
     parties: dict[str, list[str]] | None = None  # {"plaintiff": [...], "defendant": [...]}
     holdings: list[str] | None = None  # Key legal holdings
-    procedural_history: str | None = None
+    procedural_history: list[dict[str, str]] | None = None  # Timeline of case events [{"event": "filed", "date": "...", "description": "..."}]
     citations: list[str] | None = None  # Case law citations within document
 
     # Case outcome fields (NEW)
@@ -255,6 +258,54 @@ class LegalEntity(BaseModel):
         None, ge=0.0, le=1.0, description="0.0-1.0, % of required evidence satisfied"
     )
     gaps: list[str] | None = Field(None, description="Descriptions of missing required evidence")
+
+    # Evidence context fields (NEW - extends EVIDENCE entity type)
+    evidence_context: str | None = Field(
+        None, description="Context: 'required', 'presented', or 'missing'"
+    )
+    evidence_source_type: str | None = Field(
+        None, description="Source type: 'statute', 'guide', or 'case'"
+    )
+    evidence_source_reference: str | None = Field(
+        None, description="e.g., 'NYC Admin Code § 26-504.2' or '756 Liberty v Garcia'"
+    )
+    evidence_examples: list[str] | None = Field(
+        None, description="Examples: ['invoices', 'receipts', 'contracts']"
+    )
+    is_critical: bool | None = Field(None, description="If missing, claim cannot succeed")
+    matches_required_id: str | None = Field(
+        None, description="For presented evidence: ID of required evidence it satisfies"
+    )
+    linked_claim_id: str | None = Field(
+        None, description="For presented evidence: which claim this supports"
+    )
+    linked_claim_type: str | None = Field(
+        None,
+        description="For required evidence: which claim type needs this (e.g., 'DEREGULATION_CHALLENGE')",
+    )
+
+
+@dataclass
+class LegalElement:
+    """
+    Represents a specific verifiable element of a legal requirement.
+    
+    Used for element-by-element analysis to break down legal requirements
+    into specific verifiable components.
+    """
+    element_id: str
+    element_name: str  # e.g., "Landlord notified of defect"
+    description: str
+    is_critical: bool = True
+    evidence_types: list[str] = None  # e.g., ["written_notice", "email", "text_message"]
+    case_law_examples: list[str] = None  # Entity IDs of cases showing this element
+    statute_reference: str | None = None  # Reference to statute/law requiring this element
+    
+    def __post_init__(self):
+        if self.evidence_types is None:
+            self.evidence_types = []
+        if self.case_law_examples is None:
+            self.case_law_examples = []
 
     # Evidence context fields (NEW - extends EVIDENCE entity type)
     evidence_context: str | None = Field(

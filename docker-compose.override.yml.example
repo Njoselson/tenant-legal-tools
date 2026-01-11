@@ -1,0 +1,8 @@
+# Example docker-compose.override.yml for local development
+# Copy this to docker-compose.override.yml to enable auto-reload in Docker
+# (docker-compose automatically merges override.yml files)
+
+services:
+  app:
+    command: python -m uvicorn tenant_legal_guidance.api.app:app --host 0.0.0.0 --port 8000 --reload
+

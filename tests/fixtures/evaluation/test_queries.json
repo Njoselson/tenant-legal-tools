@@ -1,0 +1,174 @@
+{
+  "description": "Test queries for evaluating retrieval performance. Each query has expected relevant entities and chunks.",
+  "queries": [
+    {
+      "query_id": "q001",
+      "query_text": "What can I do about mold in my apartment?",
+      "query_type": "habitability_issue",
+      "expected_entities": [
+        "law:warranty_of_habitability",
+        "tenant_issue:mold_in_apartment",
+        "remedy:hp_action",
+        "remedy:rent_reduction",
+        "evidence:photos_of_conditions"
+      ],
+      "expected_entity_types": ["law", "remedy", "tenant_issue", "evidence"],
+      "min_relevant_results": 5,
+      "precision_at_10_target": 0.7,
+      "recall_at_10_target": 0.6
+    },
+    {
+      "query_id": "q002",
+      "query_text": "My landlord is charging me more than the legal rent",
+      "query_type": "rent_overcharge",
+      "expected_entities": [
+        "law:rent_stabilization_law",
+        "tenant_issue:rent_overcharge",
+        "damages:treble_damages",
+        "evidence:lease_document"
+      ],
+      "expected_entity_types": ["law", "tenant_issue", "damages", "evidence"],
+      "min_relevant_results": 4,
+      "precision_at_10_target": 0.7,
+      "recall_at_10_target": 0.6
+    },
+    {
+      "query_id": "q003",
+      "query_text": "How do I file an HP action?",
+      "query_type": "procedure_question",
+      "expected_entities": [
+        "remedy:hp_action",
+        "legal_procedure:file_hp_action"
+      ],
+      "expected_entity_types": ["remedy", "legal_procedure"],
+      "min_relevant_results": 2,
+      "precision_at_10_target": 0.8,
+      "recall_at_10_target": 0.7
+    },
+    {
+      "query_id": "q004",
+      "query_text": "What evidence do I need for a habitability claim?",
+      "query_type": "evidence_question",
+      "expected_entities": [
+        "evidence:photos_of_conditions",
+        "evidence:repair_requests",
+        "law:warranty_of_habitability"
+      ],
+      "expected_entity_types": ["evidence", "law"],
+      "min_relevant_results": 3,
+      "precision_at_10_target": 0.75,
+      "recall_at_10_target": 0.65
+    },
+    {
+      "query_id": "q005",
+      "query_text": "My apartment has no heat",
+      "query_type": "habitability_issue",
+      "expected_entities": [
+        "law:warranty_of_habitability",
+        "tenant_issue:lack_of_heat",
+        "remedy:hp_action",
+        "remedy:rent_reduction"
+      ],
+      "expected_entity_types": ["law", "tenant_issue", "remedy"],
+      "min_relevant_results": 4,
+      "precision_at_10_target": 0.7,
+      "recall_at_10_target": 0.6
+    },
+    {
+      "query_id": "q006",
+      "query_text": "What is rent stabilization?",
+      "query_type": "definition_question",
+      "expected_entities": [
+        "law:rent_stabilization_law",
+        "government_entity:dhcr"
+      ],
+      "expected_entity_types": ["law", "government_entity"],
+      "min_relevant_results": 2,
+      "precision_at_10_target": 0.8,
+      "recall_at_10_target": 0.7
+    },
+    {
+      "query_id": "q007",
+      "query_text": "Can I get treble damages for rent overcharge?",
+      "query_type": "damages_question",
+      "expected_entities": [
+        "damages:treble_damages",
+        "law:rent_stabilization_law",
+        "tenant_issue:rent_overcharge"
+      ],
+      "expected_entity_types": ["damages", "law", "tenant_issue"],
+      "min_relevant_results": 3,
+      "precision_at_10_target": 0.75,
+      "recall_at_10_target": 0.65
+    },
+    {
+      "query_id": "q008",
+      "query_text": "What is constructive eviction?",
+      "query_type": "definition_question",
+      "expected_entities": [
+        "legal_concept:constructive_eviction",
+        "law:warranty_of_habitability"
+      ],
+      "expected_entity_types": ["legal_concept", "law"],
+      "min_relevant_results": 2,
+      "precision_at_10_target": 0.8,
+      "recall_at_10_target": 0.7
+    },
+    {
+      "query_id": "q009",
+      "query_text": "My landlord says my apartment was deregulated but I think it's still rent stabilized",
+      "query_type": "deregulation_challenge",
+      "expected_entities": [
+        "law:rent_stabilization_law",
+        "case_document:756_liberty_v_garcia",
+        "evidence:lease_document"
+      ],
+      "expected_entity_types": ["law", "case_document", "evidence"],
+      "min_relevant_results": 3,
+      "precision_at_10_target": 0.7,
+      "recall_at_10_target": 0.6
+    },
+    {
+      "query_id": "q010",
+      "query_text": "I need to reduce my rent because of bad conditions",
+      "query_type": "remedy_request",
+      "expected_entities": [
+        "remedy:rent_reduction",
+        "law:warranty_of_habitability",
+        "evidence:photos_of_conditions",
+        "evidence:repair_requests"
+      ],
+      "expected_entity_types": ["remedy", "law", "evidence"],
+      "min_relevant_results": 4,
+      "precision_at_10_target": 0.7,
+      "recall_at_10_target": 0.6
+    },
+    {
+      "query_id": "q011",
+      "query_text": "What is DHCR?",
+      "query_type": "definition_question",
+      "expected_entities": [
+        "government_entity:dhcr"
+      ],
+      "expected_entity_types": ["government_entity"],
+      "min_relevant_results": 1,
+      "precision_at_10_target": 0.9,
+      "recall_at_10_target": 0.8
+    },
+    {
+      "query_id": "q012",
+      "query_text": "My landlord won't fix the broken window",
+      "query_type": "habitability_issue",
+      "expected_entities": [
+        "law:warranty_of_habitability",
+        "remedy:hp_action",
+        "evidence:repair_requests"
+      ],
+      "expected_entity_types": ["law", "remedy", "evidence"],
+      "min_relevant_results": 3,
+      "precision_at_10_target": 0.7,
+      "recall_at_10_target": 0.6
+    }
+  ]
+}
+

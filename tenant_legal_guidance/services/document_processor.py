@@ -758,6 +758,7 @@ class DocumentProcessor:
         return {
             "status": "success",
             "added_entities": len(added_entities),
+            "entities_added": len(added_entities),  # Alias for backward compatibility
             "added_relationships": len(added_relationships),
             "chunk_count": chunk_count,
             "entities": added_entities,

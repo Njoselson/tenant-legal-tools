@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Privacy Policy - Tenant Legal Guidance</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #2c3e50;
+            border-bottom: 3px solid #ff6b35;
+            padding-bottom: 10px;
+        }
+        
+        h2 {
+            color: #34495e;
+            margin-top: 30px;
+        }
+        
+        h3 {
+            color: #555;
+            margin-top: 20px;
+        }
+        
+        .last-updated {
+            color: #7f8c8d;
+            font-style: italic;
+            margin-bottom: 30px;
+        }
+        
+        nav {
+            margin-bottom: 30px;
+        }
+        
+        nav a {
+            color: #3498db;
+            text-decoration: none;
+            margin-right: 20px;
+        }
+        
+        nav a:hover {
+            text-decoration: underline;
+        }
+        
+        .highlight-box {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <nav>
+            <a href="/">← Back to Home</a>
+            <a href="/terms">Terms of Service</a>
+        </nav>
+        
+        <h1>Privacy Policy</h1>
+        <p class="last-updated">Last Updated: January 2025</p>
+        
+        <div class="highlight-box">
+            <strong>🔒 Our Commitment:</strong> We believe in privacy, transparency, and mutual aid. 
+            This policy explains what data we collect, how we use it, and your rights regarding your information.
+        </div>
+        
+        <h2>1. Information We Collect</h2>
+        
+        <h3>Case Analysis Mode</h3>
+        <p>
+            When you use our case analysis feature, we collect the text you submit (your case description, 
+            evidence, situation details). <strong>This information is immediately anonymized before any processing.</strong>
+        </p>
+        
+        <h3>How We Anonymize Your Data</h3>
+        <p>Before your data is processed, we automatically:</p>
+        <ul>
+            <li>Replace names with <code>[NAME]</code> placeholders</li>
+            <li>Replace email addresses with <code>[EMAIL]</code></li>
+            <li>Replace phone numbers with <code>[PHONE]</code></li>
+            <li>Replace addresses with <code>[ADDRESS]</code></li>
+            <li>Replace Social Security Numbers with <code>[SSN]</code></li>
+        </ul>
+        <p><strong>No personally identifiable information (PII) is stored in our databases when using case analysis mode.</strong></p>
+        
+        <h3>Knowledge Graph Ingestion Mode</h3>
+        <p>
+            If you use our knowledge graph ingestion features (uploading documents to build the legal knowledge base), 
+            the full text of those documents may be stored. We recommend anonymizing sensitive information before uploading.
+        </p>
+        
+        <h2>2. How We Use Your Information</h2>
+        <ul>
+            <li><strong>Case Analysis:</strong> To generate legal guidance and analysis</li>
+            <li><strong>Knowledge Building:</strong> To build and improve our legal knowledge graph</li>
+            <li><strong>Service Improvement:</strong> To improve our analysis algorithms and accuracy</li>
+        </ul>
+        <p>
+            We use third-party AI services (DeepSeek API) to process your anonymized case text. 
+            These services receive only anonymized data with no personally identifiable information.
+        </p>
+        
+        <h2>3. Data Storage and Retention</h2>
+        <h3>Case Analysis Data</h3>
+        <p>
+            <strong>In case analysis mode, we do not save your data.</strong> Your case description is:
+        </p>
+        <ul>
+            <li>Anonymized immediately upon receipt</li>
+            <li>Processed for analysis</li>
+            <li>Discarded after generating your results</li>
+        </ul>
+        <p>No case analysis data is stored in our databases.</p>
+        
+        <h3>Knowledge Graph Data</h3>
+        <p>
+            Documents uploaded for knowledge graph building are stored in our databases (ArangoDB and Qdrant) 
+            to enable legal research and case matching. This data helps improve the system for all users.
+        </p>
+        
+        <h2>4. Third-Party Services</h2>
+        <p>We use the following third-party services:</p>
+        <ul>
+            <li><strong>DeepSeek API:</strong> For AI-powered legal analysis (receives anonymized data only)</li>
+            <li><strong>ArangoDB:</strong> Database for storing knowledge graph data</li>
+            <li><strong>Qdrant:</strong> Vector database for semantic search</li>
+        </ul>
+        <p>
+            These services process your anonymized data under their respective privacy policies. 
+            We do not share identifiable personal information with third parties.
+        </p>
+        
+        <h2>5. Your Rights</h2>
+        <p>You have the right to:</p>
+        <ul>
+            <li><strong>Access:</strong> Request information about what data we have (if any)</li>
+            <li><strong>Deletion:</strong> Request deletion of any stored data (for knowledge graph mode)</li>
+            <li><strong>Correction:</strong> Request correction of inaccurate data</li>
+            <li><strong>Opt-out:</strong> Stop using the service at any time</li>
+        </ul>
+        <p>
+            Since case analysis data is not stored, there is no data to access or delete for that mode.
+        </p>
+        
+        <h2>6. Security</h2>
+        <p>We implement security measures to protect your data:</p>
+        <ul>
+            <li>Automatic PII anonymization before processing</li>
+            <li>Input sanitization to prevent security vulnerabilities</li>
+            <li>Secure API connections (HTTPS)</li>
+            <li>Access controls and rate limiting</li>
+        </ul>
+        
+        <h2>7. Cookies and Tracking</h2>
+        <p>
+            We use minimal cookies and tracking. Session data may be stored locally in your browser 
+            to maintain your session, but we do not use third-party tracking or analytics cookies 
+            that share your data with advertising networks.
+        </p>
+        
+        <h2>8. Children's Privacy</h2>
+        <p>
+            Our service is not intended for users under 18 years of age. We do not knowingly collect 
+            personal information from children.
+        </p>
+        
+        <h2>9. Changes to This Policy</h2>
+        <p>
+            We may update this privacy policy from time to time. We will notify users of any material 
+            changes by updating the "Last Updated" date at the top of this page.
+        </p>
+        
+        <h2>10. Contact Us</h2>
+        <p>
+            If you have questions about this privacy policy or your data, please contact us through 
+            the support channels available on our website.
+        </p>
+        
+        <div class="highlight-box">
+            <strong>💪 Mutual Aid Principle:</strong> We believe knowledge should be shared, not gatekept. 
+            We're committed to protecting your privacy while providing accessible legal information to our community.
+        </div>
+        
+        <nav style="margin-top: 40px;">
+            <a href="/">← Back to Home</a>
+            <a href="/terms">Terms of Service</a>
+        </nav>
+    </div>
+</body>
+</html>
+

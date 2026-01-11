@@ -29,29 +29,39 @@ class HybridRetriever:
 
     def retrieve(
         self,
-        query_text: str,
+        query_text: str,  # For vector search (full semantic)
         top_k_chunks: int = 20,
         top_k_entities: int = 50,
         expand_neighbors: bool = True,
         linked_entity_ids: list[str] | None = None,
+        entity_search_query: str | None = None,  # NEW: For entity text search (keyword focused)
     ) -> dict[str, list]:
         """
         Hybrid retrieval combining:
-        1. Vector search for chunks (Qdrant ANN)
-        2. Entity search (ArangoSearch BM25/PHRASE)
+        1. Vector search for chunks (Qdrant ANN) - uses query_text (full semantic)
+        2. Entity search (ArangoSearch BM25/PHRASE) - uses entity_search_query or query_text (keyword focused)
         3. Direct entity lookup (NEW: from linked query entities)
         4. KG expansion via neighbors (including linked entities)
         5. Score fusion (RRF)
 
         Args:
-            query_text: Text query for vector/text search
+            query_text: Text query for vector search (full semantic matching)
             top_k_chunks: Number of chunks to retrieve
             top_k_entities: Number of entities to retrieve via text search
             expand_neighbors: Whether to expand with 1-hop neighbors
             linked_entity_ids: Entity IDs linked from query (NEW)
+            entity_search_query: Optional separate query for entity text search (keyword focused)
 
         Returns: {"chunks": [...], "entities": [...], "neighbors": [...], "linked_entities": [...]}
         """
+        # Use entity_search_query if provided, otherwise fallback to query_text
+        entity_query = entity_search_query if entity_search_query else query_text
+        
+        self.logger.info(
+            f"Hybrid retrieval: vector_query length={len(query_text)}, "
+            f"entity_query length={len(entity_query)}"
+        )
+        
         results = {"chunks": [], "entities": [], "neighbors": [], "linked_entities": []}
 
         # Step 1: Vector search for chunks (required)
@@ -99,12 +109,62 @@ class HybridRetriever:
                 self.logger.error(f"Direct entity lookup failed: {e}")
 
         # Step 3: Entity text search (ArangoSearch - for broader context)
+        # Use entity_query (keyword focused) instead of query_text (full semantic)
         try:
             entity_hits = self.kg.search_entities_by_text(
-                query_text, types=None, limit=top_k_entities
+                entity_query, types=None, limit=top_k_entities
             )
             results["entities"] = entity_hits
-            self.logger.info(f"Entity search returned {len(results['entities'])} entities")
+            self.logger.info(f"Entity search (query: '{entity_query[:100]}...') returned {len(results['entities'])} entities")
+            
+            # ENHANCED: Also search for specific claim types and evidence types
+            # Extract potential claim types from query (e.g., "RENT_OVERCHARGE", "DEREGULATION_CHALLENGE")
+            query_upper = query_text.upper()
+            claim_type_keywords = []
+            if "OVERCHARGE" in query_upper or "OVER CHARGE" in query_upper:
+                claim_type_keywords.append("RENT_OVERCHARGE")
+            if "DEREGULATION" in query_upper or "DEREGULATED" in query_upper:
+                claim_type_keywords.append("DEREGULATION_CHALLENGE")
+            if "HABITABILITY" in query_upper:
+                claim_type_keywords.append("HABITABILITY_VIOLATION")
+            if "HARASSMENT" in query_upper:
+                claim_type_keywords.append("HARASSMENT")
+            
+            # Search for claim type entities explicitly
+            for claim_keyword in claim_type_keywords:
+                try:
+                    claim_entities = self.kg.search_entities_by_text(
+                        claim_keyword, types=["legal_claim"], limit=5
+                    )
+                    # Add to results if not already present
+                    for ce in claim_entities:
+                        if ce.id not in [e.id for e in results["entities"]]:
+                            results["entities"].append(ce)
+                except Exception:
+                    pass
+            
+            # Search for evidence types explicitly (e.g., "DHCR rent history", "prior tenant affidavit")
+            evidence_keywords = []
+            if "DHCR" in query_upper or "RENT HISTORY" in query_upper:
+                evidence_keywords.append("DHCR rent history")
+                evidence_keywords.append("rent history application")
+            if "AFFIDAVIT" in query_upper or "PRIOR TENANT" in query_upper:
+                evidence_keywords.append("prior tenant affidavit")
+            if "PERMIT" in query_upper or "DOB" in query_upper:
+                evidence_keywords.append("building permit")
+                evidence_keywords.append("DOB permit")
+            
+            for ev_keyword in evidence_keywords:
+                try:
+                    ev_entities = self.kg.search_entities_by_text(
+                        ev_keyword, types=["evidence"], limit=3
+                    )
+                    for ev in ev_entities:
+                        if ev.id not in [e.id for e in results["entities"]]:
+                            results["entities"].append(ev)
+                except Exception:
+                    pass
+                    
         except Exception as e:
             self.logger.error(f"Entity search failed: {e}")
 

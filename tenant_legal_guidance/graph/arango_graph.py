@@ -997,6 +997,19 @@ class ArangoDBGraph:
             "claim_type",
             "relief_sought",
             "claim_status",
+            "proof_completeness",
+            "gaps",
+            # Evidence context fields (stored as top-level, not in attributes)
+            "evidence_context",
+            "evidence_source_type",
+            "evidence_source_reference",
+            "evidence_examples",
+            "is_critical",
+            "matches_required_id",
+            "linked_claim_id",
+            "linked_claim_type",
+            # Other top-level fields
+            "strength_score",  # Should be excluded or converted if kept
             "_id",
             "_rev",  # ArangoDB internal fields
         }
@@ -1012,6 +1025,16 @@ class ArangoDBGraph:
             "respondent_party",
             "claim_type",
             "claim_status",
+            "proof_completeness",
+            "gaps",
+            "evidence_context",
+            "evidence_source_type",
+            "evidence_source_reference",
+            "evidence_examples",
+            "matches_required_id",
+            "linked_claim_id",
+            "linked_claim_type",
+            "strength_score",
         }
 
         # Get raw attributes, excluding both excluded_fields AND excluded_from_attributes
@@ -1036,13 +1059,22 @@ class ArangoDBGraph:
         # Convert all values to strings (Pydantic requirement)
         attributes = {}
         for k, v in raw_attributes.items():
-            # Handle old data: convert lists/booleans to strings
-            if isinstance(v, list | tuple):
+            # Handle old data: convert lists/booleans/floats to strings
+            if isinstance(v, (list, tuple)):
                 attributes[k] = ", ".join(str(item) for item in v)
             elif isinstance(v, bool):
                 attributes[k] = str(v).lower()
+            elif isinstance(v, (int, float)):
+                attributes[k] = str(v)
             elif v is None:
                 attributes[k] = ""
+            elif isinstance(v, dict):
+                # Convert dict to JSON string
+                try:
+                    import json
+                    attributes[k] = json.dumps(v)
+                except (TypeError, ValueError):
+                    attributes[k] = str(v)
             else:
                 attributes[k] = str(v)
 
@@ -1132,15 +1164,47 @@ class ArangoDBGraph:
                 entity_data["relief_sought"] = []
         if "claim_status" in data:
             entity_data["claim_status"] = data.get("claim_status")
+        if "proof_completeness" in data:
+            proof_completeness = data.get("proof_completeness")
+            if proof_completeness is not None:
+                try:
+                    entity_data["proof_completeness"] = float(proof_completeness)
+                except (ValueError, TypeError):
+                    pass
+        if "gaps" in data:
+            gaps = data.get("gaps")
+            if isinstance(gaps, list):
+                entity_data["gaps"] = [str(item) for item in gaps]
+            elif gaps is not None:
+                entity_data["gaps"] = [str(gaps)]
 
+        # Add evidence context fields if present
+        if "evidence_context" in data:
+            entity_data["evidence_context"] = data.get("evidence_context")
+        if "evidence_source_type" in data:
+            entity_data["evidence_source_type"] = data.get("evidence_source_type")
+        if "evidence_source_reference" in data:
+            entity_data["evidence_source_reference"] = data.get("evidence_source_reference")
+        if "evidence_examples" in data:
+            evidence_examples = data.get("evidence_examples")
+            if isinstance(evidence_examples, list):
+                entity_data["evidence_examples"] = [str(item) for item in evidence_examples]
+            elif evidence_examples is not None:
+                entity_data["evidence_examples"] = [str(evidence_examples)]
         # Handle is_critical for evidence entities (if stored incorrectly in attributes)
-        if "is_critical" in data and entity_data.get("entity_type") == EntityType.EVIDENCE:
+        if "is_critical" in data:
             is_critical = data.get("is_critical")
             if isinstance(is_critical, bool):
                 entity_data["is_critical"] = is_critical
             elif isinstance(is_critical, str):
                 entity_data["is_critical"] = is_critical.lower() == "true"
             # Don't set if not present (it's optional)
+        if "matches_required_id" in data:
+            entity_data["matches_required_id"] = data.get("matches_required_id")
+        if "linked_claim_id" in data:
+            entity_data["linked_claim_id"] = data.get("linked_claim_id")
+        if "linked_claim_type" in data:
+            entity_data["linked_claim_type"] = data.get("linked_claim_type")
 
         try:
             return LegalEntity(**entity_data)
@@ -1175,7 +1239,7 @@ class ArangoDBGraph:
         collection = self.db.collection("entities")
 
         # Convert source metadata to dict and handle datetime serialization
-        source_metadata = entity.source_metadata.dict()
+        source_metadata = entity.source_metadata.model_dump()
         for field in ["created_at", "processed_at", "last_updated"]:
             if source_metadata.get(field):
                 if isinstance(source_metadata[field], datetime):
@@ -2214,7 +2278,11 @@ class ArangoDBGraph:
         jurisdiction: str | None = None,
         limit: int = 50,
     ) -> list[LegalEntity]:
-        """Search for entities by text in name or description using ArangoSearch."""
+        """Search for entities by text across ALL fields using ArangoSearch BM25.
+        
+        Searches in: name, description, claim_type, evidence_type, and attributes (as JSON string).
+        This provides comprehensive entity matching across all searchable fields.
+        """
         try:
             filters = []
             bind_vars: dict[str, object] = {"term": search_term, "limit": limit}
@@ -2228,11 +2296,19 @@ class ArangoDBGraph:
                 filters.append("doc.jurisdiction == @jurisdiction")
             filter_clause = (" AND " + " AND ".join(filters)) if filters else ""
 
+            # ENHANCED: Search across ALL entity fields using BM25
+            # Search in: name, description, claim_type, evidence_type, attributes (as JSON string)
             # Use TOKENS for multi-word queries (matches any token) instead of PHRASE (exact match)
             aql = f"""
             FOR doc IN kg_entities_view
                 SEARCH ANALYZER(
-                    (TOKENS(@term, "text_en") ANY IN doc.name OR TOKENS(@term, "text_en") ANY IN doc.description){filter_clause}
+                    (
+                        TOKENS(@term, "text_en") ANY IN doc.name OR 
+                        TOKENS(@term, "text_en") ANY IN doc.description OR
+                        TOKENS(@term, "text_en") ANY IN doc.claim_type OR
+                        TOKENS(@term, "text_en") ANY IN doc.evidence_type OR
+                        TOKENS(@term, "text_en") ANY IN TO_STRING(doc.attributes)
+                    ){filter_clause}
                     , "text_en"
                 )
                 SORT BM25(doc) DESC, TFIDF(doc) DESC

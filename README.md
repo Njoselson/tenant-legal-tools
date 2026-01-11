@@ -124,13 +124,31 @@ make ingest-manifest MANIFEST=data/manifests/sources.jsonl
 
 ### 5. Run the Application
 
+**Option 1: Direct Python (Recommended for Development)**
 ```bash
-# Start the FastAPI server
+# Start the FastAPI server with auto-reload
+make app
+
+# Or manually:
 uv run uvicorn tenant_legal_guidance.api.app:app --reload --host 0.0.0.0 --port 8000
 
 # Open in browser
 open http://localhost:8000
 ```
+
+**Option 2: Docker Compose (for full stack)**
+```bash
+# Start all services (ArangoDB, Qdrant, and app)
+docker compose up -d
+
+# For local dev with auto-reload, create docker-compose.override.yml:
+# (copy docker-compose.override.yml.example and edit as needed)
+
+# View logs
+docker compose logs -f app
+```
+
+**Note:** Production deployments use Docker without `--reload` for better performance and security.
 
 ## 📥 Data Ingestion
 

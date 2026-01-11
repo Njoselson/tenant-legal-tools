@@ -1,0 +1,127 @@
+{
+  "description": "Entity test dataset for evaluation. Each entity has expected quotes, chunks, and sources.",
+  "entities": [
+    {
+      "entity_id": "law:warranty_of_habitability",
+      "entity_type": "law",
+      "name": "Warranty of Habitability",
+      "expected_quote": {
+        "contains_entity_name": true,
+        "is_definition": true,
+        "length_range": [50, 400],
+        "text": "Landlord's legal obligation to maintain habitable living conditions"
+      },
+      "expected_chunks": 1,
+      "expected_sources": 1
+    },
+    {
+      "entity_id": "law:rent_stabilization_law",
+      "entity_type": "law",
+      "name": "Rent Stabilization Law",
+      "expected_quote": {
+        "contains_entity_name": true,
+        "is_definition": true,
+        "length_range": [50, 400]
+      },
+      "expected_chunks": 1,
+      "expected_sources": 1
+    },
+    {
+      "entity_id": "remedy:hp_action",
+      "entity_type": "remedy",
+      "name": "HP Action",
+      "expected_quote": {
+        "contains_entity_name": true,
+        "is_definition": true,
+        "length_range": [50, 400]
+      },
+      "expected_chunks": 1,
+      "expected_sources": 1
+    },
+    {
+      "entity_id": "remedy:rent_reduction",
+      "entity_type": "remedy",
+      "name": "Rent Reduction",
+      "expected_quote": {
+        "contains_entity_name": true,
+        "is_definition": true,
+        "length_range": [50, 400]
+      },
+      "expected_chunks": 1,
+      "expected_sources": 1
+    },
+    {
+      "entity_id": "evidence:photos_of_conditions",
+      "entity_type": "evidence",
+      "name": "Photos of Housing Conditions",
+      "expected_quote": {
+        "contains_entity_name": true,
+        "is_definition": false,
+        "length_range": [50, 400]
+      },
+      "expected_chunks": 1,
+      "expected_sources": 1
+    },
+    {
+      "entity_id": "evidence:repair_requests",
+      "entity_type": "evidence",
+      "name": "Repair Request Records",
+      "expected_quote": {
+        "contains_entity_name": true,
+        "is_definition": false,
+        "length_range": [50, 400]
+      },
+      "expected_chunks": 1,
+      "expected_sources": 1
+    },
+    {
+      "entity_id": "evidence:lease_document",
+      "entity_type": "evidence",
+      "name": "Lease Document",
+      "expected_quote": {
+        "contains_entity_name": true,
+        "is_definition": false,
+        "length_range": [50, 400]
+      },
+      "expected_chunks": 1,
+      "expected_sources": 1
+    },
+    {
+      "entity_id": "legal_procedure:file_hp_action",
+      "entity_type": "legal_procedure",
+      "name": "File HP Action",
+      "expected_quote": {
+        "contains_entity_name": true,
+        "is_definition": true,
+        "length_range": [50, 400]
+      },
+      "expected_chunks": 1,
+      "expected_sources": 1
+    },
+    {
+      "entity_id": "tenant_issue:mold_in_apartment",
+      "entity_type": "tenant_issue",
+      "name": "Mold in Apartment",
+      "expected_quote": {
+        "contains_entity_name": true,
+        "is_definition": false,
+        "length_range": [50, 400]
+      },
+      "expected_chunks": 1,
+      "expected_sources": 1
+    },
+    {
+      "entity_id": "tenant_issue:rent_overcharge",
+      "entity_type": "tenant_issue",
+      "name": "Rent Overcharge",
+      "expected_quote": {
+        "contains_entity_name": true,
+        "is_definition": false,
+        "length_range": [50, 400]
+      },
+      "expected_chunks": 1,
+      "expected_sources": 1
+    }
+  ]
+}
+

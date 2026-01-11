@@ -1,7 +1,44 @@
-.PHONY: install test lint format clean db-stats db-reset db-drop db-cleanup build-manifest ingest-manifest reingest-all vector-status
+.PHONY: install test lint format clean db-stats db-reset db-drop db-cleanup build-manifest ingest-manifest reingest-all vector-status run app dev services-up services-down services-status evaluate evaluate-quotes evaluate-retrieval evaluate-linkage
 
 install:
 	uv pip install -e ".[dev]"
+
+# Docker services management
+services-up:
+	@echo "Starting Docker services (ArangoDB, Qdrant)..."
+	docker-compose up -d
+	@echo "Waiting for services to be ready..."
+	@sleep 5
+	@echo "✓ Services started. Check status with: make services-status"
+
+services-down:
+	@echo "Stopping Docker services..."
+	docker-compose down
+
+services-status:
+	@echo "Docker services status:"
+	@docker-compose ps
+	@echo ""
+	@echo "Checking ArangoDB connection..."
+	@curl -s http://localhost:8529/_api/version | python3 -m json.tool 2>/dev/null || echo "✗ ArangoDB not reachable"
+	@echo ""
+	@echo "Checking Qdrant connection..."
+	@curl -s http://localhost:6333/collections 2>/dev/null | python3 -m json.tool >/dev/null && echo "✓ Qdrant is running" || echo "✗ Qdrant not reachable"
+
+services-logs:
+	@echo "Showing Docker services logs..."
+	docker-compose logs --tail=50 -f
+
+# Run the application locally
+run: services-up app
+
+app:
+	@echo "Starting FastAPI application..."
+	@echo "⚠️  Make sure Docker services are running: make services-up"
+	@echo "Open http://localhost:8000 in your browser"
+	uv run uvicorn tenant_legal_guidance.api.app:app --reload --host 0.0.0.0 --port 8000
+
+dev: app
 
 test:
 	uv run pytest -m "not slow"
@@ -98,4 +135,21 @@ reingest-all:
 	rm -rf data/archive/*.txt
 	@sleep 2
 	@echo "4. Starting fresh ingestion..."
-	$(MAKE) ingest-manifest MANIFEST=data/manifests/sources.jsonl 
+	$(MAKE) ingest-manifest MANIFEST=data/manifests/sources.jsonl
+
+# Evaluation targets
+evaluate:
+	@echo "Running full evaluation suite..."
+	uv run python -m tenant_legal_guidance.scripts.run_evaluation --output-dir data/evaluation
+
+evaluate-quotes:
+	@echo "Running quote quality evaluation..."
+	uv run python -m tenant_legal_guidance.scripts.run_evaluation --output-dir data/evaluation --categories quote_quality
+
+evaluate-retrieval:
+	@echo "Running retrieval evaluation..."
+	uv run python -m tenant_legal_guidance.scripts.run_evaluation --output-dir data/evaluation --categories retrieval
+
+evaluate-linkage:
+	@echo "Running chunk linkage evaluation..."
+	uv run python -m tenant_legal_guidance.scripts.run_evaluation --output-dir data/evaluation --categories chunk_linkage 

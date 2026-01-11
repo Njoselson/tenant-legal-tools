@@ -13,7 +13,7 @@ from fastapi.templating import Jinja2Templates
 
 from tenant_legal_guidance.api.routes import router
 from tenant_legal_guidance.config import get_settings
-from tenant_legal_guidance.domain.errors import (
+from tenant_legal_guidance.utils.errors import (
     ConflictError,
     DomainError,
     ResourceNotFound,
@@ -41,7 +41,25 @@ async def lifespan(app: FastAPI):
     templates = Jinja2Templates(directory=settings.templates_dir)
     # Build core dependencies once
     system = TenantLegalSystem(deepseek_api_key=settings.deepseek_api_key)
-    analyzer = CaseAnalyzer(system.knowledge_graph, system.deepseek)
+    
+    # Initialize precedent service for strength score calibration
+    from tenant_legal_guidance.services.precedent_service import PrecedentService
+    precedent_service = PrecedentService(system.knowledge_graph)
+    
+    # Get vector store if available
+    vector_store = None
+    try:
+        from tenant_legal_guidance.services.vector_store import QdrantVectorStore
+        vector_store = QdrantVectorStore()
+    except Exception:
+        pass  # Vector store optional
+    
+    analyzer = CaseAnalyzer(
+        system.knowledge_graph, 
+        system.deepseek, 
+        vector_store=vector_store,
+        precedent_service=precedent_service
+    )
 
     # Ensure Qdrant collection exists on startup (non-destructive check)
     try:
@@ -95,6 +113,16 @@ app.mount("/static", StaticFiles(directory=settings.static_dir), name="static")
 
 # Include API routes
 app.include_router(router)
+
+# Include curation routes (Spec 002 + 006 integration)
+from tenant_legal_guidance.api.curation_routes import router as curation_router
+
+app.include_router(curation_router)
+
+# Include context builder routes
+from tenant_legal_guidance.api.context_routes import router as context_router
+
+app.include_router(context_router)
 
 # Add request ID and access logging middleware
 app.add_middleware(RequestIdAndTimingMiddleware)

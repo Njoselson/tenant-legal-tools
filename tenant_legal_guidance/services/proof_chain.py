@@ -12,6 +12,7 @@ Also handles extraction and dual storage (ArangoDB + Qdrant) for proof chain ent
 """
 
 import logging
+import time
 from dataclasses import dataclass
 from typing import Literal
 
@@ -76,6 +77,9 @@ class ProofChain:
     missing_count: int = 0
     critical_gaps: list[str] = None  # Descriptions of missing critical evidence
 
+    # Graph-based chains from build_legal_chains (explicit graph traversal)
+    graph_chains: list[dict] = None  # Chains from build_legal_chains() method
+
     def __post_init__(self):
         """Initialize default values."""
         if self.required_evidence is None:
@@ -86,6 +90,8 @@ class ProofChain:
             self.missing_evidence = []
         if self.critical_gaps is None:
             self.critical_gaps = []
+        if self.graph_chains is None:
+            self.graph_chains = []
 
 
 class ProofChainService:
@@ -111,6 +117,37 @@ class ProofChainService:
         self.embeddings_svc = EmbeddingsService()
         self.logger = logging.getLogger(__name__)
 
+    def _validate_proof_chain(self, proof_chain: ProofChain) -> bool:
+        """
+        Validate a proof chain data structure.
+
+        Args:
+            proof_chain: ProofChain object to validate
+
+        Returns:
+            True if valid, False otherwise
+        """
+        if not proof_chain.claim_id:
+            self.logger.error("Proof chain missing claim_id")
+            return False
+
+        if not proof_chain.claim_description:
+            self.logger.warning(f"Proof chain {proof_chain.claim_id} missing claim_description")
+
+        # Validate completeness score is in valid range
+        if not (0.0 <= proof_chain.completeness_score <= 1.0):
+            self.logger.warning(
+                f"Proof chain {proof_chain.claim_id} has invalid completeness_score: "
+                f"{proof_chain.completeness_score} (expected 0.0-1.0)"
+            )
+
+        # Validate evidence items
+        for evidence in (proof_chain.required_evidence or []):
+            if not evidence.evidence_id:
+                self.logger.warning(f"Proof chain {proof_chain.claim_id} has evidence without ID")
+
+        return True
+
     async def build_proof_chain(self, claim_id: str) -> ProofChain | None:
         """
         Build a complete proof chain for a legal claim.
@@ -121,172 +158,232 @@ class ProofChainService:
         Returns:
             ProofChain object or None if claim not found
         """
+        start_time = time.time()
         self.logger.info(f"Building proof chain for claim: {claim_id}")
 
-        # Get the claim
-        claim = self.kg.get_entity(claim_id)
-        if not claim:
-            self.logger.warning(f"Claim not found: {claim_id}")
-            return None
+        try:
+            # Get the claim
+            claim = self.kg.get_entity(claim_id)
+            if not claim:
+                self.logger.warning(f"Claim not found: {claim_id}")
+                return None
 
-        # Check entity type - EntityType.LEGAL_CLAIM.value is "legal_claim" (lowercase)
-        entity_type_value = (
-            claim.entity_type.value
-            if hasattr(claim.entity_type, "value")
-            else str(claim.entity_type)
-        )
-        if entity_type_value != "legal_claim":
-            self.logger.warning(f"Entity {claim_id} is not a LEGAL_CLAIM (got {entity_type_value})")
-            return None
-
-        # Get claim type string
-        claim_type_str = claim.claim_type
-
-        # Get required evidence for this claim type
-        required_evidence = []
-        if claim_type_str:
-            required_evidence_list = self.kg.get_required_evidence_for_claim_type(claim_type_str)
-            for ev in required_evidence_list:
-                required_evidence.append(
-                    ProofChainEvidence(
-                        evidence_id=ev.get("_key", ""),
-                        evidence_type=ev.get("evidence_type", "documentary"),
-                        description=ev.get("name", ev.get("description", "")),
-                        is_critical=ev.get("is_critical", False),
-                        context="required",
-                        source_reference=ev.get("source_reference"),
-                    )
-                )
-
-        # Get presented evidence (evidence with HAS_EVIDENCE relationship)
-        presented_evidence = []
-        presented_evidence_ids = []
-
-        # Get evidence linked via HAS_EVIDENCE relationships
-        evidence_rels = self.kg.get_relationships(
-            source_id=claim_id,
-            relationship_type=RelationshipType.HAS_EVIDENCE,
-        )
-
-        for rel in evidence_rels:
-            ev_id = rel.get("target_id")
-            ev = self.kg.get_entity(ev_id)
-            if ev and ev.entity_type.value == "EVIDENCE":
-                presented_evidence_ids.append(ev_id)
-                # Get evidence_type from attributes or default
-                evidence_type = (
-                    ev.attributes.get("evidence_type", "documentary")
-                    if ev.attributes
-                    else "documentary"
-                )
-                # Get is_critical from attributes or default
-                is_critical_str = (
-                    ev.attributes.get("is_critical", "false") if ev.attributes else "false"
-                )
-                is_critical = (
-                    is_critical_str.lower() == "true"
-                    if isinstance(is_critical_str, str)
-                    else bool(is_critical_str)
-                )
-                presented_evidence.append(
-                    ProofChainEvidence(
-                        evidence_id=ev_id,
-                        evidence_type=evidence_type,
-                        description=ev.name or ev.description or "",
-                        is_critical=is_critical,
-                        context="presented",
-                        source_reference=(
-                            ev.attributes.get("source_reference") if ev.attributes else None
-                        ),
-                    )
-                )
-
-        # Match presented evidence to required evidence
-        missing_evidence, satisfied_evidence = self.match_evidence_to_requirements(
-            required_evidence=required_evidence,
-            presented_evidence=presented_evidence,
-        )
-
-        # Get outcome (via RESULTS_IN relationship from claim)
-        outcome = None
-        outcome_rels = self.kg.get_relationships(
-            source_id=claim_id,
-            relationship_type=RelationshipType.RESULTS_IN,
-        )
-        if outcome_rels:
-            outcome_id = outcome_rels[0].get("target_id")
-            outcome_entity = self.kg.get_entity(outcome_id)
-            if outcome_entity and outcome_entity.entity_type.value == "LEGAL_OUTCOME":
-                # Handle field alignment: stored as 'outcome' and 'ruling_type', expected as 'disposition' and 'outcome_type'
-                attrs = outcome_entity.attributes or {}
-                disposition = outcome_entity.disposition or attrs.get("outcome") or "unknown"
-                outcome_type = outcome_entity.outcome_type or attrs.get("ruling_type") or "judgment"
-                outcome = {
-                    "id": outcome_id,
-                    "disposition": disposition,
-                    "description": outcome_entity.name or outcome_entity.description or "",
-                    "outcome_type": outcome_type,
-                }
-
-        # Get damages (via IMPLY relationship from outcome)
-        damages = []
-        if outcome:
-            damage_rels = self.kg.get_relationships(
-                source_id=outcome["id"],
-                relationship_type=RelationshipType.IMPLY,
+            # Check entity type - EntityType.LEGAL_CLAIM.value is "legal_claim" (lowercase)
+            entity_type_value = (
+                claim.entity_type.value
+                if hasattr(claim.entity_type, "value")
+                else str(claim.entity_type)
             )
-            for rel in damage_rels:
-                damage_id = rel.get("target_id")
-                damage_entity = self.kg.get_entity(damage_id)
-                if damage_entity and damage_entity.entity_type.value == "DAMAGES":
-                    # Handle field alignment: stored in attributes dict or as direct fields
-                    attrs = damage_entity.attributes or {}
-                    damage_type = getattr(damage_entity, "damage_type", None) or attrs.get(
-                        "damage_type", "monetary"
+            if entity_type_value != "legal_claim":
+                self.logger.warning(
+                    f"Entity {claim_id} is not a LEGAL_CLAIM (got {entity_type_value})"
+                )
+                return None
+
+            # Get claim type string
+            claim_type_str = claim.claim_type
+
+            # Get required evidence for this claim type
+            required_evidence = []
+            if claim_type_str:
+                self.logger.info(f"Looking for required evidence for claim type: {claim_type_str}")
+                required_evidence_list = self.kg.get_required_evidence_for_claim_type(claim_type_str)
+                self.logger.info(f"Found {len(required_evidence_list)} required evidence items from knowledge graph")
+                
+                if not required_evidence_list:
+                    self.logger.warning(
+                        f"No required evidence found in knowledge graph for claim type '{claim_type_str}'. "
+                        f"This may indicate missing data in the graph or a mismatch in claim type naming."
                     )
-                    amount = (
-                        getattr(damage_entity, "amount", None)
-                        or attrs.get("amount")
-                        or attrs.get("damages_awarded")
+                
+                for ev in required_evidence_list:
+                    required_evidence.append(
+                        ProofChainEvidence(
+                            evidence_id=ev.get("_key", ""),
+                            evidence_type=ev.get("evidence_type", "documentary"),
+                            description=ev.get("name", ev.get("description", "")),
+                            is_critical=ev.get("is_critical", False),
+                            context="required",
+                            source_reference=ev.get("source_reference"),
+                        )
                     )
-                    status = getattr(damage_entity, "status", None) or attrs.get(
-                        "status", "claimed"
+            else:
+                self.logger.warning(f"Claim {claim_id} has no claim_type_str, cannot retrieve required evidence")
+
+            # Get presented evidence (evidence with HAS_EVIDENCE relationship)
+            presented_evidence = []
+            presented_evidence_ids = []
+
+            # Get evidence linked via HAS_EVIDENCE relationships
+            evidence_rels = self.kg.get_relationships(
+                source_id=claim_id,
+                relationship_type=RelationshipType.HAS_EVIDENCE,
+            )
+
+            for rel in evidence_rels:
+                ev_id = rel.get("target_id")
+                ev = self.kg.get_entity(ev_id)
+                if ev and ev.entity_type.value == "EVIDENCE":
+                    presented_evidence_ids.append(ev_id)
+                    # Get evidence_type from attributes or default
+                    evidence_type = (
+                        ev.attributes.get("evidence_type", "documentary")
+                        if ev.attributes
+                        else "documentary"
                     )
-                    damages.append(
-                        {
-                            "id": damage_id,
-                            "type": damage_type,
-                            "amount": amount,
-                            "status": status,
-                            "description": damage_entity.name or damage_entity.description or "",
-                        }
+                    # Get is_critical from attributes or default
+                    is_critical_str = (
+                        ev.attributes.get("is_critical", "false") if ev.attributes else "false"
+                    )
+                    is_critical = (
+                        is_critical_str.lower() == "true"
+                        if isinstance(is_critical_str, str)
+                        else bool(is_critical_str)
+                    )
+                    presented_evidence.append(
+                        ProofChainEvidence(
+                            evidence_id=ev_id,
+                            evidence_type=evidence_type,
+                            description=ev.name or ev.description or "",
+                            is_critical=is_critical,
+                            context="presented",
+                            source_reference=(
+                                ev.attributes.get("source_reference") if ev.attributes else None
+                            ),
+                        )
                     )
 
-        # Calculate completeness
-        completeness_score = self.compute_completeness_score(
-            required_evidence=required_evidence,
-            satisfied_evidence=satisfied_evidence,
-            missing_evidence=missing_evidence,
-        )
+            # If no required evidence found, log warning and create empty lists
+            if not required_evidence:
+                self.logger.warning(
+                    f"No required evidence found for claim {claim_id} (claim_type: {claim_type_str}). "
+                    f"This may indicate missing data in the knowledge graph. "
+                    f"Proof chain will show 0% completeness."
+                )
+                missing_evidence = []
+                satisfied_evidence = []
+            else:
+                # Match presented evidence to required evidence
+                missing_evidence, satisfied_evidence = self.match_evidence_to_requirements(
+                    required_evidence=required_evidence,
+                    presented_evidence=presented_evidence,
+                )
 
-        # Identify critical gaps
-        critical_gaps = [ev.description for ev in missing_evidence if ev.is_critical]
+            # Get outcome (via RESULTS_IN relationship from claim)
+            outcome = None
+            outcome_rels = self.kg.get_relationships(
+                source_id=claim_id,
+                relationship_type=RelationshipType.RESULTS_IN,
+            )
+            if outcome_rels:
+                outcome_id = outcome_rels[0].get("target_id")
+                outcome_entity = self.kg.get_entity(outcome_id)
+                if outcome_entity and outcome_entity.entity_type.value == "LEGAL_OUTCOME":
+                    # Handle field alignment: stored as 'outcome' and 'ruling_type', expected as 'disposition' and 'outcome_type'
+                    attrs = outcome_entity.attributes or {}
+                    disposition = outcome_entity.disposition or attrs.get("outcome") or "unknown"
+                    outcome_type = (
+                        outcome_entity.outcome_type or attrs.get("ruling_type") or "judgment"
+                    )
+                    outcome = {
+                        "id": outcome_id,
+                        "disposition": disposition,
+                        "description": outcome_entity.name or outcome_entity.description or "",
+                        "outcome_type": outcome_type,
+                    }
 
-        return ProofChain(
-            claim_id=claim_id,
-            claim_description=claim.name or claim.description or "",
-            claim_type=claim_type_str,
-            claimant=claim.claimant,
-            required_evidence=required_evidence,
-            presented_evidence=presented_evidence,
-            missing_evidence=missing_evidence,
-            outcome=outcome,
-            damages=damages if damages else None,
-            completeness_score=completeness_score,
-            satisfied_count=len(satisfied_evidence),
-            missing_count=len(missing_evidence),
-            critical_gaps=critical_gaps,
-        )
+            # Get damages (via IMPLY relationship from outcome)
+            damages = []
+            if outcome:
+                damage_rels = self.kg.get_relationships(
+                    source_id=outcome["id"],
+                    relationship_type=RelationshipType.IMPLY,
+                )
+                for rel in damage_rels:
+                    damage_id = rel.get("target_id")
+                    damage_entity = self.kg.get_entity(damage_id)
+                    if damage_entity and damage_entity.entity_type.value == "DAMAGES":
+                        # Handle field alignment: stored in attributes dict or as direct fields
+                        attrs = damage_entity.attributes or {}
+                        damage_type = (
+                            getattr(damage_entity, "damage_type", None)
+                            or attrs.get("damage_type", "monetary")
+                        )
+                        amount = (
+                            getattr(damage_entity, "amount", None)
+                            or attrs.get("amount")
+                            or attrs.get("damages_awarded")
+                        )
+                        status = (
+                            getattr(damage_entity, "status", None)
+                            or attrs.get("status", "claimed")
+                        )
+                        damages.append(
+                            {
+                                "id": damage_id,
+                                "type": damage_type,
+                                "amount": amount,
+                                "status": status,
+                                "description": damage_entity.name or damage_entity.description or "",
+                            }
+                        )
+
+            # Calculate completeness
+            # If no required evidence, set completeness to 0.0 (can't assess without requirements)
+            if not required_evidence:
+                completeness_score = 0.0
+                self.logger.warning(
+                    f"Cannot calculate completeness for claim {claim_id}: no required evidence defined"
+                )
+            else:
+                completeness_score = self.compute_completeness_score(
+                    required_evidence=required_evidence,
+                    satisfied_evidence=satisfied_evidence,
+                    missing_evidence=missing_evidence,
+                )
+
+            # Identify critical gaps
+            critical_gaps = [ev.description for ev in missing_evidence if ev.is_critical]
+
+            # Build the proof chain
+            proof_chain = ProofChain(
+                claim_id=claim_id,
+                claim_description=claim.name or claim.description or "",
+                claim_type=claim_type_str,
+                claimant=claim.claimant,
+                required_evidence=required_evidence,
+                presented_evidence=presented_evidence,
+                missing_evidence=missing_evidence,
+                outcome=outcome,
+                damages=damages if damages else None,
+                completeness_score=completeness_score,
+                satisfied_count=len(satisfied_evidence),
+                missing_count=len(missing_evidence),
+                critical_gaps=critical_gaps,
+            )
+
+            # Validate the proof chain
+            if not self._validate_proof_chain(proof_chain):
+                self.logger.warning(
+                    f"Proof chain validation failed for {claim_id}, but returning it anyway"
+                )
+
+            elapsed = time.time() - start_time
+            self.logger.info(
+                f"Built proof chain for {claim_id} in {elapsed:.2f}s: "
+                f"{len(required_evidence)} required, {len(presented_evidence)} presented, "
+                f"{len(missing_evidence)} missing, completeness={completeness_score:.2f}"
+            )
+
+            return proof_chain
+
+        except Exception as e:
+            elapsed = time.time() - start_time
+            self.logger.error(
+                f"Failed to build proof chain for {claim_id} after {elapsed:.2f}s: {e}",
+                exc_info=True,
+            )
+            return None
 
     def match_evidence_to_requirements(
         self,
@@ -616,157 +713,170 @@ class ProofChainService:
         if not self.llm_client:
             raise ValueError("LLM client required for proof chain extraction")
 
+        start_time = time.time()
         self.logger.info(f"Extracting proof chains from document ({len(text)} chars)")
 
-        # Use ClaimExtractor for extraction (single megaprompt call for speed)
-        from tenant_legal_guidance.services.claim_extractor import ClaimExtractor
+        try:
+            # Use ClaimExtractor for extraction (single megaprompt call for speed)
+            from tenant_legal_guidance.services.claim_extractor import ClaimExtractor
 
-        extractor = ClaimExtractor(llm_client=self.llm_client, knowledge_graph=self.kg)
-        extraction_result = await extractor.extract_full_proof_chain_single(text, metadata)
+            extractor = ClaimExtractor(llm_client=self.llm_client, knowledge_graph=self.kg)
+            extraction_result = await extractor.extract_full_proof_chain_single(text, metadata)
 
-        # Convert extracted entities to LegalEntity and store with dual storage
-        stored_entities = {}
-        storage_errors = []
+            # Convert extracted entities to LegalEntity and store with dual storage
+            stored_entities = {}
+            storage_errors = []
 
-        # Store claims (handle partial chains - claims without outcomes are valid)
-        for claim in extraction_result.claims:
-            try:
-                entity = self._extracted_claim_to_legal_entity(claim, metadata)
-                success = await self._persist_entity_dual(entity, chunk_ids=None)
-                if success:
-                    stored_entities[claim.id] = entity
-                else:
-                    storage_errors.append(f"Failed to store claim {claim.id}")
-            except Exception as e:
-                self.logger.warning(f"Error storing claim {claim.id}: {e}", exc_info=True)
-                storage_errors.append(f"Error storing claim {claim.id}: {e}")
+            # Store claims (handle partial chains - claims without outcomes are valid)
+            for claim in extraction_result.claims:
+                try:
+                    entity = self._extracted_claim_to_legal_entity(claim, metadata)
+                    success = await self._persist_entity_dual(entity, chunk_ids=None)
+                    if success:
+                        stored_entities[claim.id] = entity
+                    else:
+                        storage_errors.append(f"Failed to store claim {claim.id}")
+                except Exception as e:
+                    self.logger.warning(f"Error storing claim {claim.id}: {e}", exc_info=True)
+                    storage_errors.append(f"Error storing claim {claim.id}: {e}")
 
-        # Store evidence (handle partial chains - evidence without claims is valid)
-        for evidence in extraction_result.evidence:
-            try:
-                entity = self._extracted_evidence_to_legal_entity(evidence, metadata)
-                success = await self._persist_entity_dual(entity, chunk_ids=None)
-                if success:
-                    stored_entities[evidence.id] = entity
-                else:
-                    storage_errors.append(f"Failed to store evidence {evidence.id}")
-            except Exception as e:
-                self.logger.warning(f"Error storing evidence {evidence.id}: {e}", exc_info=True)
-                storage_errors.append(f"Error storing evidence {evidence.id}: {e}")
+            # Store evidence (handle partial chains - evidence without claims is valid)
+            for evidence in extraction_result.evidence:
+                try:
+                    # Pass stored_entities so we can look up claim_type from recently stored claims
+                    entity = self._extracted_evidence_to_legal_entity(evidence, metadata, stored_entities=stored_entities)
+                    success = await self._persist_entity_dual(entity, chunk_ids=None)
+                    if success:
+                        stored_entities[evidence.id] = entity
+                    else:
+                        storage_errors.append(f"Failed to store evidence {evidence.id}")
+                except Exception as e:
+                    self.logger.warning(f"Error storing evidence {evidence.id}: {e}", exc_info=True)
+                    storage_errors.append(f"Error storing evidence {evidence.id}: {e}")
 
-        # Store outcomes (handle partial chains - outcomes without evidence are valid)
-        for outcome in extraction_result.outcomes:
-            try:
-                entity = self._extracted_outcome_to_legal_entity(outcome, metadata)
-                success = await self._persist_entity_dual(entity, chunk_ids=None)
-                if success:
-                    stored_entities[outcome.id] = entity
-                else:
-                    storage_errors.append(f"Failed to store outcome {outcome.id}")
-            except Exception as e:
-                self.logger.warning(f"Error storing outcome {outcome.id}: {e}", exc_info=True)
-                storage_errors.append(f"Error storing outcome {outcome.id}: {e}")
+            # Store outcomes (handle partial chains - outcomes without evidence are valid)
+            for outcome in extraction_result.outcomes:
+                try:
+                    entity = self._extracted_outcome_to_legal_entity(outcome, metadata)
+                    success = await self._persist_entity_dual(entity, chunk_ids=None)
+                    if success:
+                        stored_entities[outcome.id] = entity
+                    else:
+                        storage_errors.append(f"Failed to store outcome {outcome.id}")
+                except Exception as e:
+                    self.logger.warning(f"Error storing outcome {outcome.id}: {e}", exc_info=True)
+                    storage_errors.append(f"Error storing outcome {outcome.id}: {e}")
 
-        # Store damages (handle partial chains - damages without outcomes are valid)
-        for damage in extraction_result.damages:
-            try:
-                entity = self._extracted_damage_to_legal_entity(damage, metadata)
-                success = await self._persist_entity_dual(entity, chunk_ids=None)
-                if success:
-                    stored_entities[damage.id] = entity
-                else:
-                    storage_errors.append(f"Failed to store damage {damage.id}")
-            except Exception as e:
-                self.logger.warning(f"Error storing damage {damage.id}: {e}", exc_info=True)
-                storage_errors.append(f"Error storing damage {damage.id}: {e}")
+            # Store damages (handle partial chains - damages without outcomes are valid)
+            for damage in extraction_result.damages:
+                try:
+                    entity = self._extracted_damage_to_legal_entity(damage, metadata)
+                    success = await self._persist_entity_dual(entity, chunk_ids=None)
+                    if success:
+                        stored_entities[damage.id] = entity
+                    else:
+                        storage_errors.append(f"Failed to store damage {damage.id}")
+                except Exception as e:
+                    self.logger.warning(f"Error storing damage {damage.id}: {e}", exc_info=True)
+                    storage_errors.append(f"Error storing damage {damage.id}: {e}")
 
-        # Log storage errors but continue (partial chains are valid)
-        if storage_errors:
-            self.logger.warning(f"Some entities failed to store: {len(storage_errors)} errors")
-            for error in storage_errors[:5]:  # Log first 5 errors
-                self.logger.debug(error)
+            # Log storage errors but continue (partial chains are valid)
+            if storage_errors:
+                self.logger.warning(f"Some entities failed to store: {len(storage_errors)} errors")
+                for error in storage_errors[:5]:  # Log first 5 errors
+                    self.logger.debug(error)
 
-        # Store relationships (handle missing entities gracefully)
-        relationship_errors = []
-        for rel_data in extraction_result.relationships:
-            try:
-                from tenant_legal_guidance.models.relationships import LegalRelationship
+            # Store relationships (handle missing entities gracefully)
+            relationship_errors = []
+            for rel_data in extraction_result.relationships:
+                try:
+                    from tenant_legal_guidance.models.relationships import LegalRelationship
 
-                # Validate that both source and target entities exist
-                source_exists = rel_data["source_id"] in stored_entities or self.kg.get_entity(
-                    rel_data["source_id"]
-                )
-                target_exists = rel_data["target_id"] in stored_entities or self.kg.get_entity(
-                    rel_data["target_id"]
-                )
-
-                if not source_exists:
-                    self.logger.warning(
-                        f"Relationship source entity {rel_data['source_id']} not found, skipping relationship"
+                    # Validate that both source and target entities exist
+                    source_exists = rel_data["source_id"] in stored_entities or self.kg.get_entity(
+                        rel_data["source_id"]
                     )
-                    relationship_errors.append(f"Source {rel_data['source_id']} not found")
-                    continue
-                if not target_exists:
-                    self.logger.warning(
-                        f"Relationship target entity {rel_data['target_id']} not found, skipping relationship"
+                    target_exists = rel_data["target_id"] in stored_entities or self.kg.get_entity(
+                        rel_data["target_id"]
                     )
-                    relationship_errors.append(f"Target {rel_data['target_id']} not found")
-                    continue
 
-                rel_type = RelationshipType[rel_data["type"]]
-                relationship = LegalRelationship(
-                    source_id=rel_data["source_id"],
-                    target_id=rel_data["target_id"],
-                    relationship_type=rel_type,
+                    if not source_exists:
+                        self.logger.warning(
+                            f"Relationship source entity {rel_data['source_id']} not found, skipping relationship"
+                        )
+                        relationship_errors.append(f"Source {rel_data['source_id']} not found")
+                        continue
+                    if not target_exists:
+                        self.logger.warning(
+                            f"Relationship target entity {rel_data['target_id']} not found, skipping relationship"
+                        )
+                        relationship_errors.append(f"Target {rel_data['target_id']} not found")
+                        continue
+
+                    rel_type = RelationshipType[rel_data["type"]]
+                    relationship = LegalRelationship(
+                        source_id=rel_data["source_id"],
+                        target_id=rel_data["target_id"],
+                        relationship_type=rel_type,
+                    )
+                    self.kg.add_relationship(relationship)
+                except (KeyError, ValueError) as e:
+                    self.logger.warning(f"Failed to store relationship {rel_data}: {e}")
+                    relationship_errors.append(str(e))
+
+            if relationship_errors:
+                self.logger.warning(
+                    f"Some relationships failed to store: {len(relationship_errors)} errors"
                 )
-                self.kg.add_relationship(relationship)
-            except (KeyError, ValueError) as e:
-                self.logger.warning(f"Failed to store relationship {rel_data}: {e}")
-                relationship_errors.append(str(e))
 
-        if relationship_errors:
-            self.logger.warning(
-                f"Some relationships failed to store: {len(relationship_errors)} errors"
+            # Build ProofChain objects from stored claims (handle partial chains)
+            proof_chains = []
+            for claim in extraction_result.claims:
+                if claim.id in stored_entities:
+                    try:
+                        proof_chain = await self.build_proof_chain(claim.id)
+                        if proof_chain:
+                            proof_chains.append(proof_chain)
+                        else:
+                            self.logger.warning(
+                                f"Failed to build proof chain for claim {claim.id} (partial chain)"
+                            )
+                    except Exception as e:
+                        self.logger.warning(
+                            f"Error building proof chain for claim {claim.id}: {e}", exc_info=True
+                        )
+                else:
+                    self.logger.warning(
+                        f"Claim {claim.id} was not stored, skipping proof chain building"
+                    )
+
+            # Note: Dual storage validation is deferred until after chunks are created
+            # Entities are stored before chunks exist, so chunk_ids will be empty initially
+            # The linking happens in DocumentProcessor after chunks are created
+            # We'll validate dual storage there, not here
+            self.logger.debug(
+                f"Stored {len(stored_entities)} entities (chunk linking will happen after chunks are created)"
             )
 
-        # Build ProofChain objects from stored claims (handle partial chains)
-        proof_chains = []
-        for claim in extraction_result.claims:
-            if claim.id in stored_entities:
-                try:
-                    proof_chain = await self.build_proof_chain(claim.id)
-                    if proof_chain:
-                        proof_chains.append(proof_chain)
-                    else:
-                        self.logger.warning(
-                            f"Failed to build proof chain for claim {claim.id} (partial chain)"
-                        )
-                except Exception as e:
-                    self.logger.warning(
-                        f"Error building proof chain for claim {claim.id}: {e}", exc_info=True
-                    )
-            else:
-                self.logger.warning(
-                    f"Claim {claim.id} was not stored, skipping proof chain building"
-                )
+            elapsed = time.time() - start_time
+            self.logger.info(
+                f"Extracted {len(proof_chains)} proof chains in {elapsed:.2f}s: "
+                f"{len(extraction_result.claims)} claims, "
+                f"{len(extraction_result.evidence)} evidence, "
+                f"{len(extraction_result.outcomes)} outcomes, "
+                f"{len(extraction_result.damages)} damages"
+            )
 
-        # Note: Dual storage validation is deferred until after chunks are created
-        # Entities are stored before chunks exist, so chunk_ids will be empty initially
-        # The linking happens in DocumentProcessor after chunks are created
-        # We'll validate dual storage there, not here
-        self.logger.debug(
-            f"Stored {len(stored_entities)} entities (chunk linking will happen after chunks are created)"
-        )
+            return proof_chains
 
-        self.logger.info(
-            f"Extracted {len(proof_chains)} proof chains: "
-            f"{len(extraction_result.claims)} claims, "
-            f"{len(extraction_result.evidence)} evidence, "
-            f"{len(extraction_result.outcomes)} outcomes, "
-            f"{len(extraction_result.damages)} damages"
-        )
-
-        return proof_chains
+        except Exception as e:
+            elapsed = time.time() - start_time
+            self.logger.error(
+                f"Failed to extract proof chains after {elapsed:.2f}s: {e}",
+                exc_info=True,
+            )
+            # Return empty list on failure (graceful degradation)
+            return []
 
     async def retrieve_proof_chains(
         self,
@@ -788,8 +898,9 @@ class ProofChainService:
         Returns:
             List of ProofChain objects
         """
+        start_time = time.time()
         self.logger.info(
-            f"Retrieving proof chains: query='{query_text}', claim_type='{claim_type}'"
+            f"Retrieving proof chains: query='{query_text}', claim_type='{claim_type}', top_k={top_k}"
         )
 
         claim_ids = []
@@ -862,7 +973,11 @@ class ProofChainService:
                     f"Failed to build proof chain for {claim_id}: {e}", exc_info=True
                 )
 
-        self.logger.info(f"Retrieved {len(proof_chains)} proof chains")
+        elapsed = time.time() - start_time
+        self.logger.info(
+            f"Retrieved {len(proof_chains)} proof chains in {elapsed:.2f}s "
+            f"(query='{query_text}', claim_type='{claim_type}')"
+        )
         return proof_chains
 
     def _extracted_claim_to_legal_entity(
@@ -891,11 +1006,63 @@ class ProofChainService:
         )
 
     def _extracted_evidence_to_legal_entity(
-        self, evidence, metadata: SourceMetadata | None
+        self, evidence, metadata: SourceMetadata | None, stored_entities: dict[str, LegalEntity] | None = None
     ) -> LegalEntity:
-        """Convert ExtractedEvidence to LegalEntity."""
+        """Convert ExtractedEvidence to LegalEntity.
+        
+        For required evidence (evidence_context="required"), attempts to set linked_claim_type
+        by looking up the claim_type from linked claims. This is critical for required evidence
+        to be retrievable via get_required_evidence_for_claim_type().
+        
+        Args:
+            evidence: ExtractedEvidence object
+            metadata: SourceMetadata for the entity
+            stored_entities: Optional dict of already-stored entities (claim_id -> LegalEntity)
+                           to check before querying the knowledge graph
+        """
         if metadata is None:
             metadata = SourceMetadata(source=evidence.id, source_type=SourceType.FILE)
+
+        # For required evidence, try to infer linked_claim_type from linked claims
+        linked_claim_type = None
+        if evidence.evidence_context == "required" and evidence.linked_claim_ids:
+            # Try to get claim_type from the first linked claim
+            # First check stored_entities (faster, for entities just created)
+            claim_entity = None
+            if stored_entities:
+                for claim_id in evidence.linked_claim_ids:
+                    if claim_id in stored_entities:
+                        claim_entity = stored_entities[claim_id]
+                        break
+            
+            # If not found in stored_entities, query the knowledge graph
+            if not claim_entity:
+                try:
+                    first_claim_id = evidence.linked_claim_ids[0]
+                    claim_entity = self.kg.get_entity(first_claim_id)
+                except Exception as e:
+                    self.logger.debug(
+                        f"Could not fetch claim entity {evidence.linked_claim_ids[0]} for evidence {evidence.id}: {e}"
+                    )
+            
+            if claim_entity:
+                # Handle both dict and LegalEntity object
+                if isinstance(claim_entity, dict):
+                    linked_claim_type = claim_entity.get("claim_type")
+                else:
+                    linked_claim_type = claim_entity.claim_type
+                if linked_claim_type:
+                    self.logger.debug(
+                        f"Setting linked_claim_type={linked_claim_type} for required evidence {evidence.id}"
+                    )
+                else:
+                    self.logger.debug(
+                        f"Claim entity {evidence.linked_claim_ids[0]} has no claim_type for evidence {evidence.id}"
+                    )
+            else:
+                self.logger.debug(
+                    f"Could not find claim entity for evidence {evidence.id} with linked_claim_ids {evidence.linked_claim_ids}"
+                )
 
         return LegalEntity(
             id=evidence.id,
@@ -906,6 +1073,7 @@ class ProofChainService:
             evidence_context=evidence.evidence_context,
             evidence_source_type=evidence.evidence_source_type,
             is_critical=evidence.is_critical,  # Keep as boolean for direct field
+            linked_claim_type=linked_claim_type,  # Set for required evidence
             attributes={
                 "evidence_type": evidence.evidence_type,
                 "source_quote": evidence.source_quote or "",

@@ -15,6 +15,7 @@ from urllib.parse import urljoin
 import requests
 from bs4 import BeautifulSoup
 from requests.adapters import HTTPAdapter
+from requests.exceptions import HTTPError
 from urllib3.util.retry import Retry
 
 
@@ -53,12 +54,12 @@ class JustiaScraper:
     Designed for New York tenant law cases from law.justia.com.
     """
 
-    def __init__(self, rate_limit_seconds: float = 2.0):
+    def __init__(self, rate_limit_seconds: float = 5.0):
         """
         Initialize the scraper.
 
         Args:
-            rate_limit_seconds: Delay between requests (default: 2 seconds)
+            rate_limit_seconds: Delay between requests (default: 5 seconds to avoid 403 errors)
         """
         self.rate_limit = rate_limit_seconds
         self.last_request_time = 0
@@ -75,28 +76,42 @@ class JustiaScraper:
         self.session.mount("http://", adapter)
         self.session.mount("https://", adapter)
 
-        # User agent to mimic browser
+        # Browser-like headers to avoid 403 Forbidden
         self.session.headers.update(
             {
-                "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-                "Accept-Language": "en-US,en;q=0.5",
+                "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+                "Accept-Language": "en-US,en;q=0.9",
+                "Accept-Encoding": "gzip, deflate, br",
+                "Referer": "https://law.justia.com/",
+                "Connection": "keep-alive",
+                "Upgrade-Insecure-Requests": "1",
+                "Sec-Fetch-Dest": "document",
+                "Sec-Fetch-Mode": "navigate",
+                "Sec-Fetch-Site": "same-origin",
+                "Sec-Fetch-User": "?1",
             }
         )
 
     def _rate_limit(self):
-        """Enforce rate limiting between requests."""
+        """Enforce rate limiting between requests with random jitter."""
+        import random
+        
         elapsed = time.time() - self.last_request_time
         if elapsed < self.rate_limit:
-            time.sleep(self.rate_limit - elapsed)
+            # Add random jitter (0-2 seconds) to make requests less predictable
+            jitter = random.uniform(0, 2.0)
+            sleep_time = (self.rate_limit - elapsed) + jitter
+            time.sleep(sleep_time)
         self.last_request_time = time.time()
 
-    def fetch(self, url: str) -> Optional[str]:
+    def fetch(self, url: str, retry_count: int = 0) -> Optional[str]:
         """
-        Fetch HTML from a URL with rate limiting.
+        Fetch HTML from a URL with rate limiting and 403 handling.
 
         Args:
             url: URL to fetch
+            retry_count: Number of retries attempted (for exponential backoff)
 
         Returns:
             HTML content or None if failed
@@ -106,8 +121,34 @@ class JustiaScraper:
         try:
             self.logger.info(f"Fetching: {url}")
             response = self.session.get(url, timeout=30)
+            
+            # Handle 403 Forbidden with exponential backoff
+            if response.status_code == 403:
+                if retry_count < 3:
+                    # Exponential backoff: 10s, 30s, 60s
+                    wait_times = [10, 30, 60]
+                    wait_time = wait_times[min(retry_count, len(wait_times) - 1)]
+                    self.logger.warning(
+                        f"403 Forbidden for {url}. Waiting {wait_time}s before retry {retry_count + 1}/3..."
+                    )
+                    time.sleep(wait_time)
+                    return self.fetch(url, retry_count + 1)
+                else:
+                    self.logger.error(
+                        f"403 Forbidden after {retry_count} retries. "
+                        "Justia is blocking requests. Wait 10-30 minutes and try again, "
+                        "or use a slower rate limit (5-10 seconds between requests)."
+                    )
+                    return None
+            
             response.raise_for_status()
             return response.text
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 403:
+                # Already handled above, but catch here for safety
+                return None
+            self.logger.error(f"HTTP error fetching {url}: {e}")
+            return None
         except Exception as e:
             self.logger.error(f"Failed to fetch {url}: {e}")
             return None

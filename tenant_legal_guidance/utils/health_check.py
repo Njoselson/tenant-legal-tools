@@ -48,9 +48,9 @@ async def check_arangodb() -> DependencyStatus:
 
     start = time.perf_counter()
     try:
-        from tenant_legal_guidance.graph.arango_graph import ArangoKnowledgeGraph
+        from tenant_legal_guidance.graph.arango_graph import ArangoDBGraph
 
-        kg = ArangoKnowledgeGraph()
+        kg = ArangoDBGraph()
         # Try a simple query
         result = kg.db.aql.execute("RETURN 1", count=True)
         list(result)  # Consume result

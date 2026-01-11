@@ -2,10 +2,82 @@
 API request/response schemas for the Tenant Legal Guidance System.
 """
 
+from typing import Any
+
 from pydantic import BaseModel
 
 from tenant_legal_guidance.models.documents import InputType
 from tenant_legal_guidance.models.entities import SourceMetadata
+
+
+# ============================================================================
+# Curation API Schemas (Spec 002)
+# ============================================================================
+
+
+class CurationSearchRequest(BaseModel):
+    """Request for searching legal sources."""
+
+    source: str = "justia"  # "justia" | "nycef" | "nyc-admin-code"
+    query: str | None = None
+    filters: dict[str, Any] = {}  # jurisdiction, date_start, date_end, court, etc.
+    max_results: int = 50
+
+
+class CurationSearchResponse(BaseModel):
+    """Response from legal source search."""
+
+    results: list[dict[str, Any]]  # SearchResult as dict
+    total: int
+
+
+class ManifestAddRequest(BaseModel):
+    """Request to add entries to manifest."""
+
+    entries: list[dict[str, Any]]  # List of manifest entries
+
+
+class ManifestAddResponse(BaseModel):
+    """Response from adding entries to manifest."""
+
+    status: str
+    added: int
+    manifest_size: int
+
+
+class ManifestUploadResponse(BaseModel):
+    """Response from uploading manifest file."""
+
+    status: str
+    entries: list[dict[str, Any]]
+    total: int
+
+
+class BulkIngestRequest(BaseModel):
+    """Request to start bulk ingestion."""
+
+    manifest: list[dict[str, Any]] | None = None  # Optional inline manifest
+    manifest_path: str | None = None  # Optional path to manifest file
+    options: dict[str, Any] = {}  # concurrency, skip_existing, etc.
+
+
+class BulkIngestResponse(BaseModel):
+    """Response from starting bulk ingestion."""
+
+    job_id: str
+    status: str  # "queued" | "processing" | "completed" | "failed"
+    manifest_path: str
+    total_entries: int
+
+
+class JobStatusResponse(BaseModel):
+    """Response for ingestion job status."""
+
+    job_id: str
+    status: str
+    progress: dict[str, int]  # total, processed, failed, skipped
+    stats: dict[str, Any] | None = None  # added_entities, added_relationships
+    errors: list[dict[str, Any]] = []
 
 
 class ConsultationRequest(BaseModel):
@@ -278,3 +350,58 @@ class ProofChainSchema(BaseModel):
     satisfied_count: int = 0
     missing_count: int = 0
     critical_gaps: list[str] = []
+
+
+# ============================================================================
+# Context Builder Schemas
+# ============================================================================
+
+
+class ContextSearchRequest(BaseModel):
+    """Request for unified search (KG + Qdrant) for context building."""
+
+    query: str
+    top_k_entities: int = 20
+    top_k_chunks: int = 20
+    entity_types: list[str] | None = None
+    jurisdiction: str | None = None
+    expand_neighbors: bool = True
+
+
+class ContextSearchResponse(BaseModel):
+    """Response from context search."""
+
+    entities: list[dict[str, Any]]
+    chunks: list[dict[str, Any]]
+    relationships: list[dict[str, Any]] = []
+
+
+class ContextBuildRequest(BaseModel):
+    """Request to build formatted context from selected items."""
+
+    entity_ids: list[str] = []
+    chunk_ids: list[str] = []
+    include_sources: bool = True
+
+
+class ContextBuildResponse(BaseModel):
+    """Response with formatted context."""
+
+    formatted_context: str
+    sources_text: str
+    citations_map: dict[str, dict[str, Any]]
+    entity_count: int
+    chunk_count: int
+
+
+class QdrantSearchRequest(BaseModel):
+    """Request for Qdrant semantic search."""
+
+    query: str
+    top_k: int = 20
+
+
+class QdrantSearchResponse(BaseModel):
+    """Response from Qdrant search."""
+
+    chunks: list[dict[str, Any]]

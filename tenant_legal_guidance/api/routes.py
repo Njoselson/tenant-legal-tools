@@ -12,6 +12,8 @@ from fastapi.templating import Jinja2Templates
 from tenant_legal_guidance.api.schemas import (
     AnalyzeMyCaseRequest,
     AnalyzeMyCaseResponse,
+    BulkIngestRequest,
+    BulkIngestResponse,
     CaseAnalysisRequest,
     ChainsRequest,
     ClaimExtractionRequest,
@@ -19,6 +21,8 @@ from tenant_legal_guidance.api.schemas import (
     ConsolidateAllRequest,
     ConsolidateRequest,
     ConsultationRequest,
+    CurationSearchRequest,
+    CurationSearchResponse,
     DeleteEntitiesRequest,
     EnhancedCaseAnalysisRequest,
     EvidenceGapSchema,
@@ -26,11 +30,17 @@ from tenant_legal_guidance.api.schemas import (
     ExpandRequest,
     GenerateAnalysisRequest,
     HybridSearchRequest,
+    JobStatusResponse,
     KGChatRequest,
     KnowledgeGraphProcessRequest,
+    ManifestAddRequest,
+    ManifestAddResponse,
+    ManifestUploadResponse,
     NextStepsRequest,
     ProofChainEvidenceSchema,
     ProofChainSchema,
+    QdrantSearchRequest,
+    QdrantSearchResponse,
     RetrieveEntitiesRequest,
 )
 from tenant_legal_guidance.models.entities import SourceMetadata, SourceType
@@ -49,7 +59,7 @@ from tenant_legal_guidance.utils.health_check import (
 )
 
 # Initialize router
-router = APIRouter()
+router = APIRouter(tags=["main"])
 
 # Initialize logger
 logger = logging.getLogger(__name__)
@@ -75,6 +85,18 @@ def get_consolidator(system: TenantLegalSystem = Depends(get_system)) -> EntityC
 async def index_page(request: Request, templates: Jinja2Templates = Depends(get_templates)):
     """Serve the main consultation analyzer page (merged with case analysis)."""
     return templates.TemplateResponse("case_analysis.html", {"request": request})
+
+
+@router.get("/privacy", response_class=HTMLResponse)
+async def privacy_policy(request: Request, templates: Jinja2Templates = Depends(get_templates)):
+    """Serve the privacy policy page."""
+    return templates.TemplateResponse("privacy.html", {"request": request})
+
+
+@router.get("/terms", response_class=HTMLResponse)
+async def terms_of_service(request: Request, templates: Jinja2Templates = Depends(get_templates)):
+    """Serve the terms of service page."""
+    return templates.TemplateResponse("terms.html", {"request": request})
 
 
 @router.post("/api/analyze-consultation")
@@ -168,7 +190,7 @@ async def process_knowledge_graph(
 async def get_graph_data(
     system: TenantLegalSystem = Depends(get_system),
     offset: int = 0,
-    limit: int = 200,
+    limit: int = 100000,
     types: str | None = None,
     q: str | None = None,
     jurisdiction: str | None = None,
@@ -279,33 +301,172 @@ async def get_graph_data(
                 }
             )
 
+        # Save initial node count for pagination cursor calculation
+        initial_node_count = len(nodes)
+
         links = []
         if node_ids:
             try:
-                rels = kg.get_relationships_among(node_ids)
-                for r in rels:
+                # Get relationships where EITHER source OR target is in the loaded nodes
+                # This ensures we see all connections to/from visible nodes
+                id_set = set(node_ids)
+                
+                # Query relationships where source or target matches loaded nodes
+                aql = """
+                FOR e IN edges
+                    LET from_id = SPLIT(e._from, '/')[1]
+                    LET to_id = SPLIT(e._to, '/')[1]
+                    FILTER from_id IN @ids OR to_id IN @ids
+                    RETURN { 
+                        from_id, 
+                        to_id, 
+                        type: e.type, 
+                        weight: e.weight, 
+                        conditions: e.conditions,
+                        attributes: e.attributes
+                    }
+                """
+                cursor = kg.db.aql.execute(aql, bind_vars={"ids": list(id_set)})
+                
+                from tenant_legal_guidance.models.relationships import RelationshipType
+                
+                seen_links = set()  # Deduplicate links
+                connected_node_ids = set(node_ids)  # Track nodes connected via relationships
+                
+                for row in cursor:
+                    source_id = row["from_id"]
+                    target_id = row["to_id"]
+                    
+                    # Add connected nodes to set (so we can include them in response if needed)
+                    connected_node_ids.add(source_id)
+                    connected_node_ids.add(target_id)
+                    
+                    # Create link key for deduplication
+                    link_key = (source_id, target_id, row.get("type"))
+                    if link_key in seen_links:
+                        continue
+                    seen_links.add(link_key)
+                    
+                    # Parse relationship type
+                    try:
+                        rel_type = RelationshipType[row.get("type", "UNKNOWN")]
+                        rel_type_name = rel_type.name
+                    except (KeyError, ValueError):
+                        rel_type_name = row.get("type", "UNKNOWN")
+                    
                     links.append(
                         {
-                            "source": r.source_id,
-                            "target": r.target_id,
-                            "label": (
-                                r.relationship_type.name
-                                if hasattr(r.relationship_type, "name")
-                                else str(r.relationship_type)
-                            ),
-                            "weight": r.weight,
-                            "conditions": r.conditions,
-                            "attributes": r.attributes,
+                            "source": source_id,
+                            "target": target_id,
+                            "label": rel_type_name,
+                            "weight": row.get("weight", 1.0),
+                            "conditions": row.get("conditions"),
+                            "attributes": row.get("attributes") or {},
                         }
                     )
+                logger.debug(f"Found {len(links)} relationships for {len(node_ids)} nodes")
+                
+                # Find node IDs referenced in links that aren't in the loaded nodes
+                loaded_node_ids = set(node_ids)
+                referenced_node_ids = set()
+                for link in links:
+                    referenced_node_ids.add(link["source"])
+                    referenced_node_ids.add(link["target"])
+                missing_node_ids = referenced_node_ids - loaded_node_ids
+                
+                # Fetch missing nodes and add them to the response
+                if missing_node_ids:
+                    logger.debug(f"Adding {len(missing_node_ids)} missing nodes referenced in relationships")
+                    for missing_id in missing_node_ids:
+                        try:
+                            entity = kg.get_entity(missing_id)
+                            if entity:
+                                nodes.append(
+                                    {
+                                        "id": entity.id,
+                                        "label": entity.name or entity.id,
+                                        "type": (
+                                            entity.entity_type.value
+                                            if hasattr(entity.entity_type, "value")
+                                            else str(entity.entity_type)
+                                        ),
+                                        "description": entity.description or "",
+                                        "jurisdiction": (
+                                            (
+                                                entity.source_metadata.jurisdiction
+                                                if hasattr(entity.source_metadata, "jurisdiction")
+                                                else None
+                                            )
+                                            if entity.source_metadata
+                                            else None
+                                        ),
+                                        "source_metadata": (
+                                            entity.source_metadata.model_dump()
+                                            if hasattr(entity.source_metadata, "model_dump")
+                                            else (
+                                                entity.source_metadata.dict()
+                                                if hasattr(entity.source_metadata, "dict")
+                                                else (entity.source_metadata if entity.source_metadata else {})
+                                            )
+                                        ),
+                                        "mentions_count": entity.mentions_count or 0,
+                                        "attributes": entity.attributes or {},
+                                    }
+                                )
+                        except Exception as e:
+                            logger.debug(f"Failed to fetch missing node {missing_id}: {e}")
+                            # Continue - missing nodes will just result in edges not being rendered
+                
             except Exception as e:
-                logger.debug(f"Relationships among nodes failed: {e}")
+                logger.debug(f"Relationships query failed: {e}", exc_info=True)
 
+        # Calculate next_cursor based on initial pagination (before adding missing nodes)
         next_cursor = None
-        if len(nodes) == limit:
+        if initial_node_count == limit:
             next_cursor = eff_offset + limit
 
-        return {"nodes": nodes, "links": links, "next_cursor": next_cursor}
+        # Get total count for pagination info (optional, may be slow for very large graphs)
+        total_count = None
+        try:
+            count_aql = """
+            LET types = @types
+            LET j = @jurisdiction
+            FOR doc IN kg_entities_view
+                SEARCH ((@q == null) OR ANALYZER(PHRASE(doc.name, @q) OR PHRASE(doc.description, @q), "text_en"))
+                FILTER (types == null OR doc.type IN types)
+                FILTER (!j OR doc.jurisdiction == j)
+                FILTER doc._id NOT LIKE "text_chunks/%"
+                COLLECT WITH COUNT INTO total
+                RETURN total
+            """
+            count_result = list(kg.db.aql.execute(count_aql, bind_vars=bind_vars))
+            if count_result:
+                total_count = count_result[0]
+        except Exception as e:
+            logger.debug(f"Could not get total count: {e}")
+            # Fallback: try simple count on entities collection
+            try:
+                count_fallback = """
+                FOR doc IN entities
+                    FILTER (@types == null OR doc.type IN @types)
+                    FILTER (@jurisdiction == null OR doc.jurisdiction == @jurisdiction)
+                    COLLECT WITH COUNT INTO total
+                    RETURN total
+                """
+                count_bvars = {"types": type_values, "jurisdiction": jurisdiction}
+                count_result = list(kg.db.aql.execute(count_fallback, bind_vars=count_bvars))
+                if count_result:
+                    total_count = count_result[0]
+            except Exception:
+                pass  # Total count is optional
+
+        return {
+            "nodes": nodes,
+            "links": links,
+            "next_cursor": next_cursor,
+            "total_count": total_count,
+            "loaded_count": len(nodes),
+        }
     except Exception as e:
         logger.error(f"Error retrieving graph data: {e!s}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
@@ -383,12 +544,17 @@ async def retrieve_entities(
         # Format relationships for response using new serialization method
         relationships_response = [rel.to_api_dict() for rel in relevant_data["relationships"]]
 
+        # Include chunks in response (NEW)
+        chunks = relevant_data.get("chunks", [])
+
         return {
             "key_terms": key_terms,
             "entities": entities_response,
             "relationships": relationships_response,
+            "chunks": chunks,
             "total_entities": len(entities_response),
             "total_relationships": len(relationships_response),
+            "total_chunks": len(chunks),
         }
     except Exception as e:
         logger.error(f"Error retrieving entities: {e}", exc_info=True)
@@ -614,6 +780,19 @@ async def analyze_case_enhanced(
                 "reasoning": pc.reasoning,
             }
 
+        # Serialize retrieved entities and relationships for API response
+        logger.info(f"API: Serializing {len(guidance.retrieved_entities)} entities, {len(guidance.retrieved_relationships)} relationships, {len(guidance.retrieved_chunks)} chunks")
+        entities_response = [entity.to_api_dict() for entity in guidance.retrieved_entities]
+        relationships_response = [rel.to_api_dict() for rel in guidance.retrieved_relationships]
+        
+        logger.info(f"API: After serialization - {len(entities_response)} entities, {len(relationships_response)} relationships")
+        if len(guidance.retrieved_chunks) == 0:
+            logger.warning("⚠️ API: NO CHUNKS in guidance.retrieved_chunks!")
+        if len(guidance.retrieved_entities) == 0:
+            logger.warning("⚠️ API: NO ENTITIES in guidance.retrieved_entities!")
+        if len(guidance.retrieved_relationships) == 0:
+            logger.warning("⚠️ API: NO RELATIONSHIPS in guidance.retrieved_relationships!")
+        
         result = {
             "case_summary": guidance.case_summary,
             "proof_chains": [convert_proof_chain(pc) for pc in guidance.proof_chains],
@@ -621,6 +800,23 @@ async def analyze_case_enhanced(
             "priority_actions": guidance.priority_actions,
             "risk_assessment": guidance.risk_assessment,
             "citations": guidance.citations,
+            # Rich interpretation fields (NEW)
+            "rich_interpretation": guidance.rich_interpretation,
+            "graph_insights": guidance.graph_insights,
+            "data_richness": guidance.data_richness,
+            "confidence_scores": {
+                "overall": guidance.graph_insights.get("confidence_score", 0.0),
+                "indicators": guidance.rich_interpretation.get("confidence_indicators", {}),
+            },
+            # Retrieved data for UI display (NEW)
+            "chunks": guidance.retrieved_chunks,
+            "entities": entities_response,
+            "relationships": relationships_response,
+            "retrieval_stats": {
+                "total_chunks": len(guidance.retrieved_chunks),
+                "total_entities": len(guidance.retrieved_entities),
+                "total_relationships": len(guidance.retrieved_relationships),
+            },
             # Backward compatibility
             "legal_issues": guidance.legal_issues,
             "relevant_laws": guidance.relevant_laws,
@@ -680,10 +876,72 @@ async def kg_view_page(request: Request, templates: Jinja2Templates = Depends(ge
     return templates.TemplateResponse("kg_view.html", {"request": request})
 
 
+@router.get("/api/debug-analysis")
+async def get_debug_analysis(
+    timestamp: str | None = None,
+    case_analyzer: CaseAnalyzer = Depends(get_analyzer),
+) -> dict:
+    """
+    Get debug analysis data from the most recent analysis or a specific timestamp.
+    
+    Args:
+        timestamp: Optional timestamp to get specific analysis (format: YYYYMMDD_HHMMSS).
+                   If not provided, returns the most recent.
+    
+    Returns:
+        Dictionary with debug output and intermediate results
+    """
+    try:
+        if not hasattr(case_analyzer, '_debug_data_cache'):
+            raise HTTPException(
+                status_code=404, 
+                detail="No debug data available. Run an analysis first."
+            )
+        
+        cache = case_analyzer._debug_data_cache
+        if not cache:
+            raise HTTPException(
+                status_code=404,
+                detail="No debug data available. Run an analysis first."
+            )
+        
+        # Get specific timestamp or most recent
+        if timestamp:
+            if timestamp not in cache:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Debug data for timestamp {timestamp} not found."
+                )
+            debug_data = cache[timestamp]
+        else:
+            # Get most recent
+            latest_timestamp = max(cache.keys())
+            debug_data = cache[latest_timestamp]
+        
+        return {
+            "timestamp": debug_data["data"]["timestamp"],
+            "debug_file": debug_data["debug_file"],
+            "debug_output": debug_data["debug_output"],
+            "summary": debug_data["data"]["final_results"],
+            "available_timestamps": sorted(cache.keys(), reverse=True)[:10],
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error retrieving debug analysis: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/kg-input", response_class=HTMLResponse)
 async def kg_input_page(request: Request, templates: Jinja2Templates = Depends(get_templates)):
     """Serve the KG input page."""
     return templates.TemplateResponse("kg_input.html", {"request": request})
+
+
+@router.get("/curation", response_class=HTMLResponse)
+async def curation_page(request: Request, templates: Jinja2Templates = Depends(get_templates)):
+    """Serve the legal source curation page for searching and bulk ingestion."""
+    return templates.TemplateResponse("curation.html", {"request": request})
 
 
 @router.get("/case-analysis")
@@ -1057,6 +1315,104 @@ async def vector_status() -> dict:
         return {"status": "error", "error": str(e)}
 
 
+@router.post("/api/qdrant/search", response_model=QdrantSearchResponse)
+async def qdrant_search(
+    request_data: QdrantSearchRequest,
+    case_analyzer: CaseAnalyzer = Depends(get_analyzer),
+) -> QdrantSearchResponse:
+    """Perform semantic search in Qdrant vector database."""
+    try:
+        if not case_analyzer.retriever.vector_store:
+            raise HTTPException(status_code=503, detail="Qdrant vector store not available")
+
+        # Create embedding for query
+        from tenant_legal_guidance.services.embeddings import EmbeddingsService
+
+        embeddings_svc = EmbeddingsService()
+        query_embedding = embeddings_svc.embed([request_data.query])[0]
+
+        # Search Qdrant
+        results = case_analyzer.retriever.vector_store.search(
+            query_embedding, top_k=request_data.top_k
+        )
+
+        # Format results
+        chunks = []
+        for result in results:
+            payload = result.get("payload", {})
+            chunks.append(
+                {
+                    "id": result.get("id", ""),
+                    "chunk_id": payload.get("chunk_id", ""),
+                    "score": result.get("score", 0.0),
+                    "text": payload.get("text", ""),
+                    "source_id": payload.get("source_id", ""),
+                    "doc_title": payload.get("doc_title", ""),
+                    "source": payload.get("source", ""),
+                    "jurisdiction": payload.get("jurisdiction", ""),
+                    "entities": payload.get("entities", []),
+                    "chunk_index": payload.get("chunk_index", 0),
+                    "organization": payload.get("organization", ""),
+                    "document_type": payload.get("document_type", ""),
+                }
+            )
+
+        return QdrantSearchResponse(chunks=chunks)
+
+    except Exception as e:
+        logger.error(f"Qdrant search failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.get("/api/qdrant/chunk/{chunk_id}")
+async def get_qdrant_chunk(
+    chunk_id: str, case_analyzer: CaseAnalyzer = Depends(get_analyzer)
+) -> dict:
+    """Get a specific chunk by ID from Qdrant."""
+    try:
+        if not case_analyzer.retriever.vector_store:
+            raise HTTPException(status_code=503, detail="Qdrant vector store not available")
+
+        # Search for chunk by ID
+        results = case_analyzer.retriever.vector_store.search_by_id(chunk_id)
+
+        if not results:
+            raise HTTPException(status_code=404, detail=f"Chunk not found: {chunk_id}")
+
+        # Format result
+        result = results[0]
+        payload = result.get("payload", {})
+        return {
+            "id": result.get("id", ""),
+            "chunk_id": payload.get("chunk_id", ""),
+            "text": payload.get("text", ""),
+            "source_id": payload.get("source_id", ""),
+            "doc_title": payload.get("doc_title", ""),
+            "source": payload.get("source", ""),
+            "jurisdiction": payload.get("jurisdiction", ""),
+            "entities": payload.get("entities", []),
+            "chunk_index": payload.get("chunk_index", 0),
+            "organization": payload.get("organization", ""),
+            "document_type": payload.get("document_type", ""),
+            "prev_chunk_id": payload.get("prev_chunk_id"),
+            "next_chunk_id": payload.get("next_chunk_id"),
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error retrieving chunk: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.get("/qdrant-view", response_class=HTMLResponse)
+async def qdrant_view_page(
+    request: Request, templates: Jinja2Templates = Depends(get_templates)
+):
+    """Serve the Qdrant exploration page."""
+    return templates.TemplateResponse("qdrant_view.html", {"request": request})
+
+
 @router.get("/api/chunks/adjacent")
 async def get_adjacent_chunks(
     chunk_id: str, system: TenantLegalSystem = Depends(get_system)
@@ -1165,6 +1521,137 @@ async def get_entity_chunks(
         raise
     except Exception as e:
         logger.error(f"Failed to get entity chunks: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/api/chunks/{chunk_id}/entities")
+async def get_chunk_entities(
+    chunk_id: str, system: TenantLegalSystem = Depends(get_system)
+) -> dict:
+    """Get all entities mentioned in a specific chunk."""
+    try:
+        # Get chunk from Qdrant
+        chunks = system.vector_store.search_by_id(chunk_id)
+        if not chunks:
+            raise HTTPException(status_code=404, detail="Chunk not found")
+
+        chunk = chunks[0]
+        payload = chunk.get("payload", {})
+        entity_ids = payload.get("entities", [])
+
+        # Get entity details from knowledge graph
+        entities = []
+        for entity_id in entity_ids:
+            entity = system.knowledge_graph.get_entity(entity_id)
+            if entity:
+                entities.append({
+                    "id": entity.id,
+                    "name": entity.name,
+                    "type": entity.entity_type.value if hasattr(entity.entity_type, "value") else str(entity.entity_type),
+                    "description": entity.description or "",
+                })
+
+        # Get source metadata if available
+        source_id = payload.get("source_id")
+        source_metadata = None
+        if source_id:
+            # Try to get source from knowledge graph
+            try:
+                source_doc = system.knowledge_graph.db.collection("sources").get(source_id)
+                if source_doc:
+                    source_metadata = {
+                        "source": source_doc.get("source", ""),
+                        "source_type": source_doc.get("source_type", ""),
+                        "title": source_doc.get("title"),
+                        "organization": source_doc.get("organization"),
+                        "jurisdiction": source_doc.get("jurisdiction"),
+                        "authority": source_doc.get("authority"),
+                        "document_type": source_doc.get("document_type"),
+                    }
+            except Exception:
+                pass  # Source not found, continue without metadata
+
+        return {
+            "chunk_id": chunk_id,
+            "chunk_text": payload.get("text", ""),
+            "source_id": source_id,
+            "chunk_index": payload.get("chunk_index"),
+            "entity_count": len(entities),
+            "entities": entities,
+            "source_metadata": source_metadata,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get chunk entities: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/api/chunks/{chunk_id}/context")
+async def get_chunk_context(
+    chunk_id: str,
+    context_size: int = 2,
+    system: TenantLegalSystem = Depends(get_system),
+) -> dict:
+    """Get expanded context for a chunk (N chunks before and after)."""
+    try:
+        # Get chunk
+        chunks = system.vector_store.search_by_id(chunk_id)
+        if not chunks:
+            raise HTTPException(status_code=404, detail="Chunk not found")
+
+        current_chunk = chunks[0]
+        payload = current_chunk.get("payload", {})
+        source_id = payload.get("source_id")
+        current_index = payload.get("chunk_index", 0)
+
+        # Get all chunks from this source
+        all_source_chunks = system.vector_store.get_chunks_by_source(source_id)
+
+        # Find context chunks
+        preceding = []
+        following = []
+
+        for chunk in all_source_chunks:
+            chunk_idx = chunk.get("chunk_index", 0)
+            if current_index - context_size <= chunk_idx < current_index:
+                preceding.append(chunk)
+            elif current_index < chunk_idx <= current_index + context_size:
+                following.append(chunk)
+
+        # Sort by index
+        preceding.sort(key=lambda x: x.get("chunk_index", 0))
+        following.sort(key=lambda x: x.get("chunk_index", 0))
+
+        return {
+            "chunk_id": chunk_id,
+            "current": {
+                "chunk_id": chunk_id,
+                "chunk_index": current_index,
+                "text": payload.get("text", ""),
+            },
+            "preceding": [
+                {
+                    "chunk_id": ch.get("chunk_id"),
+                    "chunk_index": ch.get("chunk_index"),
+                    "text": ch.get("text", "")[:500] + "..." if len(ch.get("text", "")) > 500 else ch.get("text", ""),
+                }
+                for ch in preceding
+            ],
+            "following": [
+                {
+                    "chunk_id": ch.get("chunk_id"),
+                    "chunk_index": ch.get("chunk_index"),
+                    "text": ch.get("text", "")[:500] + "..." if len(ch.get("text", "")) > 500 else ch.get("text", ""),
+                }
+                for ch in following
+            ],
+            "context_size": context_size,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get chunk context: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -1345,10 +1832,10 @@ async def get_required_evidence(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/api/v1/analyze-my-case", response_model=AnalyzeMyCaseResponse)
+@router.post("/api/v1/analyze-my-case")
 async def analyze_my_case(
     request: AnalyzeMyCaseRequest, system: TenantLegalSystem = Depends(get_system)
-) -> AnalyzeMyCaseResponse:
+) -> dict:
     """
     Analyze a user's legal situation and provide guidance.
 
@@ -1449,14 +1936,40 @@ async def analyze_my_case(
             situation=anonymized_situation,
         )
 
+        # NEW: Retrieve chunks, entities, and relationships for graph/explorer tabs
+        from tenant_legal_guidance.services.case_analyzer import CaseAnalyzer
+        case_analyzer = CaseAnalyzer(
+            knowledge_graph=system.knowledge_graph,
+            vector_store=system.vector_store,
+            llm_client=system.deepseek,
+        )
+        
+        # Extract key terms and retrieve data
+        key_terms = case_analyzer.extract_key_terms(anonymized_situation)
+        logger.info(f"Retrieving data for UI: {len(key_terms)} key terms")
+        relevant_data = case_analyzer.retrieve_relevant_entities(
+            key_terms,
+            case_text=anonymized_situation
+        )
+        
+        chunks = relevant_data.get("chunks", [])
+        entities = relevant_data.get("entities", [])
+        relationships = relevant_data.get("relationships", [])
+        
+        logger.info(f"Retrieved for UI: {len(chunks)} chunks, {len(entities)} entities, {len(relationships)} relationships")
+        
+        # Serialize entities and relationships
+        entities_response = [entity.to_api_dict() for entity in entities]
+        relationships_response = [rel.to_api_dict() for rel in relationships]
+
         # Collect similar cases from all matches
         for match in claim_matches:
             if match.predicted_outcome:
                 # Get cases from predictor (would need to store them)
                 pass
 
-        # Convert to response schema
-        return AnalyzeMyCaseResponse(
+        # Build response with retrieved data
+        response_obj = AnalyzeMyCaseResponse(
             possible_claims=[
                 ClaimTypeMatchSchema(
                     claim_type_id=match.claim_type_id,
@@ -1493,6 +2006,19 @@ async def analyze_my_case(
             extracted_evidence=extracted_evidence if extracted_evidence else None,
             similar_cases=None,  # Could populate from predictions
         )
+        
+        # Convert to dict and add retrieved data (response_model doesn't support extra fields)
+        response_dict = response_obj.model_dump()
+        response_dict["chunks"] = chunks
+        response_dict["entities"] = entities_response
+        response_dict["relationships"] = relationships_response
+        response_dict["retrieval_stats"] = {
+            "total_chunks": len(chunks),
+            "total_entities": len(entities),
+            "total_relationships": len(relationships),
+        }
+        
+        return response_dict
 
     except Exception as e:
         logger.error(f"Analyze my case failed: {e}", exc_info=True)

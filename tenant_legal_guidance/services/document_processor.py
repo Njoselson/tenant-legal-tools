@@ -275,6 +275,10 @@ class DocumentProcessor:
 
         # Step 3: Add entities to graph with quotes and multi-source consolidation
         added_entities = []
+        # Track validation errors for aggregation
+        validation_errors: dict[str, int] = {}  # error_pattern -> count
+        first_error_details: dict[str, Exception] = {}  # error_pattern -> first exception
+        
         for entity in entities:
             # Check if entity was resolved to an existing entity
             resolved_entity_id = entity_resolution_map.get(entity.id)
@@ -332,9 +336,17 @@ class DocumentProcessor:
                 )
 
                 # Update entity in KG (overwrite=True)
-                if self.knowledge_graph.add_entity(updated_entity, overwrite=True):
-                    added_entities.append(updated_entity)
-                    self.logger.info(f"Updated entity {entity.id} with multi-source data")
+                try:
+                    if self.knowledge_graph.add_entity(updated_entity, overwrite=True):
+                        added_entities.append(updated_entity)
+                        self.logger.info(f"Updated entity {entity.id} with multi-source data")
+                except Exception as e:
+                    # Aggregate validation errors
+                    error_pattern = f"{type(e).__name__}: {str(e)[:100]}"
+                    validation_errors[error_pattern] = validation_errors.get(error_pattern, 0) + 1
+                    if error_pattern not in first_error_details:
+                        first_error_details[error_pattern] = e
+                    self.logger.debug(f"Error updating entity {entity.id}: {e}")
             else:
                 # NEW ENTITY - First time seeing it
                 # Get the LLM-provided quote and update its metadata
@@ -364,8 +376,16 @@ class DocumentProcessor:
                 )
 
                 # Add to KG (overwrite=False for new entities)
-                if self.knowledge_graph.add_entity(entity, overwrite=False):
-                    added_entities.append(entity)
+                try:
+                    if self.knowledge_graph.add_entity(entity, overwrite=False):
+                        added_entities.append(entity)
+                except Exception as e:
+                    # Aggregate validation errors
+                    error_pattern = f"{type(e).__name__}: {str(e)[:100]}"
+                    validation_errors[error_pattern] = validation_errors.get(error_pattern, 0) + 1
+                    if error_pattern not in first_error_details:
+                        first_error_details[error_pattern] = e
+                    self.logger.debug(f"Error adding entity {entity.id}: {e}")
 
             # Build a provenance entry with a sentence-level quote from the source if available
             quote_text, quote_offset = self._extract_best_quote(text or "", entity)
@@ -427,6 +447,23 @@ class DocumentProcessor:
                 added_entities.append(entity)
                 # Entity-chunk linkage now happens via Qdrant payload (entities list)
                 # and provenance/quotes in Arango
+
+        # Log aggregated validation errors if any
+        if validation_errors:
+            error_summary = ", ".join(
+                f"{pattern} ({count}x)" for pattern, count in sorted(
+                    validation_errors.items(), key=lambda x: x[1], reverse=True
+                )[:10]  # Top 10 error patterns
+            )
+            self.logger.warning(
+                f"Encountered {sum(validation_errors.values())} validation errors: {error_summary}"
+            )
+            # Log full details for first occurrence of each pattern
+            for pattern, first_error in first_error_details.items():
+                self.logger.debug(
+                    f"First occurrence of '{pattern}': {first_error}",
+                    exc_info=first_error
+                )
 
         # Step 4: Add relationships to graph
         added_relationships = []
@@ -536,26 +573,63 @@ class DocumentProcessor:
                         {"description": "", "proves": "", "references": ""} for _ in chunk_texts
                     ]
 
-                # Compute embeddings
-                embeddings = self.embeddings_svc.embed(chunk_texts)
                 # Build payloads with entity refs (include proof chain entities)
                 entity_ids = [e.id for e in added_entities]
                 # Add proof chain entity IDs to chunk payloads
                 all_entity_ids = list(set(entity_ids + proof_chain_entity_ids))
-                payloads = []
+                
+                # CHUNK DEDUPLICATION: Check for existing chunks by content hash
+                deduplicated_chunk_ids = []
+                chunks_to_embed = []
+                chunk_indices_to_embed = []
+                existing_chunk_map = {}  # Maps content_hash -> existing chunk_id
+                
                 for i, ch in enumerate(chunk_docs):
+                    # Compute chunk-specific content hash
+                    chunk_content_hash = sha256(ch.get("text", ""))
+                    
+                    # Check if chunk with this hash already exists
+                    existing_chunk = self.vector_store.find_chunk_by_content_hash(chunk_content_hash)
+                    
+                    if existing_chunk:
+                        # Reuse existing chunk
+                        existing_chunk_id = existing_chunk["chunk_id"]
+                        deduplicated_chunk_ids.append(existing_chunk_id)
+                        existing_chunk_map[chunk_content_hash] = existing_chunk_id
+                        self.logger.debug(f"Reusing existing chunk {existing_chunk_id} for content hash {chunk_content_hash[:8]}...")
+                        
+                        # Update entity-chunk links: add this source's entities to existing chunk
+                        # Note: This requires updating the existing chunk's payload, which we'll do after
+                    else:
+                        # New chunk - will need embedding
+                        deduplicated_chunk_ids.append(chunk_ids[i])
+                        chunks_to_embed.append(ch.get("text", ""))
+                        chunk_indices_to_embed.append(i)
+                
+                # Compute embeddings only for new chunks
+                embeddings = self.embeddings_svc.embed(chunks_to_embed) if chunks_to_embed else np.array([])
+                
+                # Build payloads - only for new chunks (those that need embedding)
+                payloads = []
+                new_chunk_ids = []
+                for idx, orig_idx in enumerate(chunk_indices_to_embed):
+                    i = orig_idx
+                    ch = chunk_docs[i]
                     enrichment = enriched_metadata[i] if i < len(enriched_metadata) else {}
 
-                    # NEW: Compute chunk-specific content hash
+                    # Compute chunk-specific content hash
                     chunk_content_hash = sha256(ch.get("text", ""))
 
-                    # NEW: Calculate prev/next chunk IDs
+                    # This is a new chunk - create payload
+                    # Calculate prev/next chunk IDs
                     prev_chunk_id = f"{source_id}:{i - 1}" if i > 0 else None
                     next_chunk_id = f"{source_id}:{i + 1}" if i < len(chunk_docs) - 1 else None
 
+                    new_chunk_id = chunk_ids[i]
+                    new_chunk_ids.append(new_chunk_id)
                     payloads.append(
                         {
-                            "chunk_id": chunk_ids[i],  # Format: "UUID:index"
+                            "chunk_id": new_chunk_id,  # Format: "UUID:index"
                             "source_id": source_id,  # NEW: UUID for filtering
                             "chunk_index": i,  # NEW: For ordering
                             "content_hash": chunk_content_hash,  # NEW: For integrity
@@ -604,27 +678,80 @@ class DocumentProcessor:
                             ),
                         }
                     )
-                # Upsert to Qdrant
-                self.vector_store.upsert_chunks(chunk_ids, embeddings, payloads)
-                chunk_count = len(chunk_ids)
-                self.logger.info(f"Successfully persisted {chunk_count} chunks to Qdrant")
+                
+                # Upsert only new chunks to Qdrant
+                if new_chunk_ids and len(payloads) > 0:
+                    self.vector_store.upsert_chunks(new_chunk_ids, embeddings, payloads)
+                    self.logger.info(f"Persisted {len(new_chunk_ids)} new chunks to Qdrant")
+                
+                # Update existing chunks with new entity references (for deduplicated chunks)
+                if existing_chunk_map:
+                    self.logger.info(f"Updating {len(existing_chunk_map)} existing chunks with new entity references")
+                    for content_hash, existing_chunk_id in existing_chunk_map.items():
+                        try:
+                            # Update chunk payload with merged entity list
+                            success = self.vector_store.update_chunk_payload(
+                                existing_chunk_id,
+                                {"entities": all_entity_ids}  # Will be merged with existing
+                            )
+                            if success:
+                                self.logger.debug(f"Updated chunk {existing_chunk_id} with new entity references")
+                            else:
+                                self.logger.warning(f"Failed to update chunk {existing_chunk_id} payload")
+                        except Exception as e:
+                            self.logger.warning(f"Failed to update existing chunk {existing_chunk_id}: {e}", exc_info=True)
+                
+                chunk_count = len(deduplicated_chunk_ids)
+                dedup_count = len(existing_chunk_map)
+                self.logger.info(f"Successfully processed {chunk_count} chunks ({len(new_chunk_ids)} new, {dedup_count} reused) to Qdrant")
 
                 # Step 6.5: Link proof chain entities to chunks (bidirectional linking)
-                if proof_chain_entity_ids and chunk_ids:
+                # Use deduplicated_chunk_ids (includes both new and reused chunks)
+                if proof_chain_entity_ids and deduplicated_chunk_ids:
                     try:
                         self.logger.info(
-                            f"Linking {len(proof_chain_entity_ids)} proof chain entities to {len(chunk_ids)} chunks"
+                            f"Linking {len(proof_chain_entity_ids)} proof chain entities to {len(deduplicated_chunk_ids)} chunks"
                         )
                         for entity_id in proof_chain_entity_ids:
                             entity = self.knowledge_graph.get_entity(entity_id)
                             if entity:
                                 # entity is already a LegalEntity object
-                                self.proof_chain_service._link_entity_to_chunks(entity, chunk_ids)
+                                self.proof_chain_service._link_entity_to_chunks(entity, deduplicated_chunk_ids)
                         self.logger.info("Successfully linked proof chain entities to chunks")
                     except Exception as e:
                         self.logger.warning(
                             f"Failed to link proof chain entities to chunks: {e}", exc_info=True
                         )
+                
+                # Step 6.6: Update entity chunk_ids to use deduplicated chunk IDs
+                # This ensures entities reference the correct chunks (including reused ones)
+                for entity in added_entities:
+                    if hasattr(entity, 'chunk_ids') and entity.chunk_ids:
+                        # Map original chunk_ids to deduplicated ones
+                        updated_chunk_ids = []
+                        for orig_chunk_id in entity.chunk_ids:
+                            # Find corresponding deduplicated chunk_id
+                            # If it was a duplicate, use the existing chunk_id
+                            # If it was new, use the same chunk_id
+                            chunk_idx = None
+                            try:
+                                # Extract index from chunk_id format "source_id:index"
+                                if ":" in orig_chunk_id:
+                                    chunk_idx = int(orig_chunk_id.split(":")[-1])
+                            except (ValueError, IndexError):
+                                pass
+                            
+                            if chunk_idx is not None and chunk_idx < len(deduplicated_chunk_ids):
+                                updated_chunk_ids.append(deduplicated_chunk_ids[chunk_idx])
+                            else:
+                                # Fallback: keep original if we can't map it
+                                updated_chunk_ids.append(orig_chunk_id)
+                        
+                        # Update entity with deduplicated chunk_ids
+                        entity.chunk_ids = list(set(updated_chunk_ids))  # Deduplicate
+                        
+                        # Update entity in knowledge graph
+                        self.knowledge_graph.add_entity(entity, overwrite=True)
             except Exception as e:
                 self.logger.error(f"Failed to persist chunks to Qdrant: {e}", exc_info=True)
 
@@ -1048,6 +1175,11 @@ Ensure array has exactly {len(batch)} objects."""
     def _get_all_entities(self) -> list[LegalEntity]:
         """Get all entities from the knowledge graph for concept grouping."""
         all_entities = []
+        
+        # Reset error tracking for this batch
+        if hasattr(self, '_document_to_entity_error_counts'):
+            self._document_to_entity_error_counts.clear()
+            self._document_to_entity_error_examples.clear()
 
         # Get entities from normalized entities collection
         try:
@@ -1071,6 +1203,27 @@ Ensure array has exactly {len(batch)} objects."""
                     all_entities.append(entity)
         except Exception as e:
             self.logger.warning(f"Error getting entities from entities collection: {e}")
+        
+        # Log error summary if there were errors
+        if hasattr(self, '_document_to_entity_error_counts') and self._document_to_entity_error_counts:
+            total_errors = sum(self._document_to_entity_error_counts.values())
+            error_summary = ", ".join([
+                f"{pattern} ({count}x)"
+                for pattern, count in sorted(
+                    self._document_to_entity_error_counts.items(),
+                    key=lambda x: -x[1]
+                )[:5]  # Top 5 error patterns
+            ])
+            if total_errors > 0:
+                self.logger.warning(
+                    f"Encountered {total_errors} validation errors while converting entities: {error_summary}"
+                )
+                # Log example for each pattern
+                for pattern, (example_id, example_msg) in self._document_to_entity_error_examples.items():
+                    if self._document_to_entity_error_counts[pattern] > 1:
+                        self.logger.debug(
+                            f"Example error for '{pattern}': entity {example_id} - {example_msg[:100]}"
+                        )
 
         return all_entities
 
@@ -1108,31 +1261,95 @@ Ensure array has exactly {len(batch)} objects."""
 
             # Extract attributes (exclude special and derived fields that don't belong in attributes)
             # These should be handled as top-level LegalEntity fields, not in attributes dict
-            attributes = {
+            # Fields that should NEVER be in attributes (they're top-level LegalEntity fields)
+            excluded_fields = {
+                "_key",
+                "type",
+                "name",
+                "description",
+                "source_metadata",
+                "jurisdiction",
+                "provenance",
+                "mentions_count",
+                "best_quote",
+                "all_quotes",
+                "chunk_ids",
+                "source_ids",
+                "outcome",
+                "ruling_type",
+                "relief_granted",
+                "damages_awarded",
+                # Legal claim fields (stored as top-level, not in attributes)
+                "claim_description",
+                "claimant",
+                "respondent_party",
+                "claim_type",
+                "relief_sought",
+                "claim_status",
+                "proof_completeness",
+                "gaps",
+                # Evidence context fields (stored as top-level, not in attributes)
+                "evidence_context",
+                "evidence_source_type",
+                "evidence_source_reference",
+                "evidence_examples",
+                "is_critical",
+                "matches_required_id",
+                "linked_claim_id",
+                "linked_claim_type",
+                # Other top-level fields
+                "strength_score",  # Should be excluded or converted if kept
+                "_id",
+                "_rev",
+            }
+            
+            # Get raw attributes, excluding top-level fields
+            raw_attributes = {
                 k: v
                 for k, v in doc.items()
-                if k
-                not in [
-                    "_key",
-                    "type",
-                    "name",
-                    "description",
-                    "source_metadata",
-                    "jurisdiction",
-                    "provenance",
-                    "mentions_count",
-                    "best_quote",
-                    "all_quotes",
-                    "chunk_ids",
-                    "source_ids",
-                    "outcome",
-                    "ruling_type",
-                    "relief_granted",
-                    "damages_awarded",
-                    "_id",
-                    "_rev",
-                ]
+                if k not in excluded_fields
             }
+            
+            # Also check if there's a nested attributes dict in old data
+            # OLD DATA FIX: Old entities have problematic fields stored in attributes dict
+            old_attributes = doc.get("attributes", {})
+            if isinstance(old_attributes, dict):
+                # Merge old attributes, but STRICTLY exclude problematic fields
+                for k, v in old_attributes.items():
+                    # NEVER include these fields in attributes - they're direct fields
+                    if k in excluded_fields:
+                        continue
+                    if k not in raw_attributes:
+                        raw_attributes[k] = v
+            
+            # Convert all attribute values to strings (Pydantic requires dict[str, str])
+            attributes = {}
+            for k, v in raw_attributes.items():
+                if isinstance(v, (list, tuple)):
+                    attributes[k] = ", ".join(str(item) for item in v)
+                elif isinstance(v, bool):
+                    attributes[k] = str(v).lower()
+                elif isinstance(v, (int, float)):
+                    attributes[k] = str(v)
+                elif v is None:
+                    attributes[k] = ""
+                elif isinstance(v, dict):
+                    # Convert dict to JSON string
+                    try:
+                        import json
+                        attributes[k] = json.dumps(v)
+                    except (TypeError, ValueError):
+                        attributes[k] = str(v)
+                else:
+                    attributes[k] = str(v)
+            
+            # Final safety check: remove any problematic fields that might have slipped through
+            for field in excluded_fields:
+                attributes.pop(field, None)
+            
+            # Extra safety: ensure strength_score is always a string if present (defensive programming)
+            if "strength_score" in attributes and not isinstance(attributes["strength_score"], str):
+                attributes["strength_score"] = str(attributes["strength_score"])
 
             # Pull provenance and mentions_count into top-level fields
             provenance = doc.get("provenance")
@@ -1173,10 +1390,116 @@ Ensure array has exactly {len(batch)} objects."""
                 entity_kwargs["relief_granted"] = doc.get("relief_granted")
             if "damages_awarded" in doc:
                 entity_kwargs["damages_awarded"] = doc.get("damages_awarded")
+            
+            # Add legal claim fields if present
+            if "claim_description" in doc:
+                entity_kwargs["claim_description"] = doc.get("claim_description")
+            if "claimant" in doc:
+                entity_kwargs["claimant"] = doc.get("claimant")
+            if "respondent_party" in doc:
+                entity_kwargs["respondent_party"] = doc.get("respondent_party")
+            if "claim_type" in doc:
+                entity_kwargs["claim_type"] = doc.get("claim_type")
+            if "relief_sought" in doc:
+                relief_sought = doc.get("relief_sought")
+                # Handle list or string conversion
+                if isinstance(relief_sought, list):
+                    entity_kwargs["relief_sought"] = [str(item) for item in relief_sought]
+                elif isinstance(relief_sought, str):
+                    # Try to parse if it's a JSON string
+                    try:
+                        parsed = json.loads(relief_sought)
+                        if isinstance(parsed, list):
+                            entity_kwargs["relief_sought"] = [str(item) for item in parsed]
+                        else:
+                            entity_kwargs["relief_sought"] = [relief_sought]
+                    except (json.JSONDecodeError, ValueError):
+                        entity_kwargs["relief_sought"] = [relief_sought]
+                else:
+                    entity_kwargs["relief_sought"] = []
+            if "claim_status" in doc:
+                entity_kwargs["claim_status"] = doc.get("claim_status")
+            if "proof_completeness" in doc:
+                proof_completeness = doc.get("proof_completeness")
+                if proof_completeness is not None:
+                    try:
+                        entity_kwargs["proof_completeness"] = float(proof_completeness)
+                    except (ValueError, TypeError):
+                        pass
+            if "gaps" in doc:
+                gaps = doc.get("gaps")
+                if isinstance(gaps, list):
+                    entity_kwargs["gaps"] = [str(item) for item in gaps]
+                elif gaps is not None:
+                    entity_kwargs["gaps"] = [str(gaps)]
+            
+            # Add evidence context fields if present
+            if "evidence_context" in doc:
+                entity_kwargs["evidence_context"] = doc.get("evidence_context")
+            if "evidence_source_type" in doc:
+                entity_kwargs["evidence_source_type"] = doc.get("evidence_source_type")
+            if "evidence_source_reference" in doc:
+                entity_kwargs["evidence_source_reference"] = doc.get("evidence_source_reference")
+            if "evidence_examples" in doc:
+                evidence_examples = doc.get("evidence_examples")
+                if isinstance(evidence_examples, list):
+                    entity_kwargs["evidence_examples"] = [str(item) for item in evidence_examples]
+                elif evidence_examples is not None:
+                    entity_kwargs["evidence_examples"] = [str(evidence_examples)]
+            if "is_critical" in doc:
+                is_critical = doc.get("is_critical")
+                if isinstance(is_critical, bool):
+                    entity_kwargs["is_critical"] = is_critical
+                elif isinstance(is_critical, str):
+                    entity_kwargs["is_critical"] = is_critical.lower() == "true"
+            if "matches_required_id" in doc:
+                entity_kwargs["matches_required_id"] = doc.get("matches_required_id")
+            if "linked_claim_id" in doc:
+                entity_kwargs["linked_claim_id"] = doc.get("linked_claim_id")
+            if "linked_claim_type" in doc:
+                entity_kwargs["linked_claim_type"] = doc.get("linked_claim_type")
 
             return LegalEntity(**entity_kwargs)
         except Exception as e:
-            self.logger.warning(f"Error converting document to entity: {e}")
+            # Aggregate errors to reduce log noise
+            entity_id = doc.get("_key", "unknown")
+            error_msg = str(e)
+            
+            # Initialize error tracking if not exists
+            if not hasattr(self, '_document_to_entity_error_counts'):
+                self._document_to_entity_error_counts = {}
+                self._document_to_entity_error_examples = {}
+            
+            # Create error pattern key (simplified for grouping)
+            # Extract the validation field name if it's a Pydantic error
+            error_pattern = error_msg
+            if "validation error" in error_msg.lower():
+                # Extract field name from Pydantic errors like "attributes.strength_score"
+                import re
+                field_match = re.search(r'(\w+(?:\.\w+)?)', error_msg)
+                if field_match:
+                    error_pattern = f"ValidationError: {field_match.group(1)}"
+                else:
+                    error_pattern = f"ValidationError: {error_msg[:80]}"
+            else:
+                error_pattern = f"{type(e).__name__}: {error_msg[:80]}"
+            
+            # Count errors by pattern
+            if error_pattern not in self._document_to_entity_error_counts:
+                self._document_to_entity_error_counts[error_pattern] = 0
+                self._document_to_entity_error_examples[error_pattern] = (entity_id, error_msg)
+            
+            self._document_to_entity_error_counts[error_pattern] += 1
+            
+            # Log full details only for first occurrence, debug for others
+            if self._document_to_entity_error_counts[error_pattern] == 1:
+                self.logger.warning(
+                    f"Error converting document to entity {entity_id}: {e}",
+                    exc_info=True
+                )
+            else:
+                self.logger.debug(f"Error converting document to entity {entity_id}: {e}")
+            
             return None
 
     def _extract_best_quote(self, text: str, entity: LegalEntity) -> tuple[str | None, int | None]:
@@ -1275,6 +1598,12 @@ Ensure array has exactly {len(batch)} objects."""
             for proof_chain in case_analysis_results.proof_chains:
                 # Create entity for the legal issue
                 if proof_chain.issue:
+                    # Convert all attribute values to strings (Pydantic requires dict[str, str])
+                    # Ensure strength_score is always a string, handling all numeric types
+                    strength_score_str = ""
+                    if proof_chain.strength_score is not None:
+                        strength_score_str = str(proof_chain.strength_score)
+                    
                     issue_entity = LegalEntity(
                         id=f"issue:{source_id}:{self.entity_service.generate_entity_id(proof_chain.issue, EntityType.TENANT_ISSUE)}",
                         entity_type=EntityType.TENANT_ISSUE,
@@ -1282,10 +1611,10 @@ Ensure array has exactly {len(batch)} objects."""
                         description=f"Legal issue identified in case analysis: {proof_chain.reasoning}",
                         source_metadata=metadata,
                         attributes={
-                            "strength_score": proof_chain.strength_score,
-                            "strength_assessment": proof_chain.strength_assessment,
-                            "evidence_present": ",".join(proof_chain.evidence_present),
-                            "evidence_needed": ",".join(proof_chain.evidence_needed),
+                            "strength_score": strength_score_str,
+                            "strength_assessment": str(proof_chain.strength_assessment) if proof_chain.strength_assessment else "",
+                            "evidence_present": ",".join(proof_chain.evidence_present) if proof_chain.evidence_present else "",
+                            "evidence_needed": ",".join(proof_chain.evidence_needed) if proof_chain.evidence_needed else "",
                             "extraction_method": "case_analysis",
                         },
                     )
@@ -1294,6 +1623,7 @@ Ensure array has exactly {len(batch)} objects."""
                 # Create entities for remedies
                 for remedy in proof_chain.remedies:
                     if remedy.name:
+                        # Convert all attribute values to strings
                         remedy_entity = LegalEntity(
                             id=f"remedy:{source_id}:{self.entity_service.generate_entity_id(remedy.name, EntityType.REMEDY)}",
                             entity_type=EntityType.REMEDY,
@@ -1301,8 +1631,8 @@ Ensure array has exactly {len(batch)} objects."""
                             description=remedy.description,
                             source_metadata=metadata,
                             attributes={
-                                "success_rate": remedy.success_rate,
-                                "reasoning": remedy.reasoning,
+                                "success_rate": str(remedy.success_rate) if remedy.success_rate is not None else "",
+                                "reasoning": str(remedy.reasoning) if remedy.reasoning else "",
                                 "extraction_method": "case_analysis",
                             },
                         )
@@ -1311,6 +1641,7 @@ Ensure array has exactly {len(batch)} objects."""
                 # Create entities for applicable laws
                 for law in proof_chain.applicable_laws:
                     if law.get("name"):
+                        # Convert all attribute values to strings
                         law_entity = LegalEntity(
                             id=f"law:{source_id}:{self.entity_service.generate_entity_id(law['name'], EntityType.LAW)}",
                             entity_type=EntityType.LAW,
@@ -1318,7 +1649,7 @@ Ensure array has exactly {len(batch)} objects."""
                             description=law.get("text", ""),
                             source_metadata=metadata,
                             attributes={
-                                "source": law.get("source", ""),
+                                "source": str(law.get("source", "")) if law.get("source") else "",
                                 "extraction_method": "case_analysis",
                             },
                         )

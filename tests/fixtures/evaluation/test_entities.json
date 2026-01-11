@@ -1,0 +1,220 @@
+{
+  "description": "Test dataset of known entities for evaluation. These represent common legal entities that should exist in the knowledge graph.",
+  "entities": [
+    {
+      "id": "law:warranty_of_habitability",
+      "entity_type": "law",
+      "name": "Warranty of Habitability",
+      "description": "Landlord's legal obligation to maintain habitable living conditions",
+      "jurisdiction": "NYC",
+      "expected_properties": {
+        "has_best_quote": true,
+        "has_chunk_ids": true,
+        "has_source_ids": true,
+        "min_chunk_count": 1,
+        "min_source_count": 1
+      },
+      "expected_quote_contains": ["habitability", "landlord", "tenant"],
+      "expected_relationships": ["enables", "requires"]
+    },
+    {
+      "id": "law:rent_stabilization_law",
+      "entity_type": "law",
+      "name": "Rent Stabilization Law",
+      "description": "NYC rent stabilization regulations",
+      "jurisdiction": "NYC",
+      "expected_properties": {
+        "has_best_quote": true,
+        "has_chunk_ids": true,
+        "has_source_ids": true,
+        "min_chunk_count": 1,
+        "min_source_count": 1
+      },
+      "expected_quote_contains": ["rent", "stabilization", "regulated"],
+      "expected_relationships": ["enables", "applies_to"]
+    },
+    {
+      "id": "remedy:hp_action",
+      "entity_type": "remedy",
+      "name": "HP Action",
+      "description": "Housing Part action for habitability violations",
+      "jurisdiction": "NYC",
+      "expected_properties": {
+        "has_best_quote": true,
+        "has_chunk_ids": true,
+        "min_chunk_count": 1
+      },
+      "expected_quote_contains": ["HP", "action", "housing"],
+      "expected_relationships": ["available_via", "enabled_by"]
+    },
+    {
+      "id": "remedy:rent_reduction",
+      "entity_type": "remedy",
+      "name": "Rent Reduction",
+      "description": "Reduction in rent due to habitability violations",
+      "jurisdiction": "NYC",
+      "expected_properties": {
+        "has_best_quote": true,
+        "has_chunk_ids": true,
+        "min_chunk_count": 1
+      },
+      "expected_quote_contains": ["rent", "reduction"],
+      "expected_relationships": ["enabled_by"]
+    },
+    {
+      "id": "evidence:photos_of_conditions",
+      "entity_type": "evidence",
+      "name": "Photos of Housing Conditions",
+      "description": "Photographic evidence of habitability violations",
+      "expected_properties": {
+        "has_best_quote": true,
+        "has_chunk_ids": true,
+        "min_chunk_count": 1
+      },
+      "expected_quote_contains": ["photo", "evidence", "condition"],
+      "expected_relationships": ["required_by", "supports"]
+    },
+    {
+      "id": "evidence:repair_requests",
+      "entity_type": "evidence",
+      "name": "Repair Request Records",
+      "description": "Documentation of requests for repairs",
+      "expected_properties": {
+        "has_best_quote": true,
+        "has_chunk_ids": true,
+        "min_chunk_count": 1
+      },
+      "expected_quote_contains": ["repair", "request", "notice"],
+      "expected_relationships": ["required_by"]
+    },
+    {
+      "id": "evidence:lease_document",
+      "entity_type": "evidence",
+      "name": "Lease Document",
+      "description": "Rental agreement between landlord and tenant",
+      "expected_properties": {
+        "has_best_quote": true,
+        "has_chunk_ids": true,
+        "min_chunk_count": 1
+      },
+      "expected_quote_contains": ["lease", "agreement", "rent"],
+      "expected_relationships": ["required_by"]
+    },
+    {
+      "id": "legal_procedure:file_hp_action",
+      "entity_type": "legal_procedure",
+      "name": "File HP Action",
+      "description": "Procedure for filing Housing Part action",
+      "jurisdiction": "NYC",
+      "expected_properties": {
+        "has_best_quote": true,
+        "has_chunk_ids": true,
+        "min_chunk_count": 1
+      },
+      "expected_quote_contains": ["file", "HP", "action", "court"],
+      "expected_relationships": ["available_via"]
+    },
+    {
+      "id": "tenant_issue:mold_in_apartment",
+      "entity_type": "tenant_issue",
+      "name": "Mold in Apartment",
+      "description": "Mold growth affecting habitability",
+      "expected_properties": {
+        "has_best_quote": true,
+        "has_chunk_ids": true,
+        "min_chunk_count": 1
+      },
+      "expected_quote_contains": ["mold", "apartment", "habitability"],
+      "expected_relationships": ["applies_to"]
+    },
+    {
+      "id": "tenant_issue:rent_overcharge",
+      "entity_type": "tenant_issue",
+      "name": "Rent Overcharge",
+      "description": "Charging rent above legal regulated rent",
+      "jurisdiction": "NYC",
+      "expected_properties": {
+        "has_best_quote": true,
+        "has_chunk_ids": true,
+        "min_chunk_count": 1
+      },
+      "expected_quote_contains": ["rent", "overcharge", "regulated"],
+      "expected_relationships": ["applies_to"]
+    },
+    {
+      "id": "tenant_issue:lack_of_heat",
+      "entity_type": "tenant_issue",
+      "name": "Lack of Heat",
+      "description": "Insufficient or no heating in apartment",
+      "expected_properties": {
+        "has_best_quote": true,
+        "has_chunk_ids": true,
+        "min_chunk_count": 1
+      },
+      "expected_quote_contains": ["heat", "heating", "temperature"],
+      "expected_relationships": ["applies_to"]
+    },
+    {
+      "id": "legal_concept:constructive_eviction",
+      "entity_type": "legal_concept",
+      "name": "Constructive Eviction",
+      "description": "When conditions make apartment uninhabitable",
+      "expected_properties": {
+        "has_best_quote": true,
+        "has_chunk_ids": true,
+        "min_chunk_count": 1
+      },
+      "expected_quote_contains": ["constructive", "eviction", "uninhabitable"],
+      "expected_relationships": []
+    },
+    {
+      "id": "damages:treble_damages",
+      "entity_type": "damages",
+      "name": "Treble Damages",
+      "description": "Triple damages for willful rent overcharge",
+      "jurisdiction": "NYC",
+      "expected_properties": {
+        "has_best_quote": true,
+        "has_chunk_ids": true,
+        "min_chunk_count": 1
+      },
+      "expected_quote_contains": ["treble", "damages", "three"],
+      "expected_relationships": ["awarded_for"]
+    },
+    {
+      "id": "government_entity:dhcr",
+      "entity_type": "government_entity",
+      "name": "DHCR",
+      "description": "Division of Housing and Community Renewal",
+      "jurisdiction": "NYC",
+      "expected_properties": {
+        "has_best_quote": true,
+        "has_chunk_ids": true,
+        "min_chunk_count": 1
+      },
+      "expected_quote_contains": ["DHCR", "Housing", "Community"],
+      "expected_relationships": []
+    },
+    {
+      "id": "case_document:756_liberty_v_garcia",
+      "entity_type": "case_document",
+      "name": "756 Liberty Realty LLC v Garcia",
+      "description": "Case about rent stabilization and deregulation",
+      "jurisdiction": "NYC",
+      "expected_properties": {
+        "has_best_quote": true,
+        "has_chunk_ids": true,
+        "has_outcome": true,
+        "min_chunk_count": 1
+      },
+      "expected_quote_contains": ["756 Liberty", "Garcia", "rent"],
+      "expected_case_fields": {
+        "case_name": "756 Liberty Realty LLC v Garcia",
+        "court": "Civil Court of the City of New York",
+        "outcome": "plaintiff_win",
+        "has_docket_number": true
+      }
+    }
+  ]
+}
+

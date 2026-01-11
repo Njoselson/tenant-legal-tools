@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Qdrant Vector Database Explorer</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f0f2f5;
+        }
+        
+        nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            background: rgba(52, 73, 94, 0.95);
+            padding: 8px 0;
+            text-align: center;
+            z-index: 1000;
+        }
+        
+        nav a {
+            color: white;
+            text-decoration: none;
+            margin: 0 15px;
+            font-weight: bold;
+            font-size: 0.9em;
+        }
+        
+        nav a:hover {
+            text-decoration: underline;
+        }
+        
+        .container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            padding-top: 40px;
+        }
+        
+        .query-panel {
+            background: white;
+            padding: 20px;
+            border-bottom: 2px solid #d1d9e6;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .query-panel h1 {
+            margin: 0 0 20px 0;
+            color: #2c3e50;
+        }
+        
+        .query-controls {
+            display: flex;
+            gap: 15px;
+            align-items: flex-end;
+        }
+        
+        .query-input-group {
+            flex-grow: 1;
+        }
+        
+        .query-input-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        
+        .query-input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 16px;
+            font-family: inherit;
+        }
+        
+        .query-options {
+            display: flex;
+            gap: 15px;
+            align-items: flex-end;
+        }
+        
+        .query-options label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #2c3e50;
+            font-size: 14px;
+        }
+        
+        .query-options input {
+            width: 80px;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 16px;
+        }
+        
+        .search-btn {
+            padding: 12px 30px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            height: 48px;
+        }
+        
+        .search-btn:hover {
+            background-color: #2980b9;
+        }
+        
+        .search-btn:disabled {
+            background-color: #bdc3c7;
+            cursor: not-allowed;
+        }
+        
+        .content-area {
+            flex-grow: 1;
+            display: flex;
+            overflow: hidden;
+        }
+        
+        .results-panel {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            background-color: #ffffff;
+        }
+        
+        .preview-panel {
+            width: 500px;
+            border-left: 2px solid #d1d9e6;
+            background-color: #f8f9fa;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        
+        .preview-panel h3 {
+            margin-top: 0;
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+        }
+        
+        .chunk-card {
+            background-color: #ffffff;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            transition: all 0.2s;
+        }
+        
+        .chunk-card:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            border-color: #3498db;
+        }
+        
+        .chunk-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .chunk-score {
+            background-color: #3498db;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        
+        .chunk-meta {
+            font-size: 12px;
+            color: #7f8c8d;
+            margin-bottom: 10px;
+        }
+        
+        .chunk-text {
+            color: #2c3e50;
+            line-height: 1.6;
+            margin-bottom: 10px;
+        }
+        
+        .chunk-entities {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #e9ecef;
+        }
+        
+        .chunk-entities span {
+            display: inline-block;
+            background-color: #e9ecef;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            margin-right: 5px;
+            margin-bottom: 5px;
+        }
+        
+        .chunk-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .chunk-btn {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 4px;
+            font-size: 13px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        
+        .btn-include {
+            background-color: #28a745;
+            color: white;
+        }
+        
+        .btn-include:hover {
+            background-color: #218838;
+        }
+        
+        .btn-view-full {
+            background-color: #17a2b8;
+            color: white;
+        }
+        
+        .btn-view-full:hover {
+            background-color: #138496;
+        }
+        
+        .btn-view-kg {
+            background-color: #6c757d;
+            color: white;
+        }
+        
+        .btn-view-kg:hover {
+            background-color: #5a6268;
+        }
+        
+        .preview-content {
+            background-color: #ffffff;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #7f8c8d;
+        }
+        
+        .empty-state-icon {
+            font-size: 64px;
+            margin-bottom: 15px;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #7f8c8d;
+        }
+        
+        .stats-bar {
+            background-color: #e9ecef;
+            padding: 10px 20px;
+            border-bottom: 2px solid #d1d9e6;
+            font-size: 14px;
+            color: #2c3e50;
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <a href="/">Consultation Analyzer</a>
+        <a href="/kg-input">KG Input</a>
+        <a href="/kg-view">KG Viewer</a>
+        <a href="/qdrant-view">Qdrant View</a>
+        <a href="/context-builder">Context Builder</a>
+    </nav>
+    
+    <div class="container">
+        <div class="query-panel">
+            <h1>Qdrant Vector Database Explorer</h1>
+            <div class="query-controls">
+                <div class="query-input-group">
+                    <label for="semantic-query">Semantic Query</label>
+                    <input 
+                        type="text" 
+                        id="semantic-query" 
+                        class="query-input" 
+                        placeholder="Enter a sentence or paragraph to find similar chunks..."
+                    >
+                </div>
+                <div class="query-options">
+                    <label>
+                        Top K
+                        <input type="number" id="top-k" value="20" min="1" max="100">
+                    </label>
+                </div>
+                <button class="search-btn" id="search-btn" onclick="performSearch()">Search</button>
+            </div>
+        </div>
+        
+        <div class="stats-bar" id="stats-bar" style="display: none;">
+            <span id="stats-text"></span>
+        </div>
+        
+        <div class="content-area">
+            <div class="results-panel">
+                <div id="results-container">
+                    <div class="empty-state">
+                        <div class="empty-state-icon">🔍</div>
+                        <h2>Search Qdrant Vector Database</h2>
+                        <p>Enter a semantic query to find similar chunks using vector similarity search</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="preview-panel">
+                <h3>Context Preview</h3>
+                <div id="preview-container">
+                    <div class="empty-state">
+                        <p>Select chunks to see formatted context</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let searchResults = [];
+        let selectedChunks = new Set();
+        
+        async function performSearch() {
+            const query = document.getElementById('semantic-query').value.trim();
+            if (!query) {
+                alert('Please enter a query');
+                return;
+            }
+            
+            const searchBtn = document.getElementById('search-btn');
+            searchBtn.disabled = true;
+            searchBtn.textContent = 'Searching...';
+            
+            const resultsContainer = document.getElementById('results-container');
+            resultsContainer.innerHTML = '<div class="loading">Searching Qdrant...</div>';
+            
+            const statsBar = document.getElementById('stats-bar');
+            statsBar.style.display = 'none';
+            
+            try {
+                const requestData = {
+                    query: query,
+                    top_k: parseInt(document.getElementById('top-k').value)
+                };
+                
+                const response = await fetch('/api/qdrant/search', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(requestData)
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Search failed: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                searchResults = data.chunks || [];
+                selectedChunks.clear();
+                
+                displayResults(searchResults);
+                
+                // Update stats
+                statsBar.style.display = 'block';
+                document.getElementById('stats-text').textContent = 
+                    `Found ${searchResults.length} chunks`;
+            } catch (error) {
+                console.error('Search error:', error);
+                resultsContainer.innerHTML = `<div class="empty-state"><p>Error: ${error.message}</p></div>`;
+            } finally {
+                searchBtn.disabled = false;
+                searchBtn.textContent = 'Search';
+            }
+        }
+        
+        function displayResults(chunks) {
+            const container = document.getElementById('results-container');
+            
+            if (chunks.length === 0) {
+                container.innerHTML = '<div class="empty-state"><p>No chunks found</p></div>';
+                return;
+            }
+            
+            let html = '';
+            chunks.forEach((chunk, index) => {
+                const isSelected = selectedChunks.has(chunk.chunk_id || chunk.id);
+                const chunkId = chunk.chunk_id || chunk.id;
+                const entities = chunk.entities || [];
+                
+                html += `
+                    <div class="chunk-card ${isSelected ? 'selected' : ''}" style="${isSelected ? 'border-color: #28a745; background-color: #d4edda;' : ''}">
+                        <div class="chunk-header">
+                            <h3 style="margin: 0;">Chunk ${index + 1}</h3>
+                            <span class="chunk-score">Score: ${chunk.score ? chunk.score.toFixed(3) : 'N/A'}</span>
+                        </div>
+                        <div class="chunk-meta">
+                            ${chunk.doc_title ? `<strong>Source:</strong> ${escapeHtml(chunk.doc_title)}<br>` : ''}
+                            ${chunk.jurisdiction ? `<strong>Jurisdiction:</strong> ${escapeHtml(chunk.jurisdiction)}<br>` : ''}
+                            ${chunk.organization ? `<strong>Organization:</strong> ${escapeHtml(chunk.organization)}<br>` : ''}
+                            <strong>Chunk ID:</strong> ${escapeHtml(chunkId)}
+                        </div>
+                        <div class="chunk-text">
+                            ${escapeHtml((chunk.text || '').substring(0, 300))}${(chunk.text || '').length > 300 ? '...' : ''}
+                        </div>
+                        ${entities.length > 0 ? `
+                            <div class="chunk-entities">
+                                <strong>Entities:</strong><br>
+                                ${entities.map(e => `<span>${escapeHtml(e)}</span>`).join('')}
+                            </div>
+                        ` : ''}
+                        <div class="chunk-actions">
+                            <button class="chunk-btn btn-include" onclick="toggleChunk('${chunkId}')">
+                                ${isSelected ? '✓ Included' : 'Include in Context'}
+                            </button>
+                            <button class="chunk-btn btn-view-full" onclick="viewFullChunk('${chunkId}')">View Full</button>
+                            ${entities.length > 0 ? `<button class="chunk-btn btn-view-kg" onclick="viewInKG('${entities[0]}')">View in KG</button>` : ''}
+                        </div>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+            updatePreview();
+        }
+        
+        function toggleChunk(chunkId) {
+            if (selectedChunks.has(chunkId)) {
+                selectedChunks.delete(chunkId);
+            } else {
+                selectedChunks.add(chunkId);
+            }
+            displayResults(searchResults);
+        }
+        
+        async function viewFullChunk(chunkId) {
+            try {
+                const response = await fetch(`/api/qdrant/chunk/${encodeURIComponent(chunkId)}`);
+                if (!response.ok) {
+                    throw new Error('Failed to fetch chunk');
+                }
+                const chunk = await response.json();
+                
+                // Show in preview panel
+                const previewContainer = document.getElementById('preview-container');
+                previewContainer.innerHTML = `
+                    <h3>Full Chunk Text</h3>
+                    <div class="preview-content">${escapeHtml(chunk.text || 'No text available')}</div>
+                    <div style="margin-top: 15px; padding: 10px; background-color: #e9ecef; border-radius: 6px; font-size: 12px;">
+                        <strong>Metadata:</strong><br>
+                        Source: ${escapeHtml(chunk.doc_title || 'N/A')}<br>
+                        Jurisdiction: ${escapeHtml(chunk.jurisdiction || 'N/A')}<br>
+                        Entities: ${(chunk.entities || []).join(', ')}
+                    </div>
+                `;
+            } catch (error) {
+                console.error('Error viewing chunk:', error);
+                alert('Failed to load chunk details');
+            }
+        }
+        
+        function viewInKG(entityId) {
+            window.open(`/kg-view?entity=${encodeURIComponent(entityId)}`, '_blank');
+        }
+        
+        function updatePreview() {
+            if (selectedChunks.size === 0) {
+                const previewContainer = document.getElementById('preview-container');
+                previewContainer.innerHTML = `
+                    <div class="empty-state">
+                        <p>Select chunks to see formatted context</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            // Build preview from selected chunks
+            const selected = searchResults.filter(c => 
+                selectedChunks.has(c.chunk_id || c.id)
+            );
+            
+            let previewText = '=== SELECTED CHUNKS ===\n\n';
+            selected.forEach((chunk, index) => {
+                previewText += `[Chunk ${index + 1}] Score: ${chunk.score ? chunk.score.toFixed(3) : 'N/A'}\n`;
+                previewText += `Source: ${chunk.doc_title || 'Unknown'}\n`;
+                previewText += `\n${chunk.text || ''}\n\n`;
+                previewText += '---\n\n';
+            });
+            
+            const previewContainer = document.getElementById('preview-container');
+            previewContainer.innerHTML = `
+                <h3>Selected Chunks (${selectedChunks.size})</h3>
+                <div class="preview-content">${escapeHtml(previewText)}</div>
+                <div style="margin-top: 15px;">
+                    <button class="chunk-btn btn-include" onclick="openContextBuilder()" style="width: 100%;">
+                        Open in Context Builder
+                    </button>
+                </div>
+            `;
+        }
+        
+        function openContextBuilder() {
+            const chunkIds = Array.from(selectedChunks);
+            const params = new URLSearchParams({
+                chunk_ids: chunkIds.join(',')
+            });
+            window.location.href = `/context-builder?${params.toString()}`;
+        }
+        
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        // Allow Enter key to trigger search
+        document.getElementById('semantic-query').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                performSearch();
+            }
+        });
+    </script>
+</body>
+</html>
+

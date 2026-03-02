@@ -1,0 +1,69 @@
+# Production docker-compose configuration for VPS deployment
+# Usage: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+
+version: '3.8'
+
+services:
+  app:
+    restart: unless-stopped
+    # Remove volume mounts for production (code is baked into image)
+    volumes:
+      - ./logs:/app/logs:rw
+      - ./data:/app/data:rw
+    # Remove reload for production
+    command: ["/bin/bash", "-c", "source .venv/bin/activate && python -m uvicorn tenant_legal_guidance.api.app:app --host 0.0.0.0 --port 8000"]
+    # Resource limits (adjust based on your VPS)
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '1'
+          memory: 1G
+    # Health check
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  arangodb:
+    restart: unless-stopped
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 1G
+    # Health check
+    healthcheck:
+      test: ["CMD", "arangosh", "--server.password", "${ARANGO_PASSWORD}", "--server.authentication", "true", "--javascript.execute", "db._version()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  qdrant:
+    restart: unless-stopped
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    # Health check
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6333/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+

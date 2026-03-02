@@ -335,14 +335,21 @@
                 
                 <div class="search-options">
                     <label>
+                        Search Mode:
+                        <select id="search-mode" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            <option value="hybrid">Hybrid (Vector + BM25)</option>
+                            <option value="bm25">BM25 Only (Keyword Search)</option>
+                        </select>
+                    </label>
+                    <label>
                         Top K Entities:
                         <input type="number" id="top-k-entities" value="20" min="1" max="100">
                     </label>
-                    <label>
+                    <label id="top-k-chunks-label">
                         Top K Chunks:
                         <input type="number" id="top-k-chunks" value="20" min="1" max="100">
                     </label>
-                    <label>
+                    <label id="expand-neighbors-label">
                         <input type="checkbox" id="expand-neighbors" checked>
                         Expand Neighbors
                     </label>
@@ -427,30 +434,67 @@
             resultsContainer.innerHTML = '<div class="loading">Searching...</div>';
             
             try {
-                const requestData = {
-                    query: query,
-                    top_k_entities: parseInt(document.getElementById('top-k-entities').value),
-                    top_k_chunks: parseInt(document.getElementById('top-k-chunks').value),
-                    expand_neighbors: document.getElementById('expand-neighbors').checked,
-                    entity_types: document.getElementById('entity-types').value 
-                        ? document.getElementById('entity-types').value.split(',').map(s => s.trim())
-                        : null,
-                    jurisdiction: document.getElementById('jurisdiction').value || null
-                };
+                const searchMode = document.getElementById('search-mode').value;
+                let endpoint, requestData, data;
                 
-                const response = await fetch('/api/context/search', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(requestData)
-                });
-                
-                if (!response.ok) {
-                    throw new Error(`Search failed: ${response.statusText}`);
+                if (searchMode === 'bm25') {
+                    // BM25-only search
+                    requestData = {
+                        query: query,
+                        limit: parseInt(document.getElementById('top-k-entities').value),
+                        entity_types: document.getElementById('entity-types').value 
+                            ? document.getElementById('entity-types').value.split(',').map(s => s.trim())
+                            : null,
+                        jurisdiction: document.getElementById('jurisdiction').value || null
+                    };
+                    
+                    const response = await fetch('/api/context/search-bm25', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(requestData)
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error(`Search failed: ${response.statusText}`);
+                    }
+                    
+                    const bm25Data = await response.json();
+                    // Convert BM25 response to match hybrid response format
+                    data = {
+                        entities: bm25Data.entities || [],
+                        chunks: [],  // BM25 search doesn't return chunks
+                        relationships: []
+                    };
+                } else {
+                    // Hybrid search (default)
+                    requestData = {
+                        query: query,
+                        top_k_entities: parseInt(document.getElementById('top-k-entities').value),
+                        top_k_chunks: parseInt(document.getElementById('top-k-chunks').value),
+                        expand_neighbors: document.getElementById('expand-neighbors').checked,
+                        entity_types: document.getElementById('entity-types').value 
+                            ? document.getElementById('entity-types').value.split(',').map(s => s.trim())
+                            : null,
+                        jurisdiction: document.getElementById('jurisdiction').value || null
+                    };
+                    
+                    const response = await fetch('/api/context/search', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(requestData)
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error(`Search failed: ${response.statusText}`);
+                    }
+                    
+                    data = await response.json();
                 }
                 
-                const data = await response.json();
                 searchResults = data;
                 selectedItems.entities.clear();
                 selectedItems.chunks.clear();
@@ -660,6 +704,13 @@
                 `;
             }
         }
+        
+        // Toggle visibility of chunks/expand options based on search mode
+        document.getElementById('search-mode').addEventListener('change', (e) => {
+            const isBM25 = e.target.value === 'bm25';
+            document.getElementById('top-k-chunks-label').style.display = isBM25 ? 'none' : 'block';
+            document.getElementById('expand-neighbors-label').style.display = isBM25 ? 'none' : 'block';
+        });
         
         // Allow Enter key to trigger search
         document.getElementById('query-input').addEventListener('keydown', (e) => {

@@ -523,6 +523,30 @@ class ArangoDBGraph:
             self.logger.error(f"upsert_source failed for {locator}: {e}")
             return ""
 
+    def source_exists_by_locator(self, locator: str) -> bool:
+        """Check if a source with this locator already exists in the database."""
+        try:
+            coll = self.db.collection("sources")
+            # Query by locator field
+            cursor = self.db.aql.execute(
+                "FOR doc IN sources FILTER doc.locator == @locator LIMIT 1 RETURN doc",
+                bind_vars={"locator": locator},
+            )
+            return len(list(cursor)) > 0
+        except Exception as e:
+            self.logger.debug(f"Error checking source existence: {e}")
+            return False
+
+    def get_existing_locators(self) -> set[str]:
+        """Get all existing locators from the database."""
+        try:
+            coll = self.db.collection("sources")
+            cursor = self.db.aql.execute("FOR doc IN sources RETURN doc.locator")
+            return set(doc for doc in cursor if doc)
+        except Exception as e:
+            self.logger.warning(f"Error fetching existing locators: {e}")
+            return set()
+
     def ensure_text_entities(
         self, source_id: str, full_text: str, chunk_size: int = 3500
     ) -> dict[str, object]:
@@ -1239,7 +1263,7 @@ class ArangoDBGraph:
         collection = self.db.collection("entities")
 
         # Convert source metadata to dict and handle datetime serialization
-        source_metadata = entity.source_metadata.model_dump()
+        source_metadata = entity.source_metadata.dict()
         for field in ["created_at", "processed_at", "last_updated"]:
             if source_metadata.get(field):
                 if isinstance(source_metadata[field], datetime):
@@ -2278,11 +2302,7 @@ class ArangoDBGraph:
         jurisdiction: str | None = None,
         limit: int = 50,
     ) -> list[LegalEntity]:
-        """Search for entities by text across ALL fields using ArangoSearch BM25.
-        
-        Searches in: name, description, claim_type, evidence_type, and attributes (as JSON string).
-        This provides comprehensive entity matching across all searchable fields.
-        """
+        """Search for entities by text in name or description using ArangoSearch."""
         try:
             filters = []
             bind_vars: dict[str, object] = {"term": search_term, "limit": limit}
@@ -2296,19 +2316,11 @@ class ArangoDBGraph:
                 filters.append("doc.jurisdiction == @jurisdiction")
             filter_clause = (" AND " + " AND ".join(filters)) if filters else ""
 
-            # ENHANCED: Search across ALL entity fields using BM25
-            # Search in: name, description, claim_type, evidence_type, attributes (as JSON string)
             # Use TOKENS for multi-word queries (matches any token) instead of PHRASE (exact match)
             aql = f"""
             FOR doc IN kg_entities_view
                 SEARCH ANALYZER(
-                    (
-                        TOKENS(@term, "text_en") ANY IN doc.name OR 
-                        TOKENS(@term, "text_en") ANY IN doc.description OR
-                        TOKENS(@term, "text_en") ANY IN doc.claim_type OR
-                        TOKENS(@term, "text_en") ANY IN doc.evidence_type OR
-                        TOKENS(@term, "text_en") ANY IN TO_STRING(doc.attributes)
-                    ){filter_clause}
+                    (TOKENS(@term, "text_en") ANY IN doc.name OR TOKENS(@term, "text_en") ANY IN doc.description){filter_clause}
                     , "text_en"
                 )
                 SORT BM25(doc) DESC, TFIDF(doc) DESC

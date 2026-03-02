@@ -1726,14 +1726,40 @@ Ensure array has exactly {len(batch)} objects."""
             )
             existing_entity.source_metadata = new_entity.source_metadata
 
-        # 4. Merge ATTRIBUTES (keep all unique attributes)
+        # 4. Merge ATTRIBUTES (deep merge for lists/dicts)
         if new_entity.attributes:
             if not existing_entity.attributes:
                 existing_entity.attributes = {}
             for key, value in new_entity.attributes.items():
-                # Don't overwrite existing attributes, but add new ones
                 if key not in existing_entity.attributes:
+                    # New key - add it
                     existing_entity.attributes[key] = value
+                else:
+                    # Key exists - merge intelligently
+                    existing_value = existing_entity.attributes[key]
+                    if isinstance(value, list) and isinstance(existing_value, list):
+                        # Merge lists and deduplicate (handle non-hashable items)
+                        try:
+                            # Try deduplication with set (works for hashable items)
+                            existing_entity.attributes[key] = list(set(existing_value + value))
+                        except TypeError:
+                            # Fallback for non-hashable items (e.g., dicts in lists)
+                            # Simple append and deduplicate by equality
+                            merged = existing_value.copy()
+                            for item in value:
+                                if item not in merged:
+                                    merged.append(item)
+                            existing_entity.attributes[key] = merged
+                        self.logger.debug(
+                            f"[Merge] Merged attribute '{key}': {len(existing_value)} + {len(value)} → {len(existing_entity.attributes[key])} items"
+                        )
+                    elif isinstance(value, dict) and isinstance(existing_value, dict):
+                        # Deep merge dicts (new values override existing ones)
+                        existing_entity.attributes[key] = {**existing_value, **value}
+                        self.logger.debug(
+                            f"[Merge] Merged attribute '{key}': {len(existing_value)} + {len(value)} → {len(existing_entity.attributes[key])} keys"
+                        )
+                    # Otherwise: keep existing (don't overwrite)
 
         # 5. Add to all_quotes (deduplicate by quote text)
         if not existing_entity.all_quotes:

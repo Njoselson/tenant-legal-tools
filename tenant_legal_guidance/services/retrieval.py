@@ -7,6 +7,8 @@ from collections import defaultdict
 
 from tenant_legal_guidance.config import get_settings
 from tenant_legal_guidance.graph.arango_graph import ArangoDBGraph
+from tenant_legal_guidance.models.claim_types import ClaimType
+from tenant_legal_guidance.models.entities import get_claim_retrieval_types
 from tenant_legal_guidance.services.case_law_retriever import CaseLawRetriever
 from tenant_legal_guidance.services.embeddings import EmbeddingsService
 from tenant_legal_guidance.services.vector_store import QdrantVectorStore
@@ -34,13 +36,14 @@ class HybridRetriever:
         top_k_entities: int = 50,
         expand_neighbors: bool = True,
         linked_entity_ids: list[str] | None = None,
-        entity_search_query: str | None = None,  # NEW: For entity text search (keyword focused)
+        entity_search_query: str | None = None,  # For entity text search (keyword focused)
+        exclude_organizing: bool = True,  # Filter out organizing entities from claim retrieval
     ) -> dict[str, list]:
         """
         Hybrid retrieval combining:
         1. Vector search for chunks (Qdrant ANN) - uses query_text (full semantic)
         2. Entity search (ArangoSearch BM25/PHRASE) - uses entity_search_query or query_text (keyword focused)
-        3. Direct entity lookup (NEW: from linked query entities)
+        3. Direct entity lookup (from linked query entities)
         4. KG expansion via neighbors (including linked entities)
         5. Score fusion (RRF)
 
@@ -49,8 +52,10 @@ class HybridRetriever:
             top_k_chunks: Number of chunks to retrieve
             top_k_entities: Number of entities to retrieve via text search
             expand_neighbors: Whether to expand with 1-hop neighbors
-            linked_entity_ids: Entity IDs linked from query (NEW)
+            linked_entity_ids: Entity IDs linked from query
             entity_search_query: Optional separate query for entity text search (keyword focused)
+            exclude_organizing: If True, exclude organizing entities (TENANT_GROUP, CAMPAIGN, etc.)
+                from retrieval. Default True for claim-proving focus.
 
         Returns: {"chunks": [...], "entities": [...], "neighbors": [...], "linked_entities": [...]}
         """
@@ -111,30 +116,33 @@ class HybridRetriever:
         # Step 3: Entity text search (ArangoSearch - for broader context)
         # Use entity_query (keyword focused) instead of query_text (full semantic)
         try:
-            entity_hits = self.kg.search_entities_by_text(
-                entity_query, types=None, limit=top_k_entities
-            )
-            results["entities"] = entity_hits
-            self.logger.info(f"Entity search (query: '{entity_query[:100]}...') returned {len(results['entities'])} entities")
-            
-            # ENHANCED: Also search for specific claim types and evidence types
-            # Extract potential claim types from query (e.g., "RENT_OVERCHARGE", "DEREGULATION_CHALLENGE")
-            query_upper = query_text.upper()
-            claim_type_keywords = []
-            if "OVERCHARGE" in query_upper or "OVER CHARGE" in query_upper:
-                claim_type_keywords.append("RENT_OVERCHARGE")
-            if "DEREGULATION" in query_upper or "DEREGULATED" in query_upper:
-                claim_type_keywords.append("DEREGULATION_CHALLENGE")
-            if "HABITABILITY" in query_upper:
-                claim_type_keywords.append("HABITABILITY_VIOLATION")
-            if "HARASSMENT" in query_upper:
-                claim_type_keywords.append("HARASSMENT")
-            
+            # Get entity types to search (exclude organizing if requested)
+            search_types = None
+            if exclude_organizing:
+                search_types = [et.value for et in get_claim_retrieval_types()]
+                self.logger.info(f"Entity search: filtering to {len(search_types)} entity types (exclude_organizing={exclude_organizing})")
+
+            if not entity_query or len(entity_query.strip()) == 0:
+                self.logger.warning(f"Entity search: entity_query is empty, skipping entity search")
+                results["entities"] = []
+            else:
+                entity_hits = self.kg.search_entities_by_text(
+                    entity_query, types=search_types, limit=top_k_entities
+                )
+                results["entities"] = entity_hits
+                self.logger.info(
+                    f"Entity search (query: '{entity_query[:100]}...', types={len(search_types) if search_types else 'all'}) returned "
+                    f"{len(results['entities'])} entities"
+                )
+
+            # ENHANCED: Detect claim types in query using ClaimType enum
+            detected_claim_types = self._detect_claim_types_in_query(query_text)
+
             # Search for claim type entities explicitly
-            for claim_keyword in claim_type_keywords:
+            for claim_type in detected_claim_types:
                 try:
                     claim_entities = self.kg.search_entities_by_text(
-                        claim_keyword, types=["legal_claim"], limit=5
+                        claim_type.value, types=["legal_claim"], limit=5
                     )
                     # Add to results if not already present
                     for ce in claim_entities:
@@ -142,18 +150,10 @@ class HybridRetriever:
                             results["entities"].append(ce)
                 except Exception:
                     pass
-            
+
             # Search for evidence types explicitly (e.g., "DHCR rent history", "prior tenant affidavit")
-            evidence_keywords = []
-            if "DHCR" in query_upper or "RENT HISTORY" in query_upper:
-                evidence_keywords.append("DHCR rent history")
-                evidence_keywords.append("rent history application")
-            if "AFFIDAVIT" in query_upper or "PRIOR TENANT" in query_upper:
-                evidence_keywords.append("prior tenant affidavit")
-            if "PERMIT" in query_upper or "DOB" in query_upper:
-                evidence_keywords.append("building permit")
-                evidence_keywords.append("DOB permit")
-            
+            evidence_keywords = self._detect_evidence_keywords_in_query(query_text)
+
             for ev_keyword in evidence_keywords:
                 try:
                     ev_entities = self.kg.search_entities_by_text(
@@ -164,7 +164,7 @@ class HybridRetriever:
                             results["entities"].append(ev)
                 except Exception:
                     pass
-                    
+
         except Exception as e:
             self.logger.error(f"Entity search failed: {e}")
 
@@ -232,3 +232,73 @@ class HybridRetriever:
                 scores[item_id] += 1.0 / (k + rank)
         sorted_items = sorted(scores.items(), key=lambda x: x[1], reverse=True)
         return sorted_items
+
+    def _detect_claim_types_in_query(self, query: str) -> list[ClaimType]:
+        """
+        Detect claim types mentioned in query text using ClaimType enum.
+
+        Uses keyword patterns derived from ClaimType values to find relevant
+        claim types in the query.
+
+        Args:
+            query: The query text to analyze
+
+        Returns:
+            List of ClaimType enum values detected in the query
+        """
+        query_upper = query.upper()
+        detected = []
+
+        # Mapping of keywords to claim types (derived from ClaimType enum)
+        keyword_map = {
+            ClaimType.RENT_OVERCHARGE: ["OVERCHARGE", "OVER CHARGE", "ILLEGAL RENT", "RENT STABILIZED"],
+            ClaimType.DEREGULATION_CHALLENGE: ["DEREGULATION", "DEREGULATED", "DECONTROL", "HIGH RENT VACANCY"],
+            ClaimType.HABITABILITY_VIOLATION: ["HABITABILITY", "UNINHABITABLE", "UNLIVABLE", "WARRANTY OF HABITABILITY"],
+            ClaimType.HP_ACTION_REPAIRS: ["HP ACTION", "REPAIRS", "VIOLATIONS", "HOUSING COURT"],
+            ClaimType.HARASSMENT: ["HARASSMENT", "HARASS", "INTIMIDATE", "THREATENING"],
+            ClaimType.SECURITY_DEPOSIT_RETURN: ["SECURITY DEPOSIT", "DEPOSIT RETURN", "DEPOSIT NOT RETURNED"],
+            ClaimType.ILLEGAL_LOCKOUT: ["LOCKOUT", "LOCKED OUT", "ILLEGAL LOCK"],
+            ClaimType.RETALIATORY_EVICTION: ["RETALIATION", "RETALIATORY", "REVENGE EVICTION"],
+            ClaimType.LEASE_VIOLATION: ["LEASE VIOLATION", "BREACH OF LEASE"],
+            ClaimType.CONSTRUCTIVE_EVICTION: ["CONSTRUCTIVE EVICTION", "FORCED TO LEAVE"],
+            ClaimType.HOUSING_DISCRIMINATION: ["DISCRIMINATION", "DISCRIMINATE", "FAIR HOUSING"],
+        }
+
+        for claim_type, keywords in keyword_map.items():
+            if any(kw in query_upper for kw in keywords):
+                detected.append(claim_type)
+
+        return detected
+
+    def _detect_evidence_keywords_in_query(self, query: str) -> list[str]:
+        """
+        Detect evidence-related keywords in query text.
+
+        Args:
+            query: The query text to analyze
+
+        Returns:
+            List of evidence keywords found in the query
+        """
+        query_upper = query.upper()
+        evidence_keywords = []
+
+        # Evidence type patterns
+        evidence_patterns = {
+            "DHCR rent history": ["DHCR", "RENT HISTORY"],
+            "rent history application": ["RENT HISTORY", "REGISTRATION"],
+            "prior tenant affidavit": ["AFFIDAVIT", "PRIOR TENANT", "PREVIOUS TENANT"],
+            "building permit": ["PERMIT", "DOB", "BUILDING PERMIT"],
+            "lease agreement": ["LEASE", "RENTAL AGREEMENT"],
+            "rent receipt": ["RENT RECEIPT", "PAYMENT RECEIPT"],
+            "repair request": ["REPAIR REQUEST", "MAINTENANCE REQUEST"],
+            "violation notice": ["HPD VIOLATION", "VIOLATION NOTICE", "CODE VIOLATION"],
+            "photographs": ["PHOTO", "PHOTOGRAPH", "PICTURE"],
+            "correspondence": ["EMAIL", "LETTER", "CORRESPONDENCE", "TEXT MESSAGE"],
+        }
+
+        for keyword, patterns in evidence_patterns.items():
+            if any(p in query_upper for p in patterns):
+                evidence_keywords.append(keyword)
+
+        return evidence_keywords

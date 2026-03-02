@@ -19,6 +19,7 @@ from typing import Literal
 import numpy as np
 
 from tenant_legal_guidance.graph.arango_graph import ArangoDBGraph
+from tenant_legal_guidance.models.claim_types import ClaimType
 from tenant_legal_guidance.models.entities import (
     EntityType,
     LegalEntity,
@@ -57,8 +58,9 @@ class ProofChain:
 
     claim_id: str
     claim_description: str
-    claim_type: str | None = None
+    claim_type: ClaimType | None = None  # Validated ClaimType enum
     claimant: str | None = None
+    case_id: str | None = None  # Link to source CASE_DOCUMENT
 
     # Evidence breakdown
     required_evidence: list[ProofChainEvidence] = None  # From statutes/guides
@@ -81,7 +83,7 @@ class ProofChain:
     graph_chains: list[dict] = None  # Chains from build_legal_chains() method
 
     def __post_init__(self):
-        """Initialize default values."""
+        """Initialize default values for list fields."""
         if self.required_evidence is None:
             self.required_evidence = []
         if self.presented_evidence is None:
@@ -346,10 +348,13 @@ class ProofChainService:
             critical_gaps = [ev.description for ev in missing_evidence if ev.is_critical]
 
             # Build the proof chain
+            # Convert string claim_type_str to ClaimType enum
+            claim_type_enum = ClaimType.from_string(claim_type_str) if claim_type_str else None
+
             proof_chain = ProofChain(
                 claim_id=claim_id,
                 claim_description=claim.name or claim.description or "",
-                claim_type=claim_type_str,
+                claim_type=claim_type_enum,
                 claimant=claim.claimant,
                 required_evidence=required_evidence,
                 presented_evidence=presented_evidence,

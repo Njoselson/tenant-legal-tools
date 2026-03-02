@@ -12,7 +12,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Request, UploadFile
 from fastapi.responses import JSONResponse
 
 from tenant_legal_guidance.api.schemas import (
@@ -23,6 +23,8 @@ from tenant_legal_guidance.api.schemas import (
     JobStatusResponse,
     ManifestAddRequest,
     ManifestAddResponse,
+    ManifestListResponse,
+    ManifestMetadata,
     ManifestUploadResponse,
 )
 from tenant_legal_guidance.models.metadata_schemas import ManifestEntry
@@ -37,7 +39,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/curation", tags=["curation"])
 
 
-def get_session_id(request) -> str:
+def get_session_id(request: Request) -> str:
     """Get or create session ID for manifest storage."""
     # For now, use a simple approach - in production, use proper session management
     session_id = getattr(request.state, "session_id", None)
@@ -47,7 +49,7 @@ def get_session_id(request) -> str:
     return session_id
 
 
-def get_system(request) -> TenantLegalSystem:
+def get_system(request: Request) -> TenantLegalSystem:
     """Get TenantLegalSystem from app state."""
     return request.app.state.system
 
@@ -152,8 +154,55 @@ async def get_current_manifest(
     Returns:
         Manifest entries
     """
-    entries = storage.get_manifest(session_id)
-    return {"entries": entries, "total": len(entries)}
+    try:
+        entries = storage.get_manifest(session_id)
+        return {"entries": entries, "total": len(entries)}
+    except Exception as e:
+        logger.error(f"Error getting manifest for session {session_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error loading manifest: {str(e)}")
+
+
+@router.get("/manifests", response_model=ManifestListResponse)
+async def list_all_manifests(
+    storage: CurationStorage = Depends(get_curation_storage),
+) -> ManifestListResponse:
+    """List all manifests in the system.
+
+    Args:
+        storage: CurationStorage instance
+
+    Returns:
+        List of manifests with metadata
+    """
+    try:
+        manifests_data = storage.list_manifests()
+        manifests = [ManifestMetadata(**m) for m in manifests_data]
+        return ManifestListResponse(manifests=manifests, total=len(manifests))
+    except Exception as e:
+        logger.error(f"Error listing manifests: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error listing manifests: {str(e)}")
+
+
+@router.get("/manifests/{manifest_id}", response_model=dict[str, Any])
+async def get_manifest_by_id(
+    manifest_id: str,
+    storage: CurationStorage = Depends(get_curation_storage),
+) -> dict[str, Any]:
+    """Get manifest entries by manifest ID.
+
+    Args:
+        manifest_id: Manifest ID
+        storage: CurationStorage instance
+
+    Returns:
+        Manifest entries
+    """
+    try:
+        entries = storage.get_manifest(manifest_id)
+        return {"manifest_id": manifest_id, "entries": entries, "total": len(entries)}
+    except Exception as e:
+        logger.error(f"Error getting manifest {manifest_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error loading manifest: {str(e)}")
 
 
 @router.delete("/manifest/entries")

@@ -25,9 +25,9 @@ class DeepSeekClient:
         self.ssl_context.verify_mode = ssl.CERT_REQUIRED
 
     @retry_with_backoff(
-        max_retries=3,
-        initial_delay=1.0,
-        max_delay=10.0,
+        max_retries=4,
+        initial_delay=2.0,
+        max_delay=30.0,
         exceptions=(aiohttp.ClientError, aiohttp.ServerTimeoutError, asyncio.TimeoutError),
     )
     async def chat_completion(self, prompt: str) -> str:
@@ -61,13 +61,19 @@ class DeepSeekClient:
             }
 
             # Make the API request
+            # Use longer timeouts for complex legal document extraction
+            timeout = aiohttp.ClientTimeout(
+                total=300,      # 5 min total timeout
+                connect=30,     # 30s to establish connection
+                sock_read=180,  # 3 min to read response body (DeepSeek can be slow)
+            )
             async with aiohttp.ClientSession() as session:
                 async with session.post(
                     f"{self.base_url}/chat/completions",
                     headers=self.headers,
                     json=payload,
                     ssl=self.ssl_context,
-                    timeout=aiohttp.ClientTimeout(total=60),  # 60 second timeout
+                    timeout=timeout,
                 ) as response:
                     if response.status == 429:
                         error_text = await response.text()

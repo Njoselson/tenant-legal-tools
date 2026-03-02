@@ -72,7 +72,6 @@ tenant_legal_guidance/
 │   ├── PROJECT_ORGANIZATION.md        # Repo structure
 │   └── README.md                      # Documentation index
 │
-├── specs/                              # Feature specifications
 ├── tenant_legal_guidance/              # Main application code
 │   ├── api/                           # FastAPI REST API
 │   ├── services/                      # Business logic (30 services)
@@ -196,7 +195,7 @@ curl http://localhost:8000/api/health  # Health check
 | How do requests work? | `docs/API_REQUEST_FLOW.md` → `api/routes.py:709` |
 | Add data source | `data/manifests/README.md` → `docs/DATA_INGESTION.md` |
 | Modify ingestion | `docs/DATA_INGESTION.md` → `services/document_processor.py` |
-| Deploy to production | `docs/DEPLOYMENT.md` → `specs/004-self-host-deployment/` |
+| Deploy to production | `docs/DEPLOYMENT.md` → `docker-compose.yml` |
 | Debug issue | `docs/TROUBLESHOOTING.md` → `logs/` |
 | Understand dependencies | `docs/DEPENDENCY_GRAPH.md` → `pyproject.toml` |
 
@@ -208,7 +207,7 @@ curl http://localhost:8000/api/health  # Health check
 | **Build** | `Makefile`, `Dockerfile`, `.github/workflows/` |
 | **Code** | `tenant_legal_guidance/`, `tests/`, `scripts/` |
 | **Data** | `data/manifests/`, `data/archive/`, `data/analysis_cache.sqlite` |
-| **Docs** | `docs/` (12 files), `specs/` (feature specs) |
+| **Docs** | `docs/` (12 comprehensive guides) |
 
 ---
 
@@ -216,7 +215,7 @@ curl http://localhost:8000/api/health  # Health check
 
 **When asked to:**
 - **"Explain how X works"** → Check `docs/ARCHITECTURE.md` or `docs/API_REQUEST_FLOW.md`
-- **"Add feature X"** → Check `specs/` for similar features, review `docs/DEPENDENCY_GRAPH.md`
+- **"Add feature X"** → Review `docs/DEPENDENCY_GRAPH.md` and `docs/DEVELOPMENT.md`
 - **"Fix bug X"** → Check `logs/`, review `docs/TROUBLESHOOTING.md`
 - **"Deploy this"** → Point to `docs/DEPLOYMENT.md`
 - **"How do I run X"** → Check `Makefile` or `docs/GETTING_STARTED.md`

@@ -238,6 +238,17 @@ async def ingest_entry(
     locator = entry.locator
 
     try:
+        # Early check: database lookup by locator (before fetching text)
+        if skip_existing:
+            if system.knowledge_graph.source_exists_by_locator(locator):
+                logger.info(f"Skipping (already in database): {locator}")
+                stats.add_skip()
+                if checkpoint:
+                    checkpoint.mark_processed(locator)  # Mark as processed
+                if pbar:
+                    pbar.update(1)
+                return True
+
         # Check checkpoint
         if checkpoint and checkpoint.should_skip(locator):
             if skip_existing:

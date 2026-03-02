@@ -14,6 +14,7 @@ import re
 from dataclasses import dataclass, field
 
 from tenant_legal_guidance.graph.arango_graph import ArangoDBGraph
+from tenant_legal_guidance.models.claim_types import ClaimType
 from tenant_legal_guidance.models.entities import (
     EntityType,
     LegalEntity,
@@ -33,10 +34,11 @@ class ExtractedClaim:
     claim_description: str
     claimant: str
     respondent_party: str | None = None
-    claim_type: str | None = None  # Claim type string (e.g., "DEREGULATION_CHALLENGE")
+    claim_type: ClaimType | None = None  # Validated ClaimType enum
     relief_sought: list[str] = field(default_factory=list)
     claim_status: str = "asserted"
     source_quote: str | None = None
+    case_id: str | None = None  # Link to source CASE_DOCUMENT
 
 
 @dataclass
@@ -52,6 +54,8 @@ class ExtractedEvidence:
     source_quote: str | None = None
     is_critical: bool = False
     linked_claim_ids: list[str] = field(default_factory=list)
+    linked_claim_type: ClaimType | None = None  # For required evidence (links to ClaimType)
+    case_id: str | None = None  # Link to source CASE_DOCUMENT
 
 
 @dataclass
@@ -343,6 +347,11 @@ class ClaimExtractor:
         """Parse a claim from extracted data."""
         try:
             name = data.get("name", f"Claim {index + 1}")
+
+            # Convert string claim_type to ClaimType enum
+            claim_type_str = data.get("claim_type", data.get("claim_type_id"))
+            claim_type = ClaimType.from_string(claim_type_str) if claim_type_str else None
+
             # Use prefix matching EntityType.LEGAL_CLAIM.value = "legal_claim"
             return ExtractedClaim(
                 id=f"legal_claim:{doc_id}:{index}",
@@ -350,9 +359,7 @@ class ClaimExtractor:
                 claim_description=data.get("description", data.get("claim_description", "")),
                 claimant=data.get("claimant", "Unknown"),
                 respondent_party=data.get("respondent", data.get("respondent_party")),
-                claim_type=data.get(
-                    "claim_type", data.get("claim_type_id")
-                ),  # Support both for migration
+                claim_type=claim_type,
                 relief_sought=data.get("relief_sought", []),
                 claim_status=data.get("status", data.get("claim_status", "asserted")),
                 source_quote=data.get("source_quote"),

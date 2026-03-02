@@ -1,0 +1,804 @@
+openapi: 3.0.3
+info:
+  title: Legal Claim Proving System API
+  description: |
+    API for the Legal Claim Proving System with two primary paths:
+    
+    **Ingestion Path (Async)**: Submit documents for background processing
+    **Analysis Path (Interactive)**: Get guidance on what claims you can make
+  version: 2.0.0
+
+paths:
+  # ============================================================================
+  # INGESTION PATH (Async)
+  # ============================================================================
+  
+  /api/v1/ingest:
+    post:
+      summary: Submit document for ingestion
+      description: |
+        Accepts a legal document and queues it for background processing.
+        Returns immediately with a job_id for tracking.
+        
+        Use this from browser extensions, mobile apps, CLI tools, etc.
+      operationId: ingestDocument
+      tags: [Ingestion]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IngestRequest'
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Document file (PDF, TXT, DOCX)
+                document_type:
+                  type: string
+                  enum: [court_opinion, statute, self_help_guide, legal_memo]
+                source_url:
+                  type: string
+      responses:
+        '202':
+          description: Document accepted for processing
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IngestResponse'
+        '400':
+          description: Invalid request
+
+  /api/v1/jobs/{job_id}:
+    get:
+      summary: Get job status
+      description: Check the status of a queued ingestion job
+      operationId: getJobStatus
+      tags: [Ingestion]
+      parameters:
+        - name: job_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Job status retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobStatus'
+        '404':
+          description: Job not found
+
+  # ============================================================================
+  # ANALYSIS PATH (Interactive) - CORE VALUE PROPOSITION
+  # ============================================================================
+  
+  /api/v1/analyze-my-case:
+    post:
+      summary: Analyze user's situation and evidence
+      description: |
+        **The core value proposition of the system.**
+        
+        User describes their situation and what evidence they have.
+        System returns:
+        - Possible legal claims they can make
+        - How strong their evidence is
+        - What evidence gaps exist and how to fill them
+        - Predicted outcomes based on similar cases
+        - Recommended next steps
+      operationId: analyzeMyCase
+      tags: [Analysis]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnalyzeMyCaseRequest'
+      responses:
+        '200':
+          description: Analysis complete
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalyzeMyCaseResponse'
+        '400':
+          description: Invalid request
+        '422':
+          description: Analysis failed
+
+  # ============================================================================
+  # EXTRACTION (Sync - for testing/debugging)
+  # ============================================================================
+  
+  /api/v1/claims/extract:
+    post:
+      summary: Extract claims from document (synchronous)
+      description: |
+        Synchronously processes a document and returns extracted entities.
+        Use for testing or when you need immediate results.
+        For production ingestion, prefer /api/v1/ingest.
+      operationId: extractClaims
+      tags: [Extraction]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClaimExtractionRequest'
+      responses:
+        '200':
+          description: Claims extracted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClaimExtractionResponse'
+        '400':
+          description: Invalid request
+        '422':
+          description: Extraction failed
+
+  # ============================================================================
+  # PROOF CHAINS
+  # ============================================================================
+  
+  /api/v1/claims/{claim_id}/proof-chain:
+    get:
+      summary: Get proof chain for a claim
+      description: Returns the complete proof chain with gap analysis
+      operationId: getProofChain
+      tags: [ProofChains]
+      parameters:
+        - name: claim_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Proof chain retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProofChain'
+        '404':
+          description: Claim not found
+
+  /api/v1/documents/{document_id}/proof-chains:
+    get:
+      summary: Get all proof chains for a document
+      operationId: getDocumentProofChains
+      tags: [ProofChains]
+      parameters:
+        - name: document_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Proof chains retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  document_id:
+                    type: string
+                  claims_count:
+                    type: integer
+                  proof_chains:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ProofChain'
+        '404':
+          description: Document not found
+
+  # ============================================================================
+  # CLAIM TYPES (Taxonomy)
+  # ============================================================================
+  
+  /api/v1/claim-types:
+    get:
+      summary: List claim types in taxonomy
+      operationId: listClaimTypes
+      tags: [ClaimTypes]
+      parameters:
+        - name: jurisdiction
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Claim types retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  claim_types:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ClaimType'
+
+  /api/v1/claim-types/{claim_type_id}/required-evidence:
+    get:
+      summary: Get required evidence for a claim type
+      operationId: getRequiredEvidence
+      tags: [ClaimTypes]
+      parameters:
+        - name: claim_type_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Required evidence retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  claim_type_id:
+                    type: string
+                  claim_type_name:
+                    type: string
+                  required_evidence:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/RequiredEvidence'
+
+  # ============================================================================
+  # VALIDATION
+  # ============================================================================
+  
+  /api/v1/validation/scenarios:
+    get:
+      summary: List validation scenarios with scores
+      operationId: listValidationScenarios
+      tags: [Validation]
+      responses:
+        '200':
+          description: Scenarios retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  scenarios:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ValidationScenario'
+                  average_completeness:
+                    type: number
+                    format: float
+
+components:
+  schemas:
+    # =========================================================================
+    # INGESTION SCHEMAS
+    # =========================================================================
+    
+    IngestRequest:
+      type: object
+      properties:
+        text:
+          type: string
+          description: Raw text content
+        url:
+          type: string
+          description: URL to fetch document from
+        document_type:
+          type: string
+          enum: [court_opinion, statute, self_help_guide, legal_memo]
+          default: court_opinion
+        webhook_url:
+          type: string
+          description: Optional URL to call when processing completes
+      oneOf:
+        - required: [text]
+        - required: [url]
+
+    IngestResponse:
+      type: object
+      properties:
+        job_id:
+          type: string
+          description: Unique job identifier for tracking
+        status:
+          type: string
+          enum: [queued, processing]
+        estimated_seconds:
+          type: integer
+          description: Estimated processing time
+        status_url:
+          type: string
+          description: URL to poll for status
+
+    JobStatus:
+      type: object
+      properties:
+        job_id:
+          type: string
+        status:
+          type: string
+          enum: [queued, processing, completed, failed]
+        progress:
+          type: number
+          format: float
+          description: 0.0 to 1.0
+        result:
+          $ref: '#/components/schemas/ClaimExtractionResponse'
+          nullable: true
+        error:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    # =========================================================================
+    # ANALYZE MY CASE SCHEMAS (Core Value)
+    # =========================================================================
+    
+    AnalyzeMyCaseRequest:
+      type: object
+      required:
+        - situation
+      properties:
+        situation:
+          type: string
+          description: Free-text description of the user's situation
+          example: "My landlord hasn't fixed the heat for 3 months despite my complaints"
+        evidence_i_have:
+          type: array
+          items:
+            type: string
+          description: List of evidence the user has
+          example: ["311 complaint records", "Photos of broken radiator", "Text messages to landlord"]
+        jurisdiction:
+          type: string
+          description: Jurisdiction for claim matching
+          example: "NYC"
+          default: "NYC"
+
+    AnalyzeMyCaseResponse:
+      type: object
+      properties:
+        possible_claims:
+          type: array
+          items:
+            $ref: '#/components/schemas/PossibleClaim'
+        overall_strength:
+          type: string
+          enum: [strong, moderate, weak, insufficient]
+        next_steps:
+          type: array
+          items:
+            type: string
+          description: Prioritized actionable next steps
+        disclaimer:
+          type: string
+          description: Legal disclaimer about not being legal advice
+
+    PossibleClaim:
+      type: object
+      properties:
+        claim_type_id:
+          type: string
+        claim_type_name:
+          type: string
+          example: "HP Action for Repairs"
+        match_score:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          description: How well the situation matches this claim type
+        evidence_strength:
+          type: string
+          enum: [strong, moderate, weak, insufficient]
+        evidence_matched:
+          type: array
+          items:
+            $ref: '#/components/schemas/EvidenceMatch'
+        evidence_gaps:
+          type: array
+          items:
+            $ref: '#/components/schemas/EvidenceGap'
+        likely_outcomes:
+          type: array
+          items:
+            $ref: '#/components/schemas/PredictedOutcome'
+        potential_damages:
+          type: array
+          items:
+            $ref: '#/components/schemas/PotentialDamages'
+        similar_cases:
+          type: array
+          items:
+            $ref: '#/components/schemas/SimilarCase'
+          description: Precedent cases from the knowledge graph
+
+    EvidenceMatch:
+      type: object
+      properties:
+        required:
+          type: string
+          description: What's required by law/precedent
+        you_have:
+          type: string
+          description: What the user has that matches
+        status:
+          type: string
+          enum: [satisfied, partial, missing]
+        source_reference:
+          type: string
+          description: Law or case that requires this
+
+    EvidenceGap:
+      type: object
+      properties:
+        required:
+          type: string
+          description: What evidence is needed
+        is_critical:
+          type: boolean
+          description: If missing, claim likely fails
+        how_to_get:
+          type: string
+          description: Practical advice on obtaining this evidence
+        source_reference:
+          type: string
+
+    PredictedOutcome:
+      type: object
+      properties:
+        outcome:
+          type: string
+          example: "Repairs ordered"
+        probability:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+        confidence:
+          type: string
+          enum: [high, medium, low]
+          description: Based on number of similar cases
+        based_on_cases:
+          type: integer
+          description: Number of similar cases this prediction is based on
+
+    PotentialDamages:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [monetary, injunctive, declaratory]
+        description:
+          type: string
+          example: "Rent reduction for period of conditions"
+        estimate:
+          type: string
+          example: "10-30% of rent for affected period"
+          nullable: true
+
+    SimilarCase:
+      type: object
+      properties:
+        case_id:
+          type: string
+        case_name:
+          type: string
+        outcome:
+          type: string
+        relevance_score:
+          type: number
+          format: float
+        key_similarity:
+          type: string
+          description: Why this case is relevant
+
+    # =========================================================================
+    # EXTRACTION SCHEMAS
+    # =========================================================================
+    
+    ClaimExtractionRequest:
+      type: object
+      required:
+        - text
+      properties:
+        text:
+          type: string
+        document_type:
+          type: string
+          enum: [court_opinion, statute, self_help_guide, legal_memo]
+          default: court_opinion
+        save_to_graph:
+          type: boolean
+          default: false
+          description: Whether to persist extracted entities to the knowledge graph
+
+    ClaimExtractionResponse:
+      type: object
+      properties:
+        document_id:
+          type: string
+        claims:
+          type: array
+          items:
+            $ref: '#/components/schemas/LegalClaim'
+        evidence:
+          type: array
+          items:
+            $ref: '#/components/schemas/Evidence'
+        outcomes:
+          type: array
+          items:
+            $ref: '#/components/schemas/Outcome'
+        damages:
+          type: array
+          items:
+            $ref: '#/components/schemas/Damages'
+        relationships:
+          type: array
+          items:
+            $ref: '#/components/schemas/Relationship'
+
+    LegalClaim:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        claim_description:
+          type: string
+        claimant:
+          type: string
+        respondent:
+          type: string
+        claim_type_id:
+          type: string
+        relief_sought:
+          type: array
+          items:
+            type: string
+        claim_status:
+          type: string
+          enum: [asserted, proven, unproven, dismissed, settled]
+
+    Evidence:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        evidence_type:
+          type: string
+          enum: [documentary, testimonial, factual, expert_opinion]
+        description:
+          type: string
+        context:
+          type: string
+          enum: [required, presented, missing]
+        source_quote:
+          type: string
+        is_critical:
+          type: boolean
+        linked_claim_ids:
+          type: array
+          items:
+            type: string
+
+    Outcome:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        outcome_type:
+          type: string
+          enum: [judgment, order, settlement, dismissal, directed_verdict]
+        disposition:
+          type: string
+          enum: [granted, denied, dismissed, dismissed_with_prejudice, settled]
+        decision_maker:
+          type: string
+        linked_claim_ids:
+          type: array
+          items:
+            type: string
+
+    Damages:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        damage_type:
+          type: string
+          enum: [monetary, injunctive, declaratory]
+        amount:
+          type: number
+          nullable: true
+        status:
+          type: string
+          enum: [claimed, awarded, denied, potential]
+        linked_outcome_id:
+          type: string
+
+    Relationship:
+      type: object
+      properties:
+        source_id:
+          type: string
+        target_id:
+          type: string
+        type:
+          type: string
+          enum: [REQUIRES, HAS_EVIDENCE, SUPPORTS, IMPLY, RESOLVE, SATISFIES, IS_TYPE_OF]
+
+    # =========================================================================
+    # PROOF CHAIN SCHEMAS
+    # =========================================================================
+    
+    ProofChain:
+      type: object
+      properties:
+        claim_id:
+          type: string
+        claim_description:
+          type: string
+        claim_type:
+          type: string
+        claimant:
+          type: string
+        required_evidence:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProofChainEvidence'
+        presented_evidence:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProofChainEvidence'
+        missing_evidence:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProofChainEvidence'
+        outcome:
+          $ref: '#/components/schemas/Outcome'
+          nullable: true
+        damages:
+          $ref: '#/components/schemas/Damages'
+          nullable: true
+        completeness_score:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+        satisfied_count:
+          type: integer
+        missing_count:
+          type: integer
+        critical_gaps:
+          type: array
+          items:
+            type: string
+
+    ProofChainEvidence:
+      type: object
+      properties:
+        id:
+          type: string
+        description:
+          type: string
+        is_critical:
+          type: boolean
+        status:
+          type: string
+          enum: [satisfied, partial, missing]
+        satisfied_by:
+          type: array
+          items:
+            type: string
+          nullable: true
+        source_reference:
+          type: string
+
+    # =========================================================================
+    # CLAIM TYPE SCHEMAS
+    # =========================================================================
+    
+    ClaimType:
+      type: object
+      properties:
+        id:
+          type: string
+        canonical_name:
+          type: string
+        display_name:
+          type: string
+        description:
+          type: string
+        jurisdiction:
+          type: string
+        statute_references:
+          type: array
+          items:
+            type: string
+        required_evidence_count:
+          type: integer
+
+    RequiredEvidence:
+      type: object
+      properties:
+        id:
+          type: string
+        description:
+          type: string
+        evidence_type:
+          type: string
+          enum: [documentary, testimonial, factual]
+        source_type:
+          type: string
+          enum: [statute, case_law, self_help_guide]
+        source_reference:
+          type: string
+        evidence_examples:
+          type: array
+          items:
+            type: string
+        is_critical:
+          type: boolean
+
+    # =========================================================================
+    # VALIDATION SCHEMAS
+    # =========================================================================
+    
+    ValidationScenario:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        source_document:
+          type: string
+        claims_count:
+          type: integer
+        completeness_score:
+          type: number
+          format: float
+        last_evaluated:
+          type: string
+          format: date-time
+
+tags:
+  - name: Ingestion
+    description: Async document ingestion (fire-and-forget)
+  - name: Analysis
+    description: Interactive case analysis (core value)
+  - name: Extraction
+    description: Synchronous claim extraction (testing/debug)
+  - name: ProofChains
+    description: Proof chain retrieval and visualization
+  - name: ClaimTypes
+    description: Claim type taxonomy management
+  - name: Validation
+    description: System validation and coherence tracking

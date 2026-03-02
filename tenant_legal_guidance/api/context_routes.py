@@ -12,6 +12,8 @@ from fastapi.templating import Jinja2Templates
 from typing import TYPE_CHECKING
 
 from tenant_legal_guidance.api.schemas import (
+    BM25EntitySearchRequest,
+    BM25EntitySearchResponse,
     ContextBuildRequest,
     ContextBuildResponse,
     ContextSearchRequest,
@@ -39,6 +41,12 @@ def get_templates(request: Request) -> Jinja2Templates:
     return request.app.state.templates
 
 
+def get_system(request: Request):
+    """Get TenantLegalSystem from app state."""
+    from tenant_legal_guidance.services.tenant_system import TenantLegalSystem
+    return request.app.state.system
+
+
 @router.get("/context-builder", response_class=HTMLResponse)
 async def context_builder_page(
     request: Request, templates: Jinja2Templates = Depends(get_templates)
@@ -60,6 +68,7 @@ async def context_search(
     try:
         # Extract key terms from query
         key_terms = case_analyzer.extract_key_terms(request_data.query)
+        logger.info(f"Context search: extracted {len(key_terms)} key terms: {key_terms[:10]}")
 
         # Convert entity type strings to EntityType enums if provided
         entity_types = None
@@ -79,6 +88,7 @@ async def context_search(
 
         # Filter entities by type if specified
         entities = relevant_data.get("entities", [])
+        logger.info(f"Context search: retrieved {len(entities)} entities before filtering")
         if entity_types:
             entities = [
                 e
@@ -100,6 +110,8 @@ async def context_search(
         # Limit results
         entities = entities[: request_data.top_k_entities]
         chunks = relevant_data.get("chunks", [])[: request_data.top_k_chunks]
+        
+        logger.info(f"Context search: returning {len(entities)} entities and {len(chunks)} chunks")
 
         # Convert entities to dict format for JSON response
         entities_dict = []
@@ -195,5 +207,71 @@ async def build_context(
 
     except Exception as e:
         logger.error(f"Error building context: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.post("/api/context/search-bm25", response_model=BM25EntitySearchResponse)
+async def bm25_entity_search(
+    request_data: BM25EntitySearchRequest,
+    system = Depends(get_system),
+) -> BM25EntitySearchResponse:
+    """
+    BM25-only entity search using ArangoSearch (no vector search).
+    
+    Searches entities using BM25 ranking across: name, description, claim_type,
+    evidence_type, and attributes fields.
+    """
+    try:
+        # Convert entity type strings to EntityType enums if provided
+        entity_types = None
+        if request_data.entity_types:
+            try:
+                entity_types = [EntityType(et.lower()) for et in request_data.entity_types]
+            except ValueError as e:
+                raise HTTPException(
+                    status_code=400, detail=f"Invalid entity type: {e}"
+                ) from e
+
+        # Use the knowledge graph's BM25 search method
+        entities = system.knowledge_graph.search_entities_by_text(
+            search_term=request_data.query,
+            types=entity_types,
+            jurisdiction=request_data.jurisdiction,
+            limit=request_data.limit,
+        )
+
+        # Convert entities to dict format for JSON response
+        entities_dict = []
+        for entity in entities:
+            entity_dict = {
+                "id": entity.id,
+                "name": entity.name,
+                "type": (
+                    entity.entity_type.value
+                    if hasattr(entity.entity_type, "value")
+                    else str(entity.entity_type)
+                ),
+                "description": entity.description or "",
+                "jurisdiction": entity.jurisdiction or "",
+                "best_quote": (
+                    entity.best_quote.model_dump() if entity.best_quote else None
+                ),
+                "source_metadata": (
+                    entity.source_metadata.model_dump()
+                    if hasattr(entity.source_metadata, "model_dump")
+                    else (entity.source_metadata if isinstance(entity.source_metadata, dict) else {})
+                ),
+            }
+            entities_dict.append(entity_dict)
+
+        return BM25EntitySearchResponse(
+            entities=entities_dict,
+            count=len(entities_dict),
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in BM25 entity search: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e)) from e
 

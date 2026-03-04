@@ -59,10 +59,6 @@ Complete documentation for the Tenant Legal Guidance System.
 1. [DATA_INGESTION.md](DATA_INGESTION.md) - Ingestion pipeline
 2. [ENTITY_MANAGEMENT.md](ENTITY_MANAGEMENT.md) - Knowledge graph management
 
-## 🗂️ Archive
-
-Older documentation has been moved to `archive/` for reference. The current guides above consolidate and supersede archived docs.
-
 ## 🆘 Need Help?
 
 1. **Check docs above** for your topic
@@ -75,8 +71,7 @@ Older documentation has been moved to `archive/` for reference. The current guid
 - **Main README:** [../README.md](../README.md)
 - **Repository Guide:** [../CLAUDE.md](../CLAUDE.md)
 - **API Docs:** http://localhost:8000/docs (when running)
-- **Specifications:** [../specs/](../specs/)
 
 ---
 
-**Documentation Structure:** 8 core guides + 3 reference docs = 11 total (simplified from 41!)
+**Documentation:** 8 core guides + 3 reference docs + 1 index = 12 total (simplified from 41!)

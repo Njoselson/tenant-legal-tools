@@ -223,6 +223,7 @@ class TestPerformanceBenchmarks:
     """Performance benchmarks for evaluation."""
 
     @pytest.mark.asyncio
+    @pytest.mark.slow
     async def test_ingestion_performance(self, system_with_data):
         """Benchmark ingestion time."""
         import time

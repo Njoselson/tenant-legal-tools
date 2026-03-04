@@ -111,7 +111,18 @@ ingest-manifest:
 		--manifest $(MANIFEST) \
 		--archive data/archive \
 		--checkpoint data/ingestion_checkpoint.json \
-		--report data/ingestion_report.json
+		--report data/ingestion_report.json \
+		--skip-existing
+
+ingest-all-manifests:
+	@echo "Ingesting all manifests from data/manifests/..."
+	@echo "Note: Already-ingested sources will be skipped (checks database by locator)"
+	mkdir -p data/archive
+	uv run python -m tenant_legal_guidance.scripts.ingest_all_manifests \
+		--skip-existing \
+		--checkpoint data/ingestion_checkpoint.json \
+		--report data/ingestion_report.json \
+		--archive data/archive
 
 # Vector DB (Qdrant) management
 vector-status:
@@ -134,8 +145,15 @@ reingest-all:
 	rm -f data/ingestion_checkpoint.json data/ingestion_report.json
 	rm -rf data/archive/*.txt
 	@sleep 2
-	@echo "4. Starting fresh ingestion..."
-	$(MAKE) ingest-manifest MANIFEST=data/manifests/sources.jsonl
+	@echo "4. Starting fresh ingestion of all manifests..."
+	@echo "Note: Using ingest-all-manifests (skip-existing disabled for fresh start)"
+	mkdir -p data/archive
+	uv run python -m tenant_legal_guidance.scripts.ingest_all_manifests \
+		--checkpoint data/ingestion_checkpoint.json \
+		--report data/ingestion_report.json \
+		--archive data/archive
+	@echo ""
+	@echo "✓ All manifests ingested"
 
 # Evaluation targets
 evaluate:

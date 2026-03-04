@@ -63,4 +63,3 @@ data/*.graphml
 # Spec-kit and agentic files
 .specify/
 .cursor/
-specs/

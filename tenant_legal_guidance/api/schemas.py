@@ -6,8 +6,46 @@ from typing import Any
 
 from pydantic import BaseModel
 
+from tenant_legal_guidance.models.claim_types import ClaimType
 from tenant_legal_guidance.models.documents import InputType
 from tenant_legal_guidance.models.entities import SourceMetadata
+
+
+# ============================================================================
+# Claim Type Schemas
+# ============================================================================
+
+
+class ClaimTypeSchema(BaseModel):
+    """Schema for claim type information."""
+
+    value: str  # Enum value (e.g., "RENT_OVERCHARGE")
+    display_name: str  # Human readable (e.g., "Rent Overcharge")
+    description: str = ""  # Brief description
+
+    @classmethod
+    def from_enum(cls, claim_type: ClaimType) -> "ClaimTypeSchema":
+        """Create schema from ClaimType enum."""
+        return cls(
+            value=claim_type.value,
+            display_name=claim_type.display_name,
+            description=claim_type.description,
+        )
+
+
+class ClaimTypesResponse(BaseModel):
+    """Response for listing all claim types."""
+
+    claim_types: list[ClaimTypeSchema]
+    count: int
+
+
+class RequiredEvidenceResponse(BaseModel):
+    """Response for required evidence for a claim type."""
+
+    claim_type: ClaimTypeSchema
+    required_evidence: list[dict[str, Any]]
+    count: int
 
 
 # ============================================================================
@@ -50,6 +88,21 @@ class ManifestUploadResponse(BaseModel):
 
     status: str
     entries: list[dict[str, Any]]
+    total: int
+
+
+class ManifestMetadata(BaseModel):
+    """Manifest metadata."""
+
+    manifest_id: str
+    entry_count: int
+    updated_at: str | None = None
+
+
+class ManifestListResponse(BaseModel):
+    """Response containing list of manifests."""
+
+    manifests: list[ManifestMetadata]
     total: int
 
 
@@ -210,10 +263,11 @@ class ExtractedClaimSchema(BaseModel):
     claim_description: str
     claimant: str
     respondent_party: str | None = None
-    claim_type: str | None = None
+    claim_type: ClaimTypeSchema | None = None  # Validated claim type
     relief_sought: list[str] = []
     claim_status: str = "asserted"
     source_quote: str | None = None
+    case_id: str | None = None  # Link to source case
 
 
 class ExtractedEvidenceSchema(BaseModel):
@@ -339,8 +393,9 @@ class ProofChainSchema(BaseModel):
 
     claim_id: str
     claim_description: str
-    claim_type: str | None = None
+    claim_type: ClaimTypeSchema | None = None  # Validated claim type
     claimant: str | None = None
+    case_id: str | None = None  # Link to source case
     required_evidence: list[ProofChainEvidenceSchema] = []
     presented_evidence: list[ProofChainEvidenceSchema] = []
     missing_evidence: list[ProofChainEvidenceSchema] = []
@@ -374,6 +429,22 @@ class ContextSearchResponse(BaseModel):
     entities: list[dict[str, Any]]
     chunks: list[dict[str, Any]]
     relationships: list[dict[str, Any]] = []
+
+
+class BM25EntitySearchRequest(BaseModel):
+    """Request for BM25-only entity search (no vector search)."""
+
+    query: str
+    limit: int = 50
+    entity_types: list[str] | None = None
+    jurisdiction: str | None = None
+
+
+class BM25EntitySearchResponse(BaseModel):
+    """Response from BM25 entity search."""
+
+    entities: list[dict[str, Any]]
+    count: int
 
 
 class ContextBuildRequest(BaseModel):

@@ -1,46 +1,77 @@
-# Documentation Index
+# Documentation
 
-## Graph Chain Integration & Legal Reasoning
+Complete documentation for the Tenant Legal Guidance System.
 
-**Latest Implementation** (November 2024):
+## 📚 Core Guides
 
-1. **[EVALUATION_SUMMARY.md](EVALUATION_SUMMARY.md)** - Start here! Executive summary of the legal reasoning evaluation
-2. **[LEGAL_REASONING_EVALUATION.md](LEGAL_REASONING_EVALUATION.md)** - Full analysis of claim-proving infrastructure
-3. **[IMPLEMENTATION_RECOMMENDATIONS.md](IMPLEMENTATION_RECOMMENDATIONS.md)** - Detailed implementation plan
-4. **[IMPLEMENTATION_SUMMARY.md](IMPLEMENTATION_SUMMARY.md)** - What was built and how it works
-5. **[GRAPH_FIRST_IMPLEMENTATION.md](GRAPH_FIRST_IMPLEMENTATION.md)** - Architecture change details
+| Guide | What's Inside | Read When... |
+|-------|--------------|--------------|
+| **[GETTING_STARTED.md](GETTING_STARTED.md)** | Setup, installation, first steps | You're new to the project |
+| **[ARCHITECTURE.md](ARCHITECTURE.md)** | System design, data flow, components | You want to understand how it works |
+| **[DATA_INGESTION.md](DATA_INGESTION.md)** | Manifests, scraping, ETL pipeline | You need to add/manage data |
+| **[DEPLOYMENT.md](DEPLOYMENT.md)** | Production deploy, Docker, CI/CD | You're deploying to production |
+| **[DEVELOPMENT.md](DEVELOPMENT.md)** | Dev setup, testing, contributing | You're developing features |
+| **[SECURITY.md](SECURITY.md)** | Security features, PII anonymization | You need to secure the system |
+| **[ENTITY_MANAGEMENT.md](ENTITY_MANAGEMENT.md)** | Entities, resolution, deduplication | You're working with knowledge graph |
+| **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** | Common issues, fixes, debugging | Something isn't working |
 
-## System Architecture
+## 🔍 Reference Docs
 
-- **[ARCHITECTURE.md](ARCHITECTURE.md)** - Legal knowledge graph architecture (entities, chunks, quotes)
-- **[INGESTION_FLOW.md](INGESTION_FLOW.md)** - Document ingestion pipeline details
+| Document | Purpose |
+|----------|---------|
+| **[API_REQUEST_FLOW.md](API_REQUEST_FLOW.md)** | How requests flow through the system |
+| **[DEPENDENCY_GRAPH.md](DEPENDENCY_GRAPH.md)** | Service dependencies (Mermaid diagrams) |
+| **[PROJECT_ORGANIZATION.md](PROJECT_ORGANIZATION.md)** | Repository structure, file organization |
 
-## Development
+## 🎯 Quick Navigation
 
-- **[MAKEFILE_COMMANDS.md](MAKEFILE_COMMANDS.md)** - Complete Makefile command reference
-- **[FIXES_APPLIED.md](FIXES_APPLIED.md)** - Change history
+**I want to...**
 
-## Key Concepts
+- **Get started** → [GETTING_STARTED.md](GETTING_STARTED.md)
+- **Understand the architecture** → [ARCHITECTURE.md](ARCHITECTURE.md)
+- **Add data sources** → [DATA_INGESTION.md](DATA_INGESTION.md#manifest-format)
+- **Deploy to production** → [DEPLOYMENT.md](DEPLOYMENT.md#production-checklist)
+- **Run tests** → [DEVELOPMENT.md](DEVELOPMENT.md#testing)
+- **Fix an issue** → [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
+- **Secure the app** → [SECURITY.md](SECURITY.md#security-best-practices)
+- **Manage entities** → [ENTITY_MANAGEMENT.md](ENTITY_MANAGEMENT.md)
 
-### Graph-First Legal Reasoning
+## 📖 Documentation Overview
 
-The system now uses a **graph-first architecture** for provably correct legal reasoning:
+### Getting Started (Start Here!)
+1. Read [GETTING_STARTED.md](GETTING_STARTED.md) - 15 min setup
+2. Ingest sample data
+3. Try the web UI at http://localhost:8000
+4. Read [ARCHITECTURE.md](ARCHITECTURE.md) to understand internals
 
-1. Retrieve verified graph chains from knowledge graph (issue → law → remedy → evidence)
-2. Use chains as ground truth (not LLM speculation)
-3. LLM explains how the chain applies to the user's specific case
-4. Display proof tree showing verified connections
+### For Developers
+1. [DEVELOPMENT.md](DEVELOPMENT.md) - Set up dev environment
+2. [ARCHITECTURE.md](ARCHITECTURE.md) - Understand system design
+3. [API_REQUEST_FLOW.md](API_REQUEST_FLOW.md) - Trace request paths
+4. [DEPENDENCY_GRAPH.md](DEPENDENCY_GRAPH.md) - See service relationships
 
-This prevents the LLM from inventing legal connections or "explaining around" weak evidence.
+### For Operators/DevOps
+1. [DEPLOYMENT.md](DEPLOYMENT.md) - Production deployment guide
+2. [SECURITY.md](SECURITY.md) - Security hardening
+3. [TROUBLESHOOTING.md](TROUBLESHOOTING.md) - Common issues
 
-### Testing
+### For Data Managers
+1. [DATA_INGESTION.md](DATA_INGESTION.md) - Ingestion pipeline
+2. [ENTITY_MANAGEMENT.md](ENTITY_MANAGEMENT.md) - Knowledge graph management
 
-5 comprehensive tests demonstrate the graph-first implementation:
-- `test_graph_chains_integration_with_valid_chains` - Full integration test
-- `test_graph_chains_skips_issue_with_no_chains` - Behavior when no graph support
-- `test_legal_elements_extraction_from_graph_chains` - Element-by-element evidence
-- `test_remedies_prioritized_from_graph_chain` - Remedy prioritization
-- `test_graph_first_architecture_uses_chain_laws` - Proves laws come from graph, not LLM
+## 🆘 Need Help?
 
-Run tests: `pytest tenant_legal_guidance/tests/services/test_case_analyzer.py::test_graph_chains -v`
+1. **Check docs above** for your topic
+2. **Search troubleshooting** → [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
+3. **Review logs** → `logs/tenant_legal_*.log`
+4. **Check GitHub Issues** → https://github.com/Njoselson/tenant_legal_guidance/issues
 
+## 🔗 External Links
+
+- **Main README:** [../README.md](../README.md)
+- **Repository Guide:** [../CLAUDE.md](../CLAUDE.md)
+- **API Docs:** http://localhost:8000/docs (when running)
+
+---
+
+**Documentation:** 8 core guides + 3 reference docs + 1 index = 12 total (simplified from 41!)

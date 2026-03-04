@@ -1,8 +1,13 @@
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
+from typing import TYPE_CHECKING
+import warnings
 
 from pydantic import BaseModel, Field, field_validator
+
+if TYPE_CHECKING:
+    from tenant_legal_guidance.models.claim_types import ClaimType
 
 
 class EntityType(str, Enum):
@@ -45,6 +50,81 @@ class EntityType(str, Enum):
     # Legal claim proving system entities (NEW)
     LEGAL_CLAIM = "legal_claim"  # Assertion of a legal right or cause of action
     LEGAL_ELEMENT = "legal_element"  # Specific verifiable element of a legal requirement
+
+
+class EntityCategory(str, Enum):
+    """
+    Categories for organizing entity types in retrieval.
+
+    Used to filter which entity types are included in claim-proving retrieval
+    vs. which are excluded (e.g., organizing entities).
+    """
+
+    CORE_CLAIM_PROVING = "core_claim_proving"  # Primary entities in claim retrieval
+    SUPPORTING = "supporting"  # Related but secondary in retrieval
+    REFERENCE = "reference"  # Metadata entities (cases, jurisdictions)
+    ORGANIZING = "organizing"  # Excluded from claim-proving retrieval
+
+
+# Map entity types to categories for retrieval filtering
+ENTITY_CATEGORIES: dict[EntityType, EntityCategory] = {
+    # Core claim-proving entities (always in retrieval)
+    EntityType.LAW: EntityCategory.CORE_CLAIM_PROVING,
+    EntityType.LEGAL_CLAIM: EntityCategory.CORE_CLAIM_PROVING,
+    EntityType.EVIDENCE: EntityCategory.CORE_CLAIM_PROVING,
+    EntityType.LEGAL_OUTCOME: EntityCategory.CORE_CLAIM_PROVING,
+    EntityType.DAMAGES: EntityCategory.CORE_CLAIM_PROVING,
+    # Supporting entities (in retrieval but secondary)
+    EntityType.REMEDY: EntityCategory.SUPPORTING,
+    EntityType.LEGAL_PROCEDURE: EntityCategory.SUPPORTING,
+    EntityType.LEGAL_CONCEPT: EntityCategory.SUPPORTING,
+    EntityType.TENANT_ISSUE: EntityCategory.SUPPORTING,
+    EntityType.LEGAL_ELEMENT: EntityCategory.SUPPORTING,
+    # Reference entities (metadata, not primary retrieval targets)
+    EntityType.CASE_DOCUMENT: EntityCategory.REFERENCE,
+    EntityType.JURISDICTION: EntityCategory.REFERENCE,
+    EntityType.DOCUMENT: EntityCategory.REFERENCE,
+    EntityType.TENANT: EntityCategory.REFERENCE,
+    EntityType.LANDLORD: EntityCategory.REFERENCE,
+    EntityType.LEGAL_SERVICE: EntityCategory.REFERENCE,
+    EntityType.GOVERNMENT_ENTITY: EntityCategory.REFERENCE,
+    EntityType.EVENT: EntityCategory.REFERENCE,
+    # Organizing entities (excluded from claim-proving retrieval)
+    EntityType.TENANT_GROUP: EntityCategory.ORGANIZING,
+    EntityType.CAMPAIGN: EntityCategory.ORGANIZING,
+    EntityType.TACTIC: EntityCategory.ORGANIZING,
+    EntityType.ORGANIZING_OUTCOME: EntityCategory.ORGANIZING,
+}
+
+
+def get_claim_retrieval_types() -> list[EntityType]:
+    """
+    Get entity types that should be included in claim-proving retrieval.
+
+    Returns entity types in CORE_CLAIM_PROVING and SUPPORTING categories.
+    Excludes REFERENCE and ORGANIZING categories.
+
+    Returns:
+        List of EntityType values for claim retrieval
+    """
+    return [
+        et
+        for et, cat in ENTITY_CATEGORIES.items()
+        if cat in {EntityCategory.CORE_CLAIM_PROVING, EntityCategory.SUPPORTING}
+    ]
+
+
+def get_entity_category(entity_type: EntityType) -> EntityCategory:
+    """
+    Get the category for an entity type.
+
+    Args:
+        entity_type: The EntityType to categorize
+
+    Returns:
+        EntityCategory for the given type, defaults to REFERENCE if not mapped
+    """
+    return ENTITY_CATEGORIES.get(entity_type, EntityCategory.REFERENCE)
 
 
 class EvidenceContext(str, Enum):
@@ -223,7 +303,7 @@ class LegalEntity(BaseModel):
     filing_date: datetime | None = None  # Date case was filed
     parties: dict[str, list[str]] | None = None  # {"plaintiff": [...], "defendant": [...]}
     holdings: list[str] | None = None  # Key legal holdings
-    procedural_history: list[dict[str, str]] | None = None  # Timeline of case events [{"event": "filed", "date": "...", "description": "..."}]
+    procedural_history: list[dict[str, str | None]] | None = None  # Timeline of case events [{"event": "filed", "date": "...", "description": "..."}]
     citations: list[str] | None = None  # Case law citations within document
 
     # Case outcome fields (NEW)
@@ -241,14 +321,21 @@ class LegalEntity(BaseModel):
 
     attributes: dict[str, str] = Field(default_factory=dict)
 
-    # Legal claim fields (NEW - for LEGAL_CLAIM entity type)
+    # Case grouping field (for linking claims/evidence to source case)
+    case_id: str | None = Field(
+        None,
+        description="ID of the CASE_DOCUMENT this entity belongs to (for grouping claims/evidence from same case)",
+    )
+
+    # Legal claim fields (for LEGAL_CLAIM entity type)
     claim_description: str | None = Field(None, description="Full description of the legal claim")
     claimant: str | None = Field(
         None, description="Party asserting the claim (e.g., 'respondents', 'petitioner')"
     )
     respondent_party: str | None = Field(None, description="Party the claim is against")
     claim_type: str | None = Field(
-        None, description="Claim type string (e.g., 'DEREGULATION_CHALLENGE', 'RENT_OVERCHARGE')"
+        None,
+        description="Claim type from ClaimType enum (e.g., 'DEREGULATION_CHALLENGE')",
     )
     relief_sought: list[str] | None = Field(None, description="What the claimant is seeking")
     claim_status: str | None = Field(
@@ -284,53 +371,24 @@ class LegalEntity(BaseModel):
         description="For required evidence: which claim type needs this (e.g., 'DEREGULATION_CHALLENGE')",
     )
 
+    @field_validator("claim_type", "linked_claim_type", mode="before")
+    @classmethod
+    def validate_claim_type(cls, v):
+        """Validate and normalize claim type values to ClaimType enum."""
+        if v is None:
+            return None
+        if isinstance(v, str):
+            # Import here to avoid circular imports
+            from tenant_legal_guidance.models.claim_types import ClaimType
 
-@dataclass
-class LegalElement:
-    """
-    Represents a specific verifiable element of a legal requirement.
-    
-    Used for element-by-element analysis to break down legal requirements
-    into specific verifiable components.
-    """
-    element_id: str
-    element_name: str  # e.g., "Landlord notified of defect"
-    description: str
-    is_critical: bool = True
-    evidence_types: list[str] = None  # e.g., ["written_notice", "email", "text_message"]
-    case_law_examples: list[str] = None  # Entity IDs of cases showing this element
-    statute_reference: str | None = None  # Reference to statute/law requiring this element
-    
-    def __post_init__(self):
-        if self.evidence_types is None:
-            self.evidence_types = []
-        if self.case_law_examples is None:
-            self.case_law_examples = []
-
-    # Evidence context fields (NEW - extends EVIDENCE entity type)
-    evidence_context: str | None = Field(
-        None, description="Context: 'required', 'presented', or 'missing'"
-    )
-    evidence_source_type: str | None = Field(
-        None, description="Source type: 'statute', 'guide', or 'case'"
-    )
-    evidence_source_reference: str | None = Field(
-        None, description="e.g., 'NYC Admin Code § 26-504.2' or '756 Liberty v Garcia'"
-    )
-    evidence_examples: list[str] | None = Field(
-        None, description="Examples: ['invoices', 'receipts', 'contracts']"
-    )
-    is_critical: bool | None = Field(None, description="If missing, claim cannot succeed")
-    matches_required_id: str | None = Field(
-        None, description="For presented evidence: ID of required evidence it satisfies"
-    )
-    linked_claim_id: str | None = Field(
-        None, description="For presented evidence: which claim this supports"
-    )
-    linked_claim_type: str | None = Field(
-        None,
-        description="For required evidence: which claim type needs this (e.g., 'DEREGULATION_CHALLENGE')",
-    )
+            try:
+                return ClaimType.from_string(v).value
+            except Exception:
+                return v
+        # If it's already a ClaimType enum, get its value
+        if hasattr(v, "value"):
+            return v.value
+        return v
 
     @field_validator("entity_type", mode="before")
     @classmethod
@@ -371,3 +429,26 @@ class LegalElement:
         )
 
         return serialize_entity_for_api(self)
+
+
+@dataclass
+class LegalElement:
+    """
+    Represents a specific verifiable element of a legal requirement.
+    
+    Used for element-by-element analysis to break down legal requirements
+    into specific verifiable components.
+    """
+    element_id: str
+    element_name: str  # e.g., "Landlord notified of defect"
+    description: str
+    is_critical: bool = True
+    evidence_types: list[str] = None  # e.g., ["written_notice", "email", "text_message"]
+    case_law_examples: list[str] = None  # Entity IDs of cases showing this element
+    statute_reference: str | None = None  # Reference to statute/law requiring this element
+    
+    def __post_init__(self):
+        if self.evidence_types is None:
+            self.evidence_types = []
+        if self.case_law_examples is None:
+            self.case_law_examples = []

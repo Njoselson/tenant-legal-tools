@@ -301,6 +301,7 @@
             <button class="tab active" onclick="switchTab('search')">Search Sources</button>
             <button class="tab" onclick="switchTab('upload')">Upload Manifest</button>
             <button class="tab" onclick="switchTab('manifest')">Current Manifest <span id="manifest-count" class="status-badge">0</span></button>
+            <button class="tab" onclick="switchTab('all-manifests')">All Manifests</button>
             <button class="tab" onclick="switchTab('jobs')">Ingestion Jobs</button>
         </div>
 
@@ -375,6 +376,15 @@
             <div id="manifest-preview"></div>
         </div>
 
+        <!-- All Manifests Tab -->
+        <div id="all-manifests-tab" class="tab-content">
+            <h2>All Manifests</h2>
+            <div style="margin-bottom: 20px;">
+                <button onclick="loadAllManifests()">Refresh</button>
+            </div>
+            <div id="all-manifests-list"></div>
+        </div>
+
         <!-- Ingestion Jobs Tab -->
         <div id="jobs-tab" class="tab-content">
             <h2>Ingestion Jobs</h2>
@@ -402,6 +412,8 @@
             // Load data if needed
             if (tabName === 'manifest') {
                 loadManifest();
+            } else if (tabName === 'all-manifests') {
+                loadAllManifests();
             } else if (tabName === 'jobs') {
                 loadJobs();
             }
@@ -543,13 +555,32 @@
         }
 
         async function loadManifest() {
+            const preview = document.getElementById('manifest-preview');
             try {
                 const response = await fetch('/api/v1/curation/manifest');
+                
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({ detail: `HTTP ${response.status}: ${response.statusText}` }));
+                    // Extract error message, handling both 'detail' and 'error' fields, and converting objects to strings
+                    let errorMsg = errorData.detail || errorData.error || errorData.message || response.statusText;
+                    if (errorMsg && typeof errorMsg === 'object' && errorMsg !== null) {
+                        errorMsg = JSON.stringify(errorMsg);
+                    } else if (!errorMsg || (typeof errorMsg !== 'string' && typeof errorMsg !== 'number')) {
+                        errorMsg = `HTTP ${response.status}: ${response.statusText}`;
+                    }
+                    preview.innerHTML = `<div class="alert alert-error">Error loading manifest: ${String(errorMsg)}</div>`;
+                    return;
+                }
+                
                 const data = await response.json();
+                
+                if (!data || !data.entries) {
+                    preview.innerHTML = '<div class="alert alert-error">Error loading manifest: Invalid response format</div>';
+                    return;
+                }
 
-                updateManifestCount(data.total);
+                updateManifestCount(data.total || 0);
 
-                const preview = document.getElementById('manifest-preview');
                 if (data.entries.length === 0) {
                     preview.innerHTML = '<div class="alert alert-info">Manifest is empty. Search for cases and add them, or upload a manifest file.</div>';
                     return;
@@ -570,8 +601,9 @@
                 html += '</div>';
                 preview.innerHTML = html;
             } catch (error) {
-                document.getElementById('manifest-preview').innerHTML = 
-                    `<div class="alert alert-error">Error loading manifest: ${error.message}</div>`;
+                const errorMsg = error?.message || error?.toString() || String(error) || 'Unknown error';
+                preview.innerHTML = 
+                    `<div class="alert alert-error">Error loading manifest: ${errorMsg}</div>`;
             }
         }
 
@@ -764,6 +796,124 @@
             if (badge) {
                 badge.textContent = count;
                 badge.style.display = count > 0 ? 'inline-block' : 'none';
+            }
+        }
+
+        async function loadAllManifests() {
+            const listDiv = document.getElementById('all-manifests-list');
+            try {
+                const response = await fetch('/api/v1/curation/manifests');
+                
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({ detail: `HTTP ${response.status}: ${response.statusText}` }));
+                    let errorMsg = errorData.detail || errorData.error || errorData.message || response.statusText;
+                    if (errorMsg && typeof errorMsg === 'object' && errorMsg !== null) {
+                        errorMsg = JSON.stringify(errorMsg);
+                    } else if (!errorMsg || (typeof errorMsg !== 'string' && typeof errorMsg !== 'number')) {
+                        errorMsg = `HTTP ${response.status}: ${response.statusText}`;
+                    }
+                    listDiv.innerHTML = `<div class="alert alert-error">Error loading manifests: ${String(errorMsg)}</div>`;
+                    return;
+                }
+                
+                const data = await response.json();
+                
+                if (!data || !data.manifests) {
+                    listDiv.innerHTML = '<div class="alert alert-error">Error loading manifests: Invalid response format</div>';
+                    return;
+                }
+
+                if (data.manifests.length === 0) {
+                    listDiv.innerHTML = '<div class="alert alert-info">No manifests found.</div>';
+                    return;
+                }
+
+                let html = `
+                    <div style="margin-bottom: 15px;">
+                        <strong>Total manifests: ${data.total}</strong>
+                    </div>
+                    <div class="manifest-preview">
+                `;
+                
+                data.manifests.forEach((manifest) => {
+                    const updatedAt = manifest.updated_at ? new Date(manifest.updated_at).toLocaleString() : 'N/A';
+                    html += `
+                        <div class="manifest-entry">
+                            <div style="flex: 1;">
+                                <div class="entry-title">Manifest ID: ${manifest.manifest_id}</div>
+                                <div style="margin-top: 5px; color: #666; font-size: 14px;">
+                                    Entries: ${manifest.entry_count} | Updated: ${updatedAt}
+                                </div>
+                            </div>
+                            <button class="btn-secondary" onclick="viewManifest('${manifest.manifest_id}')" style="margin-left: 10px;">View</button>
+                        </div>
+                    `;
+                });
+                
+                html += '</div>';
+                listDiv.innerHTML = html;
+            } catch (error) {
+                const errorMsg = error?.message || error?.toString() || String(error) || 'Unknown error';
+                listDiv.innerHTML = `<div class="alert alert-error">Error loading manifests: ${errorMsg}</div>`;
+            }
+        }
+
+        async function viewManifest(manifestId) {
+            const listDiv = document.getElementById('all-manifests-list');
+            const originalContent = listDiv.innerHTML;
+            
+            try {
+                listDiv.innerHTML = '<div class="loading"><div class="spinner"></div><p>Loading manifest...</p></div>';
+                
+                const response = await fetch(`/api/v1/curation/manifests/${manifestId}`);
+                
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({ detail: `HTTP ${response.status}: ${response.statusText}` }));
+                    let errorMsg = errorData.detail || errorData.error || errorData.message || response.statusText;
+                    if (errorMsg && typeof errorMsg === 'object' && errorMsg !== null) {
+                        errorMsg = JSON.stringify(errorMsg);
+                    } else if (!errorMsg || (typeof errorMsg !== 'string' && typeof errorMsg !== 'number')) {
+                        errorMsg = `HTTP ${response.status}: ${response.statusText}`;
+                    }
+                    listDiv.innerHTML = `<div class="alert alert-error">Error loading manifest: ${String(errorMsg)}</div>`;
+                    return;
+                }
+                
+                const data = await response.json();
+                
+                if (!data || !data.entries) {
+                    listDiv.innerHTML = '<div class="alert alert-error">Error loading manifest: Invalid response format</div>';
+                    return;
+                }
+
+                let html = `
+                    <div style="margin-bottom: 15px;">
+                        <button class="btn-secondary" onclick="loadAllManifests()" style="margin-right: 10px;">← Back to All Manifests</button>
+                        <strong>Manifest ID: ${manifestId} (${data.total} entries)</strong>
+                    </div>
+                `;
+
+                if (data.entries.length === 0) {
+                    html += '<div class="alert alert-info">This manifest is empty.</div>';
+                } else {
+                    html += '<div class="manifest-preview">';
+                    data.entries.forEach((entry) => {
+                        html += `
+                            <div class="manifest-entry">
+                                <div>
+                                    <div class="entry-title">${entry.title || entry.locator}</div>
+                                    <div class="entry-url">${entry.locator}</div>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    html += '</div>';
+                }
+                
+                listDiv.innerHTML = html;
+            } catch (error) {
+                const errorMsg = error?.message || error?.toString() || String(error) || 'Unknown error';
+                listDiv.innerHTML = `<div class="alert alert-error">Error loading manifest: ${errorMsg}</div>`;
             }
         }
 

@@ -17,7 +17,13 @@
 
 ## 📋 Up Next (committed, in priority order)
 
-1. **Proof Chain Unification** (`specs/005-proof-chain-unification/`)
+1. **Entity model redesign + ingestion pipeline rewrite** (follow-on to extraction prompt work)
+   - Clean 5-type entity model in `entities.py` (LEGAL_CLAIM, EVIDENCE, LEGAL_PROCEDURE, LEGAL_OUTCOME, LAW)
+   - Route by `document_type` in `document_processor.py` using the 3 type-aware prompts
+   - Clean up `proof_chain.py` and `claim_extractor.py`
+   - DB wipe + re-ingest with new model
+
+2. **Proof Chain Unification** (`specs/005-proof-chain-unification/`)
    - Make `ProofChainService` the single place for all proof chain logic
    - Eliminate duplicate logic in `ClaimExtractor` and `CaseAnalyzer`
    - Add dual ArangoDB + Qdrant storage and bidirectional chunk linking
@@ -66,6 +72,9 @@
 ---
 
 ## ✅ Done (recent)
+
+- **Type-aware extraction prompts** — `get_statute/guide/case_extraction_prompt()` in `prompts.py`; unified 5-entity schema (LEGAL_CLAIM, EVIDENCE, LEGAL_PROCEDURE, LEGAL_OUTCOME, LAW); validated on RPL § 235-b, Met Council repairs guide, and 2025 NYC Housing Court case
+- **Extraction test harness** — `scripts/test_extraction.py`; no DB writes; auto-versioned output to `data/extraction_tests/`; Pass A (baseline) + Pass B (typed) comparison workflow
 
 - Hash-based entity IDs — no more >63 char truncation
 - Graph enforcement layer in `case_analyzer` — LLM can't override graph verification

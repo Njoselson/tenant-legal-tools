@@ -515,6 +515,221 @@ Important:
     )
 
 
+# ============================================================================
+# TYPE-AWARE EXTRACTION PROMPTS (for test harness + future ingestion pipeline)
+# ============================================================================
+
+# Valid claim types for LLM validation
+_CLAIM_TYPES = (
+    "RENT_OVERCHARGE | RENT_STABILIZATION_VIOLATION | DEREGULATION_CHALLENGE | "
+    "HIGH_RENT_VACANCY_CHALLENGE | HABITABILITY_VIOLATION | HP_ACTION_REPAIRS | "
+    "BREACH_OF_WARRANTY_OF_HABITABILITY | HARASSMENT | ILLEGAL_LOCKOUT | "
+    "RETALIATORY_EVICTION | SECURITY_DEPOSIT_RETURN | SECURITY_DEPOSIT_VIOLATION | "
+    "LEASE_VIOLATION | CONSTRUCTIVE_EVICTION | HOUSING_DISCRIMINATION | "
+    "IMPROPER_SERVICE | PROCEDURAL_DEFECT | OTHER"
+)
+
+# Unified output schema used by all 3 type-aware prompts
+_UNIFIED_OUTPUT_SCHEMA = """\
+Return ONLY valid JSON with this exact structure (no markdown, no extra keys):
+{{
+    "claims": [
+        {{
+            "id": "c1",
+            "name": "Short descriptive name",
+            "claim_type": "HP_ACTION_REPAIRS",
+            "description": "What right or cause of action this represents",
+            "relief_sought": ["list of remedies sought"]
+        }}
+    ],
+    "evidence": [
+        {{
+            "id": "e1",
+            "name": "Specific, named evidence item (e.g. HPD Inspection Report)",
+            "description": "What this evidence proves or requires",
+            "is_critical": true,
+            "evidence_context": "required",
+            "linked_claim_id": "c1",
+            "source_quote": "Exact quote from the text that mentions this evidence"
+        }}
+    ],
+    "procedures": [
+        {{
+            "id": "p1",
+            "name": "Short name",
+            "description": "What this procedure accomplishes",
+            "steps": ["Step 1", "Step 2"]
+        }}
+    ],
+    "outcomes": [
+        {{
+            "id": "o1",
+            "name": "Short name",
+            "outcome_type": "injunctive",
+            "description": "What the court orders or the law authorizes",
+            "linked_claim_id": "c1"
+        }}
+    ],
+    "laws": [
+        {{
+            "id": "l1",
+            "name": "Short name",
+            "citation": "RPL § 235-b",
+            "description": "What this law establishes or requires"
+        }}
+    ],
+    "relationships": [
+        {{"from": "l1", "to": "c1", "type": "enables"}},
+        {{"from": "c1", "to": "e1", "type": "requires"}},
+        {{"from": "p1", "to": "o1", "type": "results_in"}},
+        {{"from": "l1", "to": "o1", "type": "authorizes"}}
+    ]
+}}
+
+Rules:
+- claim_type MUST be one of: {claim_types}
+- outcome_type MUST be one of: monetary | injunctive | procedural | declaratory
+- evidence_context MUST be one of: required | presented | recommended
+- Relationship types: enables | requires | results_in | authorizes | cites | addresses | supports
+- Be SPECIFIC in names — "HPD Inspection Report" not "inspection report"
+- If a concept appears as both evidence and procedure, pick whichever fits better
+- Do NOT invent entity types — use only the 5 types shown above
+- Include a source_quote for every evidence item if the text mentions it directly
+- Every relationship must reference IDs that exist in the entities above"""
+
+
+def get_statute_extraction_prompt(text: str) -> str:
+    """
+    Type-aware extraction prompt for statutory text.
+
+    Extracts what legal rights, obligations, and penalties the statute creates,
+    framed as the 5 unified entity types.
+
+    Args:
+        text: Statute text chunk (will be sanitized)
+
+    Returns:
+        Formatted prompt string
+    """
+    from tenant_legal_guidance.services.security import create_safe_prompt
+
+    sanitized_text = sanitize_for_llm(text[:15000])
+
+    system_instructions = f"""\
+You are a legal extraction engine. Analyze the STATUTE text in USER_INPUT and extract structured legal information.
+
+A statute creates legal obligations and rights. Your task:
+1. LAWS — identify the statute itself and any other laws cited. Include the full citation (e.g., "RPL § 235-b").
+2. LEGAL_CLAIM — for each obligation or right the statute creates, extract the claim a tenant could make if violated.
+   A statute may not use the word "claim" — look for obligations ("landlord shall..."), rights ("tenant is entitled to..."), or prohibitions ("no landlord may..."). Each becomes a potential LEGAL_CLAIM.
+3. EVIDENCE — what the statute says must be proven. Use evidence_context = "required".
+   Be specific: name the actual document or fact (e.g., "Written notice of rent increase" not "notice").
+4. LEGAL_PROCEDURE — formal processes the statute defines (e.g., "HP Action in Housing Court").
+5. LEGAL_OUTCOME — penalties, remedies, or relief the statute authorizes (rent reduction, repairs ordered, treble damages).
+
+CRITICAL: Do NOT produce vague LEGAL_CONCEPT or catch-all OTHER entities. Every entity must be one of the 5 types above.
+
+Valid claim_type values: {_CLAIM_TYPES}"""
+
+    output_format = _UNIFIED_OUTPUT_SCHEMA.format(claim_types=_CLAIM_TYPES)
+
+    return create_safe_prompt(
+        system_instructions=system_instructions,
+        user_input=sanitized_text,
+        output_format=output_format,
+    )
+
+
+def get_guide_extraction_prompt(text: str) -> str:
+    """
+    Type-aware extraction prompt for tenant guide / advisory text.
+
+    Extracts the claims, procedures, evidence, and outcomes the guide advises
+    tenants about, using the same 5 unified entity types as statute and case prompts.
+
+    Args:
+        text: Guide text chunk (will be sanitized)
+
+    Returns:
+        Formatted prompt string
+    """
+    from tenant_legal_guidance.services.security import create_safe_prompt
+
+    sanitized_text = sanitize_for_llm(text[:15000])
+
+    system_instructions = f"""\
+You are a legal extraction engine. Analyze the TENANT GUIDE text in USER_INPUT and extract structured legal information.
+
+A tenant guide gives practical advice. Your task:
+1. LAWS — every specific statute, code section, or regulation the guide cites. Always include the citation (e.g., "RPL § 235-b", "MDL § 78", "NYC Admin Code § 27-2029"). If the guide names a law but does not give a section number, use the full name as the citation. Do NOT group multiple laws into a single vague "Housing Laws" entity — extract each one separately.
+2. LEGAL_CLAIM — what legal claims or causes of action the guide says tenants can pursue.
+   Look for phrases like "you can file", "you are entitled to", "your landlord must".
+3. EVIDENCE — what the guide recommends tenants gather or document. Use evidence_context = "recommended".
+   Be specific: "Photos of the condition with date stamps" not "photos".
+4. LEGAL_PROCEDURE — step-by-step processes the guide describes (filing complaints, going to court, contacting HPD).
+   Include the actual steps list when given.
+5. LEGAL_OUTCOME — what outcomes the guide says tenants can expect (repairs ordered, rent reduction, damages).
+
+CRITICAL: Do NOT produce vague LEGAL_CONCEPT entities. Every entity must be one of the 5 types above.
+If the same concept (e.g., "HPD Inspection Report") appears in both a statute and a guide, it must be typed
+as EVIDENCE in both — consistency across source types is essential.
+
+Valid claim_type values: {_CLAIM_TYPES}"""
+
+    output_format = _UNIFIED_OUTPUT_SCHEMA.format(claim_types=_CLAIM_TYPES)
+
+    return create_safe_prompt(
+        system_instructions=system_instructions,
+        user_input=sanitized_text,
+        output_format=output_format,
+    )
+
+
+def get_case_extraction_prompt(text: str) -> str:
+    """
+    Type-aware extraction prompt for court case / opinion text.
+
+    Extracts the claims made, evidence presented, procedures used, and outcomes
+    ordered in the case, using the same 5 unified entity types.
+
+    Args:
+        text: Case text chunk (will be sanitized)
+
+    Returns:
+        Formatted prompt string
+    """
+    from tenant_legal_guidance.services.security import create_safe_prompt
+
+    sanitized_text = sanitize_for_llm(text[:30000])
+
+    system_instructions = f"""\
+You are a legal extraction engine. Analyze the COURT CASE text in USER_INPUT and extract structured legal information.
+
+A court case records what actually happened. Your task:
+1. LAWS — laws the court cited or applied. Include citations (e.g., "RPL § 235-b").
+2. LEGAL_CLAIM — exactly one entity per claim the tenant (or petitioner) made. Use the exact claim name from the case.
+   Map each claim to the closest claim_type from the valid list.
+3. EVIDENCE — what was actually presented to or considered by the court. Use evidence_context = "presented".
+   Be specific: "HPD Inspection Report dated March 2024" not "inspection records".
+   Include evidence that FAILED or was REJECTED — this is equally important.
+4. LEGAL_PROCEDURE — the procedure the tenant used to bring the case (HP Action, DHCR complaint, Housing Court proceeding).
+5. LEGAL_OUTCOME — what the court actually ordered. Be concrete: "Landlord ordered to make repairs within 30 days"
+   or "Rent reduction of $200/month awarded". outcome_type = "injunctive" for repair orders, "monetary" for money.
+
+CRITICAL: Do NOT conflate what was claimed with what was ordered. A LEGAL_CLAIM is what the tenant asserted.
+A LEGAL_OUTCOME is what the court decided. They are always separate entities linked by a relationship.
+
+Valid claim_type values: {_CLAIM_TYPES}"""
+
+    output_format = _UNIFIED_OUTPUT_SCHEMA.format(claim_types=_CLAIM_TYPES)
+
+    return create_safe_prompt(
+        system_instructions=system_instructions,
+        user_input=sanitized_text,
+        output_format=output_format,
+    )
+
+
 def get_analyze_my_case_megaprompt(
     situation: str,
     claim_types: list[dict],

@@ -292,13 +292,15 @@ Return ONLY the JSON array, nothing else.
         # Use full case text for vector search (better semantic matching)
         vector_query = case_text if case_text else " ".join(key_terms)
         
-        # Use key terms for entity text search (more focused keyword matching)
-        entity_query = " ".join(key_terms) if key_terms else (case_text or "")
+        # Use full query text for entity search (BM25 works better with full text than joined categories)
+        # Key terms are category names (e.g., "eviction", "rent") which don't work well when joined
+        entity_query = case_text if case_text else (" ".join(key_terms) if key_terms else "")
         
         self.logger.info(
             f"Retrieval: vector_query length={len(vector_query)}, "
             f"entity_query length={len(entity_query)}, "
-            f"key_terms count={len(key_terms)}"
+            f"key_terms count={len(key_terms)}, "
+            f"key_terms: {key_terms[:5] if key_terms else '[]'}"
         )
 
         # Use hybrid retriever (vector search + entity search + KG expansion)

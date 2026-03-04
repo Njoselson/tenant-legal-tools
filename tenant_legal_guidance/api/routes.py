@@ -18,6 +18,8 @@ from tenant_legal_guidance.api.schemas import (
     ChainsRequest,
     ClaimExtractionRequest,
     ClaimTypeMatchSchema,
+    ClaimTypeSchema,
+    ClaimTypesResponse,
     ConsolidateAllRequest,
     ConsolidateRequest,
     ConsultationRequest,
@@ -41,8 +43,10 @@ from tenant_legal_guidance.api.schemas import (
     ProofChainSchema,
     QdrantSearchRequest,
     QdrantSearchResponse,
+    RequiredEvidenceResponse,
     RetrieveEntitiesRequest,
 )
+from tenant_legal_guidance.models.claim_types import ClaimType
 from tenant_legal_guidance.models.entities import SourceMetadata, SourceType
 from tenant_legal_guidance.services.case_analyzer import CaseAnalyzer
 from tenant_legal_guidance.services.entity_consolidation import EntityConsolidationService
@@ -1783,50 +1787,70 @@ async def extract_claims(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/api/v1/claim-types")
+@router.get("/api/v1/claim-types", response_model=ClaimTypesResponse)
 async def get_claim_types(
     jurisdiction: str | None = None,
     include_required_evidence: bool = False,
     system: TenantLegalSystem = Depends(get_system),
-) -> dict:
+) -> ClaimTypesResponse:
     """
     Get all claim types in the taxonomy.
 
+    Returns validated ClaimType enum values with display names and descriptions.
+
     Query params:
-    - jurisdiction: Filter by jurisdiction (e.g., "NYC")
-    - include_required_evidence: Include required evidence templates in response
+    - jurisdiction: Filter by jurisdiction (e.g., "NYC") - not yet implemented
+    - include_required_evidence: Include required evidence templates in response - not yet implemented
     """
     try:
         kg = system.knowledge_graph
+
+        # Get claim types from database (returns ClaimType enums)
         claim_types = kg.get_all_claim_types()
 
-        return {
-            "claim_types": claim_types,
-            "count": len(claim_types),
-        }
+        # If no claim types in DB, return all available enums
+        if not claim_types:
+            claim_types = list(ClaimType)
+
+        return ClaimTypesResponse(
+            claim_types=[ClaimTypeSchema.from_enum(ct) for ct in claim_types],
+            count=len(claim_types),
+        )
     except Exception as e:
         logger.error(f"Failed to get claim types: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/api/v1/claim-types/{claim_type}/required-evidence")
+@router.get("/api/v1/claim-types/{claim_type}/required-evidence", response_model=RequiredEvidenceResponse)
 async def get_required_evidence(
     claim_type: str, system: TenantLegalSystem = Depends(get_system)
-) -> dict:
+) -> RequiredEvidenceResponse:
     """
-    Get required evidence templates for a specific claim type string.
+    Get required evidence templates for a specific claim type.
 
     Returns the evidence that must be provided to prove this type of claim.
     """
     try:
         kg = system.knowledge_graph
-        evidence = kg.get_required_evidence_for_claim_type(claim_type)
 
-        return {
-            "claim_type": claim_type,
-            "required_evidence": evidence,
-            "count": len(evidence),
-        }
+        # Convert string to ClaimType enum (handles validation)
+        try:
+            claim_type_enum = ClaimType.from_string(claim_type)
+        except (ValueError, KeyError):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid claim type: {claim_type}. Valid types: {[ct.value for ct in ClaimType]}",
+            )
+
+        evidence = kg.get_required_evidence_for_claim_type(claim_type_enum)
+
+        return RequiredEvidenceResponse(
+            claim_type=ClaimTypeSchema.from_enum(claim_type_enum),
+            required_evidence=evidence,
+            count=len(evidence),
+        )
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Failed to get required evidence: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
@@ -1939,9 +1963,9 @@ async def analyze_my_case(
         # NEW: Retrieve chunks, entities, and relationships for graph/explorer tabs
         from tenant_legal_guidance.services.case_analyzer import CaseAnalyzer
         case_analyzer = CaseAnalyzer(
-            knowledge_graph=system.knowledge_graph,
-            vector_store=system.vector_store,
+            graph=system.knowledge_graph,
             llm_client=system.deepseek,
+            vector_store=system.vector_store,
         )
         
         # Extract key terms and retrieve data

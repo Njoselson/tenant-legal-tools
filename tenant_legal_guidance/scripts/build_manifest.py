@@ -66,28 +66,10 @@ def extract_sources_from_db(graph: ArangoDBGraph) -> list[dict[str, Any]]:
     """
     sources: dict[str, dict[str, Any]] = {}
 
-    # Collection of all entity collections to scan
+    # Consolidated collections to scan (all entities stored in 'entities' collection)
     collections = [
-        "laws",
-        "remedies",
-        "court_cases",
-        "legal_procedures",
-        "damages",
-        "legal_concepts",
-        "tenant_groups",
-        "campaigns",
-        "tactics",
-        "tenants",
-        "landlords",
-        "legal_services",
-        "government_entities",
-        "legal_outcomes",
-        "organizing_outcomes",
-        "tenant_issues",
-        "events",
-        "documents",
-        "evidence",
-        "jurisdictions",
+        "entities",  # All entity types stored here
+        "sources",   # Source document metadata
     ]
 
     logger = logging.getLogger(__name__)
@@ -100,8 +82,20 @@ def extract_sources_from_db(graph: ArangoDBGraph) -> list[dict[str, Any]]:
 
         try:
             for doc in coll.all():
-                sm = doc.get("source_metadata") or {}
-                src = sm.get("source")
+                # Handle different collection structures:
+                # - 'entities' collection: source URL in source_metadata.source
+                # - 'sources' collection: source URL in locator field
+                if coll_name == "sources":
+                    src = doc.get("locator")
+                    sm = {
+                        "source": src,
+                        "source_type": doc.get("kind", "URL"),
+                        "title": doc.get("title"),
+                        "jurisdiction": doc.get("jurisdiction"),
+                    }
+                else:
+                    sm = doc.get("source_metadata") or {}
+                    src = sm.get("source")
 
                 # Only include HTTP(S) URLs
                 if isinstance(src, str) and (

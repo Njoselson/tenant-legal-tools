@@ -155,3 +155,28 @@ class CurationStorage:
             logger.error(f"Failed to remove from manifest for session {session_id}: {e}", exc_info=True)
             return 0
 
+    def list_manifests(self) -> list[dict[str, Any]]:
+        """List all manifests with metadata."""
+        try:
+            cursor = self.db.aql.execute(
+                """
+                FOR doc IN curation_manifests
+                    RETURN {
+                        manifest_id: doc._key,
+                        entry_count: LENGTH(doc.entries || []),
+                        updated_at: doc.updated_at
+                    }
+                """,
+            )
+            manifests = []
+            for doc in cursor:
+                manifests.append({
+                    "manifest_id": doc["manifest_id"],
+                    "entry_count": doc["entry_count"],
+                    "updated_at": doc.get("updated_at"),
+                })
+            return manifests
+        except Exception as e:
+            logger.error(f"Failed to list manifests: {e}", exc_info=True)
+            return []
+

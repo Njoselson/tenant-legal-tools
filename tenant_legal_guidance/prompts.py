@@ -80,7 +80,7 @@ For relationships:
 
 IMPORTANT: Relationship types are strictly validated. Invalid types will be rejected.
 
-Return ONLY valid JSON:
+Return ONLY valid JSON (use double quotes for ALL keys and strings, never single quotes):
 {{
     "entities": [
         {{
@@ -125,7 +125,7 @@ For EACH chunk, provide:
 2. proves: What legal facts/claims this chunk establishes (or "N/A" if none)
 3. references: What laws/cases/entities it cites (or "N/A" if none)
 
-Return ONLY valid JSON array (no markdown):
+Return ONLY valid JSON array (no markdown, use double quotes for ALL keys and strings):
 [
   {{"description": "...", "proves": "...", "references": "..."}},
   {{"description": "...", "proves": "...", "references": "..."}}
@@ -531,7 +531,7 @@ _CLAIM_TYPES = (
 
 # Unified output schema used by all 3 type-aware prompts
 _UNIFIED_OUTPUT_SCHEMA = """\
-Return ONLY valid JSON with this exact structure (no markdown, no extra keys):
+Return ONLY valid JSON with this exact structure (no markdown, no extra keys, use double quotes for ALL keys and strings):
 {{
     "claims": [
         {{

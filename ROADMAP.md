@@ -36,7 +36,7 @@ M7 Web ingestion UI (independent, can slot in anytime)
 
 ## 🔄 Active
 
-- M1 Session 2 — graph quality audit
+- M1 (sessions 2–5 remaining) — graph quality audit → entity dedup → retrieval test
 
 ---
 
@@ -47,7 +47,7 @@ M7 Web ingestion UI (independent, can slot in anytime)
 > Goal: before ingesting 50+ documents, prove the graph can answer questions correctly. Fix the
 > entity resolution, chunk-linkage, and speed problems first. Retrieval testing is the exit criterion.
 
-**Session 1 — Entity model redesign + pipeline routing** ← DONE
+**Session 1 — Entity model redesign + pipeline routing** ← done
 - [x] Wire `document_type → typed prompt` routing in `claim_extractor.py` (replaces old megaprompt with typed statute/guide/case prompts)
 - [x] Fix partial relationship `from/to` fields — test harness now validates and skips dangling refs
 - [x] Run extraction test harness on 1 statute + 1 guide + 1 case with new routing; all confirmed working

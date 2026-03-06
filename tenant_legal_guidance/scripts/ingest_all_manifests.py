@@ -30,17 +30,29 @@ from tenant_legal_guidance.services.tenant_system import TenantLegalSystem
 
 
 def find_manifest_files(manifests_dir: Path) -> list[Path]:
-    """Find all .jsonl manifest files in the directory."""
+    """Find all .jsonl manifest files, ordered statutes → guides → cases.
+
+    Cross-document entity merging works best when canonical law/claim nodes are
+    created first (from statutes), then enriched by guides, then linked to by cases.
+    """
     if not manifests_dir.exists():
         logging.warning(f"Manifests directory does not exist: {manifests_dir}")
         return []
 
-    manifest_files = sorted(manifests_dir.glob("*.jsonl"))
-    # Exclude checkpoint/report files if they're in the same directory
     manifest_files = [
-        f for f in manifest_files if f.name not in ("ingestion_checkpoint.jsonl", "ingestion_report.jsonl")
+        f for f in manifests_dir.glob("*.jsonl")
+        if f.name not in ("ingestion_checkpoint.jsonl", "ingestion_report.jsonl")
     ]
-    return manifest_files
+
+    def _ingest_order(path: Path) -> int:
+        name = path.name.lower()
+        if "statute" in name:
+            return 0  # statutes first — create canonical law/claim nodes
+        if "chtu" in name or "guide" in name or "handbook" in name:
+            return 1  # guides second — add procedures + recommended evidence
+        return 2      # cases last — link presented evidence + outcomes to existing nodes
+
+    return sorted(manifest_files, key=lambda p: (_ingest_order(p), p.name))
 
 
 async def ingest_all_manifests(

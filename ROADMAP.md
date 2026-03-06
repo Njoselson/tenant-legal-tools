@@ -115,6 +115,7 @@ M7 Web ingestion UI (independent, can slot in anytime)
 
 ### M2 — Data Ingestion: Habitability, Heat, Mold, Repairs [~2 sessions]
 
+> **Skill available**: `/build-legal-manifest habitability/heat/mold` runs the full research → manifest → ingest workflow.
 > **Citations verified 2026-03-06.** URLs confirmed below. See corrections noted inline.
 
 **Session 1 — Statutes + guides** ← manifest built (`data/manifests/habitability_statutes.jsonl`), ready to ingest after M1 completes
@@ -144,6 +145,7 @@ M7 Web ingestion UI (independent, can slot in anytime)
 
 ### M3 — Data Ingestion: Harassment + Illegal Destabilization [~2 sessions]
 
+> **Skill available**: `/build-legal-manifest harassment and destabilization` runs the full research → manifest → ingest workflow.
 > **Citations verified 2026-03-06.** URLs confirmed below. See corrections noted inline.
 
 **Session 1 — Statutes + guides** ← manifest built (`data/manifests/harassment_destabilization_statutes.jsonl`), ready to ingest after M1 completes

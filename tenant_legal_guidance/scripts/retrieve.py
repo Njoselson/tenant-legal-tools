@@ -420,8 +420,8 @@ class RetrievalCLI:
                         "name": e.name,
                         "type": e.entity_type.value if hasattr(e.entity_type, "value") else str(e.entity_type),
                         "description": e.description or "",
-                        "jurisdiction": e.jurisdiction or "",
-                        "best_quote": e.best_quote.model_dump() if e.best_quote else None,
+                        "jurisdiction": (e.source_metadata.jurisdiction if e.source_metadata else None) or "",
+                        "best_quote": e.best_quote if isinstance(e.best_quote, dict) else (e.best_quote.model_dump() if e.best_quote else None),
                     }
                     for e in entities
                 ],
@@ -455,8 +455,8 @@ class RetrievalCLI:
                 print(f"   ID: {e.id}")
                 if e.description:
                     print(f"   Description: {e.description[:200]}...")
-                if e.jurisdiction:
-                    print(f"   Jurisdiction: {e.jurisdiction}")
+                if e.source_metadata and e.source_metadata.jurisdiction:
+                    print(f"   Jurisdiction: {e.source_metadata.jurisdiction}")
                 print()
 
     def _format_quote_results(self, quotes: list[dict[str, Any]], query: str, output_format: str) -> None:

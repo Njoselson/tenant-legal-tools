@@ -17,6 +17,7 @@ from tenant_legal_guidance.services.deepseek import DeepSeekClient
 from tenant_legal_guidance.services.entity_service import EntityService
 from tenant_legal_guidance.services.retrieval import HybridRetriever
 from tenant_legal_guidance.services.security import (
+    parse_llm_json,
     validate_llm_output,
 )
 from tenant_legal_guidance.services.vector_store import QdrantVectorStore
@@ -1302,12 +1303,9 @@ Be specific and actionable. Focus on what this data means for the tenant's case.
 
         try:
             response = await self.llm_client.chat_completion(prompt)
-            # Validate output before parsing
             validated_response = validate_llm_output(response)
-            # Try to parse JSON
-            json_match = re.search(r"\{[\s\S]*\}", validated_response)
-            if json_match:
-                data = json.loads(json_match.group(0))
+            data = parse_llm_json(validated_response)
+            if data and isinstance(data, dict):
                 return {
                     "documents": data.get("documents", []),
                     "photos": data.get("photos", []),
@@ -2379,12 +2377,12 @@ Be specific and actionable. Focus on what this data means for the tenant's case.
                 # Process fallback chains similar to regular chains
                 for fallback_chain_data in fallback_chains:
                     # Create a minimal ProofChain-like object
-                    from tenant_legal_guidance.services.proof_chain import ProofChain, EvidenceRequirement
-                    
+                    from tenant_legal_guidance.services.proof_chain import ProofChain, ProofChainEvidence
+
                     # Build minimal proof chain structure
                     claim_id = fallback_chain_data.get("claim_id", "fallback_claim")
                     claim_desc = fallback_chain_data.get("claim_description", fallback_chain_data.get("issue", "Unknown claim"))
-                    
+
                     # Extract required evidence from graph chains or entities
                     required_evidence = []
                     if fallback_chain_data.get("graph_chains"):
@@ -2395,10 +2393,12 @@ Be specific and actionable. Focus on what this data means for the tenant's case.
                                     ev_name = node.get("name", "")
                                     if ev_name:
                                         required_evidence.append(
-                                            EvidenceRequirement(
+                                            ProofChainEvidence(
                                                 evidence_id=f"ev:{ev_name.lower().replace(' ', '_')}",
+                                                evidence_type="document",
                                                 description=ev_name,
                                                 is_critical=True,
+                                                context="required",
                                             )
                                         )
                     

@@ -231,6 +231,21 @@ class ArangoDBGraph:
                     self.db.create_collection(collection, edge=True)
                     self.logger.info(f"Created edge collection: {collection}")
 
+            # Create named ArangoDB graph for traversal queries (e.g. GRAPH "legal_knowledge_graph")
+            graph_name = "legal_knowledge_graph"
+            if not self.db.has_graph(graph_name):
+                self.db.create_graph(
+                    graph_name,
+                    edge_definitions=[
+                        {
+                            "edge_collection": "edges",
+                            "from_vertex_collections": ["entities"],
+                            "to_vertex_collections": ["entities"],
+                        }
+                    ],
+                )
+                self.logger.info(f"Created named graph: {graph_name}")
+
         except Exception as e:
             self.logger.error(f"Error initializing collections: {e!s}")
             raise
@@ -410,32 +425,23 @@ class ArangoDBGraph:
                     },
                 }
 
-            # Try to get the view; if it doesn't exist, create it
-            view = None
+            # Drop and recreate the view to guarantee links are correct.
+            # Updating an existing view with empty links silently fails in some driver versions.
             try:
-                view = self.db.view(view_name)
+                self.db.delete_view(view_name)
+                self.logger.info(f"Dropped existing ArangoSearch view: {view_name}")
             except Exception:
-                # Fallback creation path compatible with older drivers
-                try:
-                    view = self.db.create_view(
-                        view_name, view_type="arangosearch", properties={"links": links}
-                    )
-                    self.logger.info(f"Created ArangoSearch view: {view_name}")
-                except Exception as create_err:
-                    self.logger.warning(
-                        f"Failed creating ArangoSearch view '{view_name}': {create_err}"
-                    )
-                    return
+                pass  # View didn't exist — fine
 
-            # Update properties (if possible) to ensure links are current
             try:
-                # Some driver versions use update_properties; others use update
-                if hasattr(view, "update_properties"):
-                    view.update_properties({"links": links})
-                elif hasattr(view, "update"):
-                    view.update({"links": links})
-            except Exception as upd_err:
-                self.logger.warning(f"Updating search view properties failed: {upd_err}")
+                self.db.create_view(
+                    view_name, view_type="arangosearch", properties={"links": links}
+                )
+                self.logger.info(f"Created ArangoSearch view: {view_name} with links={list(links.keys())}")
+            except Exception as create_err:
+                self.logger.warning(
+                    f"Failed creating ArangoSearch view '{view_name}': {create_err}"
+                )
         except Exception as e:
             self.logger.warning(f"Failed to ensure search view: {e}")
 

@@ -214,6 +214,12 @@ def create_safe_prompt(
     )
 
     if output_format:
+        # Auto-inject JSON quoting reminder for any prompt that expects JSON output
+        if "json" in output_format.lower():
+            output_format = (
+                "IMPORTANT: Use double quotes for ALL JSON keys and string values. "
+                "Never use single quotes. Do not add trailing commas.\n"
+            ) + output_format
         prompt_parts.extend(
             [
                 "\n<OUTPUT_FORMAT>",
@@ -223,6 +229,51 @@ def create_safe_prompt(
         )
 
     return "\n".join(prompt_parts)
+
+
+def repair_json(text: str) -> str:
+    """Repair common LLM JSON output issues that cause json.loads to fail.
+
+    Handles:
+    - Single-quoted strings/keys → double-quoted  (most common failure)
+    - Python literals: None→null, True→true, False→false
+    - Trailing commas before } or ]
+    """
+    # Python literals
+    text = re.sub(r"\bNone\b", "null", text)
+    text = re.sub(r"\bTrue\b", "true", text)
+    text = re.sub(r"\bFalse\b", "false", text)
+    # Single-quoted strings → double-quoted (handles escaped single quotes inside)
+    text = re.sub(r"'((?:[^'\\]|\\.)*)'", r'"\1"', text)
+    # Trailing commas before closing brace/bracket
+    text = re.sub(r",\s*([\]}])", r"\1", text)
+    return text
+
+
+def parse_llm_json(text: str) -> dict | list | None:
+    """Extract and parse the first JSON object or array from LLM output.
+
+    First attempts standard json.loads; falls back to repair_json if that fails.
+    Returns None if no valid JSON can be found.
+    """
+    import json
+
+    # Try to find a JSON object or array
+    match = re.search(r"(\{[\s\S]*\}|\[[\s\S]*\])", text)
+    if not match:
+        return None
+
+    raw = match.group(0)
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        pass
+
+    try:
+        return json.loads(repair_json(raw))
+    except json.JSONDecodeError:
+        logger.warning("repair_json could not fix malformed LLM JSON output")
+        return None
 
 
 def validate_llm_output(response: str) -> str:

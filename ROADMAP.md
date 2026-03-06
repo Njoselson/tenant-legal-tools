@@ -117,7 +117,7 @@ M7 Web ingestion UI (independent, can slot in anytime)
 
 > **Citations verified 2026-03-06.** URLs confirmed below. See corrections noted inline.
 
-**Session 1 — Statutes + guides**
+**Session 1 — Statutes + guides** ← manifest built (`data/manifests/habitability_statutes.jsonl`), ready to ingest after M1 completes
 - [ ] RPL § 235-b — warranty of habitability | [nysenate.gov](https://www.nysenate.gov/legislation/laws/RPP/235-B) · [justia (2025)](https://law.justia.com/codes/new-york/rpp/article-7/235-b/)
 - [ ] NYC Admin Code § 27-2029 — heat season (Oct 1–May 31): 68°F day (when outside <55°F) / **62°F night** (all times) ⚠️ *roadmap previously said 55°F nighttime — that was the pre-amendment standard* | [amlegal](https://codelibrary.amlegal.com/codes/newyorkcity/latest/NYCadmin/0-0-0-60410)
 - [ ] NYC Admin Code § 27-2031 — hot water (120°F min, 6am–midnight) | [amlegal](https://codelibrary.amlegal.com/codes/newyorkcity/latest/NYCadmin/0-0-0-60417)
@@ -132,7 +132,7 @@ M7 Web ingestion UI (independent, can slot in anytime)
 - [ ] Legal Aid — HP Actions for Repairs and Harassment | [legalaidnyc.org](https://legalaidnyc.org/get-help/housing-problems/what-you-need-to-know-about-hp-actions-for-repairs-and-harassment/)
 - [ ] NYC HPD — Heat & Hot Water information + complaint process | [nyc.gov](https://www.nyc.gov/site/hpd/services-and-information/heat-and-hot-water-information.page)
 
-**Session 2 — Case law (target ~25 cases)**
+**Session 2 — Case law (target ~25 cases)** ← `data/manifests/habitability_cases.jsonl` placeholder created, populate via Justia search
 - [ ] Web search to identify top 10 most-cited habitability cases in NY (landmark ones that show up in other cases)
 - [ ] `justia_scraper.py` batch search: "warranty of habitability" "New York" "HPD violations"
 - [ ] `justia_scraper.py` batch search: "HP Action" "New York" "heat" "repairs"
@@ -146,7 +146,7 @@ M7 Web ingestion UI (independent, can slot in anytime)
 
 > **Citations verified 2026-03-06.** URLs confirmed below. See corrections noted inline.
 
-**Session 1 — Statutes + guides**
+**Session 1 — Statutes + guides** ← manifest built (`data/manifests/harassment_destabilization_statutes.jsonl`), ready to ingest after M1 completes
 - [ ] NYC Admin Code § 27-2004 + § 27-2005(d) — harassment definition (27-2004) + prohibition (27-2005(d)) ⚠️ *ingest both: the 27 prohibited acts are defined in § 27-2004, § 27-2005(d) is the duty not to harass* | [§ 27-2005](https://codelibrary.amlegal.com/codes/newyorkcity/latest/NYCadmin/0-0-0-60147)
 - [ ] NYC Admin Code § 26-516 — rent overcharge + treble damages (3x if willful; HSTPA 2019 extends lookback to 6 years) | [justia](https://law.justia.com/codes/new-york/2006/new-york-city-administrative-code-new/adc026-516_26-516.html)
 - [ ] Emergency Tenant Protection Act (ETPA) / Rent Stabilization Law | [nysenate.gov](https://www.nysenate.gov/legislation/laws/ETP) · [hcr.ny.gov overview](https://hcr.ny.gov/rent-stabilization-and-emergency-tenant-protection-act) · [justia](https://law.justia.com/codes/new-york/etp/)
@@ -158,7 +158,7 @@ M7 Web ingestion UI (independent, can slot in anytime)
 - [ ] DHCR — Rent Overcharge (Fact Sheet 16) + complaint process | [fact-sheet-16](https://hcr.ny.gov/fact-sheet-16) · [overcharge page](https://hcr.ny.gov/rent-increases-and-rent-overcharge) · [Form RA-89 PDF](https://hcr.ny.gov/system/files/documents/2023/12/ra-89-fillable.pdf)
 - [ ] Legal Aid — Tenant Harassment guide | [legalaidnyc.org](https://legalaidnyc.org/get-help/housing-problems/what-you-need-to-know-about-tenant-harassment/)
 
-**Session 2 — Case law (target ~25 cases)**
+**Session 2 — Case law (target ~25 cases)** ← `data/manifests/harassment_destabilization_cases.jsonl` placeholder created, populate via Justia search
 - [ ] Web search to identify top 10 most-cited harassment + destabilization cases in NY
 - [ ] `justia_scraper.py` batch search: "landlord harassment" "New York" tenant "proof"
 - [ ] `justia_scraper.py` batch search: "deregulation" "illegal" "rent stabilization" "New York"

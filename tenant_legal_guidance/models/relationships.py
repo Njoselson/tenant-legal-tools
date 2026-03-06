@@ -16,7 +16,7 @@ class RelationshipType(Enum):
     SUPPORTED_BY = auto()  # TACTIC/REMEDY -> TENANT_GROUP/LEGAL_SERVICE
     RESULTS_IN = auto()  # TACTIC/REMEDY -> OUTCOME
 
-    # Legal claim proving system relationships (NEW)
+    # Legal claim proving system relationships
     SUPPORTS = auto()  # EVIDENCE -> OUTCOME (presented evidence supports outcome)
     IMPLY = auto()  # OUTCOME -> DAMAGES (outcome implies damages)
     RESOLVE = auto()  # DAMAGES -> LEGAL_CLAIM (damages resolve claim)
@@ -24,6 +24,11 @@ class RelationshipType(Enum):
     SATISFIES = auto()  # EVIDENCE (presented) -> EVIDENCE (required) (matching)
     IS_TYPE_OF = auto()  # LEGAL_CLAIM -> CLAIM_TYPE (taxonomy link)
     REQUIRED_FOR = auto()  # EVIDENCE (required) -> CLAIM_TYPE (required evidence for type)
+
+    # Typed prompt relationship types
+    AUTHORIZES = auto()  # LAW -> OUTCOME (law authorizes a remedy or action)
+    CITES = auto()  # CASE/GUIDE -> LAW (document cites a statute)
+    ADDRESSES = auto()  # LAW/PROCEDURE -> LEGAL_CLAIM (addresses a claim type)
 
 
 class LegalRelationship(BaseModel):

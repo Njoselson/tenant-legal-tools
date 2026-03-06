@@ -366,8 +366,17 @@ class TestFullProofChainExtraction:
 
     @pytest.mark.asyncio
     async def test_full_extraction_flow(self, claim_extractor, mock_llm_client, sample_case_text):
-        """Integration test: full claim → evidence → outcome → damages flow."""
-        # Mock single LLM call (megaprompt) - extract_full_proof_chain_single makes one call
+        """Integration test: full claim → evidence → outcome flow (typed prompt schema)."""
+        from tenant_legal_guidance.models.entities import LegalDocumentType, SourceAuthority, SourceMetadata, SourceType
+
+        metadata = SourceMetadata(
+            source="https://example.com/case",
+            source_type=SourceType.URL,
+            authority=SourceAuthority.BINDING_LEGAL_AUTHORITY,
+            document_type=LegalDocumentType.COURT_OPINION,
+        )
+
+        # Mock single LLM call — typed prompt schema (no damages key)
         mock_llm_client.chat_completion.return_value = json.dumps(
             {
                 "claims": [
@@ -392,50 +401,45 @@ class TestFullProofChainExtraction:
                     {
                         "id": "outcome_0",
                         "name": "Petition dismissed",
-                        "type": "dismissal",
+                        "outcome_type": "monetary",
                         "disposition": "dismissed",
                         "claim_ids": ["claim_0"],
                     }
                 ],
-                "damages": [
-                    {
-                        "id": "damage_0",
-                        "name": "Rent denied",
-                        "type": "monetary",
-                        "amount": 45900,
-                        "status": "denied",
-                        "linked_outcome": "outcome_0",
-                    }
-                ],
                 "relationships": [
-                    {"source": "claim_0", "target": "evid_0", "type": "HAS_EVIDENCE"},
-                    {"source": "evid_0", "target": "outcome_0", "type": "SUPPORTS"},
-                    {"source": "outcome_0", "target": "claim_0", "type": "RESOLVE"},
-                    {"source": "outcome_0", "target": "damage_0", "type": "IMPLY"},
+                    {"from": "claim_0", "to": "evid_0", "type": "HAS_EVIDENCE"},
+                    {"from": "evid_0", "to": "outcome_0", "type": "SUPPORTS"},
+                    {"from": "outcome_0", "to": "claim_0", "type": "RESOLVE"},
                 ],
             }
         )
 
-        result = await claim_extractor.extract_full_proof_chain_single(sample_case_text)
+        result = await claim_extractor.extract_full_proof_chain_single(sample_case_text, metadata)
 
         assert len(result.claims) == 1
         assert len(result.evidence) == 1
         assert len(result.outcomes) == 1
-        assert len(result.damages) == 1
 
         # Verify relationships were created
         rel_types = [r["type"] for r in result.relationships]
         assert "HAS_EVIDENCE" in rel_types
         assert "SUPPORTS" in rel_types
-        assert "IMPLY" in rel_types
         assert "RESOLVE" in rel_types
 
     @pytest.mark.asyncio
     async def test_relationships_are_correct(
         self, claim_extractor, mock_llm_client, sample_case_text
     ):
-        """Verify relationship structure is correct."""
-        # Mock single LLM call (megaprompt) - extract_full_proof_chain_single makes one call
+        """Verify relationship structure is correct (typed prompt schema)."""
+        from tenant_legal_guidance.models.entities import LegalDocumentType, SourceAuthority, SourceMetadata, SourceType
+
+        metadata = SourceMetadata(
+            source="https://example.com/case",
+            source_type=SourceType.URL,
+            authority=SourceAuthority.BINDING_LEGAL_AUTHORITY,
+            document_type=LegalDocumentType.COURT_OPINION,
+        )
+
         mock_llm_client.chat_completion.return_value = json.dumps(
             {
                 "claims": [
@@ -459,30 +463,20 @@ class TestFullProofChainExtraction:
                     {
                         "id": "outcome_0",
                         "name": "Outcome1",
-                        "type": "judgment",
+                        "outcome_type": "judgment",
                         "disposition": "granted",
                         "claim_ids": ["claim_0"],
                     }
                 ],
-                "damages": [
-                    {
-                        "id": "damage_0",
-                        "name": "Damages1",
-                        "type": "monetary",
-                        "status": "awarded",
-                        "linked_outcome": "outcome_0",
-                    }
-                ],
                 "relationships": [
-                    {"source": "claim_0", "target": "evid_0", "type": "HAS_EVIDENCE"},
-                    {"source": "evid_0", "target": "outcome_0", "type": "SUPPORTS"},
-                    {"source": "outcome_0", "target": "damage_0", "type": "IMPLY"},
-                    {"source": "outcome_0", "target": "claim_0", "type": "RESOLVE"},
+                    {"from": "claim_0", "to": "evid_0", "type": "HAS_EVIDENCE"},
+                    {"from": "evid_0", "to": "outcome_0", "type": "SUPPORTS"},
+                    {"from": "outcome_0", "to": "claim_0", "type": "RESOLVE"},
                 ],
             }
         )
 
-        result = await claim_extractor.extract_full_proof_chain_single(sample_case_text)
+        result = await claim_extractor.extract_full_proof_chain_single(sample_case_text, metadata)
 
         # Check HAS_EVIDENCE: claim → evidence
         has_evidence = [r for r in result.relationships if r["type"] == "HAS_EVIDENCE"]
@@ -492,11 +486,6 @@ class TestFullProofChainExtraction:
         # Check SUPPORTS: evidence → outcome
         supports = [r for r in result.relationships if r["type"] == "SUPPORTS"]
         assert len(supports) == 1
-
-        # Check IMPLY: outcome → damages
-        implies = [r for r in result.relationships if r["type"] == "IMPLY"]
-        assert len(implies) == 1
-        assert implies[0]["source_id"].startswith("legal_outcome:")
 
         # Check RESOLVE: outcome → claim
         resolves = [r for r in result.relationships if r["type"] == "RESOLVE"]

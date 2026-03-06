@@ -119,7 +119,7 @@ class HybridRetriever:
             # Get entity types to search (exclude organizing if requested)
             search_types = None
             if exclude_organizing:
-                search_types = [et.value for et in get_claim_retrieval_types()]
+                search_types = list(get_claim_retrieval_types())
                 self.logger.info(f"Entity search: filtering to {len(search_types)} entity types (exclude_organizing={exclude_organizing})")
 
             if not entity_query or len(entity_query.strip()) == 0:

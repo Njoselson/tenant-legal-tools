@@ -37,6 +37,7 @@ def test_manifest_entry_validation():
         title="NYC Admin Code § 26-504",
         jurisdiction="NYC",
         organization="NYC Council",
+        document_type="statute",
         tags=["rent_stabilization", "overcharge"],
         notes="Key statute for rent overcharge cases",
     )
@@ -128,7 +129,7 @@ def test_metadata_template_system():
 
     # Verify templates exist and have correct structure
     assert "statute" in TEMPLATES, "Should have statute template"
-    assert "self_help_guide" in TEMPLATES, "Should have self-help guide template"
+    assert "legal_guide" in TEMPLATES, "Should have legal guide template"
 
     statute_template = TEMPLATES["statute"]
     assert statute_template.authority == SourceAuthority.BINDING_LEGAL_AUTHORITY
@@ -151,7 +152,7 @@ def test_metadata_attributes_are_extensible():
         source="https://example.com/guide",
         source_type=SourceType.URL,
         authority=SourceAuthority.PRACTICAL_SELF_HELP,
-        document_type=LegalDocumentType.SELF_HELP_GUIDE,
+        document_type=LegalDocumentType.LEGAL_GUIDE,
         title="Tenant Rights Guide",
         jurisdiction="NYC",
         processed_at=datetime.utcnow(),

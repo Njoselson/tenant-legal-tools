@@ -4,6 +4,18 @@
 
 ---
 
+## Runtime
+
+**Always use `uv run` instead of `python` or `pytest` directly.**
+
+```bash
+uv run pytest ...          # run tests
+uv run python -m ...       # run scripts
+uv run uvicorn ...         # run server
+```
+
+---
+
 ## AI Workflow Instructions
 
 **Always read these two files first, before anything else:**

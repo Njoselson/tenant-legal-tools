@@ -94,6 +94,9 @@ class ClaimExtractionResult:
     outcomes: list[ExtractedOutcome] = field(default_factory=list)
     damages: list[ExtractedDamages] = field(default_factory=list)
     relationships: list[dict] = field(default_factory=list)
+    # Typed prompt entity types (no full dataclass — stored as raw dicts)
+    laws: list[dict] = field(default_factory=list)
+    procedures: list[dict] = field(default_factory=list)
 
 
 class ClaimExtractor:
@@ -492,167 +495,193 @@ class ClaimExtractor:
         doc_id = self._generate_document_id(text, metadata)
         result = ClaimExtractionResult(document_id=doc_id)
 
-        # Get the megaprompt
-        from tenant_legal_guidance.prompts import get_full_proof_chain_prompt
+        # Route to the correct typed prompt based on document_type
+        from tenant_legal_guidance.models.entities import LegalDocumentType
+        from tenant_legal_guidance.prompts import (
+            get_case_extraction_prompt,
+            get_guide_extraction_prompt,
+            get_statute_extraction_prompt,
+        )
 
-        prompt = get_full_proof_chain_prompt(text)
+        GUIDE_TYPES = {
+            LegalDocumentType.LEGAL_GUIDE,
+            LegalDocumentType.TENANT_HANDBOOK,
+            LegalDocumentType.ADVOCACY_DOCUMENT,
+        }
+
+        doc_type = metadata.document_type if metadata else None
+
+        if doc_type == LegalDocumentType.STATUTE:
+            prompt = get_statute_extraction_prompt(text)
+        elif doc_type in GUIDE_TYPES:
+            prompt = get_guide_extraction_prompt(text)
+        elif doc_type == LegalDocumentType.COURT_OPINION:
+            prompt = get_case_extraction_prompt(text)
+        else:
+            raise ValueError(
+                f"document_type is required for extraction; got: {doc_type!r}. "
+                "Set document_type in the manifest entry (statute, court_opinion, "
+                "legal_guide, tenant_handbook, or advocacy_document)."
+            )
 
         try:
             response = await self.llm_client.chat_completion(prompt)
             data = self._parse_json_response(response)
 
             if not data:
-                self.logger.warning("Failed to parse megaprompt response")
+                self.logger.warning("Failed to parse typed prompt response")
                 return result
 
-            # Build ID mapping for relationship linking
-            claim_id_map = {}  # original_id -> our_id
-            evid_id_map = {}
-            outcome_id_map = {}
-            damages_id_map = {}
-
-            # Parse claims - use prefix matching EntityType.LEGAL_CLAIM.value
-            for i, claim_data in enumerate(data.get("claims", [])):
-                orig_id = claim_data.get("id", f"claim_{i}")
-                our_id = f"legal_claim:{doc_id}:{i}"
-                claim_id_map[orig_id] = our_id
-
-                claim = ExtractedClaim(
-                    id=our_id,
-                    name=claim_data.get("name", f"Claim {i + 1}"),
-                    claim_description=claim_data.get("description", ""),
-                    claimant=claim_data.get("claimant", "Unknown"),
-                    respondent_party=claim_data.get("respondent"),
-                    relief_sought=claim_data.get("relief_sought", []),
-                    claim_status=claim_data.get("status", "asserted"),
-                    source_quote=claim_data.get("source_quote"),
-                )
-                result.claims.append(claim)
-
-            # Parse evidence - use prefix matching EntityType.EVIDENCE.value
-            for i, evid_data in enumerate(data.get("evidence", [])):
-                orig_id = evid_data.get("id", f"evid_{i}")
-                our_id = f"evidence:{doc_id}:{i}"
-                evid_id_map[orig_id] = our_id
-
-                # Map claim IDs
-                linked_claims = []
-                for cid in evid_data.get("claim_ids", []):
-                    if cid in claim_id_map:
-                        linked_claims.append(claim_id_map[cid])
-
-                evidence = ExtractedEvidence(
-                    id=our_id,
-                    name=evid_data.get("name", f"Evidence {i + 1}"),
-                    evidence_type=evid_data.get("type", "documentary"),
-                    description=evid_data.get("description", ""),
-                    evidence_context="presented",
-                    evidence_source_type="case",
-                    source_quote=evid_data.get("source_quote"),
-                    is_critical=evid_data.get("is_critical", False),
-                    linked_claim_ids=linked_claims,
-                )
-                result.evidence.append(evidence)
-
-            # Parse outcomes - use prefix matching EntityType.LEGAL_OUTCOME.value
-            for i, out_data in enumerate(data.get("outcomes", [])):
-                orig_id = out_data.get("id", f"outcome_{i}")
-                our_id = f"legal_outcome:{doc_id}:{i}"
-                outcome_id_map[orig_id] = our_id
-
-                # Map claim IDs
-                linked_claims = []
-                for cid in out_data.get("claim_ids", []):
-                    if cid in claim_id_map:
-                        linked_claims.append(claim_id_map[cid])
-
-                outcome = ExtractedOutcome(
-                    id=our_id,
-                    name=out_data.get("name", f"Outcome {i + 1}"),
-                    outcome_type=out_data.get("type", "judgment"),
-                    disposition=out_data.get("disposition", "unknown"),
-                    description=out_data.get("description", ""),
-                    decision_maker=out_data.get("decision_maker"),
-                    linked_claim_ids=linked_claims,
-                )
-                result.outcomes.append(outcome)
-
-            # Parse damages - use prefix matching EntityType.DAMAGES.value
-            for i, dmg_data in enumerate(data.get("damages", [])):
-                orig_id = dmg_data.get("id", f"dmg_{i}")
-                our_id = f"damages:{doc_id}:{i}"
-                damages_id_map[orig_id] = our_id
-
-                # Map outcome ID
-                linked_outcome = None
-                out_id = dmg_data.get("outcome_id")
-                if out_id and out_id in outcome_id_map:
-                    linked_outcome = outcome_id_map[out_id]
-
-                # Parse amount
-                amount = dmg_data.get("amount")
-                if isinstance(amount, str):
-                    import re
-
-                    match = re.search(r"[\d,]+\.?\d*", amount.replace(",", ""))
-                    amount = float(match.group()) if match else None
-
-                damages = ExtractedDamages(
-                    id=our_id,
-                    name=dmg_data.get("name", f"Damages {i + 1}"),
-                    damage_type=dmg_data.get("type", "monetary"),
-                    amount=amount,
-                    status=dmg_data.get("status", "claimed"),
-                    description=dmg_data.get("description", ""),
-                    linked_outcome_id=linked_outcome,
-                )
-                result.damages.append(damages)
-
-            # Parse relationships from LLM output
-            for rel_data in data.get("relationships", []):
-                source_orig = rel_data.get("source")
-                target_orig = rel_data.get("target")
-                rel_type = rel_data.get("type")
-
-                # Map to our IDs
-                source_id = (
-                    claim_id_map.get(source_orig)
-                    or evid_id_map.get(source_orig)
-                    or outcome_id_map.get(source_orig)
-                    or damages_id_map.get(source_orig)
-                    or source_orig
-                )
-                target_id = (
-                    claim_id_map.get(target_orig)
-                    or evid_id_map.get(target_orig)
-                    or outcome_id_map.get(target_orig)
-                    or damages_id_map.get(target_orig)
-                    or target_orig
-                )
-
-                result.relationships.append(
-                    {
-                        "source_id": source_id,
-                        "target_id": target_id,
-                        "type": rel_type,
-                    }
-                )
-
-            # Store proof gaps as metadata (optional extension)
-            proof_gaps = data.get("proof_gaps", [])
-            if proof_gaps:
-                self.logger.info(f"Found {len(proof_gaps)} proof gaps")
+            result = self._parse_typed_response(data, doc_id, result)
 
             elapsed = time.time() - start_time
             self.logger.info(
                 f"Single-call extraction complete in {elapsed:.1f}s: "
                 f"{len(result.claims)} claims, {len(result.evidence)} evidence, "
-                f"{len(result.outcomes)} outcomes, {len(result.damages)} damages, "
-                f"{len(result.relationships)} relationships"
+                f"{len(result.outcomes)} outcomes, {len(result.relationships)} relationships"
             )
 
+        except ValueError:
+            raise
         except Exception as e:
             self.logger.error(f"Single-call extraction failed: {e}", exc_info=True)
+
+        return result
+
+    def _parse_typed_response(
+        self,
+        data: dict,
+        doc_id: str,
+        result: "ClaimExtractionResult",
+    ) -> "ClaimExtractionResult":
+        """
+        Parse the 5-type typed prompt response into a ClaimExtractionResult.
+
+        Handles output from get_statute/guide/case_extraction_prompt(), which share
+        the same schema: laws, claims, evidence, procedures, outcomes, relationships.
+
+        Relationship IDs use the short LLM IDs (e.g. "c1", "e2") that are mapped
+        to our internal IDs before appending to result.relationships.
+        """
+        # Build per-type ID maps: llm short id → our internal id
+        claim_id_map: dict[str, str] = {}
+        evid_id_map: dict[str, str] = {}
+        outcome_id_map: dict[str, str] = {}
+        procedure_id_map: dict[str, str] = {}
+        law_id_map: dict[str, str] = {}
+
+        # Parse claims
+        for i, claim_data in enumerate(data.get("claims", [])):
+            orig_id = claim_data.get("id", f"claim_{i}")
+            our_id = f"legal_claim:{doc_id}:{i}"
+            claim_id_map[orig_id] = our_id
+
+            claim = ExtractedClaim(
+                id=our_id,
+                name=claim_data.get("name", f"Claim {i + 1}"),
+                claim_description=claim_data.get("description", ""),
+                claimant=claim_data.get("claimant", "Unknown"),
+                respondent_party=claim_data.get("respondent"),
+                relief_sought=claim_data.get("relief_sought", []),
+                claim_status=claim_data.get("status", "asserted"),
+                source_quote=claim_data.get("source_quote"),
+            )
+            result.claims.append(claim)
+
+        # Parse evidence
+        for i, evid_data in enumerate(data.get("evidence", [])):
+            orig_id = evid_data.get("id", f"evid_{i}")
+            our_id = f"evidence:{doc_id}:{i}"
+            evid_id_map[orig_id] = our_id
+
+            linked_claims = [
+                claim_id_map[cid]
+                for cid in evid_data.get("claim_ids", [])
+                if cid in claim_id_map
+            ]
+
+            evidence = ExtractedEvidence(
+                id=our_id,
+                name=evid_data.get("name", f"Evidence {i + 1}"),
+                evidence_type=evid_data.get("type", "documentary"),
+                description=evid_data.get("description", ""),
+                evidence_context=evid_data.get("evidence_context", "required"),
+                evidence_source_type=evid_data.get("evidence_source_type", "statute"),
+                source_quote=evid_data.get("source_quote"),
+                is_critical=evid_data.get("is_critical", False),
+                linked_claim_ids=linked_claims,
+            )
+            result.evidence.append(evidence)
+
+        # Parse outcomes (subsumes old damages — monetary outcomes use outcome_type='monetary')
+        for i, out_data in enumerate(data.get("outcomes", [])):
+            orig_id = out_data.get("id", f"outcome_{i}")
+            our_id = f"legal_outcome:{doc_id}:{i}"
+            outcome_id_map[orig_id] = our_id
+
+            linked_claims = [
+                claim_id_map[cid]
+                for cid in out_data.get("claim_ids", [])
+                if cid in claim_id_map
+            ]
+
+            outcome = ExtractedOutcome(
+                id=our_id,
+                name=out_data.get("name", f"Outcome {i + 1}"),
+                outcome_type=out_data.get("outcome_type", out_data.get("type", "judgment")),
+                disposition=out_data.get("disposition", "unknown"),
+                description=out_data.get("description", ""),
+                decision_maker=out_data.get("decision_maker"),
+                linked_claim_ids=linked_claims,
+            )
+            result.outcomes.append(outcome)
+
+        # Parse procedures
+        for i, proc_data in enumerate(data.get("procedures", [])):
+            orig_id = proc_data.get("id", f"proc_{i}")
+            our_id = f"legal_procedure:{doc_id}:{i}"
+            procedure_id_map[orig_id] = our_id
+            result.procedures.append({
+                "id": our_id,
+                "name": proc_data.get("name", f"Procedure {i + 1}"),
+                "description": proc_data.get("description", ""),
+                "steps": proc_data.get("steps", []),
+                "source_quote": proc_data.get("source_quote", ""),
+            })
+
+        # Parse laws
+        for i, law_data in enumerate(data.get("laws", [])):
+            orig_id = law_data.get("id", f"law_{i}")
+            our_id = f"law:{doc_id}:{i}"
+            law_id_map[orig_id] = our_id
+            result.laws.append({
+                "id": our_id,
+                "name": law_data.get("name", f"Law {i + 1}"),
+                "description": law_data.get("description", ""),
+                "citation": law_data.get("citation", ""),
+                "source_quote": law_data.get("source_quote", ""),
+            })
+
+        # Build unified ID lookup for relationship resolution
+        all_id_maps = {**claim_id_map, **evid_id_map, **outcome_id_map,
+                       **procedure_id_map, **law_id_map}
+
+        # Parse relationships — typed prompt uses "from"/"to" keys
+        for rel_data in data.get("relationships", []):
+            from_orig = rel_data.get("from") or rel_data.get("source")
+            to_orig = rel_data.get("to") or rel_data.get("target")
+            rel_type = rel_data.get("type", "")
+
+            from_id = all_id_maps.get(from_orig, from_orig)
+            to_id = all_id_maps.get(to_orig, to_orig)
+
+            result.relationships.append(
+                {
+                    "source_id": from_id,
+                    "target_id": to_id,
+                    "type": rel_type,
+                }
+            )
 
         return result
 

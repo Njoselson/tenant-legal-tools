@@ -205,17 +205,23 @@ def normalize_chunk_output(
 
     # ── Relationships ────────────────────────────────────────────────────────
 
-    relationships: list[dict] = []
+    entity_id_set = {e["predicted_id"] for e in entities}
+    valid_rels: list[dict] = []
+    skipped_rels: list[dict] = []
+
     for rel in raw.get("relationships", []):
         from_raw = rel.get("from", "")
         to_raw = rel.get("to", "")
-        relationships.append(
-            {
-                "from": entity_id_map.get(from_raw, from_raw),
-                "to": entity_id_map.get(to_raw, to_raw),
-                "type": rel.get("type", ""),
-            }
-        )
+        from_id = entity_id_map.get(from_raw, from_raw)
+        to_id = entity_id_map.get(to_raw, to_raw)
+        mapped_rel = {"from": from_id, "to": to_id, "type": rel.get("type", "")}
+        if from_id in entity_id_set and to_id in entity_id_set:
+            valid_rels.append(mapped_rel)
+        else:
+            skipped_rels.append({**mapped_rel, "_reason": "unresolved_id",
+                                  "_raw_from": from_raw, "_raw_to": to_raw})
+
+    relationships = valid_rels
 
     # ── Section B: chunk-entity link ─────────────────────────────────────────
 
@@ -233,7 +239,11 @@ def normalize_chunk_output(
     }
 
     return {
-        "section_a": {"entities": entities, "relationships": relationships},
+        "section_a": {
+            "entities": entities,
+            "relationships": relationships,
+            "skipped_relationships": skipped_rels,
+        },
         "section_b": chunk_section,
     }
 
@@ -285,7 +295,9 @@ def print_summary(
         print(f"\n  WARNING: unexpected entity types: {', '.join(unexpected)}")
 
     total_rels = sum(len(r["section_a"]["relationships"]) for r in results)
-    print(f"\nRelationships: {total_rels}")
+    total_skipped = sum(len(r["section_a"].get("skipped_relationships", [])) for r in results)
+    skip_note = f" ({total_skipped} skipped — unresolved IDs)" if total_skipped else ""
+    print(f"\nRelationships: {total_rels}{skip_note}")
 
     print("\nChunk links:")
     for r in results:

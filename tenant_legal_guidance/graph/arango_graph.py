@@ -223,22 +223,8 @@ class ArangoDBGraph:
                     self.db.create_collection(collection)
                     self.logger.info(f"Created vertex collection: {collection}")
 
-            # Create edge collections
-            edge_collections = [
-                "violates",
-                "enables",
-                "awards",
-                "applies_to",
-                "prohibits",
-                "requires",
-                "available_via",
-                "filed_in",
-                "provided_by",
-                "supported_by",
-                "results_in",
-                # Chunk -> Entity mention edges
-                "mentions",
-            ]
+            # Create edge collections — derived from RelationshipType enum so new types auto-create
+            edge_collections = [rt.name.lower() for rt in RelationshipType] + ["mentions"]
 
             for collection in edge_collections:
                 if not self.db.has_collection(collection):
@@ -2307,8 +2293,9 @@ class ArangoDBGraph:
             filters = []
             bind_vars: dict[str, object] = {"term": search_term, "limit": limit}
             if types:
-                # Convert to values (lowercase) for matching doc.type
-                type_values = [t.value for t in types]
+                # Convert to string values for matching doc.type
+                # EntityType is str,Enum so members are already strings; plain strings also accepted
+                type_values = [t.value if hasattr(t, "value") else t for t in types]
                 bind_vars["types"] = type_values
                 filters.append("doc.type IN @types")
             if jurisdiction:

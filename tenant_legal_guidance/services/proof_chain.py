@@ -785,6 +785,32 @@ class ProofChainService:
                     self.logger.warning(f"Error storing damage {damage.id}: {e}", exc_info=True)
                     storage_errors.append(f"Error storing damage {damage.id}: {e}")
 
+            # Store LAW entities
+            for law_dict in extraction_result.laws:
+                try:
+                    entity = self._law_dict_to_legal_entity(law_dict, metadata)
+                    success = await self._persist_entity_dual(entity, chunk_ids=None)
+                    if success:
+                        stored_entities[law_dict["id"]] = entity
+                    else:
+                        storage_errors.append(f"Failed to store law {law_dict['id']}")
+                except Exception as e:
+                    self.logger.warning(f"Error storing law {law_dict['id']}: {e}", exc_info=True)
+                    storage_errors.append(f"Error storing law {law_dict['id']}: {e}")
+
+            # Store LEGAL_PROCEDURE entities
+            for proc_dict in extraction_result.procedures:
+                try:
+                    entity = self._procedure_dict_to_legal_entity(proc_dict, metadata)
+                    success = await self._persist_entity_dual(entity, chunk_ids=None)
+                    if success:
+                        stored_entities[proc_dict["id"]] = entity
+                    else:
+                        storage_errors.append(f"Failed to store procedure {proc_dict['id']}")
+                except Exception as e:
+                    self.logger.warning(f"Error storing procedure {proc_dict['id']}: {e}", exc_info=True)
+                    storage_errors.append(f"Error storing procedure {proc_dict['id']}: {e}")
+
             # Log storage errors but continue (partial chains are valid)
             if storage_errors:
                 self.logger.warning(f"Some entities failed to store: {len(storage_errors)} errors")
@@ -818,7 +844,7 @@ class ProofChainService:
                         relationship_errors.append(f"Target {rel_data['target_id']} not found")
                         continue
 
-                    rel_type = RelationshipType[rel_data["type"]]
+                    rel_type = RelationshipType[rel_data["type"].upper()]
                     relationship = LegalRelationship(
                         source_id=rel_data["source_id"],
                         target_id=rel_data["target_id"],
@@ -1136,5 +1162,46 @@ class ProofChainService:
                 "linked_outcome_id": damage.linked_outcome_id or "",
                 # Also store as direct-accessible fields in attributes (convert to string)
                 "amount": str(damage.amount) if damage.amount is not None else "",
+            },
+        )
+
+    def _law_dict_to_legal_entity(
+        self, law_dict: dict, metadata: SourceMetadata | None
+    ) -> LegalEntity:
+        """Convert a raw law dict (from typed prompt) to LegalEntity."""
+        if metadata is None:
+            metadata = SourceMetadata(source=law_dict["id"], source_type=SourceType.FILE)
+
+        return LegalEntity(
+            id=law_dict["id"],
+            entity_type=EntityType.LAW,
+            name=law_dict["name"],
+            description=law_dict.get("description", ""),
+            source_metadata=metadata,
+            attributes={
+                "citation": law_dict.get("citation", ""),
+                "source_quote": law_dict.get("source_quote", ""),
+            },
+        )
+
+    def _procedure_dict_to_legal_entity(
+        self, proc_dict: dict, metadata: SourceMetadata | None
+    ) -> LegalEntity:
+        """Convert a raw procedure dict (from typed prompt) to LegalEntity."""
+        import json as _json
+
+        if metadata is None:
+            metadata = SourceMetadata(source=proc_dict["id"], source_type=SourceType.FILE)
+
+        steps = proc_dict.get("steps", [])
+        return LegalEntity(
+            id=proc_dict["id"],
+            entity_type=EntityType.LEGAL_PROCEDURE,
+            name=proc_dict["name"],
+            description=proc_dict.get("description", ""),
+            source_metadata=metadata,
+            attributes={
+                "steps": _json.dumps(steps) if steps else "",
+                "source_quote": proc_dict.get("source_quote", ""),
             },
         )

@@ -15,10 +15,12 @@ class EntityType(str, Enum):
 
     # Legal entities
     LAW = "law"  # Legal statute, regulation, or case law
-    REMEDY = "remedy"  # Available legal remedies
     LEGAL_PROCEDURE = "legal_procedure"  # Court processes, administrative procedures
-    DAMAGES = "damages"  # Monetary compensation or penalties
     LEGAL_CONCEPT = "legal_concept"  # Legal concepts and principles
+
+    # Deprecated extraction types — do not use in new prompts
+    REMEDY = "remedy"  # DEPRECATED: use LEGAL_OUTCOME with outcome_type='available_remedy'
+    DAMAGES = "damages"  # DEPRECATED: use LEGAL_OUTCOME with outcome_type='monetary'
 
     # Organizing entities
     TENANT_GROUP = "tenant_group"  # Associations, unions, block groups
@@ -47,9 +49,9 @@ class EntityType(str, Enum):
     # Geographic and jurisdictional
     JURISDICTION = "jurisdiction"  # Geographic areas, court systems
 
-    # Legal claim proving system entities (NEW)
+    # Legal claim proving system entities
     LEGAL_CLAIM = "legal_claim"  # Assertion of a legal right or cause of action
-    LEGAL_ELEMENT = "legal_element"  # Specific verifiable element of a legal requirement
+    # LEGAL_ELEMENT removed: too granular, folds into EVIDENCE
 
 
 class EntityCategory(str, Enum):
@@ -73,13 +75,13 @@ ENTITY_CATEGORIES: dict[EntityType, EntityCategory] = {
     EntityType.LEGAL_CLAIM: EntityCategory.CORE_CLAIM_PROVING,
     EntityType.EVIDENCE: EntityCategory.CORE_CLAIM_PROVING,
     EntityType.LEGAL_OUTCOME: EntityCategory.CORE_CLAIM_PROVING,
-    EntityType.DAMAGES: EntityCategory.CORE_CLAIM_PROVING,
+    EntityType.LEGAL_PROCEDURE: EntityCategory.CORE_CLAIM_PROVING,
     # Supporting entities (in retrieval but secondary)
-    EntityType.REMEDY: EntityCategory.SUPPORTING,
-    EntityType.LEGAL_PROCEDURE: EntityCategory.SUPPORTING,
     EntityType.LEGAL_CONCEPT: EntityCategory.SUPPORTING,
     EntityType.TENANT_ISSUE: EntityCategory.SUPPORTING,
-    EntityType.LEGAL_ELEMENT: EntityCategory.SUPPORTING,
+    # Deprecated types — kept for backwards compat with existing graph data
+    EntityType.REMEDY: EntityCategory.SUPPORTING,
+    EntityType.DAMAGES: EntityCategory.SUPPORTING,
     # Reference entities (metadata, not primary retrieval targets)
     EntityType.CASE_DOCUMENT: EntityCategory.REFERENCE,
     EntityType.JURISDICTION: EntityCategory.REFERENCE,

@@ -310,6 +310,14 @@ def manifest_entry_to_source_metadata(entry: ManifestEntry) -> SourceMetadata:
                     document_type = dt
                     break
 
+    if document_type is None or document_type == LegalDocumentType.UNKNOWN:
+        raise ValueError(
+            f"document_type is required for extraction and must not be UNKNOWN. "
+            f"Got: {entry.document_type!r} for locator: {entry.locator!r}. "
+            "Set document_type to one of: statute, court_opinion, legal_guide, "
+            "tenant_handbook, legal_memo, advocacy_document."
+        )
+
     # Determine source type
     source_type = SourceType.URL
     if entry.kind.upper() in ["FILE", "LOCAL"]:

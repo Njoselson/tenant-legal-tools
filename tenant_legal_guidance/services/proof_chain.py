@@ -82,6 +82,10 @@ class ProofChain:
     # Graph-based chains from build_legal_chains (explicit graph traversal)
     graph_chains: list[dict] = None  # Chains from build_legal_chains() method
 
+    # Document-level entity IDs (populated during ingestion for chunk linking)
+    law_ids: list[str] = None
+    procedure_ids: list[str] = None
+
     def __post_init__(self):
         """Initialize default values for list fields."""
         if self.required_evidence is None:
@@ -94,6 +98,10 @@ class ProofChain:
             self.critical_gaps = []
         if self.graph_chains is None:
             self.graph_chains = []
+        if self.law_ids is None:
+            self.law_ids = []
+        if self.procedure_ids is None:
+            self.procedure_ids = []
 
 
 class ProofChainService:
@@ -860,6 +868,18 @@ class ProofChainService:
                     f"Some relationships failed to store: {len(relationship_errors)} errors"
                 )
 
+            # Collect document-level law and procedure IDs for chunk linking
+            stored_law_ids = [
+                law_dict["id"]
+                for law_dict in extraction_result.laws
+                if law_dict["id"] in stored_entities
+            ]
+            stored_procedure_ids = [
+                proc_dict["id"]
+                for proc_dict in extraction_result.procedures
+                if proc_dict["id"] in stored_entities
+            ]
+
             # Build ProofChain objects from stored claims (handle partial chains)
             proof_chains = []
             for claim in extraction_result.claims:
@@ -867,6 +887,10 @@ class ProofChainService:
                     try:
                         proof_chain = await self.build_proof_chain(claim.id)
                         if proof_chain:
+                            # Attach document-level entity IDs so DocumentProcessor
+                            # can link them to chunks even if not in presented_evidence
+                            proof_chain.law_ids = stored_law_ids
+                            proof_chain.procedure_ids = stored_procedure_ids
                             proof_chains.append(proof_chain)
                         else:
                             self.logger.warning(
@@ -1131,6 +1155,7 @@ class ProofChainService:
             # Store as both 'outcome' and 'disposition' for compatibility
             outcome=outcome.disposition,
             ruling_type=outcome.outcome_type,
+            best_quote={"text": outcome.source_quote} if outcome.source_quote else None,
             # Also store in attributes for easy access
             attributes={
                 "decision_maker": outcome.decision_maker or "",
@@ -1172,15 +1197,17 @@ class ProofChainService:
         if metadata is None:
             metadata = SourceMetadata(source=law_dict["id"], source_type=SourceType.FILE)
 
+        source_quote = law_dict.get("source_quote", "")
         return LegalEntity(
             id=law_dict["id"],
             entity_type=EntityType.LAW,
             name=law_dict["name"],
             description=law_dict.get("description", ""),
             source_metadata=metadata,
+            best_quote={"text": source_quote} if source_quote else None,
             attributes={
                 "citation": law_dict.get("citation", ""),
-                "source_quote": law_dict.get("source_quote", ""),
+                "source_quote": source_quote,
             },
         )
 
@@ -1194,14 +1221,16 @@ class ProofChainService:
             metadata = SourceMetadata(source=proc_dict["id"], source_type=SourceType.FILE)
 
         steps = proc_dict.get("steps", [])
+        source_quote = proc_dict.get("source_quote", "")
         return LegalEntity(
             id=proc_dict["id"],
             entity_type=EntityType.LEGAL_PROCEDURE,
             name=proc_dict["name"],
             description=proc_dict.get("description", ""),
             source_metadata=metadata,
+            best_quote={"text": source_quote} if source_quote else None,
             attributes={
                 "steps": _json.dumps(steps) if steps else "",
-                "source_quote": proc_dict.get("source_quote", ""),
+                "source_quote": source_quote,
             },
         )

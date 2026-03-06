@@ -175,17 +175,23 @@ class DocumentProcessor:
         try:
             self.logger.info("Extracting proof chains from document (unified extraction)")
             proof_chains = await self.proof_chain_service.extract_proof_chains(text, metadata)
-            # Collect entity IDs from proof chains for chunk linking
+            # Collect entity IDs from proof chains for chunk linking.
+            # Include all entity types: claims, all evidence (required + presented),
+            # outcomes, damages, laws, and procedures.
+            seen_entity_ids: set[str] = set()
             for chain in proof_chains:
-                proof_chain_entity_ids.append(chain.claim_id)
-                # Add evidence, outcome, damages IDs
-                for ev in chain.presented_evidence:
-                    proof_chain_entity_ids.append(ev.evidence_id)
-                if chain.outcome:
-                    proof_chain_entity_ids.append(chain.outcome["id"])
-                if chain.damages:
-                    for dmg in chain.damages:
-                        proof_chain_entity_ids.append(dmg["id"])
+                for eid in [
+                    chain.claim_id,
+                    *[ev.evidence_id for ev in chain.required_evidence],
+                    *[ev.evidence_id for ev in chain.presented_evidence],
+                    *([] if not chain.outcome else [chain.outcome["id"]]),
+                    *([dmg["id"] for dmg in chain.damages] if chain.damages else []),
+                    *chain.law_ids,
+                    *chain.procedure_ids,
+                ]:
+                    if eid and eid not in seen_entity_ids:
+                        seen_entity_ids.add(eid)
+                        proof_chain_entity_ids.append(eid)
 
             # Extract entities from proof chains (they're already stored, but we need them for processing)
             # Get entities from the knowledge graph that were just stored
@@ -743,18 +749,45 @@ class DocumentProcessor:
                 dedup_count = len(existing_chunk_map)
                 self.logger.info(f"Successfully processed {chunk_count} chunks ({len(new_chunk_ids)} new, {dedup_count} reused) to Qdrant")
 
-                # Step 6.5: Link proof chain entities to chunks (bidirectional linking)
-                # Use deduplicated_chunk_ids (includes both new and reused chunks)
+                # Step 6.5: Link proof chain entities to chunks (bidirectional linking).
+                # Use best_quote to find the specific chunk(s) containing each entity
+                # rather than linking every entity to every chunk.
                 if proof_chain_entity_ids and deduplicated_chunk_ids:
                     try:
                         self.logger.info(
-                            f"Linking {len(proof_chain_entity_ids)} proof chain entities to {len(deduplicated_chunk_ids)} chunks"
+                            f"Linking {len(proof_chain_entity_ids)} proof chain entities to chunks"
                         )
+                        # Build chunk_id -> chunk_text map for precision linking
+                        chunk_text_map = {
+                            deduplicated_chunk_ids[i]: chunk_texts[i]
+                            for i in range(min(len(deduplicated_chunk_ids), len(chunk_texts)))
+                        }
                         for entity_id in proof_chain_entity_ids:
                             entity = self.knowledge_graph.get_entity(entity_id)
-                            if entity:
-                                # entity is already a LegalEntity object
-                                self.proof_chain_service._link_entity_to_chunks(entity, deduplicated_chunk_ids)
+                            if not entity:
+                                continue
+                            # Determine which chunks to link this entity to
+                            best_quote = getattr(entity, "best_quote", None)
+                            if best_quote and isinstance(best_quote, dict):
+                                quote_text = best_quote.get("text", "")
+                                if quote_text:
+                                    # Find chunks that contain the quote (match on first 80 chars)
+                                    snippet = quote_text[:80]
+                                    matching = [
+                                        cid for cid, ctxt in chunk_text_map.items()
+                                        if snippet in ctxt
+                                    ]
+                                    if matching:
+                                        target_ids = matching
+                                    else:
+                                        # Quote not found in any chunk — fall back to first chunk
+                                        target_ids = deduplicated_chunk_ids[:1]
+                                else:
+                                    target_ids = deduplicated_chunk_ids
+                            else:
+                                # No quote available — link to all chunks (document-wide)
+                                target_ids = deduplicated_chunk_ids
+                            self.proof_chain_service._link_entity_to_chunks(entity, target_ids)
                         self.logger.info("Successfully linked proof chain entities to chunks")
                     except Exception as e:
                         self.logger.warning(

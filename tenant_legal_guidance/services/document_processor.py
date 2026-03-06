@@ -529,11 +529,10 @@ class DocumentProcessor:
 
                     # Add analysis entities to the knowledge graph
                     for entity in analysis_entities:
-                        if self.knowledge_graph.add_entity(entity, overwrite=False):
+                        was_added = self.knowledge_graph.add_entity(entity, overwrite=False)
+                        if was_added:
                             added_entities.append(entity)
                             self.logger.info(f"Added analysis entity: {entity.name}")
-
-                            # Attach provenance
                             self.knowledge_graph.attach_provenance(
                                 subject_type="ENTITY",
                                 subject_id=entity.id,
@@ -541,6 +540,11 @@ class DocumentProcessor:
                                 chunk_id=None,
                                 chunk_index=None,
                             )
+                        else:
+                            # Entity already exists — still track its ID so Step 5.7
+                            # creates CASE_DOCUMENT edges to it from this case.
+                            proof_chain_entity_ids.append(entity.id)
+                            self.logger.debug(f"Analysis entity already exists, tracking for edge creation: {entity.id}")
 
                 self.logger.info(
                     f"Case analysis completed with {len(case_analysis_results.proof_chains) if case_analysis_results else 0} proof chains"
@@ -548,6 +552,38 @@ class DocumentProcessor:
 
             except Exception as e:
                 self.logger.error(f"Enhanced case analysis failed: {e}", exc_info=True)
+
+        # Step 5.7: Link CASE_DOCUMENT to all entities extracted from this case
+        # Creates ADDRESSES (→ LEGAL_CLAIM), CITES (→ LAW), RESULTS_IN (→ LEGAL_OUTCOME) edges
+        if metadata.document_type == LegalDocumentType.COURT_OPINION and case_document_entity:
+            try:
+                type_to_rel = {
+                    EntityType.LEGAL_CLAIM: RelationshipType.ADDRESSES,
+                    EntityType.LAW: RelationshipType.CITES,
+                    EntityType.LEGAL_OUTCOME: RelationshipType.RESULTS_IN,
+                }
+                all_candidate_ids = list(set(proof_chain_entity_ids + [e.id for e in added_entities]))
+                edges_created = 0
+                for entity_id in all_candidate_ids:
+                    entity = self.knowledge_graph.get_entity(entity_id)
+                    if not entity:
+                        continue
+                    rel_type = type_to_rel.get(entity.entity_type)
+                    if not rel_type:
+                        continue
+                    rel = LegalRelationship(
+                        source_id=case_document_entity.id,
+                        target_id=entity_id,
+                        relationship_type=rel_type,
+                    )
+                    if self.knowledge_graph.add_relationship(rel):
+                        edges_created += 1
+                self.logger.info(
+                    f"Step 5.7: Created {edges_created} CASE_DOCUMENT edges "
+                    f"({case_document_entity.case_name})"
+                )
+            except Exception as e:
+                self.logger.error(f"Step 5.7 case-entity linking failed: {e}", exc_info=True)
 
         # Step 6: Embed and persist chunks to Qdrant
         chunk_count = 0
@@ -1608,7 +1644,7 @@ Ensure array has exactly {len(batch)} objects."""
                         strength_score_str = str(proof_chain.strength_score)
                     
                     issue_entity = LegalEntity(
-                        id=f"issue:{source_id}:{self.entity_service.generate_entity_id(proof_chain.issue, EntityType.TENANT_ISSUE)}",
+                        id=self.entity_service.generate_entity_id(proof_chain.issue, EntityType.TENANT_ISSUE),
                         entity_type=EntityType.TENANT_ISSUE,
                         name=proof_chain.issue,
                         description=f"Legal issue identified in case analysis: {proof_chain.reasoning}",
@@ -1628,7 +1664,7 @@ Ensure array has exactly {len(batch)} objects."""
                     if remedy.name:
                         # Convert all attribute values to strings
                         remedy_entity = LegalEntity(
-                            id=f"remedy:{source_id}:{self.entity_service.generate_entity_id(remedy.name, EntityType.REMEDY)}",
+                            id=self.entity_service.generate_entity_id(remedy.name, EntityType.REMEDY),
                             entity_type=EntityType.REMEDY,
                             name=remedy.name,
                             description=remedy.description,
@@ -1646,7 +1682,7 @@ Ensure array has exactly {len(batch)} objects."""
                     if law.get("name"):
                         # Convert all attribute values to strings
                         law_entity = LegalEntity(
-                            id=f"law:{source_id}:{self.entity_service.generate_entity_id(law['name'], EntityType.LAW)}",
+                            id=self.entity_service.generate_entity_id(law["name"], EntityType.LAW),
                             entity_type=EntityType.LAW,
                             name=law["name"],
                             description=law.get("text", ""),

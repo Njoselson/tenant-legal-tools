@@ -346,6 +346,18 @@ class ClaimExtractor:
         self.logger.warning("Failed to parse JSON response after all fallback strategies")
         return None
 
+    @staticmethod
+    def _make_entity_id(entity_type: str, name: str) -> str:
+        """Generate a stable, source-independent entity ID from type + name.
+
+        Uses the same algorithm as EntityService.generate_entity_id so entities
+        extracted by either path produce the same ID for the same concept.
+        Format: {type}:{sha256[:8]}
+        """
+        import hashlib
+        hash_input = f"{entity_type}:{name}".lower()
+        return f"{entity_type}:{hashlib.sha256(hash_input.encode()).hexdigest()[:8]}"
+
     def _parse_claim_data(self, data: dict, doc_id: str, index: int) -> ExtractedClaim | None:
         """Parse a claim from extracted data."""
         try:
@@ -355,9 +367,8 @@ class ClaimExtractor:
             claim_type_str = data.get("claim_type", data.get("claim_type_id"))
             claim_type = ClaimType.from_string(claim_type_str) if claim_type_str else None
 
-            # Use prefix matching EntityType.LEGAL_CLAIM.value = "legal_claim"
             return ExtractedClaim(
-                id=f"legal_claim:{doc_id}:{index}",
+                id=self._make_entity_id("legal_claim", name),
                 name=name,
                 claim_description=data.get("description", data.get("claim_description", "")),
                 claimant=data.get("claimant", "Unknown"),
@@ -377,9 +388,8 @@ class ClaimExtractor:
         """Parse evidence from extracted data."""
         try:
             name = data.get("name", f"Evidence {index + 1}")
-            # Use prefix matching EntityType.EVIDENCE.value = "evidence"
             return ExtractedEvidence(
-                id=f"evidence:{doc_id}:{index}",
+                id=self._make_entity_id("evidence", name),
                 name=name,
                 evidence_type=data.get("type", data.get("evidence_type", "documentary")),
                 description=data.get("description", ""),
@@ -409,9 +419,8 @@ class ClaimExtractor:
                 ):
                     linked_claim_ids.append(claim.id)
 
-            # Use prefix matching EntityType.LEGAL_OUTCOME.value = "legal_outcome"
             return ExtractedOutcome(
-                id=f"legal_outcome:{doc_id}:{index}",
+                id=self._make_entity_id("legal_outcome", name),
                 name=name,
                 outcome_type=data.get("type", data.get("outcome_type", "judgment")),
                 disposition=data.get("disposition", "unknown"),
@@ -453,9 +462,8 @@ class ClaimExtractor:
                 else:
                     amount = None
 
-            # Use prefix matching EntityType.DAMAGES.value = "damages"
             return ExtractedDamages(
-                id=f"damages:{doc_id}:{index}",
+                id=self._make_entity_id("damages", name),
                 name=name,
                 damage_type=data.get("type", data.get("damage_type", "monetary")),
                 amount=amount,
@@ -573,12 +581,13 @@ class ClaimExtractor:
         # Parse claims
         for i, claim_data in enumerate(data.get("claims", [])):
             orig_id = claim_data.get("id", f"claim_{i}")
-            our_id = f"legal_claim:{doc_id}:{i}"
+            name = claim_data.get("name", f"Claim {i + 1}")
+            our_id = self._make_entity_id("legal_claim", name)
             claim_id_map[orig_id] = our_id
 
             claim = ExtractedClaim(
                 id=our_id,
-                name=claim_data.get("name", f"Claim {i + 1}"),
+                name=name,
                 claim_description=claim_data.get("description", ""),
                 claimant=claim_data.get("claimant", "Unknown"),
                 respondent_party=claim_data.get("respondent"),
@@ -591,7 +600,8 @@ class ClaimExtractor:
         # Parse evidence
         for i, evid_data in enumerate(data.get("evidence", [])):
             orig_id = evid_data.get("id", f"evid_{i}")
-            our_id = f"evidence:{doc_id}:{i}"
+            name = evid_data.get("name", f"Evidence {i + 1}")
+            our_id = self._make_entity_id("evidence", name)
             evid_id_map[orig_id] = our_id
 
             linked_claims = [
@@ -602,7 +612,7 @@ class ClaimExtractor:
 
             evidence = ExtractedEvidence(
                 id=our_id,
-                name=evid_data.get("name", f"Evidence {i + 1}"),
+                name=name,
                 evidence_type=evid_data.get("type", "documentary"),
                 description=evid_data.get("description", ""),
                 evidence_context=evid_data.get("evidence_context", "required"),
@@ -616,7 +626,8 @@ class ClaimExtractor:
         # Parse outcomes (subsumes old damages — monetary outcomes use outcome_type='monetary')
         for i, out_data in enumerate(data.get("outcomes", [])):
             orig_id = out_data.get("id", f"outcome_{i}")
-            our_id = f"legal_outcome:{doc_id}:{i}"
+            name = out_data.get("name", f"Outcome {i + 1}")
+            our_id = self._make_entity_id("legal_outcome", name)
             outcome_id_map[orig_id] = our_id
 
             linked_claims = [
@@ -627,7 +638,7 @@ class ClaimExtractor:
 
             outcome = ExtractedOutcome(
                 id=our_id,
-                name=out_data.get("name", f"Outcome {i + 1}"),
+                name=name,
                 outcome_type=out_data.get("outcome_type", out_data.get("type", "judgment")),
                 disposition=out_data.get("disposition", "unknown"),
                 description=out_data.get("description", ""),
@@ -639,11 +650,12 @@ class ClaimExtractor:
         # Parse procedures
         for i, proc_data in enumerate(data.get("procedures", [])):
             orig_id = proc_data.get("id", f"proc_{i}")
-            our_id = f"legal_procedure:{doc_id}:{i}"
+            name = proc_data.get("name", f"Procedure {i + 1}")
+            our_id = self._make_entity_id("legal_procedure", name)
             procedure_id_map[orig_id] = our_id
             result.procedures.append({
                 "id": our_id,
-                "name": proc_data.get("name", f"Procedure {i + 1}"),
+                "name": name,
                 "description": proc_data.get("description", ""),
                 "steps": proc_data.get("steps", []),
                 "source_quote": proc_data.get("source_quote", ""),
@@ -652,11 +664,12 @@ class ClaimExtractor:
         # Parse laws
         for i, law_data in enumerate(data.get("laws", [])):
             orig_id = law_data.get("id", f"law_{i}")
-            our_id = f"law:{doc_id}:{i}"
+            name = law_data.get("name", f"Law {i + 1}")
+            our_id = self._make_entity_id("law", name)
             law_id_map[orig_id] = our_id
             result.laws.append({
                 "id": our_id,
-                "name": law_data.get("name", f"Law {i + 1}"),
+                "name": name,
                 "description": law_data.get("description", ""),
                 "citation": law_data.get("citation", ""),
                 "source_quote": law_data.get("source_quote", ""),

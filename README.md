@@ -207,7 +207,7 @@ tests/                  # Test suite
 docs/                   # Documentation (12 guides)
 ```
 
-See `docs/README.md` for full documentation index and `ROADMAP.md` for project status.
+See [docs/README.md](docs/README.md) for full documentation index and [ROADMAP.md](ROADMAP.md) for project status.
 
 ## Built With
 

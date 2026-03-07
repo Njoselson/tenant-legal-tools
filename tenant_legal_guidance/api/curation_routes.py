@@ -59,6 +59,71 @@ def get_curation_storage(system: TenantLegalSystem = Depends(get_system)) -> Cur
     return CurationStorage(system.knowledge_graph)
 
 
+@router.get("/manifest-files")
+async def list_manifest_files() -> dict[str, Any]:
+    """Scan data/manifests/*.jsonl and return all entries inline.
+
+    Returns:
+        { files: [{ filename, entry_count, entries: [...] }] }
+    """
+    manifest_dir = Path("data/manifests")
+    if not manifest_dir.exists():
+        return {"files": []}
+
+    files = []
+    for jsonl_path in sorted(manifest_dir.glob("*.jsonl")):
+        entries = []
+        try:
+            with jsonl_path.open("r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        entry = json.loads(line)
+                        entries.append({
+                            "locator": entry.get("locator", ""),
+                            "title": entry.get("title"),
+                            "kind": entry.get("kind", "url"),
+                            "document_type": entry.get("document_type"),
+                            "authority": entry.get("authority"),
+                            "jurisdiction": entry.get("jurisdiction"),
+                            "organization": entry.get("organization"),
+                        })
+                    except json.JSONDecodeError:
+                        continue
+        except Exception as e:
+            logger.warning(f"Error reading manifest {jsonl_path}: {e}")
+            continue
+
+        files.append({
+            "filename": jsonl_path.name,
+            "entry_count": len(entries),
+            "entries": entries,
+        })
+
+    return {"files": files}
+
+
+@router.post("/check-ingested")
+async def check_ingested(
+    request: Request,
+    system: TenantLegalSystem = Depends(get_system),
+) -> dict[str, Any]:
+    """Check which locators are already ingested.
+
+    Request body: { "locators": ["url1", "url2", ...] }
+    Returns: { "ingested": { "url1": true, "url2": false, ... } }
+    """
+    body = await request.json()
+    locators = body.get("locators", [])
+    if not locators:
+        return {"ingested": {}}
+
+    existing = system.knowledge_graph.get_existing_locators()
+    return {"ingested": {loc: loc in existing for loc in locators}}
+
+
 @router.post("/search", response_model=CurationSearchResponse)
 async def search_legal_sources(
     request: CurationSearchRequest,

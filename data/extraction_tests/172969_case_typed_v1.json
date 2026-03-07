@@ -1,0 +1,150 @@
+{
+  "meta": {
+    "url": "https://law.justia.com/cases/federal/appellate-courts/F2/428/1071/172969/",
+    "document_type": "case",
+    "prompt_type": "typed",
+    "chunks_processed": 1,
+    "total_chunks": 1,
+    "source_hash": "fc45e1b8101e6420",
+    "timestamp": "2026-03-04T17:35:09.105496Z"
+  },
+  "results_per_chunk": [
+    {
+      "section_a": {
+        "entities": [
+          {
+            "predicted_id": "legal_claim:1f54584d",
+            "name": "Breach of Implied Warranty of Habitability",
+            "type": "LEGAL_CLAIM",
+            "description": "The tenant asserted that the landlord's failure to maintain the premises in compliance with housing regulations constituted a breach of an implied warranty of habitability, which should serve as a defense to nonpayment of rent.",
+            "type_specific_fields": {
+              "claim_type": "BREACH_OF_WARRANTY_OF_HABITABILITY",
+              "relief_sought": [
+                "Defense to eviction for nonpayment",
+                "Rent abatement via recoupment or set-off"
+              ]
+            },
+            "source_quote": ""
+          },
+          {
+            "predicted_id": "evidence:adf0a250",
+            "name": "Tenant's Offer of Proof on Housing Code Violations",
+            "type": "EVIDENCE",
+            "description": "The tenants offered to prove approximately 1500 violations of the Housing Regulations in the Clifton Terrace building, some directly and some indirectly affecting their premises, to establish a course of conduct violating the regulations.",
+            "type_specific_fields": {
+              "evidence_context": "presented",
+              "is_critical": true,
+              "linked_claim_id": "legal_claim:1f54584d"
+            },
+            "source_quote": "They offered to prove \"[t]hat there are approximately 1500 violations of the Housing Regulations of the District of Columbia in the building at Clifton Terrace, where Defendant resides some affecting the premises of this Defendant directly, others indirectly, and all tending to establish a course of conduct of violation of the Housing Regulations to the damage of Defendants * * *.\""
+          },
+          {
+            "predicted_id": "legal_procedure:26bd7b09",
+            "name": "Landlord and Tenant Court Eviction Action",
+            "type": "LEGAL_PROCEDURE",
+            "description": "The landlord filed separate actions for possession in the Landlord and Tenant Branch of the District of Columbia Court of General Sessions based on the tenants' nonpayment of rent for April 1966.",
+            "type_specific_fields": {
+              "steps": [
+                "Landlord files eviction action for nonpayment",
+                "Tenants raise equitable defense/recoupment based on housing code violations",
+                "Court refuses offer of proof on violations",
+                "Court enters judgment for landlord"
+              ]
+            },
+            "source_quote": ""
+          },
+          {
+            "predicted_id": "legal_outcome:51129477",
+            "name": "Recognition of Implied Warranty of Habitability",
+            "type": "LEGAL_OUTCOME",
+            "description": "The court reversed the lower courts and held that a warranty of habitability, measured by the standards in the Housing Regulations, is implied by operation of law into leases of urban dwelling units covered by those Regulations. Breach of this warranty gives rise to the usual remedies for breach of contract.",
+            "type_specific_fields": {
+              "outcome_type": "declaratory",
+              "linked_claim_id": "legal_claim:1f54584d"
+            },
+            "source_quote": ""
+          },
+          {
+            "predicted_id": "law:f1dfd256",
+            "name": "Housing Regulations for the District of Columbia",
+            "type": "LAW",
+            "description": "The local housing code establishing minimum standards of habitability for dwelling units. The court holds these regulations set the standard for the implied warranty of habitability.",
+            "type_specific_fields": {
+              "citation": "Housing Regulations for the District of Columbia"
+            },
+            "source_quote": ""
+          },
+          {
+            "predicted_id": "law:a02fe47c",
+            "name": "Common Law Contract Principles",
+            "type": "LAW",
+            "description": "The court applies modern contract law principles to residential leases, including implied warranties of fitness and quality, abandoning the traditional property-law based 'no-repair' rule for landlords.",
+            "type_specific_fields": {
+              "citation": "Common Law"
+            },
+            "source_quote": ""
+          }
+        ],
+        "relationships": [
+          {
+            "from": "law:f1dfd256",
+            "to": "legal_claim:1f54584d",
+            "type": "enables"
+          },
+          {
+            "from": "law:a02fe47c",
+            "to": "legal_claim:1f54584d",
+            "type": "enables"
+          },
+          {
+            "from": "legal_claim:1f54584d",
+            "to": "evidence:adf0a250",
+            "type": "requires"
+          },
+          {
+            "from": "legal_procedure:26bd7b09",
+            "to": "legal_outcome:51129477",
+            "type": "results_in"
+          },
+          {
+            "from": "law:f1dfd256",
+            "to": "legal_outcome:51129477",
+            "type": "authorizes"
+          },
+          {
+            "from": "law:a02fe47c",
+            "to": "legal_outcome:51129477",
+            "type": "authorizes"
+          }
+        ]
+      },
+      "section_b": {
+        "chunk_index": 0,
+        "predicted_chunk_id": "fc45e1b8101e6420:0",
+        "entities_mentioned": [
+          "legal_claim:1f54584d",
+          "evidence:adf0a250",
+          "legal_procedure:26bd7b09",
+          "legal_outcome:51129477",
+          "law:f1dfd256",
+          "law:a02fe47c"
+        ],
+        "qdrant_metadata": {
+          "chunk_index": 0,
+          "document_type": "case",
+          "authority": "case_law",
+          "entity_ids": [
+            "legal_claim:1f54584d",
+            "evidence:adf0a250",
+            "legal_procedure:26bd7b09",
+            "legal_outcome:51129477",
+            "law:f1dfd256",
+            "law:a02fe47c"
+          ]
+        },
+        "chunk_text_preview": "Javins v. First National Realty Corp., 428 F.2d 1071 (D.C. Cir. 1970) :: Justia Javins v. First National Realty Corp., 428 F.2d 1071 (D.C. Cir. 1970) Annotate this Case U.S. Court of Appeals for the District of Columbia Circuit - 428 F.2d 1071 (D.C. Cir. 1970) Argued January 16, 1970Decided May 7, 1"
+      },
+      "_debug_raw_response": "```json\n{\n    \"claims\": [\n        {\n            \"id\": \"c1\",\n            \"name\": \"Breach of Implied Warranty of Habitability\",\n            \"claim_type\": \"BREACH_OF_WARRANTY_OF_HABITABILITY\",\n            \"description\": \"The tenant asserted that the landlord's failure to maintain the premises in compliance with housing regulations constituted a breach of an implied warranty of habitability, which should serve as a defense to nonpayment of rent.\",\n            \"relief_sought\": [\"Defense to eviction for nonpayment\", \"Rent abatement via recoupment or set-off\"]\n        }\n    ],\n    \"evidence\": [\n        {\n            \"id\": \"e1\",\n            \"name\": \"Tenant's Offer of Proof on Housing Code Violations\",\n            \"description\": \"The tenants offered to prove approximately 1500 violations of the Housing Regulations in the Clifton Terrace building, some directly and some indirectly affecting their premises, to establish a course of conduct violating the regulations.\",\n            \"is_critical\": true,\n            \"evidence_context\": \"presented\",\n            \"linked_claim_id\": \"c1\",\n            \"source_quote\": \"They offered to prove \\\"[t]hat there are approximately 1500 violations of the Housing Regulations of the District of Columbia in the building at Clifton Terrace, where Defendant resides some affecting the premises of this Defendant directly, others indirectly, and all tending to establish a course of conduct of violation of the Housing Regulations to the damage of Defendants * * *.\\\"\"\n        }\n    ],\n    \"procedures\": [\n        {\n            \"id\": \"p1\",\n            \"name\": \"Landlord and Tenant Court Eviction Action\",\n            \"description\": \"The landlord filed separate actions for possession in the Landlord and Tenant Branch of the District of Columbia Court of General Sessions based on the tenants' nonpayment of rent for April 1966.\",\n            \"steps\": [\"Landlord files eviction action for nonpayment\", \"Tenants raise equitable defense/recoupment based on housing co"
+    }
+  ]
+}

@@ -121,28 +121,16 @@ M7 Web ingestion UI (independent, can slot in anytime)
 > **Skill available**: `/build-legal-manifest habitability/heat/mold` runs the full research → manifest → ingest workflow.
 > **Citations verified 2026-03-06.** URLs confirmed below. See corrections noted inline.
 
-**Session 1 — Statutes + guides** ← manifest built (`data/manifests/habitability_statutes.jsonl`), ready to ingest after M1 completes
-- [ ] RPL § 235-b — warranty of habitability | [nysenate.gov](https://www.nysenate.gov/legislation/laws/RPP/235-B) · [justia (2025)](https://law.justia.com/codes/new-york/rpp/article-7/235-b/)
-- [ ] NYC Admin Code § 27-2029 — heat season (Oct 1–May 31): 68°F day (when outside <55°F) / **62°F night** (all times) ⚠️ *roadmap previously said 55°F nighttime — that was the pre-amendment standard* | [amlegal](https://codelibrary.amlegal.com/codes/newyorkcity/latest/NYCadmin/0-0-0-60410)
-- [ ] NYC Admin Code § 27-2031 — hot water (120°F min, 6am–midnight) | [amlegal](https://codelibrary.amlegal.com/codes/newyorkcity/latest/NYCadmin/0-0-0-60417)
-- [ ] NYC Admin Code § 27-2115 — civil penalties for heat/hot water violations ($250–$500/day initial, $500–$1,000/day repeat) | [amlegal](https://codelibrary.amlegal.com/codes/newyorkcity/latest/NYCadmin/0-0-0-61267) · [legalservicesnyc PDF](https://www.legalservicesnyc.org/wp-content/uploads/2018/08/Housing_-_New_York_City_Administrative_Code__27-2115.pdf)
-- [ ] HMC Subchapter 5 — legal remedies and enforcement (tenant code violation remedies) ⚠️ *§ 27-2011 is owner duty to maintain public areas — not tenant remedies; Subchapter 5 is the right section* | [upcodes](https://up.codes/viewer/new_york_city/nyc-housing-maintenance-code/chapter/5/legal-remedies-and-enforcement)
-- [ ] Multiple Dwelling Law § 78 — owner duty to keep building in good repair | [justia (2025)](https://law.justia.com/codes/new-york/mdw/article-3/title-3/78/) · [nysenate.gov](https://www.nysenate.gov/legislation/laws/MDW/A3T3)
-- [ ] NYC Admin Code § 27-2017.1 + § 27-2017.3 — mold remediation (owner duty to remediate; violation for visible mold) ⚠️ *roadmap said "Title 28 — find specific section"; correct sections are in Title 27* | [§ 27-2017.1](https://codelibrary.amlegal.com/codes/newyorkcity/latest/NYCadmin/0-0-0-60253) · [§ 27-2017.3](https://codelibrary.amlegal.com/codes/newyorkcity/latest/NYCadmin/0-0-0-60262)
-- [ ] Met Council — Getting Repairs guide | [metcouncilonhousing.org](https://www.metcouncilonhousing.org/help-answers/getting-repairs/)
-- [ ] Met Council — Heat & Hot Water guide | [metcouncilonhousing.org](https://www.metcouncilonhousing.org/help-answers/heat-hot-water/)
-- [ ] NYC Courts — Starting an HP Action (self-help) | [nycourts.gov](https://ww2.nycourts.gov/courts/nyc/housing/startinghp.shtml)
-- [ ] Legal Aid — Repair & Service Rights | [legalaidnyc.org](https://legalaidnyc.org/get-help/housing-problems/what-you-need-to-know-about-repair-and-service-rights/)
-- [ ] Legal Aid — HP Actions for Repairs and Harassment | [legalaidnyc.org](https://legalaidnyc.org/get-help/housing-problems/what-you-need-to-know-about-hp-actions-for-repairs-and-harassment/)
-- [ ] NYC HPD — Heat & Hot Water information + complaint process | [nyc.gov](https://www.nyc.gov/site/hpd/services-and-information/heat-and-hot-water-information.page)
+**Session 1 — Statutes + guides** ← done (all 14 entries ingested)
+- [x] RPL § 235-b, § 27-2029 (via Article 8), § 27-2031, § 27-2115, HMC Subchapter 5, MDL § 78, § 27-2017.1, § 27-2017.3
+- [x] Met Council (Getting Repairs, Heat & Hot Water), NYC Courts HP Action, Legal Aid (Repairs, HP Actions), NYC HPD Heat
+- Note: amlegal.com 403s — replaced § 27-2029 URL with nycadmincode.readthedocs.io Article 8 (covers §§ 27-2028 to 27-2033)
 
-**Session 2 — Case law (target ~25 cases)** ← `data/manifests/habitability_cases.jsonl` placeholder created, populate via Justia search
-- [ ] Web search to identify top 10 most-cited habitability cases in NY (landmark ones that show up in other cases)
-- [ ] `justia_scraper.py` batch search: "warranty of habitability" "New York" "HPD violations"
-- [ ] `justia_scraper.py` batch search: "HP Action" "New York" "heat" "repairs"
-- [ ] `justia_scraper.py` batch search: "rent abatement" "habitability" "New York"
-- [ ] Manual review pass: keep only cases with clear evidence-to-outcome chain; discard procedural-only cases
-- [ ] Add keepers to `data/manifests/habitability_cases.jsonl`
+**Session 2 — Case law** ← done (5 cases ingested, 5 failed PDFs/URLs)
+- [x] Web search for landmark habitability cases (nycourts.gov reporter)
+- [x] Built `habitability_cases.jsonl`: Poyck v Bryant (2006), 100 W 174 v Haskins (2014), Lakr Kaal Rock v Paul (2023), 1245 Stratford v Osbourne (2024), 304-306 E 83 Realty v Mason (2025)
+- [x] 2 court guides (Warranty of Habitability PDF, Judicial Institute abatement guide) — failed to scrape (PDF parsing)
+- [ ] Retry failed PDFs; add more habitability cases if needed
 
 ---
 
@@ -151,25 +139,16 @@ M7 Web ingestion UI (independent, can slot in anytime)
 > **Skill available**: `/build-legal-manifest harassment and destabilization` runs the full research → manifest → ingest workflow.
 > **Citations verified 2026-03-06.** URLs confirmed below. See corrections noted inline.
 
-**Session 1 — Statutes + guides** ← manifest built (`data/manifests/harassment_destabilization_statutes.jsonl`), ready to ingest after M1 completes
-- [ ] NYC Admin Code § 27-2004 + § 27-2005(d) — harassment definition (27-2004) + prohibition (27-2005(d)) ⚠️ *ingest both: the 27 prohibited acts are defined in § 27-2004, § 27-2005(d) is the duty not to harass* | [§ 27-2005](https://codelibrary.amlegal.com/codes/newyorkcity/latest/NYCadmin/0-0-0-60147)
-- [ ] NYC Admin Code § 26-516 — rent overcharge + treble damages (3x if willful; HSTPA 2019 extends lookback to 6 years) | [justia](https://law.justia.com/codes/new-york/2006/new-york-city-administrative-code-new/adc026-516_26-516.html)
-- [ ] Emergency Tenant Protection Act (ETPA) / Rent Stabilization Law | [nysenate.gov](https://www.nysenate.gov/legislation/laws/ETP) · [hcr.ny.gov overview](https://hcr.ny.gov/rent-stabilization-and-emergency-tenant-protection-act) · [justia](https://law.justia.com/codes/new-york/etp/)
-- [ ] NYC Admin Code § 26-511 + § 26-512 — § 26-511 establishes RSC institution; § 26-512 (Stabilization Provisions) has the substantive tenant protections ⚠️ *ingest both; § 26-512 is more useful for evidence extraction* | [§ 26-511](https://codelibrary.amlegal.com/codes/newyorkcity/latest/NYCadmin/0-0-0-47394) · [§ 26-512](https://codelibrary.amlegal.com/codes/newyorkcity/latest/NYCadmin/0-0-0-112672)
-- [ ] RSC §§ 2520–2522 — DHCR rent stabilization regulations (9 NYCRR Title 9, Subtitle S) | [§ 2520 scope](https://regulations.justia.com/states/new-york/title-9/subtitle-s/chapter-viii/subchapter-b/part-2520/) · [§ 2520.6 definitions](https://www.law.cornell.edu/regulations/new-york/9-NYCRR-2520.6) · [§ 2522.5 lease agreements](https://www.law.cornell.edu/regulations/new-york/9-NYCRR-2522.5) · [HSTPA amendments PDF](https://hcr.ny.gov/system/files/documents/2023/10/rsc-rule-text-10.23.23.pdf)
-- [ ] NYC Admin Code § 26-521 — Unlawful Eviction (protects any tenant in occupancy 30+ days from eviction without court order) ⚠️ *section confirmed; covers unlawful eviction broadly, not exclusively rent stabilization removal — still relevant* | [amlegal](https://codelibrary.amlegal.com/codes/newyorkcity/latest/NYCadmin/0-0-0-47505) · [justia](https://law.justia.com/codes/new-york/2006/new-york-city-administrative-code-new/adc026-521_26-521.html)
-- [ ] Met Council — Statutory Rights (covers harassment) | [metcouncilonhousing.org](https://www.metcouncilonhousing.org/help-answers/statutory-rights-of-residential-tenants-in-new-york/) ⚠️ *no dedicated Met Council harassment page found; this is the closest*
-- [ ] Met Council — About Rent Stabilization | [metcouncilonhousing.org](https://www.metcouncilonhousing.org/help-answers/about-rent-stabilization/)
-- [ ] DHCR — Rent Overcharge (Fact Sheet 16) + complaint process | [fact-sheet-16](https://hcr.ny.gov/fact-sheet-16) · [overcharge page](https://hcr.ny.gov/rent-increases-and-rent-overcharge) · [Form RA-89 PDF](https://hcr.ny.gov/system/files/documents/2023/12/ra-89-fillable.pdf)
-- [ ] Legal Aid — Tenant Harassment guide | [legalaidnyc.org](https://legalaidnyc.org/get-help/housing-problems/what-you-need-to-know-about-tenant-harassment/)
+**Session 1 — Statutes + guides** ← done (all 11 entries ingested)
+- [x] §§ 27-2004/2005 (via Article 1), § 26-516, ETPA (HCR overview), § 26-511, § 26-512, RSC §§ 2520–2522, § 26-521
+- [x] Met Council (Statutory Rights, Rent Stabilization), DHCR Fact Sheet 16, Legal Aid Harassment Guide
+- Note: amlegal.com 403s — replaced § 27-2005 URL with nycadmincode.readthedocs.io Article 1; ETPA replaced with HCR overview page
 
-**Session 2 — Case law (target ~25 cases)** ← `data/manifests/harassment_destabilization_cases.jsonl` placeholder created, populate via Justia search
-- [ ] Web search to identify top 10 most-cited harassment + destabilization cases in NY
-- [ ] `justia_scraper.py` batch search: "landlord harassment" "New York" tenant "proof"
-- [ ] `justia_scraper.py` batch search: "deregulation" "illegal" "rent stabilization" "New York"
-- [ ] `justia_scraper.py` batch search: "treble damages" "rent overcharge" "New York"
-- [ ] Manual review pass: keep cases with clear evidence-to-outcome chain
-- [ ] Add keepers to `data/manifests/harassment_destabilization_cases.jsonl`
+**Session 2 — Case law** ← done (12 cases ingested, 1 failed)
+- [x] Web search for landmark overcharge/deregulation/harassment cases (nycourts.gov reporter)
+- [x] Built `harassment_destabilization_cases.jsonl`: Altman v 285 W Fourth (2018, treble damages), Bradbury (2011, willful overcharge), Downing v First Lenox (2013, class action), Rossman v Windermere (2020), Nolte v Bridgestone (2018), Regina Metro v DHCR (2018, landmark), AEJ 534 v DHCR (2021), 13 E 124 v Taylor (2025), 41-47 Nick v Odumosu (2023, harassment), 5712 Realty v Ricketts (2025), South Brooklyn Ry v Lau (2024), Four Thirty Realty v Kamal (2024)
+- [x] 1 court guide (Overcharge Fact Sheet PDF) — failed to scrape
+- [ ] Retry failed PDF; add more harassment-specific cases if needed
 
 ---
 
@@ -234,6 +213,7 @@ M7 Web ingestion UI (independent, can slot in anytime)
 
 ## ✅ Done (recent)
 
+- **M2 + M3 — data ingestion** — ingested 25 statutes/guides + 17 case opinions across habitability (heat, mold, repairs) and harassment/destabilization (overcharge, deregulation, treble damages). Graph: 659 entities, 1,113 edges, 24 case documents. Retrieval test: 82% combined (100% type, 95% topic, 50% law). Fixed amlegal.com 403s by swapping to nycadmincode.readthedocs.io and nycourts.gov reporter URLs. Justia now 403s scraper too — all case law sourced from nycourts.gov.
 - **Sources page** — replaced KG Input with manifest browser showing all JSONL manifests, per-entry ingestion status (green/gray dots), and one-click bulk ingest with progress tracking. Nav updated across all pages.
 - **UI redesign** — 3-page focused app (Home / KG View / Sources). Replaced 4956-line case_analysis.html with 470-line clean page: paste situation → get claims + evidence gaps + next steps. Deleted 3 dead pages (context_builder, curation, qdrant_view) and their routes. KG chat upgraded with hybrid retrieval + 1-hop neighbor context. Consistent nav across all pages.
 - **M1 Session 5 — retrieval test (exit criterion)** — 5-query test suite (`scripts/retrieval_test.py`); fixed critical bug where entity `types` filter was inside ArangoSearch `SEARCH ANALYZER()` block (entity search was returning 0 results); results: 77% combined (100% type, 95% topic, 38% law — law gaps are data issues not retrieval bugs); M1 complete

@@ -1,0 +1,428 @@
+{
+  "meta": {
+    "url": "https://law.justia.com/cases/new-york/other-courts/2025/2025-ny-slip-op-25196.html",
+    "document_type": "case",
+    "prompt_type": "current",
+    "chunks_processed": 1,
+    "total_chunks": 1,
+    "source_hash": "2291b678539d7ccc",
+    "timestamp": "2026-03-04T17:44:00.621743Z"
+  },
+  "results_per_chunk": [
+    {
+      "section_a": {
+        "entities": [
+          {
+            "predicted_id": "legal_claim:ce602371",
+            "name": "Breach of Warranty of Habitability",
+            "type": "LEGAL_CLAIM",
+            "description": "Petitioners claim Respondents failed to provide a habitable living space, violating Real Property Law \u00a7 235-b, due to conditions including roach/mice infestation, mold, unusable appliances, electrical issues, plumbing leaks, and unsafe porch stairs/railing.",
+            "type_specific_fields": {
+              "claim_type": "OTHER",
+              "relief_sought": [
+                "Corrective order for repairs",
+                "Rent abatement during repairs",
+                "Refund of rent for reduced value",
+                "Relief on pending holdover proceeding"
+              ]
+            },
+            "source_quote": ""
+          },
+          {
+            "predicted_id": "legal_claim:877ef69b",
+            "name": "Retaliatory Holdover Proceeding",
+            "type": "LEGAL_CLAIM",
+            "description": "Petitioners claim Respondents' holdover eviction proceeding (filed May 9, 2025) was in retaliation for Petitioners' good faith complaints about habitability and code violations, violating Real Property Law \u00a7 223-b.",
+            "type_specific_fields": {
+              "claim_type": "OTHER",
+              "relief_sought": [
+                "Dismissal of holdover proceeding"
+              ]
+            },
+            "source_quote": ""
+          },
+          {
+            "predicted_id": "legal_claim:c1f48202",
+            "name": "Holdover Proceeding for Possession",
+            "type": "LEGAL_CLAIM",
+            "description": "Respondents filed a holdover proceeding (LT-1060-25) on May 9, 2025, seeking to evict Petitioners after serving a 90-day notice to vacate in January 2025.",
+            "type_specific_fields": {
+              "claim_type": "OTHER",
+              "relief_sought": [
+                "Eviction of Petitioners"
+              ]
+            },
+            "source_quote": ""
+          },
+          {
+            "predicted_id": "evidence:f423622c",
+            "name": "Petitioners' Testimony on Conditions",
+            "type": "EVIDENCE",
+            "description": "Petitioners testified to living with rodent/roach infestation, soft spots/holes in kitchen floor, and electrical issues that existed prior to Respondents' purchase.",
+            "type_specific_fields": {
+              "evidence_context": "required",
+              "is_critical": true,
+              "linked_claim_id": null
+            },
+            "source_quote": "Petitioners testified to living with rodent and roach infestation, soft spots and holes in the kitchen floor, and electrical issues, which existed prior to Respondents purchase of the property."
+          },
+          {
+            "predicted_id": "evidence:0fe3f9ad",
+            "name": "Witness James Harris Testimony",
+            "type": "EVIDENCE",
+            "description": "Respondents' agent testified he made repairs to the 'caving in' kitchen floor in June 2025, saw roaches and dead mice in the apartment, and was sometimes told to hold off on repairs due to lack of funds.",
+            "type_specific_fields": {
+              "evidence_context": "required",
+              "is_critical": true,
+              "linked_claim_id": null
+            },
+            "source_quote": "Mr. Harris testified he had made repairs to the kitchen floor where it was 'caving in' in early June 2025. He testified that he noticed there were roaches in Petitioners' apartment... and that he had seen dead mice... Mr. Harris testified there were times when he was told to hold off on repairs as Respondents were short on funds..."
+          },
+          {
+            "predicted_id": "evidence:2923d956",
+            "name": "Pest Control Receipts/Reports",
+            "type": "EVIDENCE",
+            "description": "Documents show roach/rodent extermination in March 2024 for all units, a recommended follow-up that didn't occur until June 13, 2025 (after petition served), and evidence of holes allowing pest entry.",
+            "type_specific_fields": {
+              "evidence_context": "required",
+              "is_critical": true,
+              "linked_claim_id": null
+            },
+            "source_quote": "Respondents submitted pest control receipts and reports documenting roach and rodent extermination was performed in March 2024... A second follow-up roach treatment... was recommended in March 2024, but the next documented roach extermination did not occur until June 13, 2025, ten days after Respondents were served with the 7-D petition."
+          },
+          {
+            "predicted_id": "evidence:f8207261",
+            "name": "City Code Violations (March 31, 2025)",
+            "type": "EVIDENCE",
+            "description": "Code violations issued after Petitioners contacted Code Enforcement in March 2025 regarding habitability issues.",
+            "type_specific_fields": {
+              "evidence_context": "required",
+              "is_critical": true,
+              "linked_claim_id": null
+            },
+            "source_quote": "The property also had several city code violations issued March 31, 2025, after Petitioners contacted Code Enforcement."
+          },
+          {
+            "predicted_id": "evidence:c6866339",
+            "name": "Text Message Evidence",
+            "type": "EVIDENCE",
+            "description": "Texts show Petitioners pleading to stay with payment promises, and Respondent D'Antonio replying 'it is time to cut ties' and 'there have been too many problems and its not worth his time or money.'",
+            "type_specific_fields": {
+              "evidence_context": "required",
+              "is_critical": true,
+              "linked_claim_id": null
+            },
+            "source_quote": "The text messages between Petitioners and Respondent D'Antonio document Petitioners' plea to remain in the apartment with promises of payment, and Respondent D'Antonio replying, 'it is time to cut ties' and 'there have been too many problems and its not worth his time or money.'"
+          },
+          {
+            "predicted_id": "evidence:f5abe198",
+            "name": "DSS Shelter Verification Form (Feb 13, 2025)",
+            "type": "EVIDENCE",
+            "description": "Respondent D'Antonio filled out this form, but testified he only did so to get Petitioners 'off his back.' The court found he fraudulently inflated the rent by over $3,000.",
+            "type_specific_fields": {
+              "evidence_context": "required",
+              "is_critical": true,
+              "linked_claim_id": null
+            },
+            "source_quote": "Respondent D'Antonio insisted that the motive for not renewing the lease... was because Petitioners were rude... Respondent did file the DSS landlord verification form, but he testified that he only filled out the form to get Petitioners 'off his back.' This Court not only finds Respondent's actions retaliatory but also fraudulent. In filling out the DSS shelter verification form Respondent inflated the actual rent for the unit by over $3,000.00."
+          },
+          {
+            "predicted_id": "evidence:f8947f91",
+            "name": "Respondent D'Antonio's Testimony on Code Violations",
+            "type": "EVIDENCE",
+            "description": "D'Antonio testified he was unaware of March 2025 code violations until the 7-D action was filed, believed the Certificate of Compliance meant the property was 'good as is,' and told Petitioners he would not fix the issues.",
+            "type_specific_fields": {
+              "evidence_context": "required",
+              "is_critical": true,
+              "linked_claim_id": null
+            },
+            "source_quote": "he testified that he was not aware of the code violations issued on March 31, 2025, until the 7-D action was filed... he believed that was the City's 'stamp of approval that the property was good as is.' Respondent D'Antonio testified he did not consider the issues as safety concerns or habitability issues and told Petitioners he was not going to fix them."
+          },
+          {
+            "predicted_id": "evidence:be869349",
+            "name": "Photo Evidence",
+            "type": "EVIDENCE",
+            "description": "Photos provided to the court indicating habitability concerns.",
+            "type_specific_fields": {
+              "evidence_context": "required",
+              "is_critical": false,
+              "linked_claim_id": null
+            },
+            "source_quote": "together with the photo evidence provided, clearly indicate the habitability concerns."
+          },
+          {
+            "predicted_id": "evidence:6df958f1",
+            "name": "Court's Factual Findings (June 13, 2025 Hearing)",
+            "type": "EVIDENCE",
+            "description": "The court found Respondents were properly named parties and Petitioners had proven their prima facie case regarding the underlying conditions.",
+            "type_specific_fields": {
+              "evidence_context": "required",
+              "is_critical": true,
+              "linked_claim_id": null
+            },
+            "source_quote": "The Court held a hearing on June 13, 2025, and found that Respondents are the properly named parties and Petitioners had proven their prima facie case against Respondents regarding the underlying conditions."
+          },
+          {
+            "predicted_id": "evidence:a63110fa",
+            "name": "Undisputed Timeline of Actions",
+            "type": "EVIDENCE",
+            "description": "Petitioners withheld rent starting Nov 2024; Respondents served 90-day notice Jan 2025; parties discussed lease renewal Feb 2025; Petitioners contacted Code Enforcement March 2025; violations issued March 31, 2025; Respondents filed holdover May 9, 2025; Petitioners filed 7-D petition May 29, 2025.",
+            "type_specific_fields": {
+              "evidence_context": "required",
+              "is_critical": true,
+              "linked_claim_id": null
+            },
+            "source_quote": "Petitioners began withholding rent in November 2024, and in January 2025, Respondents served Petitioners with a 90-day notice to vacate. Both parties presented text evidence that they discussed a lease renewal in February 2025... Petitioners contacted Code Enforcement in March 2025... and on March 31, 2025, code violations were issued... Respondents filed a holdover proceeding on May 9, 2025... Petitioners filed a Notice of Petition and Petition on May 29, 2025..."
+          },
+          {
+            "predicted_id": "legal_outcome:21e86f14",
+            "name": "Judgment on 7-D Petition",
+            "type": "LEGAL_OUTCOME",
+            "description": "Court found Respondents breached warranty of habitability (RPL \u00a7 235-b) and filed holdover petition in retaliation (RPL \u00a7 223-b). Issued judgment pursuant to RPAPL \u00a7 797-j.",
+            "type_specific_fields": {
+              "outcome_type": "procedural",
+              "linked_claim_id": null
+            },
+            "source_quote": ""
+          },
+          {
+            "predicted_id": "legal_outcome:c32ab096",
+            "name": "Dismissal of Holdover Proceeding",
+            "type": "LEGAL_OUTCOME",
+            "description": "Court ordered that holdover action LT-1060-25 is dismissed.",
+            "type_specific_fields": {
+              "outcome_type": "procedural",
+              "linked_claim_id": null
+            },
+            "source_quote": ""
+          },
+          {
+            "predicted_id": "legal_outcome:fcaf9e13",
+            "name": "Order to Correct (June 13, 2025)",
+            "type": "LEGAL_OUTCOME",
+            "description": "Interim order issued after June 13 hearing: Order to Correct, rent abated to $0, and compliance hearing scheduled for July 14, 2025.",
+            "type_specific_fields": {
+              "outcome_type": "procedural",
+              "linked_claim_id": null
+            },
+            "source_quote": ""
+          }
+        ],
+        "relationships": [
+          {
+            "from": "",
+            "to": "",
+            "type": "HAS_EVIDENCE"
+          },
+          {
+            "from": "",
+            "to": "",
+            "type": "HAS_EVIDENCE"
+          },
+          {
+            "from": "",
+            "to": "",
+            "type": "HAS_EVIDENCE"
+          },
+          {
+            "from": "",
+            "to": "",
+            "type": "HAS_EVIDENCE"
+          },
+          {
+            "from": "",
+            "to": "",
+            "type": "HAS_EVIDENCE"
+          },
+          {
+            "from": "",
+            "to": "",
+            "type": "HAS_EVIDENCE"
+          },
+          {
+            "from": "",
+            "to": "",
+            "type": "HAS_EVIDENCE"
+          },
+          {
+            "from": "",
+            "to": "",
+            "type": "HAS_EVIDENCE"
+          },
+          {
+            "from": "",
+            "to": "",
+            "type": "HAS_EVIDENCE"
+          },
+          {
+            "from": "",
+            "to": "",
+            "type": "HAS_EVIDENCE"
+          },
+          {
+            "from": "",
+            "to": "",
+            "type": "HAS_EVIDENCE"
+          },
+          {
+            "from": "",
+            "to": "",
+            "type": "HAS_EVIDENCE"
+          },
+          {
+            "from": "",
+            "to": "",
+            "type": "SUPPORTS"
+          },
+          {
+            "from": "",
+            "to": "",
+            "type": "SUPPORTS"
+          },
+          {
+            "from": "",
+            "to": "",
+            "type": "SUPPORTS"
+          },
+          {
+            "from": "",
+            "to": "",
+            "type": "SUPPORTS"
+          },
+          {
+            "from": "",
+            "to": "",
+            "type": "SUPPORTS"
+          },
+          {
+            "from": "",
+            "to": "",
+            "type": "SUPPORTS"
+          },
+          {
+            "from": "",
+            "to": "",
+            "type": "SUPPORTS"
+          },
+          {
+            "from": "",
+            "to": "",
+            "type": "SUPPORTS"
+          },
+          {
+            "from": "",
+            "to": "",
+            "type": "SUPPORTS"
+          },
+          {
+            "from": "",
+            "to": "",
+            "type": "SUPPORTS"
+          },
+          {
+            "from": "",
+            "to": "",
+            "type": "SUPPORTS"
+          },
+          {
+            "from": "",
+            "to": "",
+            "type": "IMPLY"
+          },
+          {
+            "from": "",
+            "to": "",
+            "type": "IMPLY"
+          },
+          {
+            "from": "",
+            "to": "",
+            "type": "IMPLY"
+          },
+          {
+            "from": "",
+            "to": "",
+            "type": "IMPLY"
+          },
+          {
+            "from": "",
+            "to": "",
+            "type": "IMPLY"
+          },
+          {
+            "from": "",
+            "to": "",
+            "type": "RESOLVE"
+          },
+          {
+            "from": "",
+            "to": "",
+            "type": "RESOLVE"
+          },
+          {
+            "from": "",
+            "to": "",
+            "type": "RESOLVE"
+          },
+          {
+            "from": "",
+            "to": "",
+            "type": "RESOLVE"
+          },
+          {
+            "from": "",
+            "to": "",
+            "type": "RESOLVE"
+          }
+        ]
+      },
+      "section_b": {
+        "chunk_index": 0,
+        "predicted_chunk_id": "2291b678539d7ccc:0",
+        "entities_mentioned": [
+          "legal_claim:ce602371",
+          "legal_claim:877ef69b",
+          "legal_claim:c1f48202",
+          "evidence:f423622c",
+          "evidence:0fe3f9ad",
+          "evidence:2923d956",
+          "evidence:f8207261",
+          "evidence:c6866339",
+          "evidence:f5abe198",
+          "evidence:f8947f91",
+          "evidence:be869349",
+          "evidence:6df958f1",
+          "evidence:a63110fa",
+          "legal_outcome:21e86f14",
+          "legal_outcome:c32ab096",
+          "legal_outcome:fcaf9e13"
+        ],
+        "qdrant_metadata": {
+          "chunk_index": 0,
+          "document_type": "case",
+          "authority": "case_law",
+          "entity_ids": [
+            "legal_claim:ce602371",
+            "legal_claim:877ef69b",
+            "legal_claim:c1f48202",
+            "evidence:f423622c",
+            "evidence:0fe3f9ad",
+            "evidence:2923d956",
+            "evidence:f8207261",
+            "evidence:c6866339",
+            "evidence:f5abe198",
+            "evidence:f8947f91",
+            "evidence:be869349",
+            "evidence:6df958f1",
+            "evidence:a63110fa",
+            "legal_outcome:21e86f14",
+            "legal_outcome:c32ab096",
+            "legal_outcome:fcaf9e13"
+          ]
+        },
+        "chunk_text_preview": "Wheeler v D'Antonio :: 2025 :: New York Other Courts Decisions :: New York Case Law :: New York Law :: U.S. Law :: Justia Wheeler v D'Antonio Annotate this Case [*1] Wheeler v D'Antonio 2025 NY Slip Op 25196 Decided on August 22, 2025 City Court Of Syracuse, Onondaga County Tadros, J. Published by N"
+      },
+      "_debug_raw_response": "```json\n{\n    \"claims\": [\n        {\n            \"id\": \"claim_1\",\n            \"name\": \"Breach of Warranty of Habitability\",\n            \"description\": \"Petitioners claim Respondents failed to provide a habitable living space, violating Real Property Law \u00a7 235-b, due to conditions including roach/mice infestation, mold, unusable appliances, electrical issues, plumbing leaks, and unsafe porch stairs/railing.\",\n            \"claimant\": \"Margaret Wheeler and Dawn Kowalik (Petitioners)\",\n            \"respondent\": \"Justin D'Antonio and Hamdan Homes Co. LLC (Respondents)\",\n            \"relief_sought\": [\"Corrective order for repairs\", \"Rent abatement during repairs\", \"Refund of rent for reduced value\", \"Relief on pending holdover proceeding\"],\n            \"status\": \"proven\"\n        },\n        {\n            \"id\": \"claim_2\",\n            \"name\": \"Retaliatory Holdover Proceeding\",\n            \"description\": \"Petitioners claim Respondents' holdover eviction proceeding (filed May 9, 2025) was in retaliation for Petitioners' good faith complaints about habitability and code violations, violating Real Property Law \u00a7 223-b.\",\n            \"claimant\": \"Margaret Wheeler and Dawn Kowalik (Petitioners)\",\n            \"respondent\": \"Justin D'Antonio and Hamdan Homes Co. LLC (Respondents)\",\n            \"relief_sought\": [\"Dismissal of holdover proceeding\"],\n            \"status\": \"proven\"\n        },\n        {\n            \"id\": \"claim_3\",\n            \"name\": \"Holdover Proceeding for Possession\",\n            \"description\": \"Respondents filed a holdover proceeding (LT-1060-25) on May 9, 2025, seeking to evict Petitioners after serving a 90-day notice to vacate in January 2025.\",\n            \"claimant\": \"Justin D'Antonio and Hamdan Homes Co. LLC (Respondents)\",\n            \"respondent\": \"Margaret Wheeler and Dawn Kowalik (Petitioners)\",\n            \"relief_sought\": [\"Eviction of Petitioners\"],\n            \"status\": \"dismissed\"\n        }\n    ],\n    \"evidence\": [\n        {\n            \"id\": \"evid_1\","
+    }
+  ]
+}

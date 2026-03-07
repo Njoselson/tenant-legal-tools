@@ -2,7 +2,7 @@
 name: build-legal-manifest
 description: This skill should be used when the user asks to "build a manifest", "research laws for", "ingest statutes for", "add cases for", "research and ingest", or "build manifests for" a legal topic. Handles the full workflow of web research, Justia case searches, manifest file creation, and optional ingestion for any NYC/NY tenant law topic.
 version: 1.0.0
-disable-model-invocation: true
+disable-model-invocation: false
 allowed-tools: WebSearch, WebFetch, Read, Write, Edit, Bash, Glob
 ---
 

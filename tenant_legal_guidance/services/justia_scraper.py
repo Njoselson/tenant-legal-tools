@@ -54,6 +54,18 @@ class JustiaScraper:
     Designed for New York tenant law cases from law.justia.com.
     """
 
+    # User-Agent pool for rotation
+    USER_AGENTS = [
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Safari/605.1.15",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:122.0) Gecko/20100101 Firefox/122.0",
+        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36 Edg/122.0.0.0",
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:123.0) Gecko/20100101 Firefox/123.0",
+    ]
+
     def __init__(self, rate_limit_seconds: float = 5.0):
         """
         Initialize the scraper.
@@ -64,8 +76,15 @@ class JustiaScraper:
         self.rate_limit = rate_limit_seconds
         self.last_request_time = 0
         self.logger = logging.getLogger(__name__)
+        self._ua_index = 0
+        self._consecutive_403s = 0
 
-        # Configure session with retry strategy
+        self._build_session()
+
+    def _build_session(self):
+        """Create a fresh session with a rotated User-Agent."""
+        import random
+
         self.session = requests.Session()
         retry_strategy = Retry(
             total=3,
@@ -76,10 +95,12 @@ class JustiaScraper:
         self.session.mount("http://", adapter)
         self.session.mount("https://", adapter)
 
-        # Browser-like headers to avoid 403 Forbidden
+        ua = self.USER_AGENTS[self._ua_index % len(self.USER_AGENTS)]
+        self._ua_index += 1
+
         self.session.headers.update(
             {
-                "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "User-Agent": ua,
                 "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
                 "Accept-Language": "en-US,en;q=0.9",
                 "Accept-Encoding": "gzip, deflate, br",
@@ -92,6 +113,7 @@ class JustiaScraper:
                 "Sec-Fetch-User": "?1",
             }
         )
+        self.logger.info(f"Session built with UA: {ua[:50]}...")
 
     def _rate_limit(self):
         """Enforce rate limiting between requests with random jitter."""
@@ -121,17 +143,36 @@ class JustiaScraper:
         try:
             self.logger.info(f"Fetching: {url}")
             response = self.session.get(url, timeout=30)
-            
-            # Handle 403 Forbidden with exponential backoff
+
+            # Handle 403 Forbidden with session rotation + exponential backoff
             if response.status_code == 403:
+                self._consecutive_403s += 1
                 if retry_count < 3:
-                    # Exponential backoff: 10s, 30s, 60s
+                    # Rotate session on first 403 for this URL
+                    if retry_count == 0:
+                        self.logger.info("Rotating User-Agent and rebuilding session")
+                        self._build_session()
+
+                    # Exponential backoff: 10s, 30s, 60s + jitter
+                    import random
                     wait_times = [10, 30, 60]
                     wait_time = wait_times[min(retry_count, len(wait_times) - 1)]
+                    jitter = random.uniform(1, 5)
                     self.logger.warning(
-                        f"403 Forbidden for {url}. Waiting {wait_time}s before retry {retry_count + 1}/3..."
+                        f"403 Forbidden for {url}. Waiting {wait_time + jitter:.0f}s before retry {retry_count + 1}/3..."
                     )
-                    time.sleep(wait_time)
+                    time.sleep(wait_time + jitter)
+
+                    # If we've hit 5+ consecutive 403s, do a longer cooldown
+                    if self._consecutive_403s >= 5:
+                        cooldown = random.uniform(30, 60)
+                        self.logger.warning(
+                            f"{self._consecutive_403s} consecutive 403s. Cooling down {cooldown:.0f}s and rotating session..."
+                        )
+                        time.sleep(cooldown)
+                        self._build_session()
+                        self._consecutive_403s = 0
+
                     return self.fetch(url, retry_count + 1)
                 else:
                     self.logger.error(
@@ -140,7 +181,9 @@ class JustiaScraper:
                         "or use a slower rate limit (5-10 seconds between requests)."
                     )
                     return None
-            
+
+            # Success — reset consecutive 403 counter
+            self._consecutive_403s = 0
             response.raise_for_status()
             return response.text
         except requests.exceptions.HTTPError as e:

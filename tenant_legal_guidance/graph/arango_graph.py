@@ -2296,26 +2296,27 @@ class ArangoDBGraph:
     ) -> list[LegalEntity]:
         """Search for entities by text in name or description using ArangoSearch."""
         try:
-            filters = []
+            post_filters = []
             bind_vars: dict[str, object] = {"term": search_term, "limit": limit}
             if types:
                 # Convert to string values for matching doc.type
-                # EntityType is str,Enum so members are already strings; plain strings also accepted
                 type_values = [t.value if hasattr(t, "value") else t for t in types]
                 bind_vars["types"] = type_values
-                filters.append("doc.type IN @types")
+                post_filters.append("FILTER doc.type IN @types")
             if jurisdiction:
                 bind_vars["jurisdiction"] = jurisdiction
-                filters.append("doc.jurisdiction == @jurisdiction")
-            filter_clause = (" AND " + " AND ".join(filters)) if filters else ""
+                post_filters.append("FILTER doc.jurisdiction == @jurisdiction")
+            post_filter_clause = "\n                ".join(post_filters)
 
             # Use TOKENS for multi-word queries (matches any token) instead of PHRASE (exact match)
+            # Type/jurisdiction filters go AFTER SEARCH (they are exact-match, not text-analyzed)
             aql = f"""
             FOR doc IN kg_entities_view
                 SEARCH ANALYZER(
-                    (TOKENS(@term, "text_en") ANY IN doc.name OR TOKENS(@term, "text_en") ANY IN doc.description){filter_clause}
+                    TOKENS(@term, "text_en") ANY IN doc.name OR TOKENS(@term, "text_en") ANY IN doc.description
                     , "text_en"
                 )
+                {post_filter_clause}
                 SORT BM25(doc) DESC, TFIDF(doc) DESC
                 LIMIT @limit
                 RETURN doc

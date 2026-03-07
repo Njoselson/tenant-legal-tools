@@ -4,11 +4,17 @@ A knowledge graph-powered system for analyzing tenant legal cases using hybrid r
 
 ## 🎯 What It Does
 
-- **Ingests legal documents** from URLs, PDFs, and text files
-- **Extracts entities** (laws, remedies, legal concepts) using LLM analysis
-- **Builds a knowledge graph** with relationships between legal entities
-- **Provides case analysis** with evidence-based legal guidance
-- **Cites sources** with direct quotes and provenance tracking
+Paste a tenant's situation (interview transcript, problem description, or complaint) and get back:
+- **Claims identified** — what legal claims apply (habitability, harassment, rent overcharge, etc.)
+- **Evidence found vs missing** — what you have, what you need, and how to get it
+- **Predicted outcomes** — based on similar cases in the knowledge graph
+- **Next steps** — specific, ordered actions to take
+
+Under the hood:
+- **Ingests legal documents** (statutes, guides, court opinions) from URLs, PDFs, and text
+- **Extracts structured entities** (laws, remedies, evidence requirements) using LLM analysis
+- **Builds a knowledge graph** (ArangoDB) with relationships between legal concepts
+- **Hybrid retrieval** (vector search + graph traversal) finds relevant law for each case
 
 ## 🏗️ Architecture
 
@@ -368,8 +374,9 @@ make vector-reset
 
 ### Analysis
 
-- `POST /api/analyze-case-enhanced` - Analyze tenant case with proof chains
-- `POST /api/analyze-case` - Legacy case analysis
+- `POST /api/v1/analyze-my-case` - Analyze tenant situation (claims, evidence gaps, next steps)
+- `POST /api/analyze-case-enhanced` - Full case analysis with proof chains
+- `POST /api/kg/chat` - Chat with the knowledge graph (context-aware, uses hybrid retrieval)
 
 ### Retrieval
 
@@ -387,23 +394,27 @@ make vector-reset
 - `GET /api/vector-status` - Qdrant status
 - `GET /api/example-cases` - Load example cases
 
-### Web UI
+### Web UI (3 pages)
 
-- `GET /` - Case analysis interface
-- `GET /kg` - Knowledge graph viewer
+- `GET /` - **Home** — paste situation, get claims + evidence gaps + next steps
+- `GET /kg-view` - **KG View** — interactive graph explorer with AI chat (grounded in graph data)
+- `GET /kg-input` - **KG Input** — ingest new legal sources into the knowledge graph
 
 ## 🎓 Example Usage
 
-### Case Analysis Example
+### Analyze My Case (primary endpoint)
 
 ```bash
-curl -X POST http://localhost:8000/api/analyze-case-enhanced \
+curl -X POST http://localhost:8000/api/v1/analyze-my-case \
   -H "Content-Type: application/json" \
   -d '{
-    "case_text": "My landlord is refusing to make repairs after I reported mold. The apartment has become uninhabitable. What are my options?",
+    "situation": "My landlord hasnt provided heat since October. Theres mold in the bathroom. I called 311 twice.",
+    "evidence_i_have": ["photos of mold", "311 complaint number"],
     "jurisdiction": "NYC"
   }'
 ```
+
+Returns: `possible_claims[]` with evidence matches/gaps, `next_steps[]`, `extracted_evidence[]`, and `predicted_outcome` per claim.
 
 ### Hybrid Search Example
 

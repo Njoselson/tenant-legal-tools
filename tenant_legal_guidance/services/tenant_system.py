@@ -27,15 +27,15 @@ class TenantLegalSystem:
             enable_entity_search: Enable entity resolution search-before-insert (default: True)
         """
         # Read from settings if no key provided
-        if deepseek_api_key is None:
-            from tenant_legal_guidance.config import get_settings
+        from tenant_legal_guidance.config import get_settings
 
-            settings = get_settings()
+        settings = get_settings()
+        if deepseek_api_key is None:
             deepseek_api_key = settings.deepseek_api_key
             if not deepseek_api_key:
                 raise ValueError("DEEPSEEK_API_KEY must be set in .env file or passed as argument")
 
-        self.deepseek = DeepSeekClient(deepseek_api_key)
+        self.deepseek = DeepSeekClient(deepseek_api_key, max_concurrent=settings.max_concurrent_llm)
         self.knowledge_graph = ArangoDBGraph()
         self.document_processor = DocumentProcessor(
             self.deepseek, self.knowledge_graph, enable_entity_search=enable_entity_search

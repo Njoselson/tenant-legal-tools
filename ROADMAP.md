@@ -205,12 +205,10 @@ M7 Web ingestion UI (independent, can slot in anytime)
 
 ### M7 — Web Ingestion UI [~2–3 sessions] *(independent, can slot in anytime)*
 
-- [ ] Drag-and-drop file / paste URL ingestion from browser
+- [ ] Drag-and-drop file / paste URL ingestion from browser (upgrade `/kg-input`)
 - [ ] Automatic manifest tracking (success + failure, searchable)
 - [ ] Admin DB config interface
-- [ ] Consolidate deprecated ingestion pages
 - [ ] New services: `ManifestManager` (file locking), `IngestionService`
-- [ ] New templates: `ingestion.html`, `manifest_view.html`, `admin_db_config.html`
 
 ---
 
@@ -222,17 +220,16 @@ M7 Web ingestion UI (independent, can slot in anytime)
 - Browser extension for ingesting directly from Justia / court websites
 - `search_cases.py` CLI tool — search Justia/NYSCEF/NYC Admin Code → export as manifest JSONL
 - Display warnings when graph verification fails ("this law isn't in our knowledge graph")
-- Chat interface
 - Validation & coherence tracking service
 - Rate limiting + API key auth
 - Input sanitization middleware
 - Response caching with TTL
-- Production UI mode (hide debug panels)
 
 ---
 
 ## ✅ Done (recent)
 
+- **UI redesign** — 3-page focused app (Home / KG View / KG Input). Replaced 4956-line case_analysis.html with 470-line clean page: paste situation → get claims + evidence gaps + next steps. Deleted 3 dead pages (context_builder, curation, qdrant_view) and their routes. KG chat upgraded with hybrid retrieval + 1-hop neighbor context. Consistent nav across all pages.
 - **M1 Session 1 — typed prompt routing wired into pipeline** — `claim_extractor.py` now routes by `document_type` (statute/guide/case) to the correct typed prompt; single `_parse_typed_response()` parser for 5-type schema; `metadata_schemas.py` validates `document_type` required; `test_extraction.py` validates relationship IDs; `relationships.py` adds AUTHORIZES/CITES/ADDRESSES; all edge collection names derived from `RelationshipType` enum; re-ingested 10 docs → 155 entities, 115 relationships
 - **Type-aware extraction prompts** — `get_statute/guide/case_extraction_prompt()` in `prompts.py`; unified 5-entity schema; validated on RPL § 235-b, Met Council repairs guide, 2025 NYC Housing Court case
 - **Extraction test harness** — `scripts/test_extraction.py`; no DB writes; auto-versioned output to `data/extraction_tests/`; Pass A (baseline) + Pass B (typed) comparison

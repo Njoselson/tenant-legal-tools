@@ -130,7 +130,7 @@ class TestHybridRetriever:
 
         mock_knowledge_graph.get_neighbors = Mock(return_value=([], []))
 
-        retriever = HybridRetriever(mock_knowledge_graph, vector_store=mock_vector_store)
+        retriever = HybridRetriever(mock_knowledge_graph, vector_store=mock_vs)
         results = retriever.retrieve("test query")
 
         # Should return all three components
@@ -159,7 +159,7 @@ class TestHybridRetriever:
         mock_knowledge_graph.search_entities_by_text = Mock(return_value=[])
         mock_knowledge_graph.get_neighbors = Mock(return_value=([], []))
 
-        retriever = HybridRetriever(mock_knowledge_graph, vector_store=mock_vector_store)
+        retriever = HybridRetriever(mock_knowledge_graph, vector_store=mock_vs)
         results = retriever.retrieve("test", top_k_chunks=10, top_k_entities=25)
 
         # Verify vector search called with correct top_k
@@ -195,7 +195,7 @@ class TestHybridRetriever:
         mock_knowledge_graph.search_entities_by_text = Mock(return_value=[test_entity])
         mock_knowledge_graph.get_neighbors = Mock(return_value=([test_entity], []))
 
-        retriever = HybridRetriever(mock_knowledge_graph, vector_store=mock_vector_store)
+        retriever = HybridRetriever(mock_knowledge_graph, vector_store=mock_vs)
         results = retriever.retrieve("test", expand_neighbors=True)
 
         # Should deduplicate
@@ -299,7 +299,7 @@ class TestIntegrationScenarios:
 
         mock_knowledge_graph.get_neighbors = Mock(return_value=([], []))
 
-        retriever = HybridRetriever(mock_knowledge_graph, vector_store=mock_vector_store)
+        retriever = HybridRetriever(mock_knowledge_graph, vector_store=mock_vs)
         results = retriever.retrieve(
             "landlord trying to evict without proper notice", top_k_chunks=10, top_k_entities=20
         )

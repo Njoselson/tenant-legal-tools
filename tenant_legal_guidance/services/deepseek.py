@@ -10,7 +10,7 @@ from tenant_legal_guidance.utils.retry import retry_with_backoff
 
 
 class DeepSeekClient:
-    def __init__(self, api_key: str):
+    def __init__(self, api_key: str, max_concurrent: int = 10):
         self.api_key = api_key
         self.base_url = "https://api.deepseek.com/v1"
         self.logger = logging.getLogger(__name__)
@@ -23,6 +23,8 @@ class DeepSeekClient:
         self.ssl_context = ssl.create_default_context()
         self.ssl_context.check_hostname = True
         self.ssl_context.verify_mode = ssl.CERT_REQUIRED
+        # Concurrency limiter to prevent 429 rate-limit errors
+        self._semaphore = asyncio.Semaphore(max_concurrent)
 
     @retry_with_backoff(
         max_retries=4,
@@ -45,69 +47,78 @@ class DeepSeekClient:
         """
         if not prompt or not prompt.strip():
             raise ValueError("Prompt cannot be empty")
-        
-        try:
-            # Construct the API request payload
-            payload = {
-                "model": "deepseek-chat",
-                "messages": [
-                    {
-                        "role": "system",
-                        "content": "You are a legal expert assisting with tenant rights and housing law.",
-                    },
-                    {"role": "user", "content": prompt},
-                ],
-                "temperature": 0,  # Set to 0 for deterministic, grounded responses
-            }
 
-            # Make the API request
-            # Use longer timeouts for complex legal document extraction
-            timeout = aiohttp.ClientTimeout(
-                total=300,      # 5 min total timeout
-                connect=30,     # 30s to establish connection
-                sock_read=180,  # 3 min to read response body (DeepSeek can be slow)
-            )
-            async with aiohttp.ClientSession() as session:
-                async with session.post(
-                    f"{self.base_url}/chat/completions",
-                    headers=self.headers,
-                    json=payload,
-                    ssl=self.ssl_context,
-                    timeout=timeout,
-                ) as response:
-                    if response.status == 429:
-                        error_text = await response.text()
-                        raise aiohttp.ClientResponseError(
-                            request_info=response.request_info,
-                            history=response.history,
-                            status=429,
-                            message=f"Rate limit exceeded: {error_text}",
-                        )
-                    
-                    response.raise_for_status()
-                    response_data = await response.json()
+        async with self._semaphore:
+            try:
+                # Construct the API request payload
+                payload = {
+                    "model": "deepseek-chat",
+                    "messages": [
+                        {
+                            "role": "system",
+                            "content": "You are a legal expert assisting with tenant rights and housing law.",
+                        },
+                        {"role": "user", "content": prompt},
+                    ],
+                    "temperature": 0,  # Set to 0 for deterministic, grounded responses
+                }
 
-                    if "choices" in response_data and len(response_data["choices"]) > 0:
-                        content = response_data["choices"][0].get("message", {}).get("content", "")
-                        if not content:
-                            raise ValueError(
-                                f"Empty response from API. Response structure: {list(response_data.keys())}"
+                # Make the API request
+                # Use longer timeouts for complex legal document extraction
+                timeout = aiohttp.ClientTimeout(
+                    total=300,      # 5 min total timeout
+                    connect=30,     # 30s to establish connection
+                    sock_read=180,  # 3 min to read response body (DeepSeek can be slow)
+                )
+                async with aiohttp.ClientSession() as session:
+                    async with session.post(
+                        f"{self.base_url}/chat/completions",
+                        headers=self.headers,
+                        json=payload,
+                        ssl=self.ssl_context,
+                        timeout=timeout,
+                    ) as response:
+                        if response.status == 429:
+                            error_text = await response.text()
+                            raise aiohttp.ClientResponseError(
+                                request_info=response.request_info,
+                                history=response.history,
+                                status=429,
+                                message=f"Rate limit exceeded: {error_text}",
                             )
-                        return content.strip()
-                    else:
-                        raise ValueError(
-                            f"Invalid response format from API. Expected 'choices' array, got: {list(response_data.keys())}"
-                        )
 
-        except aiohttp.ClientError as e:
-            self.logger.error(f"HTTP error in chat completion (prompt length: {len(prompt)}): {e}")
-            raise
-        except json.JSONDecodeError as e:
-            self.logger.error(f"JSON decode error in chat completion response: {e}")
-            raise ValueError(f"Invalid JSON response from API: {e}")
-        except Exception as e:
-            self.logger.error(f"Unexpected error in chat completion: {e!s}", exc_info=True)
-            raise
+                        # Non-retryable client errors (402=no balance, 401=bad key, 403=forbidden)
+                        if response.status in (401, 402, 403):
+                            error_text = await response.text()
+                            raise ValueError(
+                                f"DeepSeek API error {response.status}: {error_text}. "
+                                f"{'Top up your DeepSeek balance.' if response.status == 402 else 'Check your API key.'}"
+                            )
+
+                        response.raise_for_status()
+                        response_data = await response.json()
+
+                        if "choices" in response_data and len(response_data["choices"]) > 0:
+                            content = response_data["choices"][0].get("message", {}).get("content", "")
+                            if not content:
+                                raise ValueError(
+                                    f"Empty response from API. Response structure: {list(response_data.keys())}"
+                                )
+                            return content.strip()
+                        else:
+                            raise ValueError(
+                                f"Invalid response format from API. Expected 'choices' array, got: {list(response_data.keys())}"
+                            )
+
+            except aiohttp.ClientError as e:
+                self.logger.error(f"HTTP error in chat completion (prompt length: {len(prompt)}): {e}")
+                raise
+            except json.JSONDecodeError as e:
+                self.logger.error(f"JSON decode error in chat completion response: {e}")
+                raise ValueError(f"Invalid JSON response from API: {e}")
+            except Exception as e:
+                self.logger.error(f"Unexpected error in chat completion: {e!s}", exc_info=True)
+                raise
 
     async def extract_legal_concepts(self, text: str) -> dict:
         """Use DeepSeek to extract legal concepts from text"""

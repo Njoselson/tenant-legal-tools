@@ -1371,7 +1371,7 @@ class ArangoDBGraph:
 
         if collection.has(entity.id):
             if overwrite:
-                self.logger.warning(f"Overwriting existing entity: {entity.id}")
+                self.logger.debug(f"Updating existing entity with merged data: {entity.id}")
                 collection.update(doc)
                 return True
             else:

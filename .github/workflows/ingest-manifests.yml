@@ -129,7 +129,7 @@ jobs:
               echo "=========================================="
               
               # Run ingestion via docker compose
-              docker compose exec -T app uv run python -m tenant_legal_guidance.scripts.ingest \
+              docker compose exec -T app python -m tenant_legal_guidance.scripts.ingest \
                 --manifest "$MANIFEST_FILE" \
                 --concurrency "$CONCURRENCY" \
                 --skip-existing \
@@ -148,7 +148,7 @@ jobs:
         if: steps.detect-manifests.outputs.manifests != ''
         run: |
           echo "📊 Retrieving ingestion summary..."
-          ssh -o ServerAliveInterval=60 ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} "cd /opt/tenant_legal_guidance && docker compose exec -T app uv run python -m tenant_legal_guidance.scripts.reset_database --stats" || echo "⚠️  Could not retrieve stats"
+          ssh -o ServerAliveInterval=60 ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} "cd /opt/tenant_legal_guidance && docker compose exec -T app python -m tenant_legal_guidance.scripts.reset_database --stats" || echo "⚠️  Could not retrieve stats"
       
       - name: Report success
         if: steps.detect-manifests.outputs.manifests != ''

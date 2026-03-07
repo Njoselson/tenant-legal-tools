@@ -3,13 +3,13 @@ name: Deploy to Hetzner
 on:
   push:
     branches:
-      - main  # Deploy when pushing to main branch
-  workflow_dispatch:  # Allow manual trigger
+      - main
+  workflow_dispatch:
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -26,142 +26,111 @@ jobs:
       - name: Deploy to server
         timeout-minutes: 30
         env:
+          DEPLOY_HOST: ${{ secrets.HETZNER_HOST }}
+          DEPLOY_USER: ${{ secrets.HETZNER_USER }}
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
           ARANGO_PASSWORD_SECRET: ${{ secrets.ARANGO_PASSWORD }}
           CORS_ALLOWED_ORIGINS: ${{ secrets.CORS_ALLOWED_ORIGINS }}
-          PRODUCTION_MODE: ${{ secrets.PRODUCTION_MODE || 'true' }}
-          ANONYMIZE_PII_ENABLED: ${{ secrets.ANONYMIZE_PII_ENABLED || 'true' }}
+          PRODUCTION_MODE: "true"
+          ANONYMIZE_PII_ENABLED: "true"
+          REPO_URL: "https://github.com/${{ github.repository }}.git"
         run: |
-          ssh -o ServerAliveInterval=60 -o ServerAliveCountMax=3 ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} "DEEPSEEK_API_KEY='${DEEPSEEK_API_KEY}' ARANGO_PASSWORD_SECRET='${ARANGO_PASSWORD_SECRET}' CORS_ALLOWED_ORIGINS='${CORS_ALLOWED_ORIGINS}' PRODUCTION_MODE='${PRODUCTION_MODE}' ANONYMIZE_PII_ENABLED='${ANONYMIZE_PII_ENABLED}' bash -s" << 'EOF'
-            set -e
-            
-            echo "🚀 Starting deployment..."
-            
-            # Install prerequisites if needed (first time setup)
-            if ! command -v git &> /dev/null; then
-              echo "📦 Installing Git..."
-              apt update && apt install -y git
-            fi
-            
-            if ! command -v docker &> /dev/null; then
-              echo "🐳 Installing Docker..."
-              curl -fsSL https://get.docker.com -o get-docker.sh
-              sh get-docker.sh
-              rm get-docker.sh
-            fi
-            
-            if ! command -v docker compose &> /dev/null && ! docker compose version &> /dev/null; then
-              echo "🐳 Installing Docker Compose..."
-              apt install -y docker-compose-plugin
-            fi
-            
-            # Check if directory exists, clone if not
-            if [ ! -d "/opt/tenant_legal_guidance" ]; then
-              echo "📦 Cloning repository (first time setup)..."
-              mkdir -p /opt
-              cd /opt
-              git clone https://github.com/${{ github.repository }}.git tenant_legal_guidance
-              cd tenant_legal_guidance
-            else
-              # Navigate to project directory
-              cd /opt/tenant_legal_guidance
-              
-              # Pull latest code
-              echo "📥 Pulling latest code..."
-              git fetch origin
-              git reset --hard origin/main
-            fi
-            
-            # Create or update .env file from GitHub Secrets
-            echo "📝 Creating .env file..."
-            # Password management strategy:
-            # 1. If ARANGO_PASSWORD secret exists in GitHub, use it (passed via env var)
-            # 2. If .env exists, preserve existing password (so database doesn't get locked out)
-            # 3. Otherwise, generate new random password
-            if [ -n "${ARANGO_PASSWORD_SECRET:-}" ]; then
-              # Use password from GitHub Secrets (passed as environment variable)
-              ARANGO_PASSWORD="${ARANGO_PASSWORD_SECRET}"
-            elif [ -f .env ]; then
-              # Preserve existing password to avoid locking out the database
-              EXISTING_PASSWORD=$(grep "^ARANGO_PASSWORD=" .env | cut -d '=' -f2 || echo "")
-              if [ -n "$EXISTING_PASSWORD" ]; then
-                ARANGO_PASSWORD="$EXISTING_PASSWORD"
-                echo "📌 Preserving existing ARANGO_PASSWORD from .env"
-              else
-                ARANGO_PASSWORD=$(openssl rand -base64 32 | tr -d '\n')
-                echo "🔑 Generated new ARANGO_PASSWORD"
-              fi
-            else
-              # First time setup - generate new password
-              ARANGO_PASSWORD=$(openssl rand -base64 32 | tr -d '\n')
-              echo "🔑 Generated new ARANGO_PASSWORD (first time setup)"
-            fi
-            
-            # Set production configuration defaults
-            PRODUCTION_MODE="${PRODUCTION_MODE:-true}"
-            CORS_ORIGINS="${CORS_ALLOWED_ORIGINS:-https://tenantlegal.ddns.net}"
-            ANONYMIZE_PII="${ANONYMIZE_PII_ENABLED:-true}"
-            
-            # Create .env file with all production settings
-            cat > .env <<ENVEOF
-DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
-ARANGO_HOST=http://arangodb:8529
-ARANGO_DB_NAME=tenant_legal_kg
-ARANGO_USERNAME=root
-ARANGO_PASSWORD=${ARANGO_PASSWORD}
-QDRANT_URL=http://qdrant:6333
-QDRANT_COLLECTION=legal_chunks
-EMBEDDING_MODEL_NAME=sentence-transformers/all-MiniLM-L6-v2
-LOG_LEVEL=INFO
-DEBUG=false
-PRODUCTION_MODE=${PRODUCTION_MODE}
-CORS_ALLOWED_ORIGINS=${CORS_ORIGINS}
-RATE_LIMIT_ENABLED=true
-RATE_LIMIT_PER_MINUTE=100
-RATE_LIMIT_PER_MINUTE_AUTHENTICATED=200
-CACHE_ENABLED=true
-CACHE_TTL_SECONDS=3600
-ANONYMIZE_PII_ENABLED=${ANONYMIZE_PII}
-ANONYMIZE_NAMES=true
-ANONYMIZE_EMAILS=true
-ANONYMIZE_PHONES=true
-ANONYMIZE_ADDRESSES=true
-ANONYMIZE_SSN=true
-ANONYMIZE_DATES=false
-ANONYMIZE_FINANCIAL=false
-ENVEOF
-            chmod 600 .env
-            echo "✅ .env file created/updated"
-            
-            # Rebuild and restart services
-            echo "🔨 Building Docker images (this may take 10-15 minutes)..."
-            # Build with progress output to keep connection alive
-            docker compose build --progress=plain
-            
-            echo "🔄 Restarting services..."
-            docker compose down
-            docker compose up -d
-            
-            # Wait for services to be ready
-            echo "⏳ Waiting for services..."
-            sleep 10
-            
-            # Check health
-            echo "🏥 Checking application health..."
-            if curl -f http://localhost:8000/api/health > /dev/null 2>&1; then
-              echo "✅ Application is healthy!"
-            else
-              echo "⚠️ Health check failed, but deployment completed"
-            fi
-            
-            # Show running containers
-            echo "📊 Running containers:"
-            docker compose ps
-            
-            echo "✅ Deployment complete!"
-          EOF
+          ssh -o ServerAliveInterval=60 -o ServerAliveCountMax=3 \
+            "${DEPLOY_USER}@${DEPLOY_HOST}" \
+            "DEEPSEEK_API_KEY='${DEEPSEEK_API_KEY}' \
+             ARANGO_PASSWORD_SECRET='${ARANGO_PASSWORD_SECRET}' \
+             CORS_ALLOWED_ORIGINS='${CORS_ALLOWED_ORIGINS}' \
+             PRODUCTION_MODE='${PRODUCTION_MODE}' \
+             ANONYMIZE_PII_ENABLED='${ANONYMIZE_PII_ENABLED}' \
+             REPO_URL='${REPO_URL}' \
+             bash -s" <<'DEPLOY_SCRIPT'
+          set -e
+
+          echo "Starting deployment..."
+
+          # Install prerequisites if needed (first time setup)
+          command -v git &>/dev/null || { echo "Installing Git..."; apt update && apt install -y git; }
+          command -v docker &>/dev/null || { echo "Installing Docker..."; curl -fsSL https://get.docker.com | sh; }
+          docker compose version &>/dev/null || { echo "Installing Docker Compose..."; apt install -y docker-compose-plugin; }
+
+          # Clone or update repo
+          if [ ! -d "/opt/tenant_legal_guidance" ]; then
+            echo "Cloning repository..."
+            mkdir -p /opt
+            cd /opt
+            git clone "${REPO_URL}" tenant_legal_guidance
+            cd tenant_legal_guidance
+          else
+            cd /opt/tenant_legal_guidance
+            echo "Pulling latest code..."
+            git fetch origin
+            git reset --hard origin/main
+          fi
+
+          # Resolve ArangoDB password
+          if [ -n "${ARANGO_PASSWORD_SECRET:-}" ]; then
+            ARANGO_PASSWORD="${ARANGO_PASSWORD_SECRET}"
+          elif [ -f .env ]; then
+            ARANGO_PASSWORD=$(grep "^ARANGO_PASSWORD=" .env | cut -d '=' -f2 || echo "")
+            [ -z "$ARANGO_PASSWORD" ] && ARANGO_PASSWORD=$(openssl rand -base64 32 | tr -d '\n')
+          else
+            ARANGO_PASSWORD=$(openssl rand -base64 32 | tr -d '\n')
+          fi
+
+          CORS_ORIGINS="${CORS_ALLOWED_ORIGINS:-https://tenantlegal.ddns.net}"
+
+          # Write .env file
+          printf '%s\n' \
+            "DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}" \
+            "ARANGO_HOST=http://arangodb:8529" \
+            "ARANGO_DB_NAME=tenant_legal_kg" \
+            "ARANGO_USERNAME=root" \
+            "ARANGO_PASSWORD=${ARANGO_PASSWORD}" \
+            "QDRANT_URL=http://qdrant:6333" \
+            "QDRANT_COLLECTION=legal_chunks" \
+            "EMBEDDING_MODEL_NAME=sentence-transformers/all-MiniLM-L6-v2" \
+            "LOG_LEVEL=INFO" \
+            "DEBUG=false" \
+            "PRODUCTION_MODE=${PRODUCTION_MODE}" \
+            "CORS_ALLOWED_ORIGINS=${CORS_ORIGINS}" \
+            "RATE_LIMIT_ENABLED=true" \
+            "RATE_LIMIT_PER_MINUTE=100" \
+            "RATE_LIMIT_PER_MINUTE_AUTHENTICATED=200" \
+            "CACHE_ENABLED=true" \
+            "CACHE_TTL_SECONDS=3600" \
+            "ANONYMIZE_PII_ENABLED=${ANONYMIZE_PII_ENABLED}" \
+            "ANONYMIZE_NAMES=true" \
+            "ANONYMIZE_EMAILS=true" \
+            "ANONYMIZE_PHONES=true" \
+            "ANONYMIZE_ADDRESSES=true" \
+            "ANONYMIZE_SSN=true" \
+            "ANONYMIZE_DATES=false" \
+            "ANONYMIZE_FINANCIAL=false" \
+            > .env
+          chmod 600 .env
+          echo ".env created"
+
+          # Build and restart
+          echo "Building Docker images..."
+          docker compose build --progress=plain
+
+          echo "Restarting services..."
+          docker compose down
+          docker compose up -d
+
+          # Health check
+          sleep 10
+          if curl -sf http://localhost:8000/api/health > /dev/null 2>&1; then
+            echo "Application is healthy!"
+          else
+            echo "Warning: health check failed, but deployment completed"
+          fi
+
+          docker compose ps
+          echo "Deployment complete!"
+          DEPLOY_SCRIPT
 
       - name: Deployment summary
         run: |
-          echo "🎉 Deployment to Hetzner completed!"
-          echo "Your app should be live at: https://tenantlegal.ddns.net"
+          echo "Deployment to Hetzner completed!"
+          echo "App should be live at: https://tenantlegal.ddns.net"

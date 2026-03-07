@@ -53,6 +53,8 @@ data/*_checkpoint.json
 data/*_report.json
 data/*_stats.json
 data/analysis_cache.sqlite
+data/extraction_tests/
+data/retrieval_test_results.json
 data/*.graphml
 
 # Keep manifests version controlled (whitelist pattern)

@@ -936,10 +936,16 @@ async def get_debug_analysis(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/kg-input", response_class=HTMLResponse)
-async def kg_input_page(request: Request, templates: Jinja2Templates = Depends(get_templates)):
-    """Serve the KG input page."""
-    return templates.TemplateResponse("kg_input.html", {"request": request})
+@router.get("/sources", response_class=HTMLResponse)
+async def sources_page(request: Request, templates: Jinja2Templates = Depends(get_templates)):
+    """Serve the Sources page (manifest browser with ingestion status)."""
+    return templates.TemplateResponse("sources.html", {"request": request})
+
+
+@router.get("/kg-input")
+async def kg_input_redirect():
+    """Redirect legacy KG Input route to Sources."""
+    return RedirectResponse(url="/sources", status_code=301)
 
 
 @router.get("/case-analysis")

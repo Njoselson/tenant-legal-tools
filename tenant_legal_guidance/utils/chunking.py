@@ -71,9 +71,10 @@ def recursive_char_chunks(text: str, target_chars: int, overlap_chars: int) -> l
     if not text:
         return []
 
-    # If text is smaller than target, return as-is
+    # If text is smaller than target, return as-is (stripped)
     if len(text) <= target_chars:
-        return [text]
+        stripped = text.strip()
+        return [stripped] if stripped else []
 
     chunks: list[str] = []
     start = 0

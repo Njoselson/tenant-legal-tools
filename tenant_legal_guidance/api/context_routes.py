@@ -6,8 +6,6 @@ import logging
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi.responses import HTMLResponse
-from fastapi.templating import Jinja2Templates
 
 from typing import TYPE_CHECKING
 
@@ -36,23 +34,10 @@ def get_analyzer(request: Request):
     return request.app.state.case_analyzer
 
 
-def get_templates(request: Request) -> Jinja2Templates:
-    """Get templates from app state."""
-    return request.app.state.templates
-
-
 def get_system(request: Request):
     """Get TenantLegalSystem from app state."""
     from tenant_legal_guidance.services.tenant_system import TenantLegalSystem
     return request.app.state.system
-
-
-@router.get("/context-builder", response_class=HTMLResponse)
-async def context_builder_page(
-    request: Request, templates: Jinja2Templates = Depends(get_templates)
-):
-    """Serve the context builder page."""
-    return templates.TemplateResponse("context_builder.html", {"request": request})
 
 
 @router.post("/api/context/search", response_model=ContextSearchResponse)

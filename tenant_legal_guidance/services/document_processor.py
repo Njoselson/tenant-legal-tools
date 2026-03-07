@@ -2,6 +2,7 @@
 Document processing service for the Tenant Legal Guidance System.
 """
 
+import asyncio
 import json
 import logging
 import re
@@ -175,17 +176,23 @@ class DocumentProcessor:
         try:
             self.logger.info("Extracting proof chains from document (unified extraction)")
             proof_chains = await self.proof_chain_service.extract_proof_chains(text, metadata)
-            # Collect entity IDs from proof chains for chunk linking
+            # Collect entity IDs from proof chains for chunk linking.
+            # Include all entity types: claims, all evidence (required + presented),
+            # outcomes, damages, laws, and procedures.
+            seen_entity_ids: set[str] = set()
             for chain in proof_chains:
-                proof_chain_entity_ids.append(chain.claim_id)
-                # Add evidence, outcome, damages IDs
-                for ev in chain.presented_evidence:
-                    proof_chain_entity_ids.append(ev.evidence_id)
-                if chain.outcome:
-                    proof_chain_entity_ids.append(chain.outcome["id"])
-                if chain.damages:
-                    for dmg in chain.damages:
-                        proof_chain_entity_ids.append(dmg["id"])
+                for eid in [
+                    chain.claim_id,
+                    *[ev.evidence_id for ev in chain.required_evidence],
+                    *[ev.evidence_id for ev in chain.presented_evidence],
+                    *([] if not chain.outcome else [chain.outcome["id"]]),
+                    *([dmg["id"] for dmg in chain.damages] if chain.damages else []),
+                    *chain.law_ids,
+                    *chain.procedure_ids,
+                ]:
+                    if eid and eid not in seen_entity_ids:
+                        seen_entity_ids.add(eid)
+                        proof_chain_entity_ids.append(eid)
 
             # Extract entities from proof chains (they're already stored, but we need them for processing)
             # Get entities from the knowledge graph that were just stored
@@ -743,18 +750,45 @@ class DocumentProcessor:
                 dedup_count = len(existing_chunk_map)
                 self.logger.info(f"Successfully processed {chunk_count} chunks ({len(new_chunk_ids)} new, {dedup_count} reused) to Qdrant")
 
-                # Step 6.5: Link proof chain entities to chunks (bidirectional linking)
-                # Use deduplicated_chunk_ids (includes both new and reused chunks)
+                # Step 6.5: Link proof chain entities to chunks (bidirectional linking).
+                # Use best_quote to find the specific chunk(s) containing each entity
+                # rather than linking every entity to every chunk.
                 if proof_chain_entity_ids and deduplicated_chunk_ids:
                     try:
                         self.logger.info(
-                            f"Linking {len(proof_chain_entity_ids)} proof chain entities to {len(deduplicated_chunk_ids)} chunks"
+                            f"Linking {len(proof_chain_entity_ids)} proof chain entities to chunks"
                         )
+                        # Build chunk_id -> chunk_text map for precision linking
+                        chunk_text_map = {
+                            deduplicated_chunk_ids[i]: chunk_texts[i]
+                            for i in range(min(len(deduplicated_chunk_ids), len(chunk_texts)))
+                        }
                         for entity_id in proof_chain_entity_ids:
                             entity = self.knowledge_graph.get_entity(entity_id)
-                            if entity:
-                                # entity is already a LegalEntity object
-                                self.proof_chain_service._link_entity_to_chunks(entity, deduplicated_chunk_ids)
+                            if not entity:
+                                continue
+                            # Determine which chunks to link this entity to
+                            best_quote = getattr(entity, "best_quote", None)
+                            if best_quote and isinstance(best_quote, dict):
+                                quote_text = best_quote.get("text", "")
+                                if quote_text:
+                                    # Find chunks that contain the quote (match on first 80 chars)
+                                    snippet = quote_text[:80]
+                                    matching = [
+                                        cid for cid, ctxt in chunk_text_map.items()
+                                        if snippet in ctxt
+                                    ]
+                                    if matching:
+                                        target_ids = matching
+                                    else:
+                                        # Quote not found in any chunk — fall back to first chunk
+                                        target_ids = deduplicated_chunk_ids[:1]
+                                else:
+                                    target_ids = deduplicated_chunk_ids
+                            else:
+                                # No quote available — link to all chunks (document-wide)
+                                target_ids = deduplicated_chunk_ids
+                            self.proof_chain_service._link_entity_to_chunks(entity, target_ids)
                         self.logger.info("Successfully linked proof chain entities to chunks")
                     except Exception as e:
                         self.logger.warning(
@@ -811,20 +845,45 @@ class DocumentProcessor:
     async def _enrich_chunks_metadata_batch(
         self, chunk_texts: list[str], doc_title: str, entity_ids: list[str], batch_size: int = 5
     ) -> list[dict[str, str]]:
-        """Enrich chunks with LLM-generated metadata in batches."""
+        """Enrich chunks with LLM-generated metadata in batches (parallel)."""
+        default_meta = {"description": "", "proves": "", "references": ""}
+
+        # Build all batches
+        batches = [
+            (batch_start, chunk_texts[batch_start:batch_start + batch_size])
+            for batch_start in range(0, len(chunk_texts), batch_size)
+        ]
+
+        self.logger.info(f"Enriching {len(chunk_texts)} chunks in {len(batches)} parallel batches")
+
+        # Fire all enrichment batches in parallel
+        results = await asyncio.gather(
+            *[self._enrich_single_batch(batch, batch_start, doc_title) for batch_start, batch in batches],
+            return_exceptions=True,
+        )
+
         enriched = []
+        for i, result in enumerate(results):
+            batch_len = len(batches[i][1])
+            if isinstance(result, Exception):
+                self.logger.warning(f"Batch enrichment failed: {result}")
+                enriched.extend([dict(default_meta) for _ in range(batch_len)])
+            else:
+                enriched.extend(result)
 
-        # Process in batches to avoid overwhelming the LLM
-        for batch_start in range(0, len(chunk_texts), batch_size):
-            batch_end = min(batch_start + batch_size, len(chunk_texts))
-            batch = chunk_texts[batch_start:batch_end]
+        return enriched
 
-            # Build prompt for batch
-            chunks_text = ""
-            for idx, chunk_text in enumerate(batch):
-                chunks_text += f"\n--- Chunk {batch_start + idx + 1} ---\n{chunk_text[:600]}...\n"
+    async def _enrich_single_batch(
+        self, batch: list[str], batch_start: int, doc_title: str
+    ) -> list[dict[str, str]]:
+        """Enrich a single batch of chunks with LLM-generated metadata."""
+        default_meta = {"description": "", "proves": "", "references": ""}
 
-            prompt = f"""Analyze these legal text chunks from "{doc_title}" and provide metadata for each.
+        chunks_text = ""
+        for idx, chunk_text in enumerate(batch):
+            chunks_text += f"\n--- Chunk {batch_start + idx + 1} ---\n{chunk_text[:600]}...\n"
+
+        prompt = f"""Analyze these legal text chunks from "{doc_title}" and provide metadata for each.
 
 {chunks_text}
 
@@ -841,35 +900,15 @@ Return ONLY valid JSON array (no markdown):
 
 Ensure array has exactly {len(batch)} objects."""
 
-            try:
-                response = await self.deepseek.chat_completion(prompt)
-                # Extract JSON array
-                json_match = re.search(r"\[[\s\S]*\]", response)
-                if json_match:
-                    batch_enriched = json.loads(json_match.group(0))
-                    if isinstance(batch_enriched, list) and len(batch_enriched) == len(batch):
-                        enriched.extend(batch_enriched)
-                    else:
-                        # Fallback for batch
-                        self.logger.warning(
-                            "Batch enrichment returned wrong length, using defaults"
-                        )
-                        enriched.extend(
-                            [{"description": "", "proves": "", "references": ""} for _ in batch]
-                        )
-                else:
-                    # Fallback for batch
-                    enriched.extend(
-                        [{"description": "", "proves": "", "references": ""} for _ in batch]
-                    )
-            except Exception as e:
-                self.logger.warning(f"Batch enrichment failed: {e}")
-                # Fallback for batch
-                enriched.extend(
-                    [{"description": "", "proves": "", "references": ""} for _ in batch]
-                )
-
-        return enriched
+        response = await self.deepseek.chat_completion(prompt)
+        json_match = re.search(r"\[[\s\S]*\]", response)
+        if json_match:
+            batch_enriched = json.loads(json_match.group(0))
+            if isinstance(batch_enriched, list) and len(batch_enriched) == len(batch):
+                return batch_enriched
+            self.logger.warning("Batch enrichment returned wrong length, using defaults")
+            return [dict(default_meta) for _ in batch]
+        return [dict(default_meta) for _ in batch]
 
     async def _extract_structured_data(
         self, text: str, metadata: SourceMetadata
@@ -880,19 +919,25 @@ Ensure array has exactly {len(batch)} objects."""
         self.logger.info(f"Split text into {len(chunks)} chunks")
 
         # Use EntityService for extraction (provides canonicalization)
+        # Fire all chunk extractions in parallel (semaphore in DeepSeekClient caps concurrency)
         all_entities = []
         all_relationships = []
 
-        for i, chunk in enumerate(chunks):
-            self.logger.info(f"Processing chunk {i + 1}/{len(chunks)} with EntityService")
-            try:
-                chunk_entities, chunk_rels = await self.entity_service.extract_entities_from_text(
-                    chunk, metadata=metadata, context="ingestion"
-                )
-                all_entities.extend(chunk_entities)
-                all_relationships.extend(chunk_rels)
-            except Exception as e:
-                self.logger.error(f"Entity extraction failed for chunk {i + 1}: {e}", exc_info=True)
+        self.logger.info(f"Extracting entities from {len(chunks)} chunks in parallel")
+        tasks = [
+            self.entity_service.extract_entities_from_text(
+                chunk, metadata=metadata, context="ingestion"
+            )
+            for chunk in chunks
+        ]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        for i, result in enumerate(results):
+            if isinstance(result, Exception):
+                self.logger.error(f"Entity extraction failed for chunk {i + 1}: {result}", exc_info=True)
+                continue
+            chunk_entities, chunk_rels = result
+            all_entities.extend(chunk_entities)
+            all_relationships.extend(chunk_rels)
 
         # Convert raw relationship dicts to LegalRelationship objects
         relationship_objects = []
@@ -1730,20 +1775,43 @@ Ensure array has exactly {len(batch)} objects."""
             )
             existing_entity.name = new_entity.name
 
-        # 2. Update DESCRIPTION if new one is better (longer and non-empty)
+        # 2. Accumulate DESCRIPTIONS from all sources (no data loss)
         existing_desc = existing_entity.description or ""
         new_desc = new_entity.description or ""
-        if new_desc and len(new_desc) > len(existing_desc):
-            self.logger.info(
-                f"[Merge] Updating entity description: '{existing_desc[:50]}...' → '{new_desc[:50]}...'"
-            )
-            existing_entity.description = new_desc
+        new_source_label = (
+            new_entity.source_metadata.title
+            or new_entity.source_metadata.organization
+            or new_entity.source_metadata.source
+            or "unknown source"
+        )
+        if new_desc and new_desc not in existing_desc:
+            if existing_desc:
+                existing_entity.description = f"{existing_desc} [{new_source_label}] {new_desc}"
+                self.logger.info(
+                    f"[Merge] Appended description from '{new_source_label}' to entity '{existing_entity.name}'"
+                )
+            else:
+                existing_entity.description = new_desc
 
-        # 3. Update METADATA with most authoritative source
+        # 3. Accumulate all source metadata into provenance list
+        if not existing_entity.provenance:
+            # First merge — seed provenance with the existing entity's metadata
+            existing_entity.provenance = [
+                existing_entity.source_metadata.model_dump(mode="json")
+            ]
+
+        # Add new source metadata to provenance (deduplicate by source URL)
+        new_meta_dict = new_entity.source_metadata.model_dump(mode="json")
+        existing_sources = {
+            p.get("source") for p in existing_entity.provenance if isinstance(p, dict)
+        }
+        if new_meta_dict.get("source") not in existing_sources:
+            existing_entity.provenance.append(new_meta_dict)
+
+        # Keep source_metadata pointing to the most authoritative source
         existing_authority = existing_entity.source_metadata.authority
         new_authority = new_entity.source_metadata.authority
 
-        # Authority ranking (higher is better)
         authority_rank = {
             "BINDING_LEGAL_AUTHORITY": 6,
             "PERSUASIVE_AUTHORITY": 5,
@@ -1758,7 +1826,7 @@ Ensure array has exactly {len(batch)} objects."""
 
         if new_rank > existing_rank:
             self.logger.info(
-                f"[Merge] Updating source metadata: {existing_authority} → {new_authority}"
+                f"[Merge] Updating primary source metadata: {existing_authority} → {new_authority}"
             )
             existing_entity.source_metadata = new_entity.source_metadata
 
@@ -1846,3 +1914,140 @@ Ensure array has exactly {len(batch)} objects."""
         )
 
         return existing_entity
+
+    async def link_underconnected_entities(self, max_edges: int = 1) -> dict:
+        """Find entities with few edges and use LLM to suggest connections.
+
+        Args:
+            max_edges: Entities with this many edges or fewer are considered underconnected.
+                       0 = singletons only, 1 = singletons + single-edge entities.
+
+        Returns a summary dict with counts of underconnected found and edges created.
+        """
+        from tenant_legal_guidance.models.relationships import LegalRelationship, RelationshipType
+
+        # 1. Find underconnected entities (entities with <= max_edges edges)
+        underconnected = list(self.knowledge_graph.db.aql.execute('''
+            FOR ent IN entities
+                LET edge_count = LENGTH(
+                    FOR e IN edges
+                        FILTER e._from == CONCAT("entities/", ent._key)
+                            OR e._to == CONCAT("entities/", ent._key)
+                        RETURN 1
+                )
+                FILTER edge_count <= @max_edges
+                RETURN {id: ent._key, name: ent.name, type: ent.type,
+                        d: SUBSTRING(ent.description, 0, 120), edge_count: edge_count}
+        ''', bind_vars={"max_edges": max_edges}))
+
+        if not underconnected:
+            self.logger.info("[EntityLinker] No underconnected entities found — graph is well connected")
+            return {"underconnected_found": 0, "edges_created": 0}
+
+        self.logger.info(
+            f"[EntityLinker] Found {len(underconnected)} underconnected entities "
+            f"({sum(1 for e in underconnected if e['edge_count'] == 0)} singletons, "
+            f"{sum(1 for e in underconnected if e['edge_count'] > 0)} with 1 edge)"
+        )
+
+        # 2. Get well-connected entities for context (entities with >1 edge, sample up to 80)
+        well_connected = list(self.knowledge_graph.db.aql.execute('''
+            FOR ent IN entities
+                LET edge_count = LENGTH(
+                    FOR e IN edges
+                        FILTER e._from == CONCAT("entities/", ent._key)
+                            OR e._to == CONCAT("entities/", ent._key)
+                        RETURN 1
+                )
+                FILTER edge_count > @max_edges
+                SORT edge_count DESC
+                LIMIT 80
+                RETURN {id: ent._key, name: ent.name, type: ent.type}
+        ''', bind_vars={"max_edges": max_edges}))
+
+        # 3. Build valid relationship types list
+        valid_rel_types = [rt.name for rt in RelationshipType]
+
+        # 4. Build prompt — process in batches of 15
+        batch_size = 15
+        total_edges_created = 0
+
+        for batch_start in range(0, len(underconnected), batch_size):
+            batch = underconnected[batch_start:batch_start + batch_size]
+
+            orphans_text = "\n".join(
+                f"  - {s['id']} [{s['type']}] \"{s['name']}\" ({s['edge_count']} edges): {s.get('d', 'no description')}"
+                for s in batch
+            )
+            targets_text = "\n".join(
+                f"  - {c['id']} [{c['type']}] \"{c['name']}\""
+                for c in well_connected
+            )
+
+            prompt = f"""You are a legal knowledge graph expert. Below are UNDERCONNECTED entities (0-{max_edges} edges) and WELL-CONNECTED entities in a tenant legal rights knowledge graph.
+
+For each underconnected entity, suggest 1-3 NEW edges to well-connected entities. Only suggest edges where a real legal relationship exists. Do NOT duplicate existing edges.
+
+VALID RELATIONSHIP TYPES (use exactly these):
+{', '.join(valid_rel_types)}
+
+Common patterns:
+- evidence SUPPORTS/HAS_EVIDENCE legal_claim
+- law ENABLES/AUTHORIZES legal_claim or legal_outcome
+- legal_procedure RESULTS_IN legal_outcome
+- legal_claim REQUIRES evidence
+- law ADDRESSES legal_claim
+- legal_procedure AVAILABLE_VIA remedy
+
+UNDERCONNECTED ENTITIES:
+{orphans_text}
+
+WELL-CONNECTED ENTITIES:
+{targets_text}
+
+Return ONLY a JSON array. Each object must have exactly: "source_id", "target_id", "type", "reason"
+Example: [{{"source_id": "legal_claim:abc123", "target_id": "law:def456", "type": "ADDRESSES", "reason": "This claim is governed by this law"}}]
+
+If an entity has no clear new connection, skip it. Return [] if none."""
+
+            try:
+                response = await self.deepseek.chat_completion(prompt)
+                json_match = re.search(r"\[[\s\S]*\]", response)
+                if not json_match:
+                    self.logger.warning("[EntityLinker] No JSON array in LLM response")
+                    continue
+
+                from tenant_legal_guidance.services.security import parse_llm_json
+                suggestions = parse_llm_json(json_match.group(0))
+                if not isinstance(suggestions, list):
+                    continue
+
+                for suggestion in suggestions:
+                    try:
+                        rel_type_str = suggestion.get("type", "")
+                        if rel_type_str not in valid_rel_types:
+                            self.logger.debug(f"[EntityLinker] Invalid type: {rel_type_str}")
+                            continue
+
+                        rel = LegalRelationship(
+                            source_id=suggestion["source_id"],
+                            target_id=suggestion["target_id"],
+                            relationship_type=RelationshipType[rel_type_str],
+                            attributes={"source": "entity_linker", "reason": suggestion.get("reason", "")},
+                            strength=0.7,
+                        )
+                        if self.knowledge_graph.add_relationship(rel):
+                            total_edges_created += 1
+                            self.logger.info(
+                                f"[EntityLinker] {rel.source_id} --{rel_type_str}--> {rel.target_id}"
+                            )
+                    except Exception as e:
+                        self.logger.debug(f"[EntityLinker] Edge failed: {e}")
+
+            except Exception as e:
+                self.logger.warning(f"[EntityLinker] Batch failed: {e}")
+
+        self.logger.info(
+            f"[EntityLinker] Done: {len(underconnected)} underconnected → {total_edges_created} new edges"
+        )
+        return {"underconnected_found": len(underconnected), "edges_created": total_edges_created}

@@ -1255,7 +1255,7 @@ class ArangoDBGraph:
         collection = self.db.collection("entities")
 
         # Convert source metadata to dict and handle datetime serialization
-        source_metadata = entity.source_metadata.dict()
+        source_metadata = entity.source_metadata.model_dump()
         for field in ["created_at", "processed_at", "last_updated"]:
             if source_metadata.get(field):
                 if isinstance(source_metadata[field], datetime):
@@ -1371,7 +1371,7 @@ class ArangoDBGraph:
 
         if collection.has(entity.id):
             if overwrite:
-                self.logger.warning(f"Overwriting existing entity: {entity.id}")
+                self.logger.debug(f"Updating existing entity with merged data: {entity.id}")
                 collection.update(doc)
                 return True
             else:
@@ -1489,7 +1489,7 @@ class ArangoDBGraph:
                 # Canonical source selection
                 existing_meta = doc.get("source_metadata") or {}
                 new_meta = (
-                    entity.source_metadata.dict()
+                    entity.source_metadata.model_dump()
                     if hasattr(entity.source_metadata, "dict")
                     else entity.source_metadata
                 )

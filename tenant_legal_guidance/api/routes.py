@@ -942,12 +942,6 @@ async def kg_input_page(request: Request, templates: Jinja2Templates = Depends(g
     return templates.TemplateResponse("kg_input.html", {"request": request})
 
 
-@router.get("/curation", response_class=HTMLResponse)
-async def curation_page(request: Request, templates: Jinja2Templates = Depends(get_templates)):
-    """Serve the legal source curation page for searching and bulk ingestion."""
-    return templates.TemplateResponse("curation.html", {"request": request})
-
-
 @router.get("/case-analysis")
 async def case_analysis_page():
     """Redirect legacy route to merged home."""
@@ -1407,14 +1401,6 @@ async def get_qdrant_chunk(
     except Exception as e:
         logger.error(f"Error retrieving chunk: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e)) from e
-
-
-@router.get("/qdrant-view", response_class=HTMLResponse)
-async def qdrant_view_page(
-    request: Request, templates: Jinja2Templates = Depends(get_templates)
-):
-    """Serve the Qdrant exploration page."""
-    return templates.TemplateResponse("qdrant_view.html", {"request": request})
 
 
 @router.get("/api/chunks/adjacent")
@@ -2232,29 +2218,90 @@ async def get_document_proof_chains(
 
 @router.post("/api/kg/chat")
 async def kg_chat(request: KGChatRequest, system: TenantLegalSystem = Depends(get_system)) -> dict:
-    """Chat with the knowledge graph using LLM."""
+    """Chat with the knowledge graph using LLM, enriched with graph context and hybrid retrieval."""
     try:
-        # Build context about the graph
         context_parts = []
+        kg = system.knowledge_graph
 
-        # If a specific entity is selected, get its details
+        # 1. If a specific entity is selected, get its details + 1-hop neighbors
         if request.context_id:
             try:
-                entity = system.knowledge_graph.get_entity(request.context_id)
+                entity = kg.get_entity(request.context_id)
                 if entity:
                     context_parts.append(
                         f"SELECTED ENTITY:\n"
                         f"ID: {entity.id}\n"
                         f"Name: {entity.name}\n"
                         f"Type: {entity.entity_type.value}\n"
-                        f"Description: {entity.description or 'N/A'}\n"
+                        f"Description: {(entity.description or 'N/A')[:300]}\n"
                     )
+                    try:
+                        neighbor_entities, neighbor_rels = kg.get_neighbors(
+                            [request.context_id], per_node_limit=10
+                        )
+                        if neighbor_rels:
+                            rel_lines = []
+                            for r in neighbor_rels[:15]:
+                                rel_lines.append(
+                                    f"  {r.source_entity_id} --[{r.relationship_type.value}]--> {r.target_entity_id}"
+                                )
+                            context_parts.append(
+                                f"CONNECTED RELATIONSHIPS ({len(neighbor_rels)}):\n"
+                                + "\n".join(rel_lines)
+                            )
+                        if neighbor_entities:
+                            ent_lines = []
+                            for ne in neighbor_entities[:10]:
+                                desc = (ne.description or "")[:150]
+                                ent_lines.append(f"  [{ne.entity_type.value}] {ne.name}: {desc}")
+                            context_parts.append(
+                                f"NEIGHBOR ENTITIES ({len(neighbor_entities)}):\n"
+                                + "\n".join(ent_lines)
+                            )
+                    except Exception as e:
+                        logger.warning(f"Failed to get neighbors for {request.context_id}: {e}")
             except Exception as e:
                 logger.warning(f"Failed to load context entity: {e}")
 
-        # Add knowledge graph statistics
+        # 2. Hybrid retrieval: find relevant chunks + entities for the user's question
         try:
-            kg = system.knowledge_graph
+            from tenant_legal_guidance.services.retrieval import HybridRetriever
+
+            retriever = HybridRetriever(kg)
+            results = retriever.retrieve(
+                request.message,
+                top_k_chunks=5,
+                top_k_entities=10,
+                expand_neighbors=False,
+            )
+            chunks = results.get("chunks", [])
+            entities = results.get("entities", [])
+
+            if chunks:
+                chunk_lines = []
+                for c in chunks[:5]:
+                    text = (c.get("text", "") or "")[:300]
+                    source = c.get("source", "unknown")
+                    chunk_lines.append(f"  [{source}] {text}")
+                context_parts.append(
+                    f"RELEVANT TEXT CHUNKS ({len(chunks)}):\n" + "\n".join(chunk_lines)
+                )
+
+            if entities:
+                ent_lines = []
+                for ent in entities[:10]:
+                    name = ent.get("name", ent.get("id", "?"))
+                    etype = ent.get("entity_type", ent.get("type", "?"))
+                    desc = (ent.get("description", "") or "")[:150]
+                    ent_lines.append(f"  [{etype}] {name}: {desc}")
+                context_parts.append(
+                    f"RELEVANT ENTITIES ({len(entities)}):\n" + "\n".join(ent_lines)
+                )
+        except Exception as e:
+            logger.warning(f"Hybrid retrieval for chat failed: {e}")
+
+        # 3. KG stats
+        try:
             stats = kg.db.aql.execute(
                 """
                 FOR doc IN entities
@@ -2265,27 +2312,29 @@ async def kg_chat(request: KGChatRequest, system: TenantLegalSystem = Depends(ge
             )
             entity_types = list(stats)
             entity_dist = ", ".join([f"{t['type']}:{t['count']}" for t in entity_types[:10]])
-            nl = "\n"
             context_parts.append(
-                f"KNOWLEDGE GRAPH STATS:{nl}"
-                f"Total entity types: {len(entity_types)}{nl}"
-                f"Entity distribution: {entity_dist}{nl}"
+                f"KNOWLEDGE GRAPH STATS:\n"
+                f"Total entity types: {len(entity_types)}\n"
+                f"Entity distribution: {entity_dist}\n"
             )
         except Exception as e:
             logger.warning(f"Failed to get KG stats: {e}")
 
-        # Build the prompt
-        context_text = "\n".join(context_parts) if context_parts else ""
+        # 4. Build prompt
+        context_text = "\n\n".join(context_parts) if context_parts else "(No graph context available)"
 
-        prompt = f"""You are an AI assistant helping users explore a legal knowledge graph about tenant rights and housing law.
+        prompt = (
+            "You are an AI assistant helping users explore a legal knowledge graph "
+            "about NYC tenant rights and housing law.\n\n"
+            "You have access to real data from the knowledge graph. Use the context below "
+            "to give specific, grounded answers. Cite entity names, law sections, and case "
+            "names when relevant. If the context doesn't contain enough information to fully "
+            "answer, say so.\n\n"
+            f"--- GRAPH CONTEXT ---\n{context_text}\n--- END CONTEXT ---\n\n"
+            f"USER QUESTION: {request.message}\n\n"
+            "Provide a helpful, accurate, and concise response grounded in the context above."
+        )
 
-{context_text}
-
-USER QUESTION: {request.message}
-
-Please provide a helpful, accurate response based on your knowledge. If the question is about the graph structure, entities, or relationships, explain what you can see in the context provided above. Keep your response concise and focused."""
-
-        # Call LLM
         response = await system.deepseek.chat_completion(prompt)
 
         return {"response": response, "context_id": request.context_id}

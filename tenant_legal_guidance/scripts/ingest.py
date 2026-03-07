@@ -502,8 +502,16 @@ def main():
             )
         )
 
+        # Link underconnected entities (0-1 edges)
+        print("\nLinking underconnected entities...")
+        link_result = asyncio.run(
+            system.document_processor.link_underconnected_entities(max_edges=1)
+        )
+
         # Print summary
         summary = stats.summary()
+        summary["underconnected_found"] = link_result.get("underconnected_found", 0)
+        summary["linker_edges_created"] = link_result.get("edges_created", 0)
         print("\n" + "=" * 60)
         print("INGESTION SUMMARY")
         print("=" * 60)
@@ -513,6 +521,8 @@ def main():
         print(f"  Failed:               {summary['failed']}")
         print(f"  Added entities:       {summary['added_entities']}")
         print(f"  Added relationships:  {summary['added_relationships']}")
+        print(f"  Underconnected:       {summary.get('underconnected_found', 0)}")
+        print(f"  Linker edges added:   {summary.get('linker_edges_created', 0)}")
         print(f"  Elapsed time:         {summary['elapsed_seconds']:.1f}s")
         if summary["processed"] > 0:
             print(f"  Avg per source:       {summary['avg_per_source']:.1f}s")

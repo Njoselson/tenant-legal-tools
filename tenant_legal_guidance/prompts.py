@@ -539,7 +539,8 @@ Return ONLY valid JSON with this exact structure (no markdown, no extra keys, us
             "name": "Short descriptive name",
             "claim_type": "HP_ACTION_REPAIRS",
             "description": "What right or cause of action this represents",
-            "relief_sought": ["list of remedies sought"]
+            "relief_sought": ["list of remedies sought"],
+            "source_quote": "Direct quote from the text that best describes this claim"
         }}
     ],
     "evidence": [
@@ -558,7 +559,8 @@ Return ONLY valid JSON with this exact structure (no markdown, no extra keys, us
             "id": "p1",
             "name": "Short name",
             "description": "What this procedure accomplishes",
-            "steps": ["Step 1", "Step 2"]
+            "steps": ["Step 1", "Step 2"],
+            "source_quote": "Direct quote from the text describing this procedure"
         }}
     ],
     "outcomes": [
@@ -567,7 +569,8 @@ Return ONLY valid JSON with this exact structure (no markdown, no extra keys, us
             "name": "Short name",
             "outcome_type": "injunctive",
             "description": "What the court orders or the law authorizes",
-            "linked_claim_id": "c1"
+            "linked_claim_id": "c1",
+            "source_quote": "Direct quote from the text describing this outcome"
         }}
     ],
     "laws": [
@@ -575,7 +578,8 @@ Return ONLY valid JSON with this exact structure (no markdown, no extra keys, us
             "id": "l1",
             "name": "Short name",
             "citation": "RPL § 235-b",
-            "description": "What this law establishes or requires"
+            "description": "What this law establishes or requires",
+            "source_quote": "Direct quote from the text citing or describing this law"
         }}
     ],
     "relationships": [

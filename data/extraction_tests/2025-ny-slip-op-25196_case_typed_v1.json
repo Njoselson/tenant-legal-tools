@@ -1,0 +1,368 @@
+{
+  "meta": {
+    "url": "https://law.justia.com/cases/new-york/other-courts/2025/2025-ny-slip-op-25196.html",
+    "document_type": "case",
+    "prompt_type": "typed",
+    "chunks_processed": 1,
+    "total_chunks": 1,
+    "source_hash": "2291b678539d7ccc",
+    "timestamp": "2026-03-04T17:43:05.790780Z"
+  },
+  "results_per_chunk": [
+    {
+      "section_a": {
+        "entities": [
+          {
+            "predicted_id": "legal_claim:f347d157",
+            "name": "Habitability Violations and Repairs",
+            "type": "LEGAL_CLAIM",
+            "description": "Petitioners alleged multiple habitability issues including roach and mice infestation, mold, unusable appliances, electrical issues, plumbing leaks, and unsafe porch stairs/railing, constituting a breach of the warranty of habitability.",
+            "type_specific_fields": {
+              "claim_type": "HP_ACTION_REPAIRS",
+              "relief_sought": [
+                "Corrective order for repairs",
+                "Abatement of rent during repairs",
+                "Refund of rent paid for reduced value of property",
+                "Relief on pending holdover proceeding"
+              ]
+            },
+            "source_quote": ""
+          },
+          {
+            "predicted_id": "legal_claim:877ef69b",
+            "name": "Retaliatory Holdover Proceeding",
+            "type": "LEGAL_CLAIM",
+            "description": "Petitioners asserted that the landlord's holdover proceeding filed on May 9, 2025, was in retaliation for their good faith complaints about habitability issues and for contacting Code Enforcement.",
+            "type_specific_fields": {
+              "claim_type": "RETALIATORY_EVICTION",
+              "relief_sought": [
+                "Dismissal of holdover proceeding LT-1060-25"
+              ]
+            },
+            "source_quote": ""
+          },
+          {
+            "predicted_id": "evidence:f423622c",
+            "name": "Petitioners' Testimony on Conditions",
+            "type": "EVIDENCE",
+            "description": "Petitioners testified to living with rodent and roach infestation, soft spots and holes in the kitchen floor, and electrical issues that existed prior to Respondents' purchase of the property.",
+            "type_specific_fields": {
+              "evidence_context": "presented",
+              "is_critical": true,
+              "linked_claim_id": "legal_claim:f347d157"
+            },
+            "source_quote": "Petitioners testified to living with rodent and roach infestation, soft spots and holes in the kitchen floor, and electrical issues, which existed prior to Respondents purchase of the property."
+          },
+          {
+            "predicted_id": "evidence:abc3d086",
+            "name": "Witness Testimony of James Harris",
+            "type": "EVIDENCE",
+            "description": "Mr. Harris, the landlord's agent, testified he made repairs to the 'caving in' kitchen floor in early June 2025, saw roaches and dead mice in the apartment, and was sometimes told to hold off on repairs due to lack of funds.",
+            "type_specific_fields": {
+              "evidence_context": "presented",
+              "is_critical": true,
+              "linked_claim_id": "legal_claim:f347d157"
+            },
+            "source_quote": "Mr. Harris testified he had made repairs to the kitchen floor where it was 'caving in' in early June 2025. He testified that he noticed there were roaches in Petitioners' apartment when he was replacing the floor, and that he had seen dead mice in Petitioners' kitchen, bathroom, and smelled one in Petitioners' stove."
+          },
+          {
+            "predicted_id": "evidence:6e583fb2",
+            "name": "Pest Control Receipts and Reports (March 2024)",
+            "type": "EVIDENCE",
+            "description": "Respondents submitted receipts and reports documenting roach and rodent extermination performed in March 2024 on all four units, showing a follow-up roach treatment was recommended but not performed until June 13, 2025.",
+            "type_specific_fields": {
+              "evidence_context": "presented",
+              "is_critical": true,
+              "linked_claim_id": "legal_claim:f347d157"
+            },
+            "source_quote": "Respondents submitted pest control receipts and reports documenting roach and rodent extermination was performed in March 2024, on all four units in the building. A second follow-up roach treatment of Petitioners' unit was recommended in March 2024, but the next documented roach extermination did not occur until June 13, 2025, ten days after Respondents were served with the 7-D petition."
+          },
+          {
+            "predicted_id": "evidence:ffb4c26a",
+            "name": "City Code Violations Issued March 31, 2025",
+            "type": "EVIDENCE",
+            "description": "Code violations were issued on the property after Petitioners contacted Code Enforcement in March 2025 regarding habitability issues.",
+            "type_specific_fields": {
+              "evidence_context": "presented",
+              "is_critical": true,
+              "linked_claim_id": "legal_claim:f347d157"
+            },
+            "source_quote": "The property also had several city code violations issued March 31, 2025, after Petitioners contacted Code Enforcement."
+          },
+          {
+            "predicted_id": "evidence:c6866339",
+            "name": "Text Message Evidence",
+            "type": "EVIDENCE",
+            "description": "Text messages between Petitioners and Respondent D'Antonio documented Petitioners' pleas to stay and promises of payment, with D'Antonio replying 'it is time to cut ties' and citing 'too many problems.'",
+            "type_specific_fields": {
+              "evidence_context": "presented",
+              "is_critical": true,
+              "linked_claim_id": "legal_claim:877ef69b"
+            },
+            "source_quote": "The text messages between Petitioners and Respondent D'Antonio document Petitioners' plea to remain in the apartment with promises of payment, and Respondent D'Antonio replying, 'it is time to cut ties' and 'there have been too many problems and its not worth his time or money.'"
+          },
+          {
+            "predicted_id": "evidence:a296ba96",
+            "name": "DSS Shelter Verification Form (February 13, 2025)",
+            "type": "EVIDENCE",
+            "description": "Respondent D'Antonio filled out a Department of Social Services Shelter Verification form. The court found he fraudulently inflated the actual rent by over $3,000.00.",
+            "type_specific_fields": {
+              "evidence_context": "presented",
+              "is_critical": true,
+              "linked_claim_id": "legal_claim:877ef69b"
+            },
+            "source_quote": "Both parties presented text evidence that they discussed a lease renewal in February 2025 and provided documentation that Respondent D'Antonio filled out a Department of Social Services (DSS) Shelter Verification form on February 13, 2025. In filling out the DSS shelter verification form Respondent inflated the actual rent for the unit by over $3,000.00."
+          },
+          {
+            "predicted_id": "evidence:be869349",
+            "name": "Photo Evidence",
+            "type": "EVIDENCE",
+            "description": "Photo evidence provided to the court indicated the habitability concerns, including the 'soft' part of the kitchen floor.",
+            "type_specific_fields": {
+              "evidence_context": "presented",
+              "is_critical": true,
+              "linked_claim_id": "legal_claim:f347d157"
+            },
+            "source_quote": "Review of the testimony of both parties to the action and Respondents' witness, together with the photo evidence provided, clearly indicate the habitability concerns. The 'soft' part of the kitchen floor in a traffic area, is a code violation and created a safety issue."
+          },
+          {
+            "predicted_id": "legal_procedure:171e36d2",
+            "name": "RPAPL Article 7-D Proceeding",
+            "type": "LEGAL_PROCEDURE",
+            "description": "A simplified summary proceeding for tenants outside of New York City to bring actions against landlords for habitability and state and local housing code violations.",
+            "type_specific_fields": {
+              "steps": [
+                "Petitioners filed a Notice of Petition and Petition on May 29, 2025",
+                "Served Respondents on June 3rd and 4th, 2025",
+                "Court held a hearing on June 13, 2025",
+                "Court issued an Order to Correct and abated rent",
+                "Set matter for Compliance and Habitability hearing on July 14, 2025"
+              ]
+            },
+            "source_quote": ""
+          },
+          {
+            "predicted_id": "legal_outcome:c32ab096",
+            "name": "Dismissal of Holdover Proceeding",
+            "type": "LEGAL_OUTCOME",
+            "description": "The court ordered the holdover action LT-1060-25 to be dismissed.",
+            "type_specific_fields": {
+              "outcome_type": "procedural",
+              "linked_claim_id": "legal_claim:877ef69b"
+            },
+            "source_quote": ""
+          },
+          {
+            "predicted_id": "legal_outcome:aeac5f51",
+            "name": "Rent Abatement to $0",
+            "type": "LEGAL_OUTCOME",
+            "description": "The court ordered that any rental arrears owed by Petitioners are abated to $0.",
+            "type_specific_fields": {
+              "outcome_type": "monetary",
+              "linked_claim_id": "legal_claim:f347d157"
+            },
+            "source_quote": ""
+          },
+          {
+            "predicted_id": "legal_outcome:050223e2",
+            "name": "Refund for Reduced Value and Damages",
+            "type": "LEGAL_OUTCOME",
+            "description": "The court ordered Respondent HamDan Homes, LLC to issue a refund of $3,500.00 to Petitioners for rent paid for the reduced value of the rental property and damages to Petitioners' furnishings and belongings.",
+            "type_specific_fields": {
+              "outcome_type": "monetary",
+              "linked_claim_id": "legal_claim:f347d157"
+            },
+            "source_quote": ""
+          },
+          {
+            "predicted_id": "legal_outcome:3735b16d",
+            "name": "Order to Correct (Injunctive Relief)",
+            "type": "LEGAL_OUTCOME",
+            "description": "The court issued an Order to Correct the habitability violations, though the specific repair directives are implied from the findings and the scheduled compliance hearing.",
+            "type_specific_fields": {
+              "outcome_type": "injunctive",
+              "linked_claim_id": "legal_claim:f347d157"
+            },
+            "source_quote": ""
+          },
+          {
+            "predicted_id": "law:3c7b9dd6",
+            "name": "Tenant Dignity and Safe Housing Act",
+            "type": "LAW",
+            "description": "Provides a simplified summary proceeding for tenants outside of New York City to bring actions against landlords for habitability and state and local housing code violations.",
+            "type_specific_fields": {
+              "citation": "RPAPL \u00a7\u00a7 797-797-j"
+            },
+            "source_quote": ""
+          },
+          {
+            "predicted_id": "law:2a417f5b",
+            "name": "Warranty of Habitability",
+            "type": "LAW",
+            "description": "Implies a residential warranty of habitability, obligating landlords to provide a safe and habitable living space free from dangerous, hazardous, or detrimental conditions.",
+            "type_specific_fields": {
+              "citation": "RPL \u00a7 235-b"
+            },
+            "source_quote": ""
+          },
+          {
+            "predicted_id": "law:037556dc",
+            "name": "Retaliation by Landlord",
+            "type": "LAW",
+            "description": "Prohibits a landlord from commencing a proceeding to recover possession in retaliation for a tenant's good faith actions to enforce rights. Creates a rebuttable presumption of retaliation if action is commenced within one year of a complaint.",
+            "type_specific_fields": {
+              "citation": "RPL \u00a7 223-b"
+            },
+            "source_quote": ""
+          }
+        ],
+        "relationships": [
+          {
+            "from": "law:3c7b9dd6",
+            "to": "legal_procedure:171e36d2",
+            "type": "enables"
+          },
+          {
+            "from": "law:2a417f5b",
+            "to": "legal_claim:f347d157",
+            "type": "enables"
+          },
+          {
+            "from": "law:037556dc",
+            "to": "legal_claim:877ef69b",
+            "type": "enables"
+          },
+          {
+            "from": "legal_claim:f347d157",
+            "to": "evidence:f423622c",
+            "type": "requires"
+          },
+          {
+            "from": "legal_claim:f347d157",
+            "to": "evidence:abc3d086",
+            "type": "requires"
+          },
+          {
+            "from": "legal_claim:f347d157",
+            "to": "evidence:6e583fb2",
+            "type": "requires"
+          },
+          {
+            "from": "legal_claim:f347d157",
+            "to": "evidence:ffb4c26a",
+            "type": "requires"
+          },
+          {
+            "from": "legal_claim:f347d157",
+            "to": "evidence:be869349",
+            "type": "requires"
+          },
+          {
+            "from": "legal_claim:877ef69b",
+            "to": "evidence:c6866339",
+            "type": "requires"
+          },
+          {
+            "from": "legal_claim:877ef69b",
+            "to": "evidence:a296ba96",
+            "type": "requires"
+          },
+          {
+            "from": "legal_procedure:171e36d2",
+            "to": "legal_outcome:c32ab096",
+            "type": "results_in"
+          },
+          {
+            "from": "legal_procedure:171e36d2",
+            "to": "legal_outcome:aeac5f51",
+            "type": "results_in"
+          },
+          {
+            "from": "legal_procedure:171e36d2",
+            "to": "legal_outcome:050223e2",
+            "type": "results_in"
+          },
+          {
+            "from": "legal_procedure:171e36d2",
+            "to": "legal_outcome:3735b16d",
+            "type": "results_in"
+          },
+          {
+            "from": "law:2a417f5b",
+            "to": "legal_outcome:aeac5f51",
+            "type": "authorizes"
+          },
+          {
+            "from": "law:2a417f5b",
+            "to": "legal_outcome:050223e2",
+            "type": "authorizes"
+          },
+          {
+            "from": "law:2a417f5b",
+            "to": "legal_outcome:3735b16d",
+            "type": "authorizes"
+          },
+          {
+            "from": "law:037556dc",
+            "to": "legal_outcome:c32ab096",
+            "type": "authorizes"
+          },
+          {
+            "from": "law:3c7b9dd6",
+            "to": "legal_outcome:3735b16d",
+            "type": "authorizes"
+          }
+        ]
+      },
+      "section_b": {
+        "chunk_index": 0,
+        "predicted_chunk_id": "2291b678539d7ccc:0",
+        "entities_mentioned": [
+          "legal_claim:f347d157",
+          "legal_claim:877ef69b",
+          "evidence:f423622c",
+          "evidence:abc3d086",
+          "evidence:6e583fb2",
+          "evidence:ffb4c26a",
+          "evidence:c6866339",
+          "evidence:a296ba96",
+          "evidence:be869349",
+          "legal_procedure:171e36d2",
+          "legal_outcome:c32ab096",
+          "legal_outcome:aeac5f51",
+          "legal_outcome:050223e2",
+          "legal_outcome:3735b16d",
+          "law:3c7b9dd6",
+          "law:2a417f5b",
+          "law:037556dc"
+        ],
+        "qdrant_metadata": {
+          "chunk_index": 0,
+          "document_type": "case",
+          "authority": "case_law",
+          "entity_ids": [
+            "legal_claim:f347d157",
+            "legal_claim:877ef69b",
+            "evidence:f423622c",
+            "evidence:abc3d086",
+            "evidence:6e583fb2",
+            "evidence:ffb4c26a",
+            "evidence:c6866339",
+            "evidence:a296ba96",
+            "evidence:be869349",
+            "legal_procedure:171e36d2",
+            "legal_outcome:c32ab096",
+            "legal_outcome:aeac5f51",
+            "legal_outcome:050223e2",
+            "legal_outcome:3735b16d",
+            "law:3c7b9dd6",
+            "law:2a417f5b",
+            "law:037556dc"
+          ]
+        },
+        "chunk_text_preview": "Wheeler v D'Antonio :: 2025 :: New York Other Courts Decisions :: New York Case Law :: New York Law :: U.S. Law :: Justia Wheeler v D'Antonio Annotate this Case [*1] Wheeler v D'Antonio 2025 NY Slip Op 25196 Decided on August 22, 2025 City Court Of Syracuse, Onondaga County Tadros, J. Published by N"
+      },
+      "_debug_raw_response": "```json\n{\n    \"claims\": [\n        {\n            \"id\": \"c1\",\n            \"name\": \"Habitability Violations and Repairs\",\n            \"claim_type\": \"HP_ACTION_REPAIRS\",\n            \"description\": \"Petitioners alleged multiple habitability issues including roach and mice infestation, mold, unusable appliances, electrical issues, plumbing leaks, and unsafe porch stairs/railing, constituting a breach of the warranty of habitability.\",\n            \"relief_sought\": [\"Corrective order for repairs\", \"Abatement of rent during repairs\", \"Refund of rent paid for reduced value of property\", \"Relief on pending holdover proceeding\"]\n        },\n        {\n            \"id\": \"c2\",\n            \"name\": \"Retaliatory Holdover Proceeding\",\n            \"claim_type\": \"RETALIATORY_EVICTION\",\n            \"description\": \"Petitioners asserted that the landlord's holdover proceeding filed on May 9, 2025, was in retaliation for their good faith complaints about habitability issues and for contacting Code Enforcement.\",\n            \"relief_sought\": [\"Dismissal of holdover proceeding LT-1060-25\"]\n        }\n    ],\n    \"evidence\": [\n        {\n            \"id\": \"e1\",\n            \"name\": \"Petitioners' Testimony on Conditions\",\n            \"description\": \"Petitioners testified to living with rodent and roach infestation, soft spots and holes in the kitchen floor, and electrical issues that existed prior to Respondents' purchase of the property.\",\n            \"is_critical\": true,\n            \"evidence_context\": \"presented\",\n            \"linked_claim_id\": \"c1\",\n            \"source_quote\": \"Petitioners testified to living with rodent and roach infestation, soft spots and holes in the kitchen floor, and electrical issues, which existed prior to Respondents purchase of the property.\"\n        },\n        {\n            \"id\": \"e2\",\n            \"name\": \"Witness Testimony of James Harris\",\n            \"description\": \"Mr. Harris, the landlord's agent, testified he made repairs to the 'caving in' kitchen floor in earl"
+    }
+  ]
+}

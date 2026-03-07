@@ -1,0 +1,430 @@
+{
+  "meta": {
+    "url": "https://www.metcouncilonhousing.org/help-answers/getting-repairs/",
+    "document_type": "guide",
+    "prompt_type": "current",
+    "chunks_processed": 1,
+    "total_chunks": 1,
+    "source_hash": "c64d97aaf30e1e33",
+    "timestamp": "2026-03-04T17:25:48.179138Z"
+  },
+  "results_per_chunk": [
+    {
+      "section_a": {
+        "entities": [
+          {
+            "predicted_id": "legal_claim:eb62fb06",
+            "name": "Landlord's failure to maintain essential services",
+            "type": "LEGAL_CLAIM",
+            "description": "The landlord has failed to maintain essential services in the building and apartment and make prompt repairs as required by New York laws and regulations.",
+            "type_specific_fields": {
+              "claim_type": "OTHER",
+              "relief_sought": [
+                "Repairs made",
+                "Rent reduction",
+                "Rent freeze",
+                "Injunctive relief"
+              ]
+            },
+            "source_quote": ""
+          },
+          {
+            "predicted_id": "legal_claim:ca985fec",
+            "name": "Right to rent reduction for decreased services",
+            "type": "LEGAL_CLAIM",
+            "description": "Tenant in rent-stabilized or rent-controlled apartment is entitled to a rent reduction and rent freeze due to landlord's failure to provide services.",
+            "type_specific_fields": {
+              "claim_type": "OTHER",
+              "relief_sought": [
+                "Rent reduction",
+                "Rent freeze"
+              ]
+            },
+            "source_quote": ""
+          },
+          {
+            "predicted_id": "legal_claim:6db08b71",
+            "name": "Right to withhold rent for lack of repairs",
+            "type": "LEGAL_CLAIM",
+            "description": "Tenant has right to withhold rent and may be entitled to rent abatement for landlord's failure to provide repairs or essential services.",
+            "type_specific_fields": {
+              "claim_type": "OTHER",
+              "relief_sought": [
+                "Rent abatement",
+                "Permission to withhold rent"
+              ]
+            },
+            "source_quote": ""
+          },
+          {
+            "predicted_id": "legal_claim:aad205d0",
+            "name": "Retaliatory eviction",
+            "type": "LEGAL_CLAIM",
+            "description": "Landlord's refusal to renew lease or significant rent increase within a year of tenant requesting repairs constitutes retaliation.",
+            "type_specific_fields": {
+              "claim_type": "OTHER",
+              "relief_sought": [
+                "New lease for one year"
+              ]
+            },
+            "source_quote": ""
+          },
+          {
+            "predicted_id": "legal_claim:e643f848",
+            "name": "Landlord's claim for nonpayment of rent",
+            "type": "LEGAL_CLAIM",
+            "description": "Landlord may sue tenant for nonpayment of rent if tenant makes repairs and deducts cost from rent without authorization.",
+            "type_specific_fields": {
+              "claim_type": "OTHER",
+              "relief_sought": [
+                "Eviction",
+                "Money damages"
+              ]
+            },
+            "source_quote": ""
+          },
+          {
+            "predicted_id": "evidence:19e65440",
+            "name": "Written letter to landlord",
+            "type": "EVIDENCE",
+            "description": "Letter sent to landlord listing all problems, history of previous attempts to get repairs solved, who was spoken to, promises made, and what was not done.",
+            "type_specific_fields": {
+              "evidence_context": "required",
+              "is_critical": true,
+              "linked_claim_id": null
+            },
+            "source_quote": "Your letter should list all the problems in your apartment and in the common areas of the building, and include the history of all your previous attempts to get the problems solved \u2013 who you spoke to, what promises they made, and what was not done."
+          },
+          {
+            "predicted_id": "evidence:47d21227",
+            "name": "Tenants' Inspection Checklist",
+            "type": "EVIDENCE",
+            "description": "Checklist documenting all needed repairs in apartment and building common areas.",
+            "type_specific_fields": {
+              "evidence_context": "required",
+              "is_critical": false,
+              "linked_claim_id": null
+            },
+            "source_quote": "you may want to download and print our Tenants' Inspection Checklist... and use it as a guide so that you don't leave anything out."
+          },
+          {
+            "predicted_id": "evidence:52377bdc",
+            "name": "Certified mail receipt",
+            "type": "EVIDENCE",
+            "description": "Proof of mailing letter to landlord via certified mail, return receipt requested.",
+            "type_specific_fields": {
+              "evidence_context": "required",
+              "is_critical": true,
+              "linked_claim_id": null
+            },
+            "source_quote": "You must send the letter by certified mail, return receipt requested, and keep a copy of the letter, along with proof of mailing and the receipt"
+          },
+          {
+            "predicted_id": "evidence:bcac458c",
+            "name": "HPD violation reports",
+            "type": "EVIDENCE",
+            "description": "Violation reports from city agencies documenting housing code violations.",
+            "type_specific_fields": {
+              "evidence_context": "required",
+              "is_critical": true,
+              "linked_claim_id": null
+            },
+            "source_quote": "Print out the list of violations for your building and apartment from HPD's website"
+          },
+          {
+            "predicted_id": "evidence:6dc69b8d",
+            "name": "Photos of violations",
+            "type": "EVIDENCE",
+            "description": "Photographic evidence of conditions needing repair.",
+            "type_specific_fields": {
+              "evidence_context": "required",
+              "is_critical": true,
+              "linked_claim_id": null
+            },
+            "source_quote": "Take new pictures of any violations that can be seen."
+          },
+          {
+            "predicted_id": "evidence:a96afedb",
+            "name": "Heat logs",
+            "type": "EVIDENCE",
+            "description": "Records documenting lack of heat or hot water.",
+            "type_specific_fields": {
+              "evidence_context": "required",
+              "is_critical": false,
+              "linked_claim_id": null
+            },
+            "source_quote": "heat logs"
+          },
+          {
+            "predicted_id": "evidence:ffa4838a",
+            "name": "Witness statements",
+            "type": "EVIDENCE",
+            "description": "Testimony from witnesses about conditions and repair attempts.",
+            "type_specific_fields": {
+              "evidence_context": "required",
+              "is_critical": false,
+              "linked_claim_id": null
+            },
+            "source_quote": "witnesses, if necessary"
+          },
+          {
+            "predicted_id": "evidence:6452b78f",
+            "name": "HCR rent reduction application",
+            "type": "EVIDENCE",
+            "description": "Form RA-81 or RA-84 filed with HCR requesting rent reduction for decreased services.",
+            "type_specific_fields": {
+              "evidence_context": "required",
+              "is_critical": true,
+              "linked_claim_id": null
+            },
+            "source_quote": "Individual tenants should use HCR's form RA-81... and tenant groups should use form RA-84"
+          },
+          {
+            "predicted_id": "evidence:2e272db0",
+            "name": "Proof of repair attempts",
+            "type": "EVIDENCE",
+            "description": "Evidence of reasonable efforts to get landlord to make repairs before tenant makes repairs themselves.",
+            "type_specific_fields": {
+              "evidence_context": "required",
+              "is_critical": true,
+              "linked_claim_id": null
+            },
+            "source_quote": "You must first make a reasonable effort to get your landlord to make the repair."
+          },
+          {
+            "predicted_id": "legal_outcome:60c762d4",
+            "name": "HCR rent reduction order",
+            "type": "LEGAL_OUTCOME",
+            "description": "HCR can order a rent reduction and rent freeze for rent-regulated apartments until landlord fixes problems.",
+            "type_specific_fields": {
+              "outcome_type": "procedural",
+              "linked_claim_id": null
+            },
+            "source_quote": ""
+          },
+          {
+            "predicted_id": "legal_outcome:8e3e2211",
+            "name": "HP Action court order",
+            "type": "LEGAL_OUTCOME",
+            "description": "Most HP Actions end with landlord signing an order to correct violations listed on inspection report.",
+            "type_specific_fields": {
+              "outcome_type": "procedural",
+              "linked_claim_id": null
+            },
+            "source_quote": ""
+          },
+          {
+            "predicted_id": "legal_outcome:18c36135",
+            "name": "HPD repair order",
+            "type": "LEGAL_OUTCOME",
+            "description": "In extreme cases, judge can order HPD to do repairs and bill landlord.",
+            "type_specific_fields": {
+              "outcome_type": "procedural",
+              "linked_claim_id": null
+            },
+            "source_quote": ""
+          },
+          {
+            "predicted_id": "legal_outcome:976199b0",
+            "name": "Retaliation protection order",
+            "type": "LEGAL_OUTCOME",
+            "description": "Courts can give tenant a new lease for a year if landlord refuses to renew lease or gives significant rent increase within a year of repair request.",
+            "type_specific_fields": {
+              "outcome_type": "procedural",
+              "linked_claim_id": null
+            },
+            "source_quote": ""
+          }
+        ],
+        "relationships": [
+          {
+            "from": "",
+            "to": "",
+            "type": "HAS_EVIDENCE"
+          },
+          {
+            "from": "",
+            "to": "",
+            "type": "HAS_EVIDENCE"
+          },
+          {
+            "from": "",
+            "to": "",
+            "type": "HAS_EVIDENCE"
+          },
+          {
+            "from": "",
+            "to": "",
+            "type": "HAS_EVIDENCE"
+          },
+          {
+            "from": "",
+            "to": "",
+            "type": "HAS_EVIDENCE"
+          },
+          {
+            "from": "",
+            "to": "",
+            "type": "HAS_EVIDENCE"
+          },
+          {
+            "from": "",
+            "to": "",
+            "type": "HAS_EVIDENCE"
+          },
+          {
+            "from": "",
+            "to": "",
+            "type": "HAS_EVIDENCE"
+          },
+          {
+            "from": "",
+            "to": "",
+            "type": "HAS_EVIDENCE"
+          },
+          {
+            "from": "",
+            "to": "",
+            "type": "HAS_EVIDENCE"
+          },
+          {
+            "from": "",
+            "to": "",
+            "type": "HAS_EVIDENCE"
+          },
+          {
+            "from": "",
+            "to": "",
+            "type": "HAS_EVIDENCE"
+          },
+          {
+            "from": "",
+            "to": "",
+            "type": "SUPPORTS"
+          },
+          {
+            "from": "",
+            "to": "",
+            "type": "SUPPORTS"
+          },
+          {
+            "from": "",
+            "to": "",
+            "type": "SUPPORTS"
+          },
+          {
+            "from": "",
+            "to": "",
+            "type": "SUPPORTS"
+          },
+          {
+            "from": "",
+            "to": "",
+            "type": "SUPPORTS"
+          },
+          {
+            "from": "",
+            "to": "",
+            "type": "SUPPORTS"
+          },
+          {
+            "from": "",
+            "to": "",
+            "type": "SUPPORTS"
+          },
+          {
+            "from": "",
+            "to": "",
+            "type": "IMPLY"
+          },
+          {
+            "from": "",
+            "to": "",
+            "type": "IMPLY"
+          },
+          {
+            "from": "",
+            "to": "",
+            "type": "IMPLY"
+          },
+          {
+            "from": "",
+            "to": "",
+            "type": "IMPLY"
+          },
+          {
+            "from": "",
+            "to": "",
+            "type": "RESOLVE"
+          },
+          {
+            "from": "",
+            "to": "",
+            "type": "RESOLVE"
+          },
+          {
+            "from": "",
+            "to": "",
+            "type": "RESOLVE"
+          },
+          {
+            "from": "",
+            "to": "",
+            "type": "RESOLVE"
+          }
+        ]
+      },
+      "section_b": {
+        "chunk_index": 0,
+        "predicted_chunk_id": "c64d97aaf30e1e33:0",
+        "entities_mentioned": [
+          "legal_claim:eb62fb06",
+          "legal_claim:ca985fec",
+          "legal_claim:6db08b71",
+          "legal_claim:aad205d0",
+          "legal_claim:e643f848",
+          "evidence:19e65440",
+          "evidence:47d21227",
+          "evidence:52377bdc",
+          "evidence:bcac458c",
+          "evidence:6dc69b8d",
+          "evidence:a96afedb",
+          "evidence:ffa4838a",
+          "evidence:6452b78f",
+          "evidence:2e272db0",
+          "legal_outcome:60c762d4",
+          "legal_outcome:8e3e2211",
+          "legal_outcome:18c36135",
+          "legal_outcome:976199b0"
+        ],
+        "qdrant_metadata": {
+          "chunk_index": 0,
+          "document_type": "guide",
+          "authority": "advisory",
+          "entity_ids": [
+            "legal_claim:eb62fb06",
+            "legal_claim:ca985fec",
+            "legal_claim:6db08b71",
+            "legal_claim:aad205d0",
+            "legal_claim:e643f848",
+            "evidence:19e65440",
+            "evidence:47d21227",
+            "evidence:52377bdc",
+            "evidence:bcac458c",
+            "evidence:6dc69b8d",
+            "evidence:a96afedb",
+            "evidence:ffa4838a",
+            "evidence:6452b78f",
+            "evidence:2e272db0",
+            "legal_outcome:60c762d4",
+            "legal_outcome:8e3e2211",
+            "legal_outcome:18c36135",
+            "legal_outcome:976199b0"
+          ]
+        },
+        "chunk_text_preview": "Getting Repairs - Met Council on Housing Skip to content The Basics of Getting RepairsThe laws and regulations of New York require that your landlord maintain essential services in your building and apartment and that they make prompt repairs. However, to enforce these laws you must take action \u2013 no"
+      },
+      "_debug_raw_response": "```json\n{\n    \"claims\": [\n        {\n            \"id\": \"claim_1\",\n            \"name\": \"Landlord's failure to maintain essential services\",\n            \"description\": \"The landlord has failed to maintain essential services in the building and apartment and make prompt repairs as required by New York laws and regulations.\",\n            \"claimant\": \"Tenant(s)\",\n            \"respondent\": \"Landlord\",\n            \"relief_sought\": [\"Repairs made\", \"Rent reduction\", \"Rent freeze\", \"Injunctive relief\"],\n            \"status\": \"asserted\"\n        },\n        {\n            \"id\": \"claim_2\",\n            \"name\": \"Right to rent reduction for decreased services\",\n            \"description\": \"Tenant in rent-stabilized or rent-controlled apartment is entitled to a rent reduction and rent freeze due to landlord's failure to provide services.\",\n            \"claimant\": \"Rent-regulated tenant\",\n            \"respondent\": \"Landlord\",\n            \"relief_sought\": [\"Rent reduction\", \"Rent freeze\"],\n            \"status\": \"asserted\"\n        },\n        {\n            \"id\": \"claim_3\",\n            \"name\": \"Right to withhold rent for lack of repairs\",\n            \"description\": \"Tenant has right to withhold rent and may be entitled to rent abatement for landlord's failure to provide repairs or essential services.\",\n            \"claimant\": \"Tenant\",\n            \"respondent\": \"Landlord\",\n            \"relief_sought\": [\"Rent abatement\", \"Permission to withhold rent\"],\n            \"status\": \"asserted\"\n        },\n        {\n            \"id\": \"claim_4\",\n            \"name\": \"Retaliatory eviction\",\n            \"description\": \"Landlord's refusal to renew lease or significant rent increase within a year of tenant requesting repairs constitutes retaliation.\",\n            \"claimant\": \"Non-rent-regulated tenant\",\n            \"respondent\": \"Landlord\",\n            \"relief_sought\": [\"New lease for one year\"],\n            \"status\": \"asserted\"\n        },\n        {\n            \"id\": \"claim_5\",\n            \"name\": \"Landlord'"
+    }
+  ]
+}

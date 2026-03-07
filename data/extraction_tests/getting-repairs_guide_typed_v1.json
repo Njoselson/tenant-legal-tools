@@ -1,0 +1,361 @@
+{
+  "meta": {
+    "url": "https://www.metcouncilonhousing.org/help-answers/getting-repairs/",
+    "document_type": "guide",
+    "prompt_type": "typed",
+    "chunks_processed": 1,
+    "total_chunks": 1,
+    "source_hash": "c64d97aaf30e1e33",
+    "timestamp": "2026-03-04T17:28:11.218321Z"
+  },
+  "results_per_chunk": [
+    {
+      "section_a": {
+        "entities": [
+          {
+            "predicted_id": "legal_claim:65e6457c",
+            "name": "HP Action for Repairs and Services",
+            "type": "LEGAL_CLAIM",
+            "description": "Tenants may start a lawsuit against their landlords based on the landlord's failure to make repairs or provide essential services.",
+            "type_specific_fields": {
+              "claim_type": "HP_ACTION_REPAIRS",
+              "relief_sought": [
+                "Repairs ordered",
+                "Essential services restored"
+              ]
+            },
+            "source_quote": ""
+          },
+          {
+            "predicted_id": "legal_claim:b32d277b",
+            "name": "Rent Reduction for Decreased Services",
+            "type": "LEGAL_CLAIM",
+            "description": "Tenants in rent-stabilized or rent-controlled apartments can file for a rent reduction based on decreased services.",
+            "type_specific_fields": {
+              "claim_type": "RENT_STABILIZATION_VIOLATION",
+              "relief_sought": [
+                "Rent reduction",
+                "Rent freeze"
+              ]
+            },
+            "source_quote": ""
+          },
+          {
+            "predicted_id": "legal_claim:cf3f48a5",
+            "name": "Retaliatory Eviction Defense",
+            "type": "LEGAL_CLAIM",
+            "description": "If a landlord refuses to renew a lease or gives a significant rent increase within a year of a repair request, it could be considered retaliation.",
+            "type_specific_fields": {
+              "claim_type": "RETALIATORY_EVICTION",
+              "relief_sought": [
+                "New lease for a year"
+              ]
+            },
+            "source_quote": ""
+          },
+          {
+            "predicted_id": "legal_claim:ce602371",
+            "name": "Breach of Warranty of Habitability",
+            "type": "LEGAL_CLAIM",
+            "description": "Tenants have a right to withhold rent and may be entitled to a rent abatement if they can document not getting repairs or essential services.",
+            "type_specific_fields": {
+              "claim_type": "BREACH_OF_WARRANTY_OF_HABITABILITY",
+              "relief_sought": [
+                "Rent abatement",
+                "Rent withholding"
+              ]
+            },
+            "source_quote": ""
+          },
+          {
+            "predicted_id": "evidence:19e65440",
+            "name": "Written Letter to Landlord",
+            "type": "EVIDENCE",
+            "description": "A letter listing all problems and history of previous attempts to get them solved, sent by certified mail, return receipt requested.",
+            "type_specific_fields": {
+              "evidence_context": "recommended",
+              "is_critical": true,
+              "linked_claim_id": "legal_claim:b32d277b"
+            },
+            "source_quote": "You must send the letter by certified mail, return receipt requested, and keep a copy of the letter, along with proof of mailing and the receipt, when it arrives, with your copy of the letter (along with the Tenants\u2019 Inspection Checklist, if applicable) to show the HCR or a Housing Court judge, if you wind up going to court."
+          },
+          {
+            "predicted_id": "evidence:cc61b391",
+            "name": "Tenants\u2019 Inspection Checklist",
+            "type": "EVIDENCE",
+            "description": "A checklist to document all problems in the apartment and building to ensure nothing is left out of the initial written communication.",
+            "type_specific_fields": {
+              "evidence_context": "recommended",
+              "is_critical": false,
+              "linked_claim_id": "legal_claim:65e6457c"
+            },
+            "source_quote": "you may want to download and print our Tenants\u2019 Inspection Checklist/Lista de verificaci\u00f3n de la inspecci\u00f3n de los inquilinos (\u516c\u5bd3\u5c45\u4f4f\u689d\u4ef6\u8abf\u67e5\u554f\u5377) and use it as a guide so that you don\u2019t leave anything out."
+          },
+          {
+            "predicted_id": "evidence:6dc69b8d",
+            "name": "Photos of Violations",
+            "type": "EVIDENCE",
+            "description": "Pictures of any violations that can be seen, to be taken to court as evidence.",
+            "type_specific_fields": {
+              "evidence_context": "recommended",
+              "is_critical": false,
+              "linked_claim_id": "legal_claim:65e6457c"
+            },
+            "source_quote": "Take new pictures of any violations that can be seen."
+          },
+          {
+            "predicted_id": "evidence:6d716382",
+            "name": "HPD Violation List",
+            "type": "EVIDENCE",
+            "description": "Printout of the list of violations for the building and apartment from HPD's website.",
+            "type_specific_fields": {
+              "evidence_context": "recommended",
+              "is_critical": false,
+              "linked_claim_id": "legal_claim:65e6457c"
+            },
+            "source_quote": "Print out the list of violations for your building and apartment from HPD\u2019s website: nyc.gov/hpd."
+          },
+          {
+            "predicted_id": "evidence:f8b3b464",
+            "name": "Proof of Mailings",
+            "type": "EVIDENCE",
+            "description": "Proof of mailing letters to the landlord, such as certified mail receipts.",
+            "type_specific_fields": {
+              "evidence_context": "recommended",
+              "is_critical": false,
+              "linked_claim_id": "legal_claim:65e6457c"
+            },
+            "source_quote": "Take to court all the evidence you have to prove your case: letters, proof of mailings, photos, heat logs, notices from your landlord, and witnesses, if necessary."
+          },
+          {
+            "predicted_id": "evidence:faa4a77e",
+            "name": "City Agency Violation Report",
+            "type": "EVIDENCE",
+            "description": "A copy of a violation report from a city agency (like HPD) for issues like no heat or hot water, required to file with HCR.",
+            "type_specific_fields": {
+              "evidence_context": "required",
+              "is_critical": true,
+              "linked_claim_id": "legal_claim:b32d277b"
+            },
+            "source_quote": "If the problem is no heat or hot water, you can file once you have a copy of a violation report from a city agency."
+          },
+          {
+            "predicted_id": "legal_procedure:cded73d7",
+            "name": "Filing an HP Action in Housing Court",
+            "type": "LEGAL_PROCEDURE",
+            "description": "Step-by-step process for tenants to sue their landlord in Housing Court for failure to make repairs.",
+            "type_specific_fields": {
+              "steps": [
+                "Go to the Housing Court in your borough and ask for paperwork to start a Housing Part (HP) Action.",
+                "Get help filling out forms at clerks\u2019 windows, Court Help Center, or Housing Court Answers.",
+                "File the forms with the clerk (fee may be waived for low income).",
+                "You will be given a court date and an inspection date.",
+                "Serve your landlord and the city with a copy of the papers as instructed by the clerk.",
+                "Be at home on the inspection date and return to court on the specified date."
+              ]
+            },
+            "source_quote": ""
+          },
+          {
+            "predicted_id": "legal_procedure:b754bc54",
+            "name": "Filing a Complaint with City Agencies via 311",
+            "type": "LEGAL_PROCEDURE",
+            "description": "Process for filing a complaint with city housing, building, and health code enforcement agencies.",
+            "type_specific_fields": {
+              "steps": [
+                "Call 311 (or 212\u2010639\u20109675 from outside NYC).",
+                "Request an inspection from the relevant department (HPD, DOB, DOH, DEP).",
+                "Always ask for and get the complaint number.",
+                "Call a local elected official to help with follow-up if needed.",
+                "For building-wide conditions, encourage all tenants to call every day until fixed."
+              ]
+            },
+            "source_quote": ""
+          },
+          {
+            "predicted_id": "legal_procedure:9c2dc85e",
+            "name": "Applying for Rent Reduction with HCR",
+            "type": "LEGAL_PROCEDURE",
+            "description": "Process for rent-stabilized/controlled tenants to file for a rent reduction due to decreased services.",
+            "type_specific_fields": {
+              "steps": [
+                "Write a letter to the landlord complaining about the problem and send by certified mail, return receipt requested.",
+                "Wait 10 days (but no more than 60 days) after sending the letter.",
+                "File complaint with HCR using form RA-81 (individual) or RA-84 (tenant group), available online or by calling 833-499-0343.",
+                "For no heat/hot water, file once you have a city agency violation report."
+              ]
+            },
+            "source_quote": ""
+          },
+          {
+            "predicted_id": "legal_outcome:57311431",
+            "name": "Court Order to Correct Violations",
+            "type": "LEGAL_OUTCOME",
+            "description": "Most HP Actions end with the landlord signing an order to correct violations listed on the inspection report, with arrangements for access dates.",
+            "type_specific_fields": {
+              "outcome_type": "injunctive",
+              "linked_claim_id": "legal_claim:65e6457c"
+            },
+            "source_quote": ""
+          },
+          {
+            "predicted_id": "legal_outcome:a2594820",
+            "name": "HPD Ordered Repairs",
+            "type": "LEGAL_OUTCOME",
+            "description": "In extreme cases where a landlord repeatedly ignores court orders, a judge can order HPD to do the repairs and bill the landlord.",
+            "type_specific_fields": {
+              "outcome_type": "injunctive",
+              "linked_claim_id": "legal_claim:65e6457c"
+            },
+            "source_quote": ""
+          },
+          {
+            "predicted_id": "legal_outcome:934dee0c",
+            "name": "HCR Rent Reduction and Freeze",
+            "type": "LEGAL_OUTCOME",
+            "description": "HCR has the power to order a rent reduction and rent freeze for rent-regulated apartments until the landlord fixes the problem.",
+            "type_specific_fields": {
+              "outcome_type": "monetary",
+              "linked_claim_id": "legal_claim:b32d277b"
+            },
+            "source_quote": ""
+          },
+          {
+            "predicted_id": "legal_outcome:393af146",
+            "name": "Rent Abatement",
+            "type": "LEGAL_OUTCOME",
+            "description": "Tenants may be entitled to a reduction in the amount of rent owed (rent abatement) if they can document not getting repairs or essential services.",
+            "type_specific_fields": {
+              "outcome_type": "monetary",
+              "linked_claim_id": "legal_claim:ce602371"
+            },
+            "source_quote": ""
+          },
+          {
+            "predicted_id": "law:8e94af89",
+            "name": "New York Housing Maintenance Laws",
+            "type": "LAW",
+            "description": "Laws and regulations of New York require that landlords maintain essential services and make prompt repairs.",
+            "type_specific_fields": {
+              "citation": ""
+            },
+            "source_quote": ""
+          }
+        ],
+        "relationships": [
+          {
+            "from": "law:8e94af89",
+            "to": "legal_claim:65e6457c",
+            "type": "enables"
+          },
+          {
+            "from": "law:8e94af89",
+            "to": "legal_claim:ce602371",
+            "type": "enables"
+          },
+          {
+            "from": "legal_claim:65e6457c",
+            "to": "evidence:19e65440",
+            "type": "requires"
+          },
+          {
+            "from": "legal_claim:65e6457c",
+            "to": "evidence:6dc69b8d",
+            "type": "requires"
+          },
+          {
+            "from": "legal_claim:65e6457c",
+            "to": "evidence:6d716382",
+            "type": "requires"
+          },
+          {
+            "from": "legal_claim:65e6457c",
+            "to": "evidence:f8b3b464",
+            "type": "requires"
+          },
+          {
+            "from": "legal_claim:b32d277b",
+            "to": "evidence:19e65440",
+            "type": "requires"
+          },
+          {
+            "from": "legal_claim:b32d277b",
+            "to": "evidence:faa4a77e",
+            "type": "requires"
+          },
+          {
+            "from": "legal_procedure:cded73d7",
+            "to": "legal_outcome:57311431",
+            "type": "results_in"
+          },
+          {
+            "from": "legal_procedure:cded73d7",
+            "to": "legal_outcome:a2594820",
+            "type": "results_in"
+          },
+          {
+            "from": "legal_procedure:9c2dc85e",
+            "to": "legal_outcome:934dee0c",
+            "type": "results_in"
+          },
+          {
+            "from": "law:8e94af89",
+            "to": "legal_outcome:393af146",
+            "type": "authorizes"
+          }
+        ]
+      },
+      "section_b": {
+        "chunk_index": 0,
+        "predicted_chunk_id": "c64d97aaf30e1e33:0",
+        "entities_mentioned": [
+          "legal_claim:65e6457c",
+          "legal_claim:b32d277b",
+          "legal_claim:cf3f48a5",
+          "legal_claim:ce602371",
+          "evidence:19e65440",
+          "evidence:cc61b391",
+          "evidence:6dc69b8d",
+          "evidence:6d716382",
+          "evidence:f8b3b464",
+          "evidence:faa4a77e",
+          "legal_procedure:cded73d7",
+          "legal_procedure:b754bc54",
+          "legal_procedure:9c2dc85e",
+          "legal_outcome:57311431",
+          "legal_outcome:a2594820",
+          "legal_outcome:934dee0c",
+          "legal_outcome:393af146",
+          "law:8e94af89"
+        ],
+        "qdrant_metadata": {
+          "chunk_index": 0,
+          "document_type": "guide",
+          "authority": "advisory",
+          "entity_ids": [
+            "legal_claim:65e6457c",
+            "legal_claim:b32d277b",
+            "legal_claim:cf3f48a5",
+            "legal_claim:ce602371",
+            "evidence:19e65440",
+            "evidence:cc61b391",
+            "evidence:6dc69b8d",
+            "evidence:6d716382",
+            "evidence:f8b3b464",
+            "evidence:faa4a77e",
+            "legal_procedure:cded73d7",
+            "legal_procedure:b754bc54",
+            "legal_procedure:9c2dc85e",
+            "legal_outcome:57311431",
+            "legal_outcome:a2594820",
+            "legal_outcome:934dee0c",
+            "legal_outcome:393af146",
+            "law:8e94af89"
+          ]
+        },
+        "chunk_text_preview": "Getting Repairs - Met Council on Housing Skip to content The Basics of Getting RepairsThe laws and regulations of New York require that your landlord maintain essential services in your building and apartment and that they make prompt repairs. However, to enforce these laws you must take action \u2013 no"
+      },
+      "_debug_raw_response": "```json\n{\n    \"claims\": [\n        {\n            \"id\": \"c1\",\n            \"name\": \"HP Action for Repairs and Services\",\n            \"claim_type\": \"HP_ACTION_REPAIRS\",\n            \"description\": \"Tenants may start a lawsuit against their landlords based on the landlord's failure to make repairs or provide essential services.\",\n            \"relief_sought\": [\"Repairs ordered\", \"Essential services restored\"]\n        },\n        {\n            \"id\": \"c2\",\n            \"name\": \"Rent Reduction for Decreased Services\",\n            \"claim_type\": \"RENT_STABILIZATION_VIOLATION\",\n            \"description\": \"Tenants in rent-stabilized or rent-controlled apartments can file for a rent reduction based on decreased services.\",\n            \"relief_sought\": [\"Rent reduction\", \"Rent freeze\"]\n        },\n        {\n            \"id\": \"c3\",\n            \"name\": \"Retaliatory Eviction Defense\",\n            \"claim_type\": \"RETALIATORY_EVICTION\",\n            \"description\": \"If a landlord refuses to renew a lease or gives a significant rent increase within a year of a repair request, it could be considered retaliation.\",\n            \"relief_sought\": [\"New lease for a year\"]\n        },\n        {\n            \"id\": \"c4\",\n            \"name\": \"Breach of Warranty of Habitability\",\n            \"claim_type\": \"BREACH_OF_WARRANTY_OF_HABITABILITY\",\n            \"description\": \"Tenants have a right to withhold rent and may be entitled to a rent abatement if they can document not getting repairs or essential services.\",\n            \"relief_sought\": [\"Rent abatement\", \"Rent withholding\"]\n        }\n    ],\n    \"evidence\": [\n        {\n            \"id\": \"e1\",\n            \"name\": \"Written Letter to Landlord\",\n            \"description\": \"A letter listing all problems and history of previous attempts to get them solved, sent by certified mail, return receipt requested.\",\n            \"is_critical\": true,\n            \"evidence_context\": \"recommended\",\n            \"linked_claim_id\": \"c2\",\n            \"source_quote\": \"You must"
+    }
+  ]
+}

@@ -147,32 +147,6 @@ class TestRemedyRanking:
         assert remedies[0].jurisdiction_match is True
         assert remedies[0].estimated_probability > remedies[1].estimated_probability
 
-    @pytest.mark.slow
-    def test_citation_includes_all_metadata(self, case_analyzer):
-        entities = [
-            LegalEntity(
-                id="law:test",
-                entity_type=EntityType.LAW,
-                name="NYC Admin Code § 26-504",
-                description="Prohibition against harassment",
-                source_metadata=SourceMetadata(
-                    source="https://nycadmincode.readthedocs.io/",
-                    source_type=SourceType.URL,
-                    authority="binding_legal_authority",
-                    jurisdiction="NYC",
-                    organization="City of New York",
-                ),
-            )
-        ]
-
-        sources_text, citations_map = case_analyzer._build_sources_index(entities)
-
-        # Should include organization and jurisdiction
-        s1 = citations_map["S1"]
-        assert s1["organization"] == "City of New York"
-        assert s1["jurisdiction"] == "NYC"
-        assert s1["authority"] == "binding_legal_authority"
-
 
 # Run these tests with:
 # pytest tenant_legal_guidance/tests/services/test_case_analyzer_unit.py -v

@@ -69,6 +69,7 @@ class ExtractedOutcome:
     description: str
     decision_maker: str | None = None
     linked_claim_ids: list[str] = field(default_factory=list)
+    source_quote: str | None = None
 
 
 @dataclass
@@ -644,6 +645,7 @@ class ClaimExtractor:
                 description=out_data.get("description", ""),
                 decision_maker=out_data.get("decision_maker"),
                 linked_claim_ids=linked_claims,
+                source_quote=out_data.get("source_quote"),
             )
             result.outcomes.append(outcome)
 
@@ -661,11 +663,14 @@ class ClaimExtractor:
                 "source_quote": proc_data.get("source_quote", ""),
             })
 
-        # Parse laws
+        # Parse laws — use citation as hash key when available so "RPL § 235-b"
+        # from a statute and "Warranty of Habitability (RPL § 235-b)" from a case
+        # both map to the same entity ID.
         for i, law_data in enumerate(data.get("laws", [])):
             orig_id = law_data.get("id", f"law_{i}")
             name = law_data.get("name", f"Law {i + 1}")
-            our_id = self._make_entity_id("law", name)
+            key_text = law_data.get("citation") or name
+            our_id = self._make_entity_id("law", key_text)
             law_id_map[orig_id] = our_id
             result.laws.append({
                 "id": our_id,

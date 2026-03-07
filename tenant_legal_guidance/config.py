@@ -35,6 +35,11 @@ class AppSettings(BaseSettings):
 
     # DeepSeek / LLM
     deepseek_api_key: str = Field(default="", alias="DEEPSEEK_API_KEY")
+    max_concurrent_llm: int = Field(
+        default=10,
+        alias="MAX_CONCURRENT_LLM",
+        description="Maximum concurrent LLM requests (prevents 429 rate limits)",
+    )
 
     # ArangoDB
     arango_host: str = Field(default="http://localhost:8529", alias="ARANGO_HOST")

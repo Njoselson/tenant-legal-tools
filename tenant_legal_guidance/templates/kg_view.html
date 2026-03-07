@@ -19,9 +19,16 @@
              color: #2c3e50;
              margin-top: 0;
         }
+        .page-wrapper {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            width: 100%;
+        }
         .container {
             display: flex;
-            height: 100vh; /* Full viewport height */
+            flex: 1;
+            min-height: 0; /* Allow flex children to shrink below content size */
             width: 100%;
         }
         #graph-container {
@@ -46,9 +53,11 @@
             padding: 15px;
             border-radius: 8px;
             margin-bottom: 20px;
-            flex-shrink: 0; /* Prevent shrinking */
-            max-height: 40%; /* Limit details panel height */
-            overflow-y: auto; /* Scroll if content overflows */
+            flex-shrink: 1;
+            min-height: 60px;
+            max-height: 50%;
+            overflow-y: auto;
+            transition: none; /* No layout transitions that cause flicker */
         }
         #details-panel h3 {
              margin-bottom: 10px;
@@ -126,24 +135,20 @@
               background-color: #27ae60;
          }
          nav {
-             position: absolute; /* Position nav on top */
-             top: 0;
-             left: 0;
-             width: 100%;
-             background: rgba(52, 73, 94, 0.85); /* Semi-transparent dark */
-             padding: 8px 0;
+             background: #2c3e50;
+             padding: 10px 0;
              text-align: center;
-             z-index: 10; /* Ensure nav is above graph */
+             flex-shrink: 0;
          }
          nav a {
-             color: white;
+             color: #ecf0f1;
              text-decoration: none;
              margin: 0 15px;
              font-weight: bold;
              font-size: 0.9em;
          }
          nav a:hover {
-             text-decoration: underline;
+             color: #3498db;
          }
 
         /* Actions panel */
@@ -188,12 +193,11 @@
     </style>
 </head>
 <body>
+    <div class="page-wrapper">
     <nav>
-        <a href="/">Consultation Analyzer</a>
+        <a href="/">Home</a>
+        <a href="/kg-view">KG View</a>
         <a href="/kg-input">KG Input</a>
-        <a href="/kg-view">KG Viewer</a>
-        <a href="/qdrant-view">Qdrant View</a>
-        <a href="/context-builder">Context Builder</a>
     </nav>
     <div class="container">
         <div id="graph-container"></div>
@@ -211,7 +215,6 @@
                     </div>
                     <div class="actions-row">
                         <button id="load-more-btn" class="action-btn">Load More</button>
-                        <button id="add-to-context-btn" class="action-btn" disabled style="background-color: #28a745; color: white;">Add to Context</button>
                     </div>
                     <div class="actions-row" style="margin-top:8px;">
                         <input id="filter-q" placeholder="Search..." style="flex:1; padding:6px; border:1px solid #ced4da; border-radius:6px; font-size:0.9em;" />
@@ -249,6 +252,7 @@
             </div>
         </div>
     </div>
+    </div>
 
     <script type="text/javascript">
         const graphContainer = document.getElementById('graph-container');
@@ -260,8 +264,6 @@
         const expandBtn = document.getElementById('expand-btn');
         const consolidateBtn = document.getElementById('consolidate-btn');
         const consolidateAllBtn = document.getElementById('consolidate-all-btn');
-        const addToContextBtn = document.getElementById('add-to-context-btn');
-
         let network = null;
         let graphData = { nodes: [], edges: [] }; // raw arrays
         let nodesDs = null; // vis DataSet for nodes
@@ -692,116 +694,109 @@
                  detailsHtml += `</ul>`;
             }
             
-            // Don't display quote inline - it will be loaded asynchronously via API
-            detailsPanel.innerHTML = detailsHtml;
-            
-            // Load chunks and quotes asynchronously
-            await loadEntityChunks(data.id);
-            await loadEntityQuote(data.id);
-        }
-        
-        async function loadEntityChunks(entityId) {
-            try {
-                const response = await fetch(`/api/entities/${encodeURIComponent(entityId)}/chunks`);
-                if (!response.ok) {
-                    console.log(`Failed to load chunks for ${entityId}`);
-                    return;
+            // Show entity details immediately, then load chunks/quotes
+            detailsPanel.innerHTML = detailsHtml + '<div id="async-details"><p style="color:#7f8c8d; font-size:0.85em;">Loading chunks & quotes...</p></div>';
+
+            // Fetch chunks and quotes in parallel, then update once
+            const entityId = data.id;
+            const [chunksHtml, quotesHtml] = await Promise.all([
+                buildEntityChunksHtml(entityId),
+                buildEntityQuoteHtml(entityId)
+            ]);
+
+            // Only update if we're still showing the same entity
+            const asyncDiv = detailsPanel.querySelector('#async-details');
+            if (asyncDiv) {
+                if (chunksHtml || quotesHtml) {
+                    asyncDiv.innerHTML = (chunksHtml || '') + (quotesHtml || '');
+                } else {
+                    asyncDiv.remove();
                 }
-                const data = await response.json();
-                
-                // Check if chunks section already exists (prevent duplicates on re-selection)
-                if (detailsPanel.querySelector('.entity-chunks-section')) {
-                    console.log('Chunks already loaded for this entity');
-                    return;
-                }
-                
-                if (data.chunks && data.chunks.length > 0) {
-                    let chunksHtml = `<div class="entity-chunks-section">`;
-                    chunksHtml += `<p><strong>📄 Vectors/Chunks (${data.chunk_count}):</strong></p>`;
-                    chunksHtml += `<div style="max-height:200px; overflow-y:auto; padding:8px; background:#fff; border:1px solid #ddd; border-radius:6px; margin:8px 0;">`;
-                    
-                    data.chunks.slice(0, 5).forEach(chunk => {
-                        chunksHtml += `<div style="border-bottom:1px solid #eee; padding:6px 0; margin-bottom:6px;">`;
-                        // Make chunk ID clickable to view chunk details
-                        const chunkId = escapeHtml(chunk.chunk_id || 'N/A');
-                        chunksHtml += `<a href="#" onclick="viewChunkDetails('${chunkId}'); return false;" style="color:#3498db; text-decoration:none; font-weight:600;">📄 ${chunkId}</a>`;
-                        if (chunk.doc_title) {
-                            chunksHtml += `<br><span style="font-size:0.85em; color:#888;">${escapeHtml(chunk.doc_title)}</span>`;
-                        }
-                        if (chunk.text_preview) {
-                            chunksHtml += `<p style="font-size:0.85em; color:#444; margin:4px 0; font-style:italic;">${escapeHtml(chunk.text_preview)}</p>`;
-                        }
-                        chunksHtml += `</div>`;
-                    });
-                    
-                    if (data.chunks.length > 5) {
-                        chunksHtml += `<p style="font-size:0.85em; color:#666;">… and ${data.chunks.length - 5} more chunks</p>`;
-                    }
-                    chunksHtml += `</div></div>`;
-                    
-                    detailsPanel.innerHTML += chunksHtml;
-                }
-            } catch (error) {
-                console.error(`Error loading chunks for ${entityId}:`, error);
             }
         }
         
-        async function loadEntityQuote(entityId) {
+        async function buildEntityChunksHtml(entityId) {
+            try {
+                const response = await fetch(`/api/entities/${encodeURIComponent(entityId)}/chunks`);
+                if (!response.ok) return '';
+                const data = await response.json();
+
+                if (!data.chunks || data.chunks.length === 0) return '';
+
+                let html = `<div class="entity-chunks-section">`;
+                html += `<p><strong>Vectors/Chunks (${data.chunk_count}):</strong></p>`;
+                html += `<div style="max-height:200px; overflow-y:auto; padding:8px; background:#fff; border:1px solid #ddd; border-radius:6px; margin:8px 0;">`;
+
+                data.chunks.slice(0, 5).forEach(chunk => {
+                    const chunkId = escapeHtml(chunk.chunk_id || 'N/A');
+                    html += `<div style="border-bottom:1px solid #eee; padding:6px 0; margin-bottom:6px;">`;
+                    html += `<a href="#" onclick="viewChunkDetails('${chunkId}'); return false;" style="color:#3498db; text-decoration:none; font-weight:600;">${chunkId}</a>`;
+                    if (chunk.doc_title) {
+                        html += `<br><span style="font-size:0.85em; color:#888;">${escapeHtml(chunk.doc_title)}</span>`;
+                    }
+                    if (chunk.text_preview) {
+                        html += `<p style="font-size:0.85em; color:#444; margin:4px 0; font-style:italic;">${escapeHtml(chunk.text_preview)}</p>`;
+                    }
+                    html += `</div>`;
+                });
+
+                if (data.chunks.length > 5) {
+                    html += `<p style="font-size:0.85em; color:#666;">... and ${data.chunks.length - 5} more chunks</p>`;
+                }
+                html += `</div></div>`;
+                return html;
+            } catch (error) {
+                console.error(`Error loading chunks for ${entityId}:`, error);
+                return '';
+            }
+        }
+        
+        async function buildEntityQuoteHtml(entityId) {
             try {
                 const response = await fetch(`/api/entities/${encodeURIComponent(entityId)}/quote`);
-                if (!response.ok) {
-                    console.log(`Failed to load quote for ${entityId}`);
-                    return;
-                }
+                if (!response.ok) return '';
                 const data = await response.json();
-                
-                // Check if quote section already exists (prevent duplicates on re-selection)
-                if (detailsPanel.querySelector('.entity-quote-section')) {
-                    console.log('Quote already loaded for this entity');
-                    return;
+
+                if (!data.best_quote || !data.best_quote.text) return '';
+
+                let html = `<div class="entity-quote-section">`;
+                html += `<p><strong>Best Quote:</strong></p>`;
+                html += `<div style="padding:10px; background:#fff3cd; border-left:3px solid #ffc107; margin:8px 0; border-radius:4px;">`;
+                html += `<p style="font-style:italic; margin:0; color:#856404;">"${escapeHtml(data.best_quote.text)}"</p>`;
+                if (data.best_quote.explanation) {
+                    html += `<p style="font-size:0.85em; color:#856404; margin:4px 0 0 0;">${escapeHtml(data.best_quote.explanation)}</p>`;
                 }
-                
-                if (data.best_quote && data.best_quote.text) {
-                    let quoteHtml = `<div class="entity-quote-section">`;
-                    quoteHtml += `<p><strong>Best Quote:</strong></p>`;
-                    quoteHtml += `<div style="padding:10px; background:#fff3cd; border-left:3px solid #ffc107; margin:8px 0; border-radius:4px;">`;
-                    quoteHtml += `<p style="font-style:italic; margin:0; color:#856404;">"${escapeHtml(data.best_quote.text)}"</p>`;
-                    if (data.best_quote.explanation) {
-                        quoteHtml += `<p style="font-size:0.85em; color:#856404; margin:4px 0 0 0;">${escapeHtml(data.best_quote.explanation)}</p>`;
-                    }
-                    if (data.best_quote.source_id) {
-                        quoteHtml += `<p style="font-size:0.85em; color:#856404; margin:4px 0 0 0;"><strong>Source:</strong> <code>${escapeHtml(String(data.best_quote.source_id))}</code></p>`;
-                    }
-                    if (data.best_quote.chunk_id) {
-                        quoteHtml += `<p style="font-size:0.85em; color:#856404; margin:4px 0 0 0;"><strong>Chunk:</strong> <a href="#" onclick="viewChunkDetails('${escapeHtml(String(data.best_quote.chunk_id))}'); return false;" style="color:#3498db;">${escapeHtml(String(data.best_quote.chunk_id))}</a></p>`;
-                    }
-                    quoteHtml += `</div>`;
-                    
-                    // Show all quotes if available
-                    if (data.all_quotes && Array.isArray(data.all_quotes) && data.all_quotes.length > 1) {
-                        quoteHtml += `<p><strong>All Quotes (${data.all_quotes.length}):</strong></p>`;
-                        quoteHtml += `<div style="max-height:200px; overflow-y:auto; padding:8px; background:#fff; border:1px solid #ddd; border-radius:6px; margin:8px 0;">`;
-                        data.all_quotes.slice(0, 5).forEach((quote, idx) => {
-                            if (quote && quote.text) {
-                                quoteHtml += `<div style="border-bottom:1px solid #eee; padding:6px 0; margin-bottom:6px;">`;
-                                quoteHtml += `<p style="font-style:italic; font-size:0.9em; color:#444; margin:0;">"${escapeHtml(quote.text)}"</p>`;
-                                if (quote.source_id) {
-                                    quoteHtml += `<p style="font-size:0.8em; color:#666; margin:4px 0 0 0;">Source: <code>${escapeHtml(String(quote.source_id))}</code></p>`;
-                                }
-                                quoteHtml += `</div>`;
+                if (data.best_quote.source_id) {
+                    html += `<p style="font-size:0.85em; color:#856404; margin:4px 0 0 0;"><strong>Source:</strong> <code>${escapeHtml(String(data.best_quote.source_id))}</code></p>`;
+                }
+                if (data.best_quote.chunk_id) {
+                    html += `<p style="font-size:0.85em; color:#856404; margin:4px 0 0 0;"><strong>Chunk:</strong> <a href="#" onclick="viewChunkDetails('${escapeHtml(String(data.best_quote.chunk_id))}'); return false;" style="color:#3498db;">${escapeHtml(String(data.best_quote.chunk_id))}</a></p>`;
+                }
+                html += `</div>`;
+
+                if (data.all_quotes && Array.isArray(data.all_quotes) && data.all_quotes.length > 1) {
+                    html += `<p><strong>All Quotes (${data.all_quotes.length}):</strong></p>`;
+                    html += `<div style="max-height:200px; overflow-y:auto; padding:8px; background:#fff; border:1px solid #ddd; border-radius:6px; margin:8px 0;">`;
+                    data.all_quotes.slice(0, 5).forEach(quote => {
+                        if (quote && quote.text) {
+                            html += `<div style="border-bottom:1px solid #eee; padding:6px 0; margin-bottom:6px;">`;
+                            html += `<p style="font-style:italic; font-size:0.9em; color:#444; margin:0;">"${escapeHtml(quote.text)}"</p>`;
+                            if (quote.source_id) {
+                                html += `<p style="font-size:0.8em; color:#666; margin:4px 0 0 0;">Source: <code>${escapeHtml(String(quote.source_id))}</code></p>`;
                             }
-                        });
-                        if (data.all_quotes.length > 5) {
-                            quoteHtml += `<p style="font-size:0.85em; color:#666;">… and ${data.all_quotes.length - 5} more quotes</p>`;
+                            html += `</div>`;
                         }
-                        quoteHtml += `</div>`;
-                    } else if (data.all_quotes_count && data.all_quotes_count > 1) {
-                        quoteHtml += `<p style="font-size:0.9em; color:#666;"><strong>Note:</strong> This entity appears in ${data.all_quotes_count} source(s)</p>`;
+                    });
+                    if (data.all_quotes.length > 5) {
+                        html += `<p style="font-size:0.85em; color:#666;">... and ${data.all_quotes.length - 5} more quotes</p>`;
                     }
-                    
-                    quoteHtml += `</div>`;
-                    detailsPanel.innerHTML += quoteHtml;
+                    html += `</div>`;
+                } else if (data.all_quotes_count && data.all_quotes_count > 1) {
+                    html += `<p style="font-size:0.9em; color:#666;"><strong>Note:</strong> This entity appears in ${data.all_quotes_count} source(s)</p>`;
                 }
+
+                html += `</div>`;
+                return html;
             } catch (error) {
                 console.error(`Error loading quote for ${entityId}:`, error);
             }
@@ -1023,7 +1018,21 @@
             deleteSelectedBtn.disabled = count === 0;
             expandBtn.disabled = count === 0;
             consolidateBtn.disabled = count < 2;
-            addToContextBtn.disabled = count === 0;
+        }
+
+        // Select a node by ID and show its details (used by chunk entity links)
+        function selectNode(nodeId) {
+            const node = nodesDs ? nodesDs.get(nodeId) : null;
+            if (node && network) {
+                network.selectNodes([nodeId]);
+                selectedNodeId = nodeId;
+                selectedNodeIds = new Set([nodeId]);
+                displayNodeDetails(node);
+                network.focus(nodeId, { scale: 1.2, animation: { duration: 300 } });
+                updateActionButtons();
+            } else {
+                alert('Node not found in current view. Try loading more nodes.');
+            }
         }
 
         deleteSelectedBtn.addEventListener('click', async () => {
@@ -1042,16 +1051,6 @@
             const ids = Array.from(selectedNodeIds);
             if (ids.length < 2) return;
             await consolidateNodes(ids);
-        });
-
-        addToContextBtn.addEventListener('click', () => {
-            const ids = Array.from(selectedNodeIds);
-            if (ids.length === 0) return;
-            // Open context builder with selected entity IDs
-            const params = new URLSearchParams({
-                entity_ids: ids.join(',')
-            });
-            window.open(`/context-builder?${params.toString()}`, '_blank');
         });
 
         consolidateAllBtn.addEventListener('click', async () => {

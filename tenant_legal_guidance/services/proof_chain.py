@@ -11,6 +11,7 @@ Builds proof chains from stored legal claims, showing:
 Also handles extraction and dual storage (ArangoDB + Qdrant) for proof chain entities.
 """
 
+import asyncio
 import logging
 import time
 from dataclasses import dataclass
@@ -82,6 +83,10 @@ class ProofChain:
     # Graph-based chains from build_legal_chains (explicit graph traversal)
     graph_chains: list[dict] = None  # Chains from build_legal_chains() method
 
+    # Document-level entity IDs (populated during ingestion for chunk linking)
+    law_ids: list[str] = None
+    procedure_ids: list[str] = None
+
     def __post_init__(self):
         """Initialize default values for list fields."""
         if self.required_evidence is None:
@@ -94,6 +99,10 @@ class ProofChain:
             self.critical_gaps = []
         if self.graph_chains is None:
             self.graph_chains = []
+        if self.law_ids is None:
+            self.law_ids = []
+        if self.procedure_ids is None:
+            self.procedure_ids = []
 
 
 class ProofChainService:
@@ -728,88 +737,77 @@ class ProofChainService:
             extractor = ClaimExtractor(llm_client=self.llm_client, knowledge_graph=self.kg)
             extraction_result = await extractor.extract_full_proof_chain_single(text, metadata)
 
-            # Convert extracted entities to LegalEntity and store with dual storage
+            # Convert extracted entities to LegalEntity, then persist all in parallel
             stored_entities = {}
             storage_errors = []
 
-            # Store claims (handle partial chains - claims without outcomes are valid)
+            # Phase 1: Convert all extracted items to LegalEntity objects
+            # (Claims first — evidence conversion may reference them for claim_type lookup)
+            entity_items: list[tuple[str, object]] = []  # (id_key, entity)
+
             for claim in extraction_result.claims:
                 try:
                     entity = self._extracted_claim_to_legal_entity(claim, metadata)
-                    success = await self._persist_entity_dual(entity, chunk_ids=None)
-                    if success:
-                        stored_entities[claim.id] = entity
-                    else:
-                        storage_errors.append(f"Failed to store claim {claim.id}")
+                    stored_entities[claim.id] = entity
+                    entity_items.append((claim.id, entity))
                 except Exception as e:
-                    self.logger.warning(f"Error storing claim {claim.id}: {e}", exc_info=True)
-                    storage_errors.append(f"Error storing claim {claim.id}: {e}")
+                    self.logger.warning(f"Error converting claim {claim.id}: {e}", exc_info=True)
+                    storage_errors.append(f"Error converting claim {claim.id}: {e}")
 
-            # Store evidence (handle partial chains - evidence without claims is valid)
             for evidence in extraction_result.evidence:
                 try:
-                    # Pass stored_entities so we can look up claim_type from recently stored claims
                     entity = self._extracted_evidence_to_legal_entity(evidence, metadata, stored_entities=stored_entities)
-                    success = await self._persist_entity_dual(entity, chunk_ids=None)
-                    if success:
-                        stored_entities[evidence.id] = entity
-                    else:
-                        storage_errors.append(f"Failed to store evidence {evidence.id}")
+                    entity_items.append((evidence.id, entity))
                 except Exception as e:
-                    self.logger.warning(f"Error storing evidence {evidence.id}: {e}", exc_info=True)
-                    storage_errors.append(f"Error storing evidence {evidence.id}: {e}")
+                    self.logger.warning(f"Error converting evidence {evidence.id}: {e}", exc_info=True)
+                    storage_errors.append(f"Error converting evidence {evidence.id}: {e}")
 
-            # Store outcomes (handle partial chains - outcomes without evidence are valid)
             for outcome in extraction_result.outcomes:
                 try:
                     entity = self._extracted_outcome_to_legal_entity(outcome, metadata)
-                    success = await self._persist_entity_dual(entity, chunk_ids=None)
-                    if success:
-                        stored_entities[outcome.id] = entity
-                    else:
-                        storage_errors.append(f"Failed to store outcome {outcome.id}")
+                    entity_items.append((outcome.id, entity))
                 except Exception as e:
-                    self.logger.warning(f"Error storing outcome {outcome.id}: {e}", exc_info=True)
-                    storage_errors.append(f"Error storing outcome {outcome.id}: {e}")
+                    self.logger.warning(f"Error converting outcome {outcome.id}: {e}", exc_info=True)
+                    storage_errors.append(f"Error converting outcome {outcome.id}: {e}")
 
-            # Store damages (handle partial chains - damages without outcomes are valid)
             for damage in extraction_result.damages:
                 try:
                     entity = self._extracted_damage_to_legal_entity(damage, metadata)
-                    success = await self._persist_entity_dual(entity, chunk_ids=None)
-                    if success:
-                        stored_entities[damage.id] = entity
-                    else:
-                        storage_errors.append(f"Failed to store damage {damage.id}")
+                    entity_items.append((damage.id, entity))
                 except Exception as e:
-                    self.logger.warning(f"Error storing damage {damage.id}: {e}", exc_info=True)
-                    storage_errors.append(f"Error storing damage {damage.id}: {e}")
+                    self.logger.warning(f"Error converting damage {damage.id}: {e}", exc_info=True)
+                    storage_errors.append(f"Error converting damage {damage.id}: {e}")
 
-            # Store LAW entities
             for law_dict in extraction_result.laws:
                 try:
                     entity = self._law_dict_to_legal_entity(law_dict, metadata)
-                    success = await self._persist_entity_dual(entity, chunk_ids=None)
-                    if success:
-                        stored_entities[law_dict["id"]] = entity
-                    else:
-                        storage_errors.append(f"Failed to store law {law_dict['id']}")
+                    entity_items.append((law_dict["id"], entity))
                 except Exception as e:
-                    self.logger.warning(f"Error storing law {law_dict['id']}: {e}", exc_info=True)
-                    storage_errors.append(f"Error storing law {law_dict['id']}: {e}")
+                    self.logger.warning(f"Error converting law {law_dict['id']}: {e}", exc_info=True)
+                    storage_errors.append(f"Error converting law {law_dict['id']}: {e}")
 
-            # Store LEGAL_PROCEDURE entities
             for proc_dict in extraction_result.procedures:
                 try:
                     entity = self._procedure_dict_to_legal_entity(proc_dict, metadata)
-                    success = await self._persist_entity_dual(entity, chunk_ids=None)
-                    if success:
-                        stored_entities[proc_dict["id"]] = entity
-                    else:
-                        storage_errors.append(f"Failed to store procedure {proc_dict['id']}")
+                    entity_items.append((proc_dict["id"], entity))
                 except Exception as e:
-                    self.logger.warning(f"Error storing procedure {proc_dict['id']}: {e}", exc_info=True)
-                    storage_errors.append(f"Error storing procedure {proc_dict['id']}: {e}")
+                    self.logger.warning(f"Error converting procedure {proc_dict['id']}: {e}", exc_info=True)
+                    storage_errors.append(f"Error converting procedure {proc_dict['id']}: {e}")
+
+            # Phase 2: Persist all entities in parallel
+            self.logger.info(f"Persisting {len(entity_items)} proof chain entities in parallel")
+            persist_results = await asyncio.gather(
+                *[self._persist_entity_dual(entity, chunk_ids=None) for _, entity in entity_items],
+                return_exceptions=True,
+            )
+            for (id_key, entity), result in zip(entity_items, persist_results):
+                if isinstance(result, Exception):
+                    self.logger.warning(f"Error storing {id_key}: {result}", exc_info=True)
+                    storage_errors.append(f"Error storing {id_key}: {result}")
+                elif result:
+                    stored_entities[id_key] = entity
+                else:
+                    storage_errors.append(f"Failed to store {id_key}")
 
             # Log storage errors but continue (partial chains are valid)
             if storage_errors:
@@ -860,6 +858,18 @@ class ProofChainService:
                     f"Some relationships failed to store: {len(relationship_errors)} errors"
                 )
 
+            # Collect document-level law and procedure IDs for chunk linking
+            stored_law_ids = [
+                law_dict["id"]
+                for law_dict in extraction_result.laws
+                if law_dict["id"] in stored_entities
+            ]
+            stored_procedure_ids = [
+                proc_dict["id"]
+                for proc_dict in extraction_result.procedures
+                if proc_dict["id"] in stored_entities
+            ]
+
             # Build ProofChain objects from stored claims (handle partial chains)
             proof_chains = []
             for claim in extraction_result.claims:
@@ -867,6 +877,10 @@ class ProofChainService:
                     try:
                         proof_chain = await self.build_proof_chain(claim.id)
                         if proof_chain:
+                            # Attach document-level entity IDs so DocumentProcessor
+                            # can link them to chunks even if not in presented_evidence
+                            proof_chain.law_ids = stored_law_ids
+                            proof_chain.procedure_ids = stored_procedure_ids
                             proof_chains.append(proof_chain)
                         else:
                             self.logger.warning(
@@ -1131,6 +1145,7 @@ class ProofChainService:
             # Store as both 'outcome' and 'disposition' for compatibility
             outcome=outcome.disposition,
             ruling_type=outcome.outcome_type,
+            best_quote={"text": outcome.source_quote} if outcome.source_quote else None,
             # Also store in attributes for easy access
             attributes={
                 "decision_maker": outcome.decision_maker or "",
@@ -1172,15 +1187,17 @@ class ProofChainService:
         if metadata is None:
             metadata = SourceMetadata(source=law_dict["id"], source_type=SourceType.FILE)
 
+        source_quote = law_dict.get("source_quote", "")
         return LegalEntity(
             id=law_dict["id"],
             entity_type=EntityType.LAW,
             name=law_dict["name"],
             description=law_dict.get("description", ""),
             source_metadata=metadata,
+            best_quote={"text": source_quote} if source_quote else None,
             attributes={
                 "citation": law_dict.get("citation", ""),
-                "source_quote": law_dict.get("source_quote", ""),
+                "source_quote": source_quote,
             },
         )
 
@@ -1194,14 +1211,16 @@ class ProofChainService:
             metadata = SourceMetadata(source=proc_dict["id"], source_type=SourceType.FILE)
 
         steps = proc_dict.get("steps", [])
+        source_quote = proc_dict.get("source_quote", "")
         return LegalEntity(
             id=proc_dict["id"],
             entity_type=EntityType.LEGAL_PROCEDURE,
             name=proc_dict["name"],
             description=proc_dict.get("description", ""),
             source_metadata=metadata,
+            best_quote={"text": source_quote} if source_quote else None,
             attributes={
                 "steps": _json.dumps(steps) if steps else "",
-                "source_quote": proc_dict.get("source_quote", ""),
+                "source_quote": source_quote,
             },
         )

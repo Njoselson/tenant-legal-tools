@@ -1,492 +1,223 @@
 # Tenant Legal Guidance System
 
-A knowledge graph-powered system for analyzing tenant legal cases using hybrid retrieval (vector search + graph traversal) and LLM reasoning.
+A knowledge graph-powered system for analyzing NYC tenant legal cases using hybrid retrieval (vector search + graph traversal) and LLM reasoning.
 
-## 🎯 What It Does
+## What It Does
 
-Paste a tenant's situation (interview transcript, problem description, or complaint) and get back:
-- **Claims identified** — what legal claims apply (habitability, harassment, rent overcharge, etc.)
-- **Evidence found vs missing** — what you have, what you need, and how to get it
-- **Predicted outcomes** — based on similar cases in the knowledge graph
+Paste a tenant's situation and get back:
+- **Claims identified** — habitability, harassment, rent overcharge, illegal deregulation
+- **Evidence found vs missing** — what you have, what you need, how to get it
+- **Proof chains** — graph-verified legal reasoning with citations
 - **Next steps** — specific, ordered actions to take
 
-Under the hood:
-- **Ingests legal documents** (statutes, guides, court opinions) from URLs, PDFs, and text
-- **Extracts structured entities** (laws, remedies, evidence requirements) using LLM analysis
-- **Builds a knowledge graph** (ArangoDB) with relationships between legal concepts
-- **Hybrid retrieval** (vector search + graph traversal) finds relevant law for each case
+The system ingests legal documents (statutes, guides, court opinions), extracts structured entities using typed LLM prompts, and builds a knowledge graph. Hybrid retrieval (vector + graph + BM25) finds relevant law for each case. The LLM explains the proof; the graph proves it's correct.
 
-## 🏗️ Architecture
+## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                  LEGAL DOCUMENTS                        │
-│            (URLs, PDFs, Web Scraping)                   │
-└────────────────────┬────────────────────────────────────┘
-                     ↓
-┌─────────────────────────────────────────────────────────┐
-│              INGESTION PIPELINE                         │
-│  • Chunking (3k chars, heading-aware)                   │
-│  • LLM Entity Extraction (parallel processing)          │
-│  • Deduplication (semantic + LLM)                       │
-│  • Provenance Tracking (source → quote)                 │
-└────────────────────┬────────────────────────────────────┘
-                     ↓
-          ┌──────────┴──────────┐
-          ↓                     ↓
-┌──────────────────┐   ┌──────────────────┐
-│   ArangoDB       │   │    Qdrant        │
-│  (Graph Store)   │   │ (Vector Store)   │
-│                  │   │                  │
-│ • Entities       │   │ • Embeddings     │
-│ • Relationships  │   │ • Chunk Text     │
-│ • Provenance     │   │ • Metadata       │
-└──────────────────┘   └──────────────────┘
-          ↓                     ↓
-          └──────────┬──────────┘
-                     ↓
-┌─────────────────────────────────────────────────────────┐
-│              HYBRID RETRIEVAL                           │
-│  • Vector Search (semantic similarity)                  │
-│  • Entity Search (BM25 + phrase matching)               │
-│  • Graph Expansion (relationship traversal)             │
-└────────────────────┬────────────────────────────────────┘
-                     ↓
-┌─────────────────────────────────────────────────────────┐
-│              CASE ANALYZER                              │
-│  • Issue Identification                                 │
-│  • Evidence Analysis                                    │
-│  • Remedy Ranking                                       │
-│  • Proof Chain Construction                             │
-└─────────────────────────────────────────────────────────┘
+Legal Documents (URLs, PDFs)
+    |
+    v
+Ingestion Pipeline
+  - Typed prompt routing (statute / guide / case)
+  - Parallel chunk extraction (3-5x speedup)
+  - Hash-based entity IDs + cross-doc dedup
+  - Provenance tracking (entity -> source -> quote)
+    |
+    v
++------------------+   +------------------+
+|   ArangoDB       |   |    Qdrant        |
+|  (Graph Store)   |   | (Vector Store)   |
+|                  |   |                  |
+| - Entities       |   | - Embeddings     |
+| - Relationships  |   | - Chunk text     |
+| - Sources        |   | - Metadata       |
+| - Proof chains   |   |                  |
++------------------+   +------------------+
+    |                       |
+    v                       v
+Hybrid Retrieval
+  - Vector search (semantic similarity)
+  - Entity search (BM25 + ArangoSearch)
+  - Graph expansion (relationship traversal)
+  - Reciprocal Rank Fusion
+    |
+    v
+Case Analyzer
+  - Issue identification
+  - Evidence gap analysis
+  - Proof chain construction
+  - Graph enforcement layer
 ```
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 
 - **Python 3.11+**
 - **Docker & Docker Compose**
-- **UV** (Python package manager) - [Install UV](https://docs.astral.sh/uv/)
-- **DeepSeek API Key** - [Get API Key](https://platform.deepseek.com/)
+- **UV** (Python package manager) — [Install UV](https://docs.astral.sh/uv/)
+- **DeepSeek API Key** — [Get API Key](https://platform.deepseek.com/)
 
 ### 1. Clone & Install
 
 ```bash
-# Clone the repository
-git clone https://github.com/yourusername/tenant_legal_guidance.git
-cd tenant_legal_guidance
+git clone https://github.com/Njoselson/tenant-legal-tools.git
+cd tenant-legal-tools
 
-# Install dependencies with UV
+# Install dependencies
 uv pip install -e ".[dev]"
 ```
 
-### 2. Set Up Environment
+### 2. Configure Environment
 
-Create a `.env` file in the project root:
+Create a `.env` file:
 
 ```bash
-# DeepSeek LLM API
 DEEPSEEK_API_KEY=sk-your-key-here
-
-# ArangoDB Configuration
 ARANGO_HOST=http://localhost:8529
 ARANGO_DB_NAME=tenant_legal_kg
 ARANGO_USERNAME=root
 ARANGO_PASSWORD=your_secure_password
-
-# Qdrant Configuration (defaults work with docker-compose)
 QDRANT_URL=http://localhost:6333
 QDRANT_COLLECTION=legal_chunks
-
-# Embedding Model
 EMBEDDING_MODEL_NAME=sentence-transformers/all-MiniLM-L6-v2
 ```
 
 ### 3. Start Services
 
 ```bash
-# Start ArangoDB and Qdrant
-docker-compose up -d
+# Start everything (app + ArangoDB + Qdrant)
+docker compose up -d
 
-# Verify services are running
-make db-stats         # Check ArangoDB
-make vector-status    # Check Qdrant
+# Or start databases only and run app locally
+docker compose up -d arangodb qdrant
+uv run uvicorn tenant_legal_guidance.api.app:app --reload --port 8000
 ```
 
 ### 4. Ingest Data
 
-```bash
-# Ingest from manifest (JSONL file with source URLs)
-make ingest-manifest MANIFEST=data/manifests/sources.jsonl
+The system ships with topic-specific manifests in `data/manifests/`:
 
-# This will:
-# - Scrape/download each source
-# - Extract entities with LLM
-# - Build knowledge graph in ArangoDB
-# - Create vector embeddings in Qdrant
-# - Track provenance (5-10 min per source)
+| Manifest | Contents |
+|----------|----------|
+| `habitability_statutes.jsonl` | RPL 235-b, HMC, heat/mold statutes |
+| `habitability_cases.jsonl` | Warranty of habitability case law |
+| `harassment_statutes.jsonl` | NYC Admin Code harassment provisions |
+| `harassment_cases.jsonl` | Landlord harassment case law |
+| `deregulation_statutes.jsonl` | Rent stabilization / ETPA statutes |
+| `deregulation_cases.jsonl` | Illegal deregulation case law |
+
+**From the web UI:** Go to http://localhost:8000/sources, expand a manifest, click "Ingest All".
+
+**From the CLI:**
+```bash
+make ingest-manifest MANIFEST=data/manifests/habitability_statutes.jsonl
 ```
 
-### 5. Run the Application
+### 5. Open the App
 
-**Option 1: Direct Python (Recommended for Development)**
-```bash
-# Start the FastAPI server with auto-reload
-make app
-
-# Or manually:
-uv run uvicorn tenant_legal_guidance.api.app:app --reload --host 0.0.0.0 --port 8000
-
-# Open in browser
-open http://localhost:8000
+```
+http://localhost:8000
 ```
 
-**Option 2: Docker Compose (for full stack)**
-```bash
-# Start all services (ArangoDB, Qdrant, and app)
-docker compose up -d
+Three pages:
+- **Home** (`/`) — paste situation, get claims + evidence gaps + next steps
+- **KG View** (`/kg-view`) — interactive graph explorer with AI chat
+- **Sources** (`/sources`) — manifest browser with ingestion status and one-click bulk ingest
 
-# For local dev with auto-reload, create docker-compose.override.yml:
-# (copy docker-compose.override.yml.example and edit as needed)
-
-# View logs
-docker compose logs -f app
-```
-
-**Note:** Production deployments use Docker without `--reload` for better performance and security.
-
-## 📥 Data Ingestion
-
-### Understanding the Ingestion Pipeline
-
-The ingestion process transforms legal documents into queryable knowledge:
+## Data Ingestion Pipeline
 
 ```
 Input Document (URL/PDF/Text)
-    ↓
-1. Register Source (SHA256 hash for idempotency)
-    ↓
-2. Chunk Text (3k chars, heading-aware splits)
-    ↓
-3. LLM Entity Extraction (parallel processing)
-   - Extracts: Laws, Remedies, Procedures, Evidence
-   - Extracts: Relationships between entities
-    ↓
-4. Deduplication
-   - Within-document: Merge identical names
-   - Cross-document: Semantic matching + LLM judge
-    ↓
-5. Store in ArangoDB
-   - Entities in normalized collections
-   - Relationships as graph edges
-   - Provenance: entity → source → quote
-    ↓
-6. Enrich Chunks (LLM-generated metadata)
-   - description: 1-sentence summary
-   - proves: Legal facts this establishes
-   - references: Laws/cases cited
-    ↓
-7. Embed & Store in Qdrant
-   - 384-dim embeddings (sentence-transformers)
-   - Metadata: source, entities, jurisdiction
-   - Full text for retrieval
+    |
+1. Register source (SHA256 hash for idempotency)
+2. Chunk text (3k chars, heading-aware)
+3. Route to typed prompt (statute / guide / case)
+4. Parallel LLM extraction (entities + relationships)
+5. Deduplicate across documents (hash-based IDs)
+6. Store in ArangoDB (graph) + Qdrant (vectors)
+7. Post-ingestion entity linking (orphan reduction)
 ```
 
-### Data Storage Model
+Already-processed sources are skipped automatically.
 
-| Data Type | Storage | Purpose |
-|-----------|---------|---------|
-| **Source metadata** | ArangoDB `sources` | Idempotency, audit trail |
-| **Full text** | ArangoDB `text_blobs` | Canonical text by SHA256 |
-| **Entities** | ArangoDB `entities` | Structured knowledge (laws, remedies) |
-| **Relationships** | ArangoDB `edges` | Graph connections (enables, requires) |
-| **Provenance** | ArangoDB `provenance` | Entity → Source → Quote linkage |
-| **Quotes** | ArangoDB `quotes` | Sentence-level snippets with offsets |
-| **Embeddings** | Qdrant `legal_chunks` | Vector search + chunk text |
-
-### Ingestion Commands
-
-```bash
-# Check current status
-make db-stats          # Show ArangoDB collections
-make vector-status     # Show Qdrant vector count
-
-# Ingest from manifest
-make ingest-manifest MANIFEST=data/manifests/sources.jsonl
-
-# Complete re-ingestion (nuclear option)
-make reingest-all
-# This will:
-# 1. Drop ArangoDB database
-# 2. Delete Qdrant collection
-# 3. Clear checkpoints and archives
-# 4. Fresh ingestion from manifest
-
-# Export current sources to manifest
-make build-manifest
-# Creates: data/manifests/sources.jsonl
-```
-
-### Adding New Sources
-
-Edit `data/manifests/sources.jsonl` and add entries:
-
-```jsonl
-{"locator": "https://example.com/tenant-rights.pdf", "kind": "URL", "title": "Tenant Rights Guide", "jurisdiction": "NYC"}
-{"locator": "https://example.com/housing-law.html", "kind": "URL", "title": "Housing Law Overview", "jurisdiction": "CA"}
-```
-
-Then run:
-
-```bash
-make ingest-manifest MANIFEST=data/manifests/sources.jsonl
-```
-
-**Note:** Already-processed sources are skipped (idempotency via SHA256 hash).
-
-## 🔍 How Retrieval Works
+## How Retrieval Works
 
 The system uses **hybrid retrieval** combining three approaches:
 
-### 1. Vector Search (Qdrant)
-- Semantic similarity using embeddings
-- Finds chunks with similar meaning
-- Fast ANN (Approximate Nearest Neighbor)
+1. **Vector search** (Qdrant) — semantic similarity via sentence-transformer embeddings
+2. **Entity search** (ArangoDB ArangoSearch) — BM25 + phrase matching on entity names/descriptions
+3. **Graph expansion** — traverses relationships from retrieved entities to find connected laws, remedies, procedures
 
-### 2. Entity Search (ArangoDB)
-- BM25 + phrase matching on entity names/descriptions
-- Finds exact legal concepts mentioned
-- Returns structured entities with relationships
+Results are fused using Reciprocal Rank Fusion (RRF), deduplicated, and ranked by relevance. See `docs/RETRIEVAL_EXPERIMENTS.md` for benchmark results.
 
-### 3. Graph Expansion
-- Traverses relationships from retrieved entities
-- Finds connected laws, remedies, procedures
-- Expands context using graph structure
+## API Endpoints
 
-### Fusion Strategy
-- Combines results from all three sources
-- Uses Reciprocal Rank Fusion (RRF)
-- Deduplicates and ranks by relevance
+### Analysis
+- `POST /api/v1/analyze-my-case` — analyze tenant situation (claims, evidence gaps, next steps)
+- `POST /api/kg/chat` — chat with the knowledge graph (hybrid retrieval context)
 
-## 🛠️ Development
+### Retrieval
+- `POST /api/hybrid-search` — hybrid retrieval test
+- `POST /api/retrieve-entities` — entity search
+
+### Ingestion & Sources
+- `GET /api/v1/curation/manifest-files` — list all manifest files and entries
+- `POST /api/v1/curation/check-ingested` — check ingestion status of locators
+- `POST /api/v1/curation/ingest` — start bulk ingestion from manifest
+- `GET /api/v1/curation/jobs/{job_id}` — poll ingestion job progress
+
+### System
+- `GET /api/health` — health check (ArangoDB, Qdrant, DeepSeek)
+
+## Development
+
+```bash
+# Run tests
+uv run pytest tests/
+
+# Format + lint
+make format
+make lint
+
+# Database stats
+make db-stats
+make vector-status
+```
 
 ### Project Structure
 
 ```
 tenant_legal_guidance/
-├── api/                    # FastAPI routes and app
-│   ├── app.py             # Main FastAPI application
-│   └── routes.py          # API endpoints
-├── config.py              # Configuration management
-├── domain/                # Domain errors
-├── graph/                 # Graph database layer
-│   ├── arango_graph.py   # ArangoDB operations
-│   └── seed.py           # Initial graph setup
-├── models/                # Pydantic data models
-│   ├── documents.py      # Document models
-│   ├── entities.py       # Entity models
-│   └── relationships.py  # Relationship models
-├── scripts/               # CLI scripts
-│   ├── build_manifest.py # Export sources to manifest
-│   ├── ingest.py         # Main ingestion pipeline
-│   └── reset_database.py # Database management
-├── services/              # Core business logic
-│   ├── case_analyzer.py  # Case analysis engine
-│   ├── document_processor.py # Document ingestion
-│   ├── embeddings.py     # Embedding generation
-│   ├── retrieval.py      # Hybrid retrieval
-│   └── vector_store.py   # Qdrant interface
-├── templates/             # Jinja2 HTML templates
-├── tests/                 # Test suite
-└── utils/                 # Utilities
-    ├── chunking.py       # Text chunking
-    └── logging.py        # Logging setup
+  api/                  # FastAPI routes (routes.py, curation_routes.py)
+  graph/                # ArangoDB operations (arango_graph.py)
+  models/               # Pydantic models (entities.py, relationships.py)
+  services/             # Core logic
+    case_analyzer.py    # Case analysis + graph enforcement
+    claim_extractor.py  # Typed prompt routing + entity extraction
+    document_processor.py  # Ingestion pipeline
+    proof_chain.py      # Proof chain construction
+    retrieval.py        # Hybrid search
+    deepseek.py         # LLM client (used by 13 services)
+  templates/            # Jinja2 HTML (3 pages)
+  scripts/              # CLI tools (ingest.py, justia_scraper.py)
+data/manifests/         # JSONL manifest files for ingestion
+tests/                  # Test suite
+docs/                   # Documentation (12 guides)
 ```
 
-### Key Services
+See `docs/README.md` for full documentation index and `ROADMAP.md` for project status.
 
-| Service | Purpose | Used By |
-|---------|---------|---------|
-| `document_processor.py` | Core ingestion logic | Ingest scripts |
-| `case_analyzer.py` | Tenant case analysis | API routes |
-| `retrieval.py` | Hybrid search | Case analyzer |
-| `embeddings.py` | Vector generation | Document processor |
-| `vector_store.py` | Qdrant operations | Document processor, retrieval |
-| `chtu_scraper.py` | Web scraping | `scrape_chtu_resources.py` script |
-| `deepseek.py` | LLM client | All services |
+## Built With
 
-### Running Tests
+- **FastAPI** — web framework
+- **ArangoDB** — graph database
+- **Qdrant** — vector database
+- **DeepSeek** — LLM for extraction and analysis
+- **sentence-transformers** — embeddings (all-MiniLM-L6-v2)
+- **SpaCy** — NLP processing
 
-```bash
-# Run fast tests (skip slow integration tests)
-make test
+## License
 
-# Run all tests including integration
-make test-all
-
-# Run with coverage report
-make test-coverage
-```
-
-### Code Quality
-
-```bash
-# Format code
-make format
-
-# Run linters
-make lint
-
-# Clean build artifacts
-make clean
-```
-
-## 📊 Database Management
-
-### Check Status
-
-```bash
-# ArangoDB statistics
-make db-stats
-
-# Qdrant vector count
-make vector-status
-
-# API health check
-curl http://localhost:8000/api/health
-```
-
-### Reset Database
-
-```bash
-# Truncate all collections (keeps schema)
-make db-reset
-
-# Drop entire database (WARNING: destructive!)
-make db-drop
-
-# Delete Qdrant collection
-make vector-reset
-```
-
-## 🔌 API Endpoints
-
-### Analysis
-
-- `POST /api/v1/analyze-my-case` - Analyze tenant situation (claims, evidence gaps, next steps)
-- `POST /api/analyze-case-enhanced` - Full case analysis with proof chains
-- `POST /api/kg/chat` - Chat with the knowledge graph (context-aware, uses hybrid retrieval)
-
-### Retrieval
-
-- `POST /api/hybrid-search` - Test hybrid retrieval
-- `POST /api/retrieve-entities` - Entity search
-
-### Data Management
-
-- `POST /api/kg/process` - Ingest document
-- `GET /api/kg/graph-data` - Get graph data (paginated)
-
-### System
-
-- `GET /api/health` - System health check
-- `GET /api/vector-status` - Qdrant status
-- `GET /api/example-cases` - Load example cases
-
-### Web UI (3 pages)
-
-- `GET /` - **Home** — paste situation, get claims + evidence gaps + next steps
-- `GET /kg-view` - **KG View** — interactive graph explorer with AI chat (grounded in graph data)
-- `GET /kg-input` - **KG Input** — ingest new legal sources into the knowledge graph
-
-## 🎓 Example Usage
-
-### Analyze My Case (primary endpoint)
-
-```bash
-curl -X POST http://localhost:8000/api/v1/analyze-my-case \
-  -H "Content-Type: application/json" \
-  -d '{
-    "situation": "My landlord hasnt provided heat since October. Theres mold in the bathroom. I called 311 twice.",
-    "evidence_i_have": ["photos of mold", "311 complaint number"],
-    "jurisdiction": "NYC"
-  }'
-```
-
-Returns: `possible_claims[]` with evidence matches/gaps, `next_steps[]`, `extracted_evidence[]`, and `predicted_outcome` per claim.
-
-### Hybrid Search Example
-
-```bash
-curl -X POST http://localhost:8000/api/hybrid-search \
-  -H "Content-Type: application/json" \
-  -d '{
-    "query": "eviction notice requirements",
-    "top_k_chunks": 5,
-    "top_k_entities": 10
-  }'
-```
-
-## 📝 Configuration
-
-All configuration is managed through environment variables (via `.env` file):
-
-- `DEEPSEEK_API_KEY` - Required for LLM operations
-- `ARANGO_HOST` - ArangoDB connection URL
-- `ARANGO_DB_NAME` - Database name
-- `ARANGO_USERNAME` / `ARANGO_PASSWORD` - Credentials
-- `QDRANT_URL` - Qdrant connection URL
-- `QDRANT_COLLECTION` - Collection name
-- `EMBEDDING_MODEL_NAME` - HuggingFace model for embeddings
-
-## 🐛 Troubleshooting
-
-### "Error: DEEPSEEK_API_KEY not set"
-**Fix:** Make sure `.env` file exists with `DEEPSEEK_API_KEY=sk-...`
-
-### "Connection refused" errors
-**Fix:** Start services with `docker-compose up -d`
-
-### "Skipping (already processed)"
-**Fix:** Use `make reingest-all` for fresh start, or remove specific SHA256 from `data/archive/`
-
-### "0 vectors" even after ingestion
-**Fix:** Check `data/ingestion_report.json` for errors
-
-### Ingestion is very slow
-**Reason:** LLM processing is rate-limited. Typical speed: 5-10 min per document.
-
-## 📚 Documentation
-
-- `docs/MAKEFILE_COMMANDS.md` - Complete Makefile command reference
-- `docs/INGESTION_FLOW.md` - Detailed ingestion pipeline documentation
-- `docs/FIXES_APPLIED.md` - Change history
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Run tests: `make test-all`
-5. Format code: `make format`
-6. Submit a pull request
-
-## 📄 License
-
-MIT License - See LICENSE file for details
-
-## 🙏 Acknowledgments
-
-Built with:
-- **FastAPI** - Web framework
-- **ArangoDB** - Graph database
-- **Qdrant** - Vector database
-- **DeepSeek** - LLM for entity extraction
-- **sentence-transformers** - Embeddings
-- **SpaCy** - NLP processing
-
----
-
-**Questions?** Check `docs/MAKEFILE_COMMANDS.md` for detailed command reference or open an issue.
-
+MIT License — see LICENSE file for details.

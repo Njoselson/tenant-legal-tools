@@ -35,6 +35,23 @@
         }
         nav a:hover { text-decoration: underline; }
 
+        /* Summary bar */
+        .summary-bar {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin-bottom: 16px;
+            padding: 12px 18px;
+            background: #fff;
+            border: 1px solid #ecf0f1;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            color: #7f8c8d;
+        }
+        .summary-bar .stat { font-weight: 600; color: #2c3e50; }
+        .summary-bar .stat-green { color: #2ecc71; }
+        .summary-bar .stat-gray { color: #95a5a6; }
+
         .manifest-card {
             background: #fff;
             border: 1px solid #ecf0f1;
@@ -64,6 +81,11 @@
             font-size: 0.9rem;
             margin-left: 8px;
         }
+        .manifest-status-summary {
+            font-size: 0.8rem;
+            color: #95a5a6;
+            margin-left: 8px;
+        }
         .manifest-actions {
             display: flex;
             gap: 8px;
@@ -86,6 +108,19 @@
         .btn-ingest:disabled {
             background: #bdc3c7;
             cursor: not-allowed;
+        }
+        .btn-reingest {
+            background: #e67e22;
+            color: white;
+        }
+        .btn-reingest:hover:not(:disabled) { background: #d35400; }
+        .btn-reingest:disabled {
+            background: #bdc3c7;
+            cursor: not-allowed;
+        }
+        .btn-sm {
+            padding: 3px 10px;
+            font-size: 0.75rem;
         }
         .chevron {
             font-size: 0.8rem;
@@ -149,9 +184,15 @@
         .entry-link:hover { text-decoration: underline; }
 
         .entry-title {
-            max-width: 400px;
+            max-width: 300px;
             overflow: hidden;
             text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .entry-date {
+            font-size: 0.78rem;
+            color: #95a5a6;
             white-space: nowrap;
         }
 
@@ -211,6 +252,13 @@
         <a href="/sources">Sources</a>
     </nav>
 
+    <div id="summary-bar" class="summary-bar" style="display:none">
+        <span>Manifests: <span class="stat" id="sum-manifests">0</span></span>
+        <span>Total sources: <span class="stat" id="sum-total">0</span></span>
+        <span>Ingested: <span class="stat stat-green" id="sum-ingested">0</span></span>
+        <span>Pending: <span class="stat stat-gray" id="sum-pending">0</span></span>
+    </div>
+
     <div id="job-banner" class="job-banner">
         <div class="job-banner-text" id="job-text">Processing...</div>
         <div class="progress-bar-container">
@@ -224,14 +272,18 @@
     </div>
 
     <script>
-        const statusCache = {};
+        const statusCache = {};   // filename -> { ingested: {loc: bool}, details: {loc: {fetched_at, ...}} }
         let activeJobs = {};
+        let allFiles = [];
 
         async function loadManifests() {
             try {
                 const res = await fetch('/api/v1/curation/manifest-files');
                 const data = await res.json();
-                renderManifests(data.files || []);
+                allFiles = data.files || [];
+                renderManifests(allFiles);
+                // Check status for all manifests upfront
+                await checkAllStatuses();
             } catch (err) {
                 document.getElementById('manifests-container').innerHTML =
                     '<div class="loading-msg" style="color:#e74c3c">Failed to load manifests: ' + err.message + '</div>';
@@ -244,6 +296,13 @@
                 container.innerHTML = '<div class="loading-msg">No manifest files found in data/manifests/</div>';
                 return;
             }
+
+            // Show summary bar
+            const totalEntries = files.reduce((s, f) => s + f.entry_count, 0);
+            document.getElementById('sum-manifests').textContent = files.length;
+            document.getElementById('sum-total').textContent = totalEntries;
+            document.getElementById('summary-bar').style.display = 'flex';
+
             container.innerHTML = files.map((f, i) => `
                 <div class="manifest-card" data-idx="${i}" data-filename="${f.filename}">
                     <div class="manifest-header" onclick="toggleCard(${i})">
@@ -251,9 +310,11 @@
                             <span class="chevron">&#9654;</span>
                             <span class="manifest-title">${f.filename.replace('.jsonl', '').replace(/_/g, ' ')}</span>
                             <span class="manifest-count">(${f.entry_count} entries)</span>
+                            <span class="manifest-status-summary" id="msummary-${i}"></span>
                         </div>
                         <div class="manifest-actions">
-                            <button class="btn btn-ingest" onclick="event.stopPropagation(); ingestManifest('${f.filename}', this)">Ingest All</button>
+                            <button class="btn btn-reingest btn-sm" onclick="event.stopPropagation(); reingestManifest('${f.filename}', this)" title="Force reingest all entries (even already ingested)">Reingest All</button>
+                            <button class="btn btn-ingest" onclick="event.stopPropagation(); ingestManifest('${f.filename}', this)">Ingest New</button>
                         </div>
                     </div>
                     <div class="manifest-entries" id="entries-${i}">
@@ -270,78 +331,122 @@
                     <th></th>
                     <th>Title</th>
                     <th>Type</th>
-                    <th>Authority</th>
+                    <th>Ingested</th>
+                    <th></th>
                     <th></th>
                 </tr></thead>
                 <tbody>${entries.map((e, j) => {
                     const dotId = `dot-${filename}-${j}`;
-                    return `<tr>
+                    const dateId = `date-${filename}-${j}`;
+                    const btnId = `rbtn-${filename}-${j}`;
+                    return `<tr data-locator="${(e.locator || '').replace(/"/g, '&quot;')}">
                         <td><span class="status-dot dot-loading" id="${dotId}"></span></td>
                         <td class="entry-title" title="${(e.title || e.locator).replace(/"/g, '&quot;')}">${e.title || e.locator}</td>
                         <td>${e.document_type || '-'}</td>
-                        <td>${(e.authority || '-').replace(/_/g, ' ')}</td>
+                        <td class="entry-date" id="${dateId}">...</td>
+                        <td><button class="btn btn-reingest btn-sm" id="${btnId}" onclick="reingestEntry('${encodeURIComponent(e.locator)}', '${filename}', this)" style="display:none">Reingest</button></td>
                         <td><a class="entry-link" href="${e.locator}" target="_blank" rel="noopener">link</a></td>
                     </tr>`;
                 }).join('')}</tbody>
             </table>`;
         }
 
-        async function toggleCard(idx) {
-            const card = document.querySelector(`.manifest-card[data-idx="${idx}"]`);
-            const wasExpanded = card.classList.contains('expanded');
-            card.classList.toggle('expanded');
-
-            if (!wasExpanded) {
-                const filename = card.dataset.filename;
-                if (!statusCache[filename]) {
-                    await checkStatus(card, filename);
-                } else {
-                    applyStatus(filename);
-                }
-            }
-        }
-
-        async function checkStatus(card, filename) {
-            const table = card.querySelector('.entry-table');
-            if (!table) return;
-
-            const rows = table.querySelectorAll('tbody tr');
-            const locators = [];
-            rows.forEach((row, j) => {
-                const link = row.querySelector('.entry-link');
-                if (link) locators.push(link.href);
+        async function checkAllStatuses() {
+            // Collect all locators across all manifests
+            const allLocators = [];
+            const locatorMap = {}; // locator -> [{filename, idx}]
+            allFiles.forEach((f, i) => {
+                f.entries.forEach((e, j) => {
+                    allLocators.push(e.locator);
+                    if (!locatorMap[e.locator]) locatorMap[e.locator] = [];
+                    locatorMap[e.locator].push({filename: f.filename, idx: j});
+                });
             });
+
+            if (!allLocators.length) return;
 
             try {
                 const res = await fetch('/api/v1/curation/check-ingested', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({locators})
+                    body: JSON.stringify({locators: allLocators})
                 });
                 const data = await res.json();
-                statusCache[filename] = data.ingested || {};
-                applyStatus(filename);
+                const ingested = data.ingested || {};
+                const details = data.details || {};
+
+                // Populate status cache per filename
+                allFiles.forEach(f => {
+                    statusCache[f.filename] = { ingested: {}, details: {} };
+                });
+                for (const loc of allLocators) {
+                    const entries = locatorMap[loc] || [];
+                    for (const {filename} of entries) {
+                        statusCache[filename].ingested[loc] = !!ingested[loc];
+                        if (details[loc]) {
+                            statusCache[filename].details[loc] = details[loc];
+                        }
+                    }
+                }
+
+                // Apply status to all manifests and update summary
+                let totalIngested = 0;
+                allFiles.forEach((f, i) => {
+                    applyStatus(f.filename);
+                    const cache = statusCache[f.filename];
+                    const ingestedCount = f.entries.filter(e => cache.ingested[e.locator]).length;
+                    totalIngested += ingestedCount;
+                    const summaryEl = document.getElementById(`msummary-${i}`);
+                    if (summaryEl) {
+                        summaryEl.textContent = `${ingestedCount}/${f.entry_count} ingested`;
+                        summaryEl.style.color = ingestedCount === f.entry_count ? '#2ecc71' : '#e67e22';
+                    }
+                });
+
+                const totalEntries = allFiles.reduce((s, f) => s + f.entry_count, 0);
+                document.getElementById('sum-ingested').textContent = totalIngested;
+                document.getElementById('sum-pending').textContent = totalEntries - totalIngested;
             } catch (err) {
                 console.error('Status check failed:', err);
             }
         }
 
+        async function toggleCard(idx) {
+            const card = document.querySelector(`.manifest-card[data-idx="${idx}"]`);
+            card.classList.toggle('expanded');
+        }
+
         function applyStatus(filename) {
-            const ingested = statusCache[filename] || {};
+            const cache = statusCache[filename];
+            if (!cache) return;
+            const ingested = cache.ingested || {};
+            const details = cache.details || {};
             const card = document.querySelector(`.manifest-card[data-filename="${filename}"]`);
             if (!card) return;
 
             const rows = card.querySelectorAll('.entry-table tbody tr');
             rows.forEach((row, j) => {
                 const dot = document.getElementById(`dot-${filename}-${j}`);
-                const link = row.querySelector('.entry-link');
-                if (dot && link) {
-                    dot.classList.remove('dot-loading');
-                    if (ingested[link.href]) {
-                        dot.classList.add('dot-ingested');
-                    } else {
-                        dot.classList.add('dot-pending');
+                const dateEl = document.getElementById(`date-${filename}-${j}`);
+                const btnEl = document.getElementById(`rbtn-${filename}-${j}`);
+                const locator = row.dataset.locator;
+                if (!dot || !locator) return;
+
+                dot.classList.remove('dot-loading');
+                if (ingested[locator]) {
+                    dot.classList.add('dot-ingested');
+                    const d = details[locator];
+                    if (d && d.fetched_at && dateEl) {
+                        const date = new Date(d.fetched_at);
+                        dateEl.textContent = date.toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric'});
+                    } else if (dateEl) {
+                        dateEl.textContent = 'Yes';
                     }
+                    if (btnEl) btnEl.style.display = 'inline-block';
+                } else {
+                    dot.classList.add('dot-pending');
+                    if (dateEl) dateEl.textContent = '-';
+                    if (btnEl) btnEl.style.display = 'none';
                 }
             });
         }
@@ -364,25 +469,77 @@
 
                 btn.textContent = 'Running...';
                 activeJobs[data.job_id] = filename;
-                showJobBanner(data.job_id, filename);
-                pollJob(data.job_id, filename, btn);
+                showJobBanner(data.job_id, filename, 'Ingesting new');
+                pollJob(data.job_id, filename, btn, 'Ingest New');
             } catch (err) {
                 btn.disabled = false;
-                btn.textContent = 'Ingest All';
+                btn.textContent = 'Ingest New';
                 alert('Ingest error: ' + err.message);
             }
         }
 
-        function showJobBanner(jobId, filename) {
+        async function reingestManifest(filename, btn) {
+            if (!confirm(`Reingest ALL entries in ${filename.replace('.jsonl','').replace(/_/g,' ')}? This will re-fetch and re-process every source.`)) return;
+            btn.disabled = true;
+            btn.textContent = 'Starting...';
+
+            try {
+                const res = await fetch('/api/v1/curation/ingest', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        manifest_path: `data/manifests/${filename}`,
+                        options: {skip_existing: false}
+                    })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || 'Reingest failed');
+
+                btn.textContent = 'Running...';
+                activeJobs[data.job_id] = filename;
+                showJobBanner(data.job_id, filename, 'Reingesting');
+                pollJob(data.job_id, filename, btn, 'Reingest All');
+            } catch (err) {
+                btn.disabled = false;
+                btn.textContent = 'Reingest All';
+                alert('Reingest error: ' + err.message);
+            }
+        }
+
+        async function reingestEntry(encodedLocator, filename, btn) {
+            const locator = decodeURIComponent(encodedLocator);
+            if (!confirm(`Reingest this source?\n${locator}`)) return;
+            btn.disabled = true;
+            btn.textContent = '...';
+
+            try {
+                const res = await fetch('/api/v1/curation/reingest-source', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({locator, manifest_file: filename})
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || 'Reingest failed');
+
+                showJobBanner(data.job_id, locator.split('/').pop() || 'source', 'Reingesting');
+                pollSingleJob(data.job_id, filename, btn);
+            } catch (err) {
+                btn.disabled = false;
+                btn.textContent = 'Reingest';
+                alert('Reingest error: ' + err.message);
+            }
+        }
+
+        function showJobBanner(jobId, label, action) {
             const banner = document.getElementById('job-banner');
-            const label = filename.replace('.jsonl', '').replace(/_/g, ' ');
-            document.getElementById('job-text').textContent = `Processing ${label}...`;
+            const displayLabel = label.replace('.jsonl', '').replace(/_/g, ' ');
+            document.getElementById('job-text').textContent = `${action} ${displayLabel}...`;
             document.getElementById('job-progress').style.width = '0%';
             document.getElementById('job-stats').textContent = '';
             banner.className = 'job-banner visible';
         }
 
-        async function pollJob(jobId, filename, btn) {
+        async function pollJob(jobId, filename, btn, btnLabel) {
             try {
                 const res = await fetch(`/api/v1/curation/jobs/${jobId}`);
                 const data = await res.json();
@@ -403,27 +560,59 @@
                     document.getElementById('job-text').textContent = `Done: ${label}`;
                     banner.className = 'job-banner visible completed';
                     btn.disabled = false;
-                    btn.textContent = 'Ingest All';
+                    btn.textContent = btnLabel;
                     delete statusCache[filename];
-                    // Re-check status for this manifest
-                    const card = document.querySelector(`.manifest-card[data-filename="${filename}"]`);
-                    if (card && card.classList.contains('expanded')) {
-                        checkStatus(card, filename);
-                    }
+                    await checkAllStatuses();
                     return;
                 } else if (data.status === 'failed') {
                     const banner = document.getElementById('job-banner');
                     document.getElementById('job-text').textContent = 'Ingestion failed';
                     banner.className = 'job-banner visible failed';
                     btn.disabled = false;
-                    btn.textContent = 'Ingest All';
+                    btn.textContent = btnLabel;
                     return;
                 }
 
-                setTimeout(() => pollJob(jobId, filename, btn), 3000);
+                setTimeout(() => pollJob(jobId, filename, btn, btnLabel), 3000);
             } catch (err) {
                 console.error('Poll error:', err);
-                setTimeout(() => pollJob(jobId, filename, btn), 5000);
+                setTimeout(() => pollJob(jobId, filename, btn, btnLabel), 5000);
+            }
+        }
+
+        async function pollSingleJob(jobId, filename, btn) {
+            try {
+                const res = await fetch(`/api/v1/curation/jobs/${jobId}`);
+                const data = await res.json();
+
+                if (data.status === 'completed') {
+                    const banner = document.getElementById('job-banner');
+                    document.getElementById('job-text').textContent = 'Reingest complete';
+                    banner.className = 'job-banner visible completed';
+                    btn.disabled = false;
+                    btn.textContent = 'Reingest';
+                    delete statusCache[filename];
+                    await checkAllStatuses();
+                    return;
+                } else if (data.status === 'failed') {
+                    const banner = document.getElementById('job-banner');
+                    document.getElementById('job-text').textContent = 'Reingest failed';
+                    banner.className = 'job-banner visible failed';
+                    btn.disabled = false;
+                    btn.textContent = 'Reingest';
+                    return;
+                }
+
+                const p = data.progress || {};
+                const total = p.total || 1;
+                const processed = (p.processed || 0) + (p.skipped || 0) + (p.failed || 0);
+                const pct = Math.min(100, Math.round((processed / total) * 100));
+                document.getElementById('job-progress').style.width = pct + '%';
+
+                setTimeout(() => pollSingleJob(jobId, filename, btn), 3000);
+            } catch (err) {
+                console.error('Poll error:', err);
+                setTimeout(() => pollSingleJob(jobId, filename, btn), 5000);
             }
         }
 

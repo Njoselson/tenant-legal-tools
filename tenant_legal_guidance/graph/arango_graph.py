@@ -539,6 +539,38 @@ class ArangoDBGraph:
             self.logger.warning(f"Error fetching existing locators: {e}")
             return set()
 
+    def get_source_details_by_locators(self, locators: list[str]) -> dict[str, dict]:
+        """Get source details (fetched_at, source_id) for a list of locators.
+
+        Returns:
+            {locator: {fetched_at, source_id, title}} for each locator found in DB.
+        """
+        try:
+            cursor = self.db.aql.execute(
+                "FOR doc IN sources FILTER doc.locator IN @locators "
+                "RETURN {locator: doc.locator, fetched_at: doc.fetched_at, "
+                "source_id: doc._key, title: doc.title}",
+                bind_vars={"locators": locators},
+            )
+            return {row["locator"]: row for row in cursor if row.get("locator")}
+        except Exception as e:
+            self.logger.warning(f"Error fetching source details: {e}")
+            return {}
+
+    def delete_source_by_locator(self, locator: str) -> bool:
+        """Delete a source record by locator so it can be re-ingested."""
+        try:
+            cursor = self.db.aql.execute(
+                "FOR doc IN sources FILTER doc.locator == @locator "
+                "REMOVE doc IN sources RETURN OLD",
+                bind_vars={"locator": locator},
+            )
+            removed = list(cursor)
+            return len(removed) > 0
+        except Exception as e:
+            self.logger.warning(f"Error deleting source by locator: {e}")
+            return False
+
     def ensure_text_entities(
         self, source_id: str, full_text: str, chunk_size: int = 3500
     ) -> dict[str, object]:
@@ -1978,6 +2010,7 @@ class ArangoDBGraph:
         return [t for t in tokens if t and t not in stop]
 
     def _sim_score(self, name_a: str, desc_a: str | None, name_b: str, desc_b: str | None) -> float:
+        """Jaccard token similarity (legacy fallback)."""
         if not name_a or not name_b:
             return 0.0
         a, b = name_a.strip().lower(), name_b.strip().lower()
@@ -1991,6 +2024,30 @@ class ArangoDBGraph:
         desc_sim = (len(da & db) / max(1, len(da | db))) if (da or db) else 0.0
         return 0.8 * name_sim + 0.2 * desc_sim
 
+    def _get_embeddings_service(self):
+        """Lazy-load EmbeddingsService for consolidation."""
+        if not hasattr(self, "_embeddings") or self._embeddings is None:
+            from tenant_legal_guidance.services.embeddings import EmbeddingsService
+
+            self._embeddings = EmbeddingsService()
+        return self._embeddings
+
+    def _embedding_sim_score(
+        self, name_a: str, desc_a: str | None, name_b: str, desc_b: str | None
+    ) -> float:
+        """Cosine similarity on '{name}. {desc}' embeddings."""
+        if not name_a or not name_b:
+            return 0.0
+        a, b = name_a.strip().lower(), name_b.strip().lower()
+        if a == b:
+            return 1.0
+        text_a = f"{name_a.strip()}. {(desc_a or '').strip()}"
+        text_b = f"{name_b.strip()}. {(desc_b or '').strip()}"
+        emb = self._get_embeddings_service()
+        vectors = emb.embed([text_a, text_b])
+        # Embeddings are already L2-normalized, so dot product = cosine similarity
+        return float(vectors[0] @ vectors[1])
+
     def _merge_two_docs(self, coll_name: str, keep_id: str, drop_id: str) -> None:
         coll = self.db.collection(coll_name)
         keep = coll.get(keep_id)
@@ -2001,7 +2058,31 @@ class ArangoDBGraph:
         kdesc, ddesc = keep.get("description"), drop.get("description")
         if (not kdesc) or (ddesc and len(str(ddesc)) > len(str(kdesc))):
             keep["description"] = ddesc
-        # Merge attributes (non-destructive)
+        # Merge list fields (concatenate + deduplicate)
+        for list_field in ("chunk_ids", "all_quotes"):
+            keep_list = keep.get(list_field) or []
+            drop_list = drop.get(list_field) or []
+            if drop_list:
+                if list_field == "chunk_ids":
+                    # Deduplicate by value
+                    seen_vals = set(keep_list)
+                    for item in drop_list:
+                        if item not in seen_vals:
+                            keep_list.append(item)
+                            seen_vals.add(item)
+                else:
+                    # all_quotes: deduplicate by text content
+                    seen_texts = {
+                        (q.get("text", "") if isinstance(q, dict) else str(q))[:100]
+                        for q in keep_list
+                    }
+                    for q in drop_list:
+                        txt = (q.get("text", "") if isinstance(q, dict) else str(q))[:100]
+                        if txt not in seen_texts:
+                            keep_list.append(q)
+                            seen_texts.add(txt)
+                keep[list_field] = keep_list
+        # Merge remaining attributes (non-destructive)
         for k, v in drop.items():
             if k in [
                 "_key",
@@ -2014,6 +2095,8 @@ class ArangoDBGraph:
                 "jurisdiction",
                 "provenance",
                 "mentions_count",
+                "chunk_ids",
+                "all_quotes",
             ]:
                 continue
             if k not in keep:
@@ -2115,74 +2198,111 @@ class ArangoDBGraph:
 
     def consolidate_all_entities(
         self,
-        threshold: float = 0.95,
+        threshold: float = 0.92,
         types: list[EntityType] | None = None,
-        judge_low: float = 0.90,
-        judge_high: float = 0.95,
+        judge_low: float = 0.85,
+        judge_high: float = 0.92,
+        dry_run: bool = False,
     ) -> dict[str, object]:
-        """Scan the whole graph (optionally filtered by types) and consolidate near-duplicates per type.
-        Auto-merge when score >= threshold. Return borderline pairs in [judge_low, judge_high) for LLM judge.
-        Returns { collections: map of collection -> {merged, examined}, borderline: [ {coll, a_id, b_id, a_name, b_name, a_desc, b_desc, score} ] }.
+        """Scan the whole graph and consolidate near-duplicates per type using embedding similarity.
+
+        Batch-embeds all entities per collection upfront, then uses numpy dot product
+        for fast pairwise cosine similarity (embeddings are L2-normalized).
+
+        Auto-merge when score >= threshold (0.92). Borderline pairs in [judge_low, judge_high) for LLM judge.
+        Set dry_run=True to preview merges without executing them.
+        Returns { collections: map of collection -> {merged, examined}, borderline: [...], dry_run: bool }.
         """
+        import numpy as np
+
         results: dict[str, dict[str, int]] = {}
         borderline: list[dict[str, object]] = []
+        merge_preview: list[dict[str, object]] = []
         try:
             target_types = types or list(EntityType)
             self.logger.info(
-                f"[CONSOLIDATE-ALL] Starting consolidate-all threshold={threshold} types={[t.value if hasattr(t, 'value') else str(t) for t in target_types]}"
+                f"[CONSOLIDATE-ALL] Starting consolidate-all threshold={threshold} "
+                f"judge=[{judge_low},{judge_high}) dry_run={dry_run} "
+                f"types={[t.value if hasattr(t, 'value') else str(t) for t in target_types]}"
             )
+            emb = self._get_embeddings_service()
+
             for et in target_types:
                 coll_name = self._get_collection_for_entity(et)
                 if not self.db.has_collection(coll_name):
                     continue
                 coll = self.db.collection(coll_name)
                 docs = list(coll.all())
+                if len(docs) < 2:
+                    results[coll_name] = {"merged": 0, "examined": 0}
+                    continue
+
+                # Batch-embed all entities in this collection
+                texts = [
+                    f"{d.get('name', '').strip()}. {(d.get('description') or '').strip()}"
+                    for d in docs
+                ]
+                vectors = emb.embed(texts)
+                # Compute full pairwise cosine similarity matrix (vectors are L2-normalized)
+                sim_matrix = vectors @ vectors.T
+
                 merged = 0
                 examined = 0
-                # Simple n^2 compare within collection; acceptable for small/medium graphs
-                i = 0
-                while i < len(docs):
-                    a = docs[i]
-                    j = i + 1
-                    while j < len(docs):
-                        b = docs[j]
+                # Collect merge pairs sorted by score descending to merge best matches first
+                merge_pairs: list[tuple[int, int, float]] = []
+                for i in range(len(docs)):
+                    for j in range(i + 1, len(docs)):
                         examined += 1
-                        score = self._sim_score(
-                            a.get("name", ""),
-                            a.get("description"),
-                            b.get("name", ""),
-                            b.get("description"),
-                        )
+                        score = float(sim_matrix[i, j])
                         if score >= threshold:
-                            ka = a.get("source_metadata") or {}
-                            kb = b.get("source_metadata") or {}
-                            choose_a = self._select_canonical_source(kb, ka) == ka
-                            keep_id = a.get("_key") if choose_a else b.get("_key")
-                            drop_id = b.get("_key") if choose_a else a.get("_key")
-                            self.logger.info(
-                                f"[CONSOLIDATE-ALL] merge {coll_name}: '{a.get('name', '')}' <-> '{b.get('name', '')}' score={score:.3f} keep={keep_id} drop={drop_id}"
-                            )
-                            self._merge_two_docs(coll_name, keep_id, drop_id)
-                            # Refresh docs list after deletion
-                            docs.pop(j if choose_a else i)
-                            merged += 1
-                            # Do not advance j; the list shrank
-                            continue
+                            merge_pairs.append((i, j, score))
                         elif judge_low <= score < judge_high:
                             borderline.append(
                                 {
                                     "coll": coll_name,
-                                    "a_id": a.get("_key"),
-                                    "b_id": b.get("_key"),
-                                    "a_name": a.get("name", ""),
-                                    "b_name": b.get("name", ""),
-                                    "a_desc": a.get("description", ""),
-                                    "b_desc": b.get("description", ""),
-                                    "score": float(score),
+                                    "a_id": docs[i].get("_key"),
+                                    "b_id": docs[j].get("_key"),
+                                    "a_name": docs[i].get("name", ""),
+                                    "b_name": docs[j].get("name", ""),
+                                    "a_desc": docs[i].get("description", ""),
+                                    "b_desc": docs[j].get("description", ""),
+                                    "score": score,
                                 }
                             )
-                        j += 1
-                    i += 1
+
+                # Process merges: highest score first, skip already-merged indices
+                merge_pairs.sort(key=lambda x: x[2], reverse=True)
+                dropped: set[int] = set()
+                for i, j, score in merge_pairs:
+                    if i in dropped or j in dropped:
+                        continue
+                    a, b = docs[i], docs[j]
+                    ka = a.get("source_metadata") or {}
+                    kb = b.get("source_metadata") or {}
+                    choose_a = self._select_canonical_source(kb, ka) == ka
+                    keep_id = a.get("_key") if choose_a else b.get("_key")
+                    drop_id = b.get("_key") if choose_a else a.get("_key")
+                    self.logger.info(
+                        f"[CONSOLIDATE-ALL] {'(dry-run) ' if dry_run else ''}merge {coll_name}: "
+                        f"'{a.get('name', '')}' <-> '{b.get('name', '')}' "
+                        f"score={score:.3f} keep={keep_id} drop={drop_id}"
+                    )
+                    if dry_run:
+                        merge_preview.append(
+                            {
+                                "coll": coll_name,
+                                "keep_id": keep_id,
+                                "drop_id": drop_id,
+                                "keep_name": a.get("name", "") if choose_a else b.get("name", ""),
+                                "drop_name": b.get("name", "") if choose_a else a.get("name", ""),
+                                "score": float(score),
+                            }
+                        )
+                    else:
+                        self._merge_two_docs(coll_name, keep_id, drop_id)
+                        merged += 1
+                    dropped.add(j if choose_a else i)
+
                 results[coll_name] = {"merged": merged, "examined": examined}
                 self.logger.info(
                     f"[CONSOLIDATE-ALL] collection={coll_name} merged={merged} examined={examined}"
@@ -2192,10 +2312,13 @@ class ArangoDBGraph:
             self.logger.info(
                 f"[CONSOLIDATE-ALL] Completed merged_total={total_merged} examined_total={total_examined}"
             )
-            return {"collections": results, "borderline": borderline}
+            result = {"collections": results, "borderline": borderline, "dry_run": dry_run}
+            if dry_run:
+                result["merge_preview"] = merge_preview
+            return result
         except Exception as e:
             self.logger.error(f"consolidate_all_entities error: {e}")
-            return {"collections": results, "borderline": borderline}
+            return {"collections": results, "borderline": borderline, "dry_run": dry_run}
 
     def merge_pair_auto(self, id_a: str, id_b: str) -> bool:
         """Merge two entities (same collection/type). Chooses canonical by authority/recency and rewires edges.
@@ -2770,3 +2893,166 @@ class ArangoDBGraph:
         except Exception as e:
             self.logger.error(f"Failed to get claims by type {claim_type}: {e}")
             return []
+
+    def get_laws_for_claim_type(self, claim_type: str, limit: int = 8) -> list[dict]:
+        """
+        Get LAW entities connected to claims of a given type, ranked by citation count.
+
+        The graph uses multiple edge types for law-claim connections:
+        ENABLES (most common), ADDRESSES, and CITES. This queries all via
+        the unified `edges` collection.
+
+        Returns top `limit` laws ranked by how many claims of this type cite them.
+        """
+        try:
+            aql = """
+            FOR claim IN entities
+                FILTER claim.type == "legal_claim"
+                FILTER claim.claim_type == @claim_type
+                FOR edge IN edges
+                    FILTER edge._to == claim._id OR edge._from == claim._id
+                    LET other_id = edge._to == claim._id ? edge._from : edge._to
+                    LET other = DOCUMENT(other_id)
+                    FILTER other != null AND other.type == "law"
+                    COLLECT law_key = other._key,
+                            law_name = other.name,
+                            law_citation = (other.citation OR other.name),
+                            law_desc = (other.description OR ""),
+                            law_source_url = other.source_metadata.source,
+                            law_source_title = other.source_metadata.title
+                    WITH COUNT INTO citation_count
+                    SORT citation_count DESC
+                    LIMIT @limit
+                    RETURN {
+                        name: law_name,
+                        citation: law_citation,
+                        description: law_desc,
+                        source_url: law_source_url,
+                        source_title: law_source_title,
+                        citation_count: citation_count
+                    }
+            """
+            cursor = self.db.aql.execute(
+                aql, bind_vars={"claim_type": claim_type, "limit": limit}
+            )
+            return list(cursor)
+
+        except Exception as e:
+            self.logger.error(f"Failed to get laws for claim type {claim_type}: {e}")
+            return []
+
+    @staticmethod
+    def _clean_remedy_name(name: str) -> str:
+        """Strip dollar amounts and percentages from remedy names."""
+        import re as _re
+
+        # Remove dollar amounts like "$10,000", "$1.5 million", "$500"
+        cleaned = _re.sub(r"\$[\d,]+(?:\.\d+)?(?:\s*(?:million|billion|thousand))?", "", name)
+        # Remove standalone percentages like "25%", "33.3%"
+        cleaned = _re.sub(r"\b\d+(?:\.\d+)?%", "", cleaned)
+        # Clean up leftover artifacts (double spaces, leading/trailing punctuation)
+        cleaned = _re.sub(r"\s{2,}", " ", cleaned).strip(" ,-–—()")
+        return cleaned or name
+
+    def get_remedies_for_claim_type(self, claim_type: str, limit: int = 6) -> list[dict]:
+        """
+        Get REMEDY entities and LEGAL_OUTCOME entities connected to claims of a given type,
+        ranked by citation count with cleaned remedy names.
+
+        Checks direct edges from claims to outcomes/remedies via RESULTS_IN, ENABLES, etc.
+        Also traverses through laws: CLAIM <-ENABLES- LAW -AUTHORIZES-> OUTCOME.
+
+        Returns top `limit` remedies ranked by citation count.
+        """
+        try:
+            # Direct: outcomes/remedies connected to claims of this type
+            aql = """
+            FOR claim IN entities
+                FILTER claim.type == "legal_claim"
+                FILTER claim.claim_type == @claim_type
+                FOR edge IN edges
+                    FILTER edge._from == claim._id
+                    FILTER edge.type IN ["RESULTS_IN", "ENABLES"]
+                    LET tgt = DOCUMENT(edge._to)
+                    FILTER tgt != null AND tgt.type IN ["legal_outcome", "remedy"]
+                    RETURN {
+                        name: tgt.name,
+                        description: tgt.description OR "",
+                        source_url: tgt.source_metadata.source
+                    }
+            """
+            cursor = self.db.aql.execute(aql, bind_vars={"claim_type": claim_type})
+            results = list(cursor)
+
+            # Also get remedies reachable via laws: LAW -ENABLES-> CLAIM, LAW -AUTHORIZES-> OUTCOME
+            aql2 = """
+            FOR claim IN entities
+                FILTER claim.type == "legal_claim"
+                FILTER claim.claim_type == @claim_type
+                FOR law_edge IN edges
+                    FILTER law_edge._to == claim._id
+                    FILTER law_edge.type IN ["ENABLES", "ADDRESSES", "CITES"]
+                    LET law = DOCUMENT(law_edge._from)
+                    FILTER law != null AND law.type == "law"
+                    FOR auth_edge IN edges
+                        FILTER auth_edge._from == law._id
+                        FILTER auth_edge.type IN ["AUTHORIZES", "ENABLES"]
+                        LET outcome = DOCUMENT(auth_edge._to)
+                        FILTER outcome != null AND outcome.type IN ["legal_outcome", "remedy"]
+                        RETURN {
+                            name: outcome.name,
+                            description: outcome.description OR "",
+                            source_url: outcome.source_metadata.source
+                        }
+            """
+            cursor2 = self.db.aql.execute(aql2, bind_vars={"claim_type": claim_type})
+            results2 = list(cursor2)
+
+            # Deduplicate by cleaned name and count citations
+            name_counts: dict[str, int] = {}
+            name_to_entry: dict[str, dict] = {}
+            for r in results + results2:
+                cleaned = self._clean_remedy_name(r["name"])
+                name_counts[cleaned] = name_counts.get(cleaned, 0) + 1
+                if cleaned not in name_to_entry:
+                    name_to_entry[cleaned] = {
+                        "name": cleaned,
+                        "description": r["description"],
+                        "source_url": r.get("source_url"),
+                    }
+
+            # Sort by citation count descending, cap at limit
+            ranked = sorted(name_to_entry.keys(), key=lambda n: name_counts[n], reverse=True)
+            return [
+                {**name_to_entry[n], "citation_count": name_counts[n]} for n in ranked[:limit]
+            ]
+
+        except Exception as e:
+            self.logger.error(f"Failed to get remedies for claim type {claim_type}: {e}")
+            return []
+
+    def get_case_document_for_claim(self, claim_key: str) -> dict | None:
+        """
+        Get the CASE_DOCUMENT that ADDRESSES a given legal claim.
+
+        Returns dict with name, url, or None if no case document found.
+        """
+        try:
+            aql = """
+            FOR e IN edges
+                FILTER e._to == CONCAT("entities/", @claim_key)
+                FILTER e.type == "ADDRESSES"
+                LET src = DOCUMENT(e._from)
+                FILTER src != null AND src.type == "case_document"
+                LIMIT 1
+                RETURN {
+                    name: src.name,
+                    url: src.source_metadata.source
+                }
+            """
+            cursor = self.db.aql.execute(aql, bind_vars={"claim_key": claim_key})
+            results = list(cursor)
+            return results[0] if results else None
+        except Exception as e:
+            self.logger.error(f"Failed to get case document for claim {claim_key}: {e}")
+            return None

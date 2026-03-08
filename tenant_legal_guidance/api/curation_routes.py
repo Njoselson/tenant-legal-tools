@@ -110,18 +110,90 @@ async def check_ingested(
     request: Request,
     system: TenantLegalSystem = Depends(get_system),
 ) -> dict[str, Any]:
-    """Check which locators are already ingested.
+    """Check which locators are already ingested with details.
 
     Request body: { "locators": ["url1", "url2", ...] }
-    Returns: { "ingested": { "url1": true, "url2": false, ... } }
+    Returns: { "ingested": { "url1": true, ... }, "details": { "url1": { "fetched_at": ..., "source_id": ... }, ... } }
     """
     body = await request.json()
     locators = body.get("locators", [])
     if not locators:
-        return {"ingested": {}}
+        return {"ingested": {}, "details": {}}
 
-    existing = system.knowledge_graph.get_existing_locators()
-    return {"ingested": {loc: loc in existing for loc in locators}}
+    details = system.knowledge_graph.get_source_details_by_locators(locators)
+    ingested = {loc: loc in details for loc in locators}
+    return {"ingested": ingested, "details": details}
+
+
+@router.post("/reingest-source")
+async def reingest_single_source(
+    request: Request,
+    background_tasks: BackgroundTasks,
+    system: TenantLegalSystem = Depends(get_system),
+    storage: CurationStorage = Depends(get_curation_storage),
+) -> dict[str, Any]:
+    """Reingest a single source by locator (deletes existing record first).
+
+    Request body: { "locator": "https://...", "manifest_file": "habitability_cases.jsonl" }
+    """
+    body = await request.json()
+    locator = body.get("locator")
+    manifest_file = body.get("manifest_file")
+    if not locator:
+        raise HTTPException(status_code=400, detail="locator is required")
+
+    # Delete existing source record so it won't be skipped
+    system.knowledge_graph.delete_source_by_locator(locator)
+
+    # Find the entry in the manifest file to get metadata
+    entry_data = None
+    if manifest_file:
+        manifest_path = Path("data/manifests") / manifest_file
+        if manifest_path.exists():
+            with manifest_path.open("r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        parsed = json.loads(line)
+                        if parsed.get("locator") == locator:
+                            entry_data = parsed
+                            break
+                    except json.JSONDecodeError:
+                        continue
+
+    if not entry_data:
+        entry_data = {"locator": locator, "kind": "url"}
+
+    # Write a temp single-entry manifest and ingest it
+    timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    temp_manifest = Path(f"data/manifests/_reingest_{timestamp}.jsonl")
+    temp_manifest.parent.mkdir(parents=True, exist_ok=True)
+    with temp_manifest.open("w", encoding="utf-8") as f:
+        f.write(json.dumps(entry_data) + "\n")
+
+    # Create job
+    job_id = f"job_{uuid.uuid4().hex[:8]}"
+    job_data = {
+        "job_id": job_id,
+        "status": "queued",
+        "manifest_path": str(temp_manifest),
+        "total_entries": 1,
+        "progress": {"total": 1, "processed": 0, "failed": 0, "skipped": 0},
+    }
+    storage.create_job(job_id, job_data)
+
+    # Run in background (skip_existing=False since we deleted the record)
+    background_tasks.add_task(
+        _ingest_manifest_background,
+        job_id,
+        temp_manifest,
+        system,
+        {"skip_existing": False},
+    )
+
+    return {"job_id": job_id, "status": "queued", "locator": locator}
 
 
 @router.post("/search", response_model=CurationSearchResponse)

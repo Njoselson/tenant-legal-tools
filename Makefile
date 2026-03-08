@@ -1,4 +1,4 @@
-.PHONY: install test lint format clean db-stats db-reset db-drop db-cleanup build-manifest ingest-manifest reingest-all vector-status run app dev services-up services-down services-status evaluate evaluate-quotes evaluate-retrieval evaluate-linkage
+.PHONY: install test lint format clean db-stats db-reset db-drop db-cleanup build-manifest ingest-manifest reingest-all vector-status run app dev services-up services-down services-status evaluate evaluate-quotes evaluate-retrieval evaluate-linkage kg-clean kg-judge kg-audit eval-build-ground-truth eval-case-outcomes prod-ingest-manifest prod-ingest-all prod-reingest-all prod-db-stats prod-db-reset prod-kg-clean prod-kg-judge prod-kg-audit
 
 install:
 	uv pip install -e ".[dev]"
@@ -170,4 +170,94 @@ evaluate-retrieval:
 
 evaluate-linkage:
 	@echo "Running chunk linkage evaluation..."
-	uv run python -m tenant_legal_guidance.scripts.run_evaluation --output-dir data/evaluation --categories chunk_linkage 
+	uv run python -m tenant_legal_guidance.scripts.run_evaluation --output-dir data/evaluation --categories chunk_linkage
+
+# Knowledge graph maintenance
+kg-clean:
+	@echo "Running KG consolidation + audit..."
+	uv run python -m tenant_legal_guidance.scripts.kg_maintain --consolidate $(if $(DRY_RUN),--dry-run,)
+
+kg-judge:
+	@echo "Running LLM judge on borderline pairs..."
+	uv run python -m tenant_legal_guidance.scripts.kg_maintain --judge $(if $(DRY_RUN),--dry-run,)
+
+kg-audit:
+	@echo "Running KG audit..."
+	uv run python -m tenant_legal_guidance.scripts.kg_maintain --audit
+
+# Case outcome evaluation
+eval-build-ground-truth:
+	@echo "Extracting ground truth from case documents..."
+	uv run python -m tenant_legal_guidance.scripts.build_case_ground_truth
+
+eval-case-outcomes:
+	@echo "Evaluating case outcome predictions..."
+	uv run python -m tenant_legal_guidance.scripts.eval_case_outcomes --verbose
+
+# ── Production targets (run inside Docker container) ──────────────────────────
+# Use these on the production server, or locally when running via docker-compose.
+# They replace `uv run python` with `docker compose exec -T app python`.
+
+DOCKER_RUN = docker compose exec -T app python
+
+prod-db-stats:
+	@echo "Getting production database statistics..."
+	$(DOCKER_RUN) -m tenant_legal_guidance.scripts.reset_database --stats
+
+prod-db-reset:
+	@echo "Truncating all production database collections..."
+	@echo "⚠️  This is destructive! Press Ctrl+C to cancel."
+	@sleep 3
+	$(DOCKER_RUN) -m tenant_legal_guidance.scripts.reset_database --truncate --yes
+
+prod-ingest-manifest:
+	@if [ -z "$(MANIFEST)" ]; then \
+		echo "Usage: make prod-ingest-manifest MANIFEST=data/manifests/sources.jsonl"; \
+		exit 1; \
+	fi
+	@echo "Ingesting from manifest (production): $(MANIFEST)"
+	$(DOCKER_RUN) -m tenant_legal_guidance.scripts.ingest \
+		--manifest $(MANIFEST) \
+		--archive data/archive \
+		--checkpoint data/ingestion_checkpoint.json \
+		--report data/ingestion_report.json \
+		--skip-existing
+
+prod-ingest-all:
+	@echo "Ingesting all manifests (production)..."
+	$(DOCKER_RUN) -m tenant_legal_guidance.scripts.ingest_all_manifests \
+		--skip-existing \
+		--checkpoint data/ingestion_checkpoint.json \
+		--report data/ingestion_report.json \
+		--archive data/archive
+
+prod-reingest-all:
+	@echo "Re-ingesting ALL data in production (force reprocessing)..."
+	@echo "⚠️  This will drop the database and reingest everything! Press Ctrl+C to cancel."
+	@sleep 5
+	@echo "1. Dropping ArangoDB database..."
+	$(DOCKER_RUN) -m tenant_legal_guidance.scripts.reset_database --drop --yes
+	@echo "2. Recreating Qdrant collection..."
+	docker compose exec -T app python -c "import requests; requests.delete('http://qdrant:6333/collections/legal_chunks')" || true
+	@echo "3. Clearing checkpoints..."
+	rm -f data/ingestion_checkpoint.json data/ingestion_report.json
+	@sleep 2
+	@echo "4. Starting fresh ingestion..."
+	$(DOCKER_RUN) -m tenant_legal_guidance.scripts.ingest_all_manifests \
+		--checkpoint data/ingestion_checkpoint.json \
+		--report data/ingestion_report.json \
+		--archive data/archive
+	@echo ""
+	@echo "✓ Production re-ingestion complete"
+
+prod-kg-clean:
+	@echo "Running KG consolidation on production..."
+	$(DOCKER_RUN) -m tenant_legal_guidance.scripts.kg_maintain --consolidate $(if $(DRY_RUN),--dry-run,)
+
+prod-kg-judge:
+	@echo "Running LLM judge on production..."
+	$(DOCKER_RUN) -m tenant_legal_guidance.scripts.kg_maintain --judge $(if $(DRY_RUN),--dry-run,)
+
+prod-kg-audit:
+	@echo "Running KG audit on production..."
+	$(DOCKER_RUN) -m tenant_legal_guidance.scripts.kg_maintain --audit

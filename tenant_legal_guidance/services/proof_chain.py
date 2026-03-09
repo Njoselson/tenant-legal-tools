@@ -80,6 +80,10 @@ class ProofChain:
     missing_count: int = 0
     critical_gaps: list[str] = None  # Descriptions of missing critical evidence
 
+    # Laws and remedies connected to this claim type
+    applicable_laws: list[dict] = None  # [{name, citation, description}]
+    remedies: list[dict] = None  # [{name, description}]
+
     # Graph-based chains from build_legal_chains (explicit graph traversal)
     graph_chains: list[dict] = None  # Chains from build_legal_chains() method
 
@@ -97,6 +101,10 @@ class ProofChain:
             self.missing_evidence = []
         if self.critical_gaps is None:
             self.critical_gaps = []
+        if self.applicable_laws is None:
+            self.applicable_laws = []
+        if self.remedies is None:
+            self.remedies = []
         if self.graph_chains is None:
             self.graph_chains = []
         if self.law_ids is None:
@@ -356,6 +364,13 @@ class ProofChainService:
             # Identify critical gaps
             critical_gaps = [ev.description for ev in missing_evidence if ev.is_critical]
 
+            # Fetch applicable laws and remedies for this claim type
+            applicable_laws = []
+            remedies_list = []
+            if claim_type_str:
+                applicable_laws = self.kg.get_laws_for_claim_type(claim_type_str)
+                remedies_list = self.kg.get_remedies_for_claim_type(claim_type_str)
+
             # Build the proof chain
             # Convert string claim_type_str to ClaimType enum
             claim_type_enum = ClaimType.from_string(claim_type_str) if claim_type_str else None
@@ -370,6 +385,8 @@ class ProofChainService:
                 missing_evidence=missing_evidence,
                 outcome=outcome,
                 damages=damages if damages else None,
+                applicable_laws=applicable_laws,
+                remedies=remedies_list,
                 completeness_score=completeness_score,
                 satisfied_count=len(satisfied_evidence),
                 missing_count=len(missing_evidence),
@@ -1032,6 +1049,11 @@ class ProofChainService:
         if metadata is None:
             metadata = SourceMetadata(source=claim.id, source_type=SourceType.FILE)
 
+        # Infer claim_type from name/description if not set by LLM
+        claim_type = claim.claim_type
+        if not claim_type:
+            claim_type = self._infer_claim_type(claim.name, claim.claim_description)
+
         return LegalEntity(
             id=claim.id,
             entity_type=EntityType.LEGAL_CLAIM,
@@ -1041,7 +1063,7 @@ class ProofChainService:
             claim_description=claim.claim_description,
             claimant=claim.claimant,
             respondent_party=claim.respondent_party,
-            claim_type=claim.claim_type,
+            claim_type=claim_type,
             relief_sought=claim.relief_sought,  # Keep as list for direct field
             claim_status=claim.claim_status,
             best_quote={"text": claim.source_quote} if claim.source_quote else None,
@@ -1049,6 +1071,34 @@ class ProofChainService:
             # All claim fields are direct fields, not in attributes dict
             attributes={},
         )
+
+    @staticmethod
+    def _infer_claim_type(name: str, description: str | None = None) -> str | None:
+        """Infer canonical claim_type from claim name/description.
+
+        Uses ClaimType.from_string() which does fuzzy matching against the enum.
+        If no canonical type matches, generates a descriptive ALL_CAPS type
+        from the claim name rather than discarding it.
+        """
+        from tenant_legal_guidance.models.claim_types import ClaimType
+
+        # Try matching from name first, then combined
+        for text in [name, f"{name} {description or ''}"]:
+            if not text:
+                continue
+            result = ClaimType.from_string(text)
+            if result != ClaimType.OTHER:
+                return result.value
+
+        # No canonical match — generate a descriptive type from the name
+        if name:
+            # Convert "Breach of Lease Agreement" → "BREACH_OF_LEASE_AGREEMENT"
+            import re
+            descriptive = re.sub(r'[^a-zA-Z0-9\s]', '', name).strip()
+            descriptive = re.sub(r'\s+', '_', descriptive).upper()
+            if descriptive and len(descriptive) <= 60:
+                return descriptive
+        return None
 
     def _extracted_evidence_to_legal_entity(
         self, evidence, metadata: SourceMetadata | None, stored_entities: dict[str, LegalEntity] | None = None
@@ -1164,7 +1214,7 @@ class ProofChainService:
 
         return LegalEntity(
             id=damage.id,
-            entity_type=EntityType.DAMAGES,
+            entity_type=EntityType.LEGAL_OUTCOME,
             name=damage.name,
             description=damage.description,
             source_metadata=metadata,

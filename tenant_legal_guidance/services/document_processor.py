@@ -24,25 +24,18 @@ from tenant_legal_guidance.models.relationships import LegalRelationship, Relati
 # Relationship inference rules for common legal patterns
 RELATIONSHIP_INFERENCE_RULES = {
     # (source_type, target_type): relationship_type
-    (EntityType.LAW, EntityType.TENANT_ISSUE): RelationshipType.APPLIES_TO,
-    (EntityType.LAW, EntityType.REMEDY): RelationshipType.ENABLES,
-    (EntityType.REMEDY, EntityType.DAMAGES): RelationshipType.AWARDS,
+    (EntityType.LAW, EntityType.LEGAL_CLAIM): RelationshipType.ADDRESSES,
+    (EntityType.LAW, EntityType.LEGAL_OUTCOME): RelationshipType.AUTHORIZES,
     (EntityType.LAW, EntityType.EVIDENCE): RelationshipType.REQUIRES,
     (EntityType.LAW, EntityType.DOCUMENT): RelationshipType.REQUIRES,
-    (
-        EntityType.TENANT_ISSUE,
-        EntityType.REMEDY,
-    ): RelationshipType.APPLIES_TO,  # Issue can be resolved by remedy
-    (EntityType.REMEDY, EntityType.LEGAL_PROCEDURE): RelationshipType.AVAILABLE_VIA,
+    (EntityType.LEGAL_CLAIM, EntityType.EVIDENCE): RelationshipType.REQUIRES,
+    (EntityType.LEGAL_CLAIM, EntityType.LEGAL_OUTCOME): RelationshipType.RESULTS_IN,
+    (EntityType.LEGAL_OUTCOME, EntityType.LEGAL_PROCEDURE): RelationshipType.AVAILABLE_VIA,
     (EntityType.LEGAL_PROCEDURE, EntityType.LEGAL_OUTCOME): RelationshipType.ENABLES,
-    (
-        EntityType.TENANT_ISSUE,
-        EntityType.LAW,
-    ): RelationshipType.VIOLATES,  # Reverse: issue violates law
+    (EntityType.EVIDENCE, EntityType.LEGAL_OUTCOME): RelationshipType.SUPPORTS,
 }
 from tenant_legal_guidance.services.case_analyzer import CaseAnalyzer
 from tenant_legal_guidance.services.case_metadata_extractor import CaseMetadataExtractor
-from tenant_legal_guidance.services.concept_grouping import ConceptGroupingService
 from tenant_legal_guidance.services.deepseek import DeepSeekClient
 from tenant_legal_guidance.services.embeddings import EmbeddingsService
 from tenant_legal_guidance.services.entity_consolidation import EntityConsolidationService
@@ -65,7 +58,6 @@ class DocumentProcessor:
         self.deepseek = deepseek_client
         self.knowledge_graph = knowledge_graph
         self.logger = logging.getLogger(__name__)
-        self.concept_grouping = ConceptGroupingService()
         self.consolidator = EntityConsolidationService(self.knowledge_graph, self.deepseek)
         self.settings = get_settings()
         # Initialize embeddings and vector store (required for chunk storage)
@@ -480,14 +472,6 @@ class DocumentProcessor:
             if self.knowledge_graph.add_relationship(relationship):
                 added_relationships.append(relationship)
 
-        # Step 5: Group similar concepts
-        concept_groups = []
-        if added_entities:
-            # Get all existing entities for comparison
-            all_entities = self._get_all_entities()
-            # Group the newly added entities with similar existing ones
-            concept_groups = self.concept_grouping.group_similar_concepts(all_entities)
-
         # Step 5.5: Stage 2 - Document-Level Synthesis (for court opinions)
         case_document_entity = None
         if metadata.document_type == LegalDocumentType.COURT_OPINION and source_id:
@@ -591,6 +575,18 @@ class DocumentProcessor:
                 )
             except Exception as e:
                 self.logger.error(f"Step 5.7 case-entity linking failed: {e}", exc_info=True)
+
+        # Step 5.8: Cross-type linking — connect new entities to existing graph entities
+        # by claim_type, shared legal concepts, and semantic similarity
+        try:
+            all_stored_ids = list(set(
+                proof_chain_entity_ids + [e.id for e in added_entities]
+            ))
+            cross_edges = self._create_cross_type_edges(all_stored_ids)
+            if cross_edges > 0:
+                self.logger.info(f"Step 5.8: Created {cross_edges} cross-type edges to existing graph entities")
+        except Exception as e:
+            self.logger.error(f"Step 5.8 cross-type linking failed: {e}", exc_info=True)
 
         # Step 6: Embed and persist chunks to Qdrant
         chunk_count = 0
@@ -835,7 +831,6 @@ class DocumentProcessor:
             "chunk_count": chunk_count,
             "entities": added_entities,
             "relationships": added_relationships,
-            "concept_groups": concept_groups,
             "case_document": case_document_entity,  # NEW: Include case document entity
             "case_analysis": case_analysis_results,  # NEW: Include case analysis results
             "consolidation_stats": consolidation_stats,  # NEW: Include entity consolidation statistics
@@ -1247,6 +1242,144 @@ Ensure array has exactly {len(batch)} objects."""
                     return True
 
         return False
+
+    def _create_cross_type_edges(self, entity_ids: list[str]) -> int:
+        """Create cross-type edges between newly stored entities and existing graph entities.
+
+        Connects entities based on shared claim_type, semantic similarity, and
+        legal domain patterns. Runs after entity resolution so IDs are final.
+
+        Returns number of edges created.
+        """
+        if not entity_ids:
+            return 0
+
+        edges_created = 0
+
+        # Load entities we just stored
+        new_entities = []
+        for eid in entity_ids:
+            entity = self.knowledge_graph.get_entity(eid)
+            if entity:
+                new_entities.append(entity)
+
+        if not new_entities:
+            return 0
+
+        # Group new entities by type for efficient linking
+        by_type: dict[EntityType, list[LegalEntity]] = {}
+        for e in new_entities:
+            by_type.setdefault(e.entity_type, []).append(e)
+
+        new_claims = by_type.get(EntityType.LEGAL_CLAIM, [])
+        new_laws = by_type.get(EntityType.LAW, [])
+        new_evidence = by_type.get(EntityType.EVIDENCE, [])
+        new_outcomes = by_type.get(EntityType.LEGAL_OUTCOME, [])
+
+        # 1. Connect claims to laws that share the same claim_type
+        #    Find existing laws linked to claims of the same type
+        for claim in new_claims:
+            claim_type = claim.claim_type
+            if not claim_type:
+                continue
+
+            # Find existing laws connected to claims of this type
+            try:
+                related_laws = list(self.knowledge_graph.db.aql.execute('''
+                    FOR c IN entities
+                        FILTER c.type == "legal_claim" AND c.claim_type == @ct AND c._key != @key
+                        FOR e IN edges
+                            FILTER e._from == c._id OR e._to == c._id
+                            LET other_id = e._from == c._id ? e._to : e._from
+                            LET other = DOCUMENT(other_id)
+                            FILTER other != null AND other.type == "law"
+                            RETURN DISTINCT other._key
+                ''', bind_vars={"ct": claim_type, "key": claim.id}))
+
+                for law_key in related_laws[:5]:  # Cap at 5 to avoid over-linking
+                    rel = LegalRelationship(
+                        source_id=law_key,
+                        target_id=claim.id,
+                        relationship_type=RelationshipType.ADDRESSES,
+                        attributes={"inferred": True, "method": "claim_type_match"},
+                    )
+                    if self.knowledge_graph.add_relationship(rel):
+                        edges_created += 1
+            except Exception as e:
+                self.logger.debug(f"Cross-link claim→law failed for {claim.name}: {e}")
+
+        # 2. Connect new laws to existing claims they might address
+        for law in new_laws:
+            try:
+                # Find claims whose name/description mentions this law's name
+                law_name_lower = law.name.lower()
+                related_claims = list(self.knowledge_graph.db.aql.execute('''
+                    FOR c IN entities
+                        FILTER c.type == "legal_claim"
+                        FILTER CONTAINS(LOWER(c.name), @law_name) OR CONTAINS(LOWER(c.description), @law_name)
+                        LIMIT 5
+                        RETURN c._key
+                ''', bind_vars={"law_name": law_name_lower}))
+
+                for claim_key in related_claims:
+                    if claim_key in entity_ids:
+                        continue  # Skip within-doc links (already handled by inference rules)
+                    rel = LegalRelationship(
+                        source_id=law.id,
+                        target_id=claim_key,
+                        relationship_type=RelationshipType.ADDRESSES,
+                        attributes={"inferred": True, "method": "text_match"},
+                    )
+                    if self.knowledge_graph.add_relationship(rel):
+                        edges_created += 1
+            except Exception as e:
+                self.logger.debug(f"Cross-link law→claim failed for {law.name}: {e}")
+
+        # 3. Connect evidence to claims of matching claim_type (REQUIRES)
+        for evidence in new_evidence:
+            # Check if evidence has a linked claim_type via its context
+            evidence_text = f"{evidence.name} {evidence.description or ''}".lower()
+            for claim in new_claims:
+                # Already linked within-doc — skip
+                pass
+
+            # Link to existing claims with matching keywords
+            try:
+                for claim_type_str in ["HABITABILITY_VIOLATION", "HARASSMENT",
+                                       "RENT_OVERCHARGE", "DEREGULATION_CHALLENGE",
+                                       "HP_ACTION_REPAIRS"]:
+                    # Check if evidence name relates to this claim type
+                    ct_keywords = {
+                        "HABITABILITY_VIOLATION": ["heat", "mold", "repair", "habitab", "condition", "maintenance"],
+                        "HARASSMENT": ["harass", "threaten", "intimidat", "coerce"],
+                        "RENT_OVERCHARGE": ["rent", "overcharge", "stabiliz"],
+                        "DEREGULATION_CHALLENGE": ["deregulat", "destabiliz", "vacancy"],
+                        "HP_ACTION_REPAIRS": ["hp action", "repair", "inspection", "hpd", "violation"],
+                    }
+                    keywords = ct_keywords.get(claim_type_str, [])
+                    if any(kw in evidence_text for kw in keywords):
+                        # Find claims of this type and connect
+                        matching_claims = list(self.knowledge_graph.db.aql.execute('''
+                            FOR c IN entities
+                                FILTER c.type == "legal_claim" AND c.claim_type == @ct
+                                LIMIT 3
+                                RETURN c._key
+                        ''', bind_vars={"ct": claim_type_str}))
+
+                        for claim_key in matching_claims:
+                            rel = LegalRelationship(
+                                source_id=claim_key,
+                                target_id=evidence.id,
+                                relationship_type=RelationshipType.REQUIRES,
+                                attributes={"inferred": True, "method": "keyword_match"},
+                            )
+                            if self.knowledge_graph.add_relationship(rel):
+                                edges_created += 1
+                        break  # Only link to first matching claim type
+            except Exception as e:
+                self.logger.debug(f"Cross-link evidence→claim failed for {evidence.name}: {e}")
+
+        return edges_created
 
     def _get_entity_jurisdiction(self, entity: LegalEntity) -> str | None:
         """Extract jurisdiction from entity."""
@@ -1689,8 +1822,8 @@ Ensure array has exactly {len(batch)} objects."""
                         strength_score_str = str(proof_chain.strength_score)
                     
                     issue_entity = LegalEntity(
-                        id=self.entity_service.generate_entity_id(proof_chain.issue, EntityType.TENANT_ISSUE),
-                        entity_type=EntityType.TENANT_ISSUE,
+                        id=self.entity_service.generate_entity_id(proof_chain.issue, EntityType.LEGAL_CLAIM),
+                        entity_type=EntityType.LEGAL_CLAIM,
                         name=proof_chain.issue,
                         description=f"Legal issue identified in case analysis: {proof_chain.reasoning}",
                         source_metadata=metadata,
@@ -1709,8 +1842,8 @@ Ensure array has exactly {len(batch)} objects."""
                     if remedy.name:
                         # Convert all attribute values to strings
                         remedy_entity = LegalEntity(
-                            id=self.entity_service.generate_entity_id(remedy.name, EntityType.REMEDY),
-                            entity_type=EntityType.REMEDY,
+                            id=self.entity_service.generate_entity_id(remedy.name, EntityType.LEGAL_OUTCOME),
+                            entity_type=EntityType.LEGAL_OUTCOME,
                             name=remedy.name,
                             description=remedy.description,
                             source_metadata=metadata,

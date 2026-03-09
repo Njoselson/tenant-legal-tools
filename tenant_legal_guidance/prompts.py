@@ -49,16 +49,13 @@ Extract the following information in JSON format:
 1. Entities (must use these exact types):
    # Core legal entities (proof chain focused)
    - LAW: Legal statutes, regulations, or case law
-   - REMEDY: Available legal remedies or actions
    - LEGAL_PROCEDURE: Court processes, administrative procedures
-   - LEGAL_CLAIM: Assertion of a legal right or cause of action (claims made in cases)
+   - LEGAL_CLAIM: Assertion of a legal right or cause of action (claims made in cases, housing problems, tenant situations)
    - EVIDENCE: Proof, documentation, facts supporting claims
-   - LEGAL_OUTCOME: Court decisions, settlements, legal victories
-   - DAMAGES: Monetary compensation or penalties
+   - LEGAL_OUTCOME: Court decisions, settlements, legal victories, remedies, monetary compensation or penalties
    - CASE_DOCUMENT: Court case opinions/decisions as whole documents
-   
+
    # Context entities (for user queries and case analysis)
-   - TENANT_ISSUE: Housing problems, violations, tenant situations
    - JURISDICTION: Geographic areas, court systems
 
 2. Relationships (MUST use ONLY these exact types):
@@ -363,7 +360,7 @@ TASK: Extract ALL of the following in a single structured response:
    - Disposition: granted, denied, dismissed, dismissed_with_prejudice
    - Link to which claims each outcome addresses
 
-4. DAMAGES - Every form of relief or compensation
+4. LEGAL_OUTCOME - Every form of relief or compensation
    - Types: monetary (dollar amounts), injunctive (orders to do/stop something), declaratory (legal status declarations)
    - Status: claimed, awarded, denied, potential
    - Link to which outcome determined each

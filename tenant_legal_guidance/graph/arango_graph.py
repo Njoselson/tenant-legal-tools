@@ -14,6 +14,7 @@ from tenant_legal_guidance.models.entities import (
 )
 from tenant_legal_guidance.models.relationships import LegalRelationship, RelationshipType
 from tenant_legal_guidance.utils.chunking import build_chunk_docs
+from tenant_legal_guidance.services.entity_resolver import AUTO_MERGE_THRESHOLD, BORDERLINE_THRESHOLD
 from tenant_legal_guidance.utils.text import canonicalize_text, sha256
 
 
@@ -980,11 +981,11 @@ class ArangoDBGraph:
                         # Try to map prefix to entity type
                         prefix_mapping = {
                             "law": EntityType.LAW,
-                            "remedy": EntityType.REMEDY,
+                            "remedy": EntityType.LEGAL_OUTCOME,
                             "legal_claim": EntityType.LEGAL_CLAIM,
                             "evidence": EntityType.EVIDENCE,
                             "legal_outcome": EntityType.LEGAL_OUTCOME,
-                            "damages": EntityType.DAMAGES,
+                            "damages": EntityType.LEGAL_OUTCOME,
                             "jurisdiction": EntityType.JURISDICTION,
                             "case_document": EntityType.CASE_DOCUMENT,
                             "tenant": EntityType.TENANT,
@@ -997,7 +998,7 @@ class ArangoDBGraph:
                             "tenant_group": EntityType.TENANT_GROUP,
                             "campaign": EntityType.CAMPAIGN,
                             "tactic": EntityType.TACTIC,
-                            "tenant_issue": EntityType.TENANT_ISSUE,
+                            "tenant_issue": EntityType.LEGAL_CLAIM,
                             "event": EntityType.EVENT,
                             "organizing_outcome": EntityType.ORGANIZING_OUTCOME,
                         }
@@ -1702,10 +1703,10 @@ class ArangoDBGraph:
                 prefix = entity_id.split(":", 1)[0]
                 mapping = {
                     "law": EntityType.LAW,
-                    "remedy": EntityType.REMEDY,
+                    "remedy": EntityType.LEGAL_OUTCOME,
                     "court_case": EntityType.CASE_DOCUMENT,
                     "legal_procedure": EntityType.LEGAL_PROCEDURE,
-                    "damages": EntityType.DAMAGES,
+                    "damages": EntityType.LEGAL_OUTCOME,
                     "legal_concept": EntityType.LEGAL_CONCEPT,
                     "tenant_group": EntityType.TENANT_GROUP,
                     "campaign": EntityType.CAMPAIGN,
@@ -1716,7 +1717,7 @@ class ArangoDBGraph:
                     "government_entity": EntityType.GOVERNMENT_ENTITY,
                     "legal_outcome": EntityType.LEGAL_OUTCOME,
                     "organizing_outcome": EntityType.ORGANIZING_OUTCOME,
-                    "tenant_issue": EntityType.TENANT_ISSUE,
+                    "tenant_issue": EntityType.LEGAL_CLAIM,
                     "event": EntityType.EVENT,
                     "document": EntityType.DOCUMENT,
                     "evidence": EntityType.EVIDENCE,
@@ -2198,10 +2199,10 @@ class ArangoDBGraph:
 
     def consolidate_all_entities(
         self,
-        threshold: float = 0.92,
+        threshold: float = AUTO_MERGE_THRESHOLD,
         types: list[EntityType] | None = None,
-        judge_low: float = 0.85,
-        judge_high: float = 0.92,
+        judge_low: float = BORDERLINE_THRESHOLD,
+        judge_high: float = AUTO_MERGE_THRESHOLD,
         dry_run: bool = False,
     ) -> dict[str, object]:
         """Scan the whole graph and consolidate near-duplicates per type using embedding similarity.
@@ -2597,7 +2598,7 @@ class ArangoDBGraph:
         try:
             # Gather candidate laws by simple name match
             laws_coll = self.db.collection(self._get_collection_for_entity(EntityType.LAW))
-            remedies_coll = self.db.collection(self._get_collection_for_entity(EntityType.REMEDY))
+            remedies_coll = self.db.collection(self._get_collection_for_entity(EntityType.LEGAL_OUTCOME))
             procedures_coll = self.db.collection(
                 self._get_collection_for_entity(EntityType.LEGAL_PROCEDURE)
             )

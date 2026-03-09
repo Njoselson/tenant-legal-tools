@@ -108,8 +108,8 @@ class TestRemedyRanking:
     def test_ranks_remedies_by_score(self, case_analyzer):
         entities = [
             LegalEntity(
-                id="remedy:high_prob",
-                entity_type=EntityType.REMEDY,
+                id="legal_outcome:high_prob",
+                entity_type=EntityType.LEGAL_OUTCOME,
                 name="High Probability Remedy",
                 description="Strong remedy",
                 source_metadata=SourceMetadata(
@@ -120,8 +120,8 @@ class TestRemedyRanking:
                 ),
             ),
             LegalEntity(
-                id="remedy:low_prob",
-                entity_type=EntityType.REMEDY,
+                id="legal_outcome:low_prob",
+                entity_type=EntityType.LEGAL_OUTCOME,
                 name="Low Probability Remedy",
                 description="Weak remedy",
                 source_metadata=SourceMetadata(

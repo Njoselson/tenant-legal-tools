@@ -49,8 +49,8 @@ def sample_entities():
             source_metadata=metadata,
         ),
         LegalEntity(
-            id="remedy:hp_action_001",
-            entity_type=EntityType.REMEDY,
+            id="legal_outcome:hp_action_001",
+            entity_type=EntityType.LEGAL_OUTCOME,
             name="HP Action",
             description="Housing Part Action for repairs",
             source_metadata=metadata,
@@ -71,7 +71,7 @@ async def test_resolve_entities_no_candidates_creates_new(
 
     # All entities should be marked for creation (None = create new)
     assert resolution_map["law:rsl_001"] is None
-    assert resolution_map["remedy:hp_action_001"] is None
+    assert resolution_map["legal_outcome:hp_action_001"] is None
 
     # Verify search was called for each entity
     assert mock_knowledge_graph.search_similar_entities.call_count == 2
@@ -81,8 +81,8 @@ async def test_resolve_entities_no_candidates_creates_new(
 async def test_resolve_entities_high_score_auto_merge(
     mock_knowledge_graph, mock_llm, sample_entities
 ):
-    """Test that high-confidence matches (>= 0.95) are automatically merged."""
-    # Mock: search returns high-scoring candidate
+    """Test that high-confidence embedding matches (>= 0.92) are automatically merged."""
+    # Mock: search returns candidate
     mock_knowledge_graph.search_similar_entities = MagicMock(
         return_value=[
             {
@@ -90,12 +90,14 @@ async def test_resolve_entities_high_score_auto_merge(
                 "name": "Rent Stabilization Law",
                 "entity_type": "law",
                 "description": "NYC rent stabilization",
-                "score": 0.98,  # High score = auto-merge
+                "score": 0.98,
             }
         ]
     )
 
     resolver = EntityResolver(mock_knowledge_graph, mock_llm)
+    # Mock embedding similarity to return high score
+    resolver._embedding_sim_score = MagicMock(return_value=0.96)
     resolution_map = await resolver.resolve_entities([sample_entities[0]])
 
     # Entity should be resolved to existing entity
@@ -109,8 +111,8 @@ async def test_resolve_entities_high_score_auto_merge(
 async def test_resolve_entities_low_score_creates_new(
     mock_knowledge_graph, mock_llm, sample_entities
 ):
-    """Test that low-confidence matches (< 0.7) create new entities."""
-    # Mock: search returns low-scoring candidate
+    """Test that low-confidence embedding matches (< 0.85) create new entities."""
+    # Mock: search returns candidate
     mock_knowledge_graph.search_similar_entities = MagicMock(
         return_value=[
             {
@@ -118,12 +120,14 @@ async def test_resolve_entities_low_score_creates_new(
                 "name": "Some Other Law",
                 "entity_type": "law",
                 "description": "Different law",
-                "score": 0.5,  # Low score = create new
+                "score": 0.5,
             }
         ]
     )
 
     resolver = EntityResolver(mock_knowledge_graph, mock_llm)
+    # Mock embedding similarity to return low score
+    resolver._embedding_sim_score = MagicMock(return_value=0.60)
     resolution_map = await resolver.resolve_entities([sample_entities[0]])
 
     # Entity should be marked for creation (too different)
@@ -137,8 +141,8 @@ async def test_resolve_entities_low_score_creates_new(
 async def test_resolve_entities_llm_confirmation_yes(
     mock_knowledge_graph, mock_llm, sample_entities
 ):
-    """Test that ambiguous matches (0.7-0.95) use LLM and merge if YES."""
-    # Mock: search returns ambiguous candidate
+    """Test that ambiguous embedding matches (0.85-0.92) use LLM and merge if YES."""
+    # Mock: search returns candidate
     mock_knowledge_graph.search_similar_entities = MagicMock(
         return_value=[
             {
@@ -146,7 +150,7 @@ async def test_resolve_entities_llm_confirmation_yes(
                 "name": "RSL",
                 "entity_type": "law",
                 "description": "Rent Stabilization",
-                "score": 0.85,  # Ambiguous = needs LLM
+                "score": 0.85,
             }
         ]
     )
@@ -158,6 +162,8 @@ async def test_resolve_entities_llm_confirmation_yes(
     mock_llm.chat_completion = AsyncMock(return_value=mock_response)
 
     resolver = EntityResolver(mock_knowledge_graph, mock_llm)
+    # Mock embedding similarity in borderline range
+    resolver._embedding_sim_score = MagicMock(return_value=0.88)
     resolution_map = await resolver.resolve_entities([sample_entities[0]])
 
     # Entity should be resolved to existing entity (LLM said YES)
@@ -172,7 +178,7 @@ async def test_resolve_entities_llm_confirmation_no(
     mock_knowledge_graph, mock_llm, sample_entities
 ):
     """Test that ambiguous matches with LLM NO create new entities."""
-    # Mock: search returns ambiguous candidate
+    # Mock: search returns candidate
     mock_knowledge_graph.search_similar_entities = MagicMock(
         return_value=[
             {
@@ -180,7 +186,7 @@ async def test_resolve_entities_llm_confirmation_no(
                 "name": "RSL",
                 "entity_type": "law",
                 "description": "Random Similar Law",
-                "score": 0.85,  # Ambiguous = needs LLM
+                "score": 0.85,
             }
         ]
     )
@@ -192,6 +198,8 @@ async def test_resolve_entities_llm_confirmation_no(
     mock_llm.chat_completion = AsyncMock(return_value=mock_response)
 
     resolver = EntityResolver(mock_knowledge_graph, mock_llm)
+    # Mock embedding similarity in borderline range
+    resolver._embedding_sim_score = MagicMock(return_value=0.87)
     resolution_map = await resolver.resolve_entities([sample_entities[0]])
 
     # Entity should be marked for creation (LLM said NO)
@@ -207,7 +215,7 @@ async def test_resolve_entities_batch_llm_confirmation(
 ):
     """Test that multiple ambiguous entities are batched in one LLM call."""
 
-    # Mock: both entities have ambiguous candidates
+    # Mock: both entities have candidates
     def mock_search(name, entity_type, limit):
         if "Rent" in name:
             return [{"_key": "law:rsl_ex", "name": "RSL", "entity_type": "law", "score": 0.8}]
@@ -223,11 +231,13 @@ async def test_resolve_entities_batch_llm_confirmation(
     mock_llm.chat_completion = AsyncMock(return_value=mock_response)
 
     resolver = EntityResolver(mock_knowledge_graph, mock_llm)
+    # Mock embedding similarity in borderline range for both
+    resolver._embedding_sim_score = MagicMock(return_value=0.88)
     resolution_map = await resolver.resolve_entities(sample_entities)
 
     # First entity merged, second created new
     assert resolution_map["law:rsl_001"] == "law:rsl_ex"
-    assert resolution_map["remedy:hp_action_001"] is None
+    assert resolution_map["legal_outcome:hp_action_001"] is None
 
     # LLM should be called only once (batched)
     assert mock_llm.chat_completion.call_count == 1
@@ -266,6 +276,8 @@ async def test_resolve_entities_cache_hits(mock_knowledge_graph, mock_llm):
     )
 
     resolver = EntityResolver(mock_knowledge_graph, mock_llm)
+    # Mock embedding similarity to return high score (auto-merge)
+    resolver._embedding_sim_score = MagicMock(return_value=0.96)
     resolution_map = await resolver.resolve_entities(entities)
 
     # Both should resolve to the same existing entity
@@ -289,7 +301,7 @@ async def test_resolve_entities_graceful_degradation_on_search_failure(
 
     # All entities should fall back to creation (None)
     assert resolution_map["law:rsl_001"] is None
-    assert resolution_map["remedy:hp_action_001"] is None
+    assert resolution_map["legal_outcome:hp_action_001"] is None
 
 
 @pytest.mark.asyncio
@@ -297,7 +309,7 @@ async def test_resolve_entities_graceful_degradation_on_llm_failure(
     mock_knowledge_graph, mock_llm, sample_entities
 ):
     """Test that LLM failures fall back to creating new entities (conservative)."""
-    # Mock: search returns ambiguous candidate
+    # Mock: search returns candidate
     mock_knowledge_graph.search_similar_entities = MagicMock(
         return_value=[{"_key": "law:rsl_ex", "name": "RSL", "entity_type": "law", "score": 0.85}]
     )
@@ -306,6 +318,8 @@ async def test_resolve_entities_graceful_degradation_on_llm_failure(
     mock_llm.chat_completion = AsyncMock(side_effect=Exception("LLM failed"))
 
     resolver = EntityResolver(mock_knowledge_graph, mock_llm)
+    # Mock embedding similarity in borderline range (will trigger LLM)
+    resolver._embedding_sim_score = MagicMock(return_value=0.88)
     resolution_map = await resolver.resolve_entities([sample_entities[0]])
 
     # Should fall back to creation (conservative)

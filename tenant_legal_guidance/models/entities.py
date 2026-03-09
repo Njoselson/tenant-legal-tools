@@ -38,7 +38,7 @@ class EntityType(str, Enum):
     ORGANIZING_OUTCOME = "organizing_outcome"  # Policy changes, building wins, power building
 
     # Issues and events
-    TENANT_ISSUE = "tenant_issue"  # Housing problems, violations
+    TENANT_ISSUE = "tenant_issue"  # DEPRECATED: use LEGAL_CLAIM
     EVENT = "event"  # Specific incidents, violations, filings
 
     # Documentation and evidence

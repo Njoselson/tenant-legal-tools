@@ -74,8 +74,8 @@ def seed_ny_habitability() -> int:
     }
     # ISSUE
     issue = {
-        "id": "tenant_issue:uninhabitable_leaks_ceiling",
-        "entity_type": EntityType.TENANT_ISSUE,
+        "id": "legal_claim:uninhabitable_leaks_ceiling",
+        "entity_type": EntityType.LEGAL_CLAIM,
         "name": "Uninhabitable premises (leaks/ceiling collapse)",
         "description": "Serious leaks and ceiling collapse rendering unit unfit for habitation.",
         "attributes": {"jurisdiction": "NYC"},
@@ -85,9 +85,9 @@ def seed_ny_habitability() -> int:
     }
     # REMEDIES
     remedies = [
-        {"id": "remedy:rent_abatement", "name": "Rent abatement"},
-        {"id": "remedy:rescission_release", "name": "Rescission/lease release"},
-        {"id": "remedy:return_deposit", "name": "Return of security deposit"},
+        {"id": "legal_outcome:rent_abatement", "name": "Rent abatement"},
+        {"id": "legal_outcome:rescission_release", "name": "Rescission/lease release"},
+        {"id": "legal_outcome:return_deposit", "name": "Return of security deposit"},
     ]
     # PROCEDURE
     procedure = {
@@ -120,7 +120,7 @@ def seed_ny_habitability() -> int:
     for r in remedies:
         ent = {
             "id": r["id"],
-            "entity_type": EntityType.REMEDY,
+            "entity_type": EntityType.LEGAL_OUTCOME,
             "name": r["name"],
             "description": None,
             "attributes": {"jurisdiction": "NYC"},

@@ -72,16 +72,16 @@ def sample_entities():
             attributes={"jurisdiction": "NYC"},
         ),
         LegalEntity(
-            id="remedy:rent_reduction",
-            entity_type=EntityType.REMEDY,
+            id="legal_outcome:rent_reduction",
+            entity_type=EntityType.LEGAL_OUTCOME,
             name="Rent Reduction",
             description="Reduction of rent due to harassment or lack of services",
             source_metadata=metadata,
             attributes={"jurisdiction": "NYC"},
         ),
         LegalEntity(
-            id="remedy:monetary_damages",
-            entity_type=EntityType.REMEDY,
+            id="legal_outcome:monetary_damages",
+            entity_type=EntityType.LEGAL_OUTCOME,
             name="Monetary Damages",
             description="Financial compensation for tenant harm",
             source_metadata=SourceMetadata(
@@ -346,7 +346,7 @@ class TestRemedyRanking:
         many_remedies = [
             LegalEntity(
                 id=f"remedy:remedy_{i}",
-                entity_type=EntityType.REMEDY,
+                entity_type=EntityType.LEGAL_OUTCOME,
                 name=f"Remedy {i}",
                 description=f"Description {i}",
                 source_metadata=SourceMetadata(source="test", source_type=SourceType.URL),
@@ -785,7 +785,7 @@ async def test_graph_chains_integration_with_valid_chains(mock_graph, mock_llm):
                 LegalEntity(
                     id="remedy1",
                     name="HP Action",
-                    entity_type=EntityType.REMEDY,
+                    entity_type=EntityType.LEGAL_OUTCOME,
                     description="Housing court proceeding",
                 ),
             ],
@@ -952,17 +952,17 @@ async def test_remedies_prioritized_from_graph_chain(mock_graph, mock_llm):
     # Mock retrieval to return multiple remedy entities
     mock_entities = [
         LegalEntity(
-            id="r1", name="HP Action", entity_type=EntityType.REMEDY, description="Housing court",
+            id="r1", name="HP Action", entity_type=EntityType.LEGAL_OUTCOME, description="Housing court",
             source_metadata=SourceMetadata(source="test", source_type=SourceType.URL),
         ),
         LegalEntity(
-            id="r2", name="Rent Reduction", entity_type=EntityType.REMEDY, description="Reduce rent",
+            id="r2", name="Rent Reduction", entity_type=EntityType.LEGAL_OUTCOME, description="Reduce rent",
             source_metadata=SourceMetadata(source="test", source_type=SourceType.URL),
         ),
         LegalEntity(
             id="r3",
             name="Small Claims",
-            entity_type=EntityType.REMEDY,
+            entity_type=EntityType.LEGAL_OUTCOME,
             description="Small claims court",
             source_metadata=SourceMetadata(source="test", source_type=SourceType.URL),
         ),

@@ -286,8 +286,8 @@ class TestIntegrationScenarios:
                     ),
                 ),
                 LegalEntity(
-                    id="remedy:eviction_defense",
-                    entity_type=EntityType.REMEDY,
+                    id="legal_outcome:eviction_defense",
+                    entity_type=EntityType.LEGAL_OUTCOME,
                     name="Eviction Defense",
                     description="Challenge improper eviction",
                     source_metadata=SourceMetadata(

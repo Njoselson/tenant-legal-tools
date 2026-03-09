@@ -36,8 +36,8 @@ M7 Web ingestion UI (independent, can slot in anytime)
 
 ## 🔄 Active
 
-- M2/M3 — ingest habitability + harassment laws and cases (parallel)
-- M7 — Sources page: manifest browser with ingestion status + one-click bulk ingest (replaces KG Input)
+- M4b — Case outcome evaluation + KG data quality (in progress)
+- Cross-type entity linking — LLM-based edge creation between different entity types during ingestion
 
 ---
 
@@ -152,15 +152,49 @@ M7 Web ingestion UI (independent, can slot in anytime)
 
 ---
 
-### M4 — Proof Chain Unification [~2 sessions]
+### M4 — Proof Chain Unification + Frontend Redesign [~2 sessions]
 
+- [x] Add `applicable_laws` and `remedies` fields to `ProofChain` dataclass
+- [x] Populate laws/remedies in `build_proof_chain()` via graph traversal
+- [x] Add `get_laws_for_claim_type()` and `get_remedies_for_claim_type()` to `ArangoDBGraph`
+- [x] Add `claim_description`, `legal_basis`, `similar_cases`, `remedies` to `ClaimTypeMatch` dataclass
+- [x] Wire proof chain data (laws, remedies) through `claim_matcher.py` to API response
+- [x] Attach similar cases per-claim from `OutcomePredictor` (previously fetched and discarded)
+- [x] Add `LawSchema`, `SimilarCaseSchema` to API schemas; update `ClaimTypeMatchSchema` and `AnalyzeMyCaseResponse`
+- [x] Add top-level `summary` to analyze-my-case response (claim count, strongest claim, overall strength)
+- [x] Remove unused `CaseAnalyzer` instantiation from analyze-my-case route
+- [x] Frontend redesign: summary card, collapsible sections (legal basis, similar cases, predicted outcome, remedies), first card expanded / rest collapsed
+- [x] Validate with live data: laws ranked+capped, remedies cleaned, similar cases populate from graph
 - [ ] `ProofChainService` becomes single source of truth — eliminate duplicates in `ClaimExtractor` and `CaseAnalyzer`
 - [ ] Wire `required_evidence` to `CLAIM_TYPE` nodes via `REQUIRED_FOR` relationships in the graph
-  - This is the key: graph now *knows* what evidence each claim type needs
-- [ ] Evidence gap diff: `required_evidence - presented_evidence = missing_evidence`
-- [ ] Completeness score validated against real ingested claim types (habitability, harassment, destabilization)
-- [ ] New endpoints: `POST /api/v1/proof-chains/extract|retrieve|analyze`
-- [ ] Delete duplicate logic from `ClaimExtractor` and `CaseAnalyzer`
+
+---
+
+### M4b — Case Outcome Evaluation + KG Data Quality [~2 sessions]
+
+> Goal: prove the system is useful by measuring whether it predicts correct outcomes for real cases.
+> This gives us a concrete metric to optimize against — dedup, ranking, and graph structure changes
+> should improve this number or they aren't worth doing.
+
+**Session 1 — Case outcome evaluation harness** ← active
+- [x] Embedding-based entity consolidation (`_embedding_sim_score`, batch cosine similarity)
+- [x] LLM judge for borderline pairs (0.85–0.92 similarity) with batched DeepSeek calls
+- [x] `make kg-clean` / `make kg-judge` / `make kg-audit` commands
+- [x] Merge logic: list fields (`chunk_ids`, `all_quotes`) now concatenate+dedup instead of drop
+- [x] Ranking+capping: `get_laws_for_claim_type(limit=8)`, `get_remedies_for_claim_type(limit=6)` ranked by citation count
+- [x] Remedy name cleaning (strip dollar amounts/percentages)
+- [x] Post-dedup: 662 → 503 entities (42 merged via auto+judge)
+- [ ] Build case outcome ground truth: for each ingested case document, extract {facts, claim_types, actual_outcome, actual_remedies}
+- [ ] Evaluation script: feed facts (minus outcome) into `analyze_case_enhanced()`, compare predicted vs actual
+- [ ] Metrics: claim type accuracy, outcome prediction accuracy, remedy prediction accuracy, evidence gap quality
+- [ ] Baseline score on current graph (post-dedup)
+
+**Session 2 — Optimize against the metric**
+- [ ] Run evaluation before/after consolidation to measure impact
+- [ ] Tune dedup thresholds based on outcome accuracy (not just similarity scores)
+- [ ] Identify which entity types benefit from dedup vs which need separate subgraphs
+- [ ] Law/remedy ranking: does citation-count ranking improve predicted outcomes?
+- [ ] Document findings: what graph structure produces the best case predictions?
 
 ---
 
@@ -177,6 +211,8 @@ M7 Web ingestion UI (independent, can slot in anytime)
 ---
 
 ### M6 — Win Probability [~2 sessions]
+
+> Depends on M4b case outcome evaluation — need baseline accuracy before building probability model.
 
 - [ ] Count outcomes from ingested case law by claim type + evidence completeness band
 - [ ] Formula: `P(win) = f(completeness_score, evidence_weights, outcome_distribution_for_claim_type)`
@@ -198,6 +234,10 @@ M7 Web ingestion UI (independent, can slot in anytime)
 
 ## 💡 Ideas (unfiltered backlog)
 
+- **Ingestion speed** — throw more compute at ingestion; batch LLM calls, concurrent chunk processing, reduce sequential passes
+- **Source metadata preservation** — make the LLM extract more per ingestion pass, don't throw away anything we generate
+- **Source URL merging** — source URLs getting clobbered on entity merge; ensure statute URLs are always kept
+- **Cross-type entity linking** — LLM-based edge creation between different entity types (law↔claim, claim↔case, evidence↔law) during ingestion. Currently only same-type dedup runs inline; cross-type connections depend on proof chain extraction which misses many relationships. Would improve graph connectivity and retrieval quality. Could run as post-ingestion pass or inline per-document.
 - Async ingestion with job queue — browser ext / mobile / CLI (spec 001 phase 4)
 - Counterargument analysis — "here's what the landlord will argue"
 - Chunk deduplication in Qdrant — SHA256 content hash prevents duplicate text chunks

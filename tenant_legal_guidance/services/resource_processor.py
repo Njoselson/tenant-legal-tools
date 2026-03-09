@@ -186,8 +186,8 @@ class LegalResourceProcessor:
         # Process evidence as damages
         for evidence in concepts.get("evidence", []):
             entity = LegalEntity(
-                id=f"damages:{self._generate_entity_id(evidence, EntityType.DAMAGES)}",
-                entity_type=EntityType.DAMAGES,
+                id=f"legal_outcome:{self._generate_entity_id(evidence, EntityType.LEGAL_OUTCOME)}",
+                entity_type=EntityType.LEGAL_OUTCOME,
                 name=evidence,
                 source_reference=source_ref,
                 source_type=source_type,
@@ -197,8 +197,8 @@ class LegalResourceProcessor:
         # Process remedies
         for remedy in concepts.get("remedies", []):
             entity = LegalEntity(
-                id=f"remedy:{self._generate_entity_id(remedy, EntityType.REMEDY)}",
-                entity_type=EntityType.REMEDY,
+                id=f"legal_outcome:{self._generate_entity_id(remedy, EntityType.LEGAL_OUTCOME)}",
+                entity_type=EntityType.LEGAL_OUTCOME,
                 name=remedy,
                 source_reference=source_ref,
                 source_type=source_type,
@@ -207,19 +207,11 @@ class LegalResourceProcessor:
 
         # Create relationships between entities
         for law in [e for e in entities if e.entity_type == EntityType.LAW]:
-            for remedy in [e for e in entities if e.entity_type == EntityType.REMEDY]:
+            for outcome in [e for e in entities if e.entity_type == EntityType.LEGAL_OUTCOME]:
                 relationship = LegalRelationship(
                     source_id=law.id,
-                    target_id=remedy.id,
+                    target_id=outcome.id,
                     relationship_type=RelationshipType.ENABLES,
-                )
-                relationships.append(relationship)
-
-            for damages in [e for e in entities if e.entity_type == EntityType.DAMAGES]:
-                relationship = LegalRelationship(
-                    source_id=law.id,
-                    target_id=damages.id,
-                    relationship_type=RelationshipType.AWARDS,
                 )
                 relationships.append(relationship)
 

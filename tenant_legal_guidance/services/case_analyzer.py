@@ -1419,7 +1419,7 @@ Be specific and actionable. Focus on what this data means for the tenant's case.
         remedy_entities = [
             e
             for e in entities
-            if getattr(e.entity_type, "value", str(e.entity_type)) == EntityType.REMEDY.value
+            if getattr(e.entity_type, "value", str(e.entity_type)) == EntityType.LEGAL_OUTCOME.value
         ]
 
         if not remedy_entities:

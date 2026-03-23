@@ -45,6 +45,10 @@ class OutcomePredictor:
         """
         Find similar cases based on claim type.
 
+        Uses two strategies:
+        1. Find legal_claim entities matching the claim_type, then traverse to case_documents
+        2. Fallback: find case_documents whose backfilled claim_types list contains the type
+
         Args:
             claim_type: The claim type string (e.g., "DEREGULATION_CHALLENGE")
             situation: Optional situation description for semantic matching
@@ -54,27 +58,42 @@ class OutcomePredictor:
         Returns:
             List of similar case documents with outcomes
         """
+        cases = []
         try:
-            # Find claims of the same type
+            # Strategy 1: Find claims of the same type, traverse to case_document
             aql = """
             FOR claim IN entities
                 FILTER claim.type == "legal_claim"
                 FILTER claim.claim_type == @claim_type
-                LET outcome = (
+                LET outcome = FIRST(
                     FOR out_edge IN edges
                         FILTER out_edge.type == "RESULTS_IN"
                         FILTER out_edge._from == claim._id
                         LET out = DOCUMENT(out_edge._to)
                         RETURN out
                 )
+                LET case_doc = FIRST(
+                    FOR e IN edges
+                        FILTER (e._from == claim._id OR e._to == claim._id)
+                        LET other_id = e._from == claim._id ? e._to : e._from
+                        LET other = DOCUMENT(other_id)
+                        FILTER other != null AND other.type == "case_document"
+                        RETURN other
+                )
+                FILTER case_doc != null
                 LIMIT @limit
                 RETURN {
                     claim: claim,
-                    outcome: outcome[0],
+                    outcome: outcome,
                     claim_id: claim._key,
                     claim_damages: claim.damages_awarded,
                     claim_relief: claim.relief_granted,
-                    claim_outcome: claim.outcome
+                    claim_outcome: claim.outcome,
+                    case_outcome: case_doc.outcome,
+                    case_ruling_type: case_doc.ruling_type,
+                    case_damages: case_doc.damages_awarded,
+                    case_relief: case_doc.relief_granted,
+                    case_name: case_doc.name
                 }
             """
 
@@ -85,33 +104,72 @@ class OutcomePredictor:
                     "limit": limit,
                 },
             )
-
             cases = list(cursor)
-
-            # Score similarity based on evidence profile
-            scored_cases = []
-            for case in cases:
-                if evidence_profile:
-                    # Simple scoring: count matching evidence
-                    # In future, could use embeddings for semantic similarity
-                    score = self._score_case_similarity(case, evidence_profile)
-                else:
-                    # Default score when no evidence profile available
-                    score = 0.5
-                scored_cases.append(
-                    {
-                        **case,
-                        "similarity_score": score,
-                    }
-                )
-
-            # Sort by similarity and return top N
-            scored_cases.sort(key=lambda x: x["similarity_score"], reverse=True)
-            return scored_cases[:limit]
+            self.logger.info(
+                f"Strategy 1 (claim_type={claim_type}): found {len(cases)} cases"
+            )
 
         except Exception as e:
-            self.logger.error(f"Failed to find similar cases: {e}")
-            return []
+            self.logger.error(f"Strategy 1 failed: {e}")
+
+        # Strategy 2: Fallback — find case_documents with backfilled claim_types
+        if len(cases) < limit:
+            try:
+                seen_keys = {c.get("claim_id") for c in cases}
+                aql2 = """
+                FOR cd IN entities
+                    FILTER cd.type == "case_document"
+                    FILTER cd.outcome != null
+                    FILTER @claim_type IN (cd.attributes.claim_types || [])
+                    LIMIT @limit
+                    RETURN {
+                        claim: null,
+                        outcome: null,
+                        claim_id: cd._key,
+                        claim_damages: null,
+                        claim_relief: cd.relief_granted,
+                        claim_outcome: null,
+                        case_outcome: cd.outcome,
+                        case_ruling_type: cd.ruling_type,
+                        case_damages: cd.damages_awarded,
+                        case_relief: cd.relief_granted,
+                        case_name: cd.name
+                    }
+                """
+                cursor2 = self.kg.db.aql.execute(
+                    aql2,
+                    bind_vars={
+                        "claim_type": claim_type,
+                        "limit": limit - len(cases),
+                    },
+                )
+                for case in cursor2:
+                    if case.get("claim_id") not in seen_keys:
+                        cases.append(case)
+                        seen_keys.add(case.get("claim_id"))
+
+                self.logger.info(
+                    f"Strategy 2 (backfilled claim_types): total {len(cases)} cases"
+                )
+            except Exception as e:
+                self.logger.error(f"Strategy 2 failed: {e}")
+
+        # Score similarity
+        scored_cases = []
+        for case in cases:
+            if evidence_profile:
+                score = self._score_case_similarity(case, evidence_profile)
+            else:
+                score = 0.5
+            scored_cases.append(
+                {
+                    **case,
+                    "similarity_score": score,
+                }
+            )
+
+        scored_cases.sort(key=lambda x: x["similarity_score"], reverse=True)
+        return scored_cases[:limit]
 
     def _score_case_similarity(
         self,
@@ -238,29 +296,42 @@ class OutcomePredictor:
                     "is_favorable": is_favorable,
                 }
             else:
-                # No outcome entity - check if claim has outcome info directly
-                # Check both case-level fields (from query) and claim dict
-                damages = case.get("claim_damages")
-                relief = case.get("claim_relief") or []
+                # No outcome entity - check case_document outcome first, then claim fields
+                case_outcome_field = (case.get("case_outcome") or "").lower()
+                case_damages = case.get("case_damages")
+                case_relief = case.get("case_relief") or []
+
+                # Also check claim-level fields as fallback
+                damages = case.get("claim_damages") or (case_claim.get("damages_awarded") if isinstance(case_claim, dict) else None)
+                relief = case.get("claim_relief") or (case_claim.get("relief_granted") if isinstance(case_claim, dict) else None) or []
                 outcome_field = (case.get("claim_outcome") or "").lower()
-                
-                if not damages and isinstance(case_claim, dict):
-                    damages = case_claim.get("damages_awarded")
-                if not relief and isinstance(case_claim, dict):
-                    relief = case_claim.get("relief_granted") or []
                 if not outcome_field and isinstance(case_claim, dict):
                     outcome_field = (case_claim.get("outcome") or "").lower()
-                
-                # Convert damages to float if it's a string
-                if damages:
+
+                # Use case_document outcome as primary signal
+                if case_outcome_field in ["tenant_win", "plaintiff_win"]:
+                    is_favorable = True
+                    self.logger.info(f"Case marked favorable due to case_document outcome: {case_outcome_field}")
+                elif case_outcome_field in ["landlord_win", "defendant_win", "dismissed"]:
+                    is_favorable = False
+                    self.logger.info(f"Case marked unfavorable due to case_document outcome: {case_outcome_field}")
+                elif case_outcome_field == "mixed":
+                    # Count mixed as partially favorable
+                    is_favorable = True
+                    self.logger.info(f"Case marked favorable (mixed) due to case_document outcome")
+                elif case_damages and float(case_damages) > 0:
+                    is_favorable = True
+                elif case_relief and len(case_relief) > 0:
+                    is_favorable = True
+                # Fall back to claim-level fields
+                elif damages:
                     try:
                         damages = float(damages) if not isinstance(damages, (int, float)) else damages
                     except (ValueError, TypeError):
                         damages = None
-                
-                if damages and damages > 0:
-                    is_favorable = True
-                    self.logger.info(f"Case marked favorable due to damages_awarded: {damages}")
+                    if damages and damages > 0:
+                        is_favorable = True
+                        self.logger.info(f"Case marked favorable due to damages_awarded: {damages}")
                 elif relief and len(relief) > 0:
                     is_favorable = True
                     self.logger.info(f"Case marked favorable due to relief_granted: {relief}")
@@ -270,9 +341,10 @@ class OutcomePredictor:
                 
                 outcome_info = {
                     "from_claim": True,
-                    "damages_awarded": damages,
-                    "relief_granted": relief,
-                    "outcome": outcome_field,
+                    "case_outcome": case_outcome_field,
+                    "damages_awarded": damages or case_damages,
+                    "relief_granted": relief or case_relief,
+                    "outcome": outcome_field or case_outcome_field,
                     "is_favorable": is_favorable,
                 }
             
@@ -301,10 +373,12 @@ class OutcomePredictor:
             probability = max(0.05, favorable_rate - 0.15)
 
         # Determine outcome type
-        if probability >= 0.70:
+        # Narrow the "mixed" band — most cases resolve clearly one way or the other.
+        # "mixed" should be rare (true split decisions), not the default.
+        if probability >= 0.55:
             outcome_type = "favorable"
             disposition = "granted"
-        elif probability >= 0.40:
+        elif probability >= 0.45:
             outcome_type = "mixed"
             disposition = "unknown"
         else:

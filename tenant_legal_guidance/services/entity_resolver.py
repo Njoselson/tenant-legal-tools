@@ -2,15 +2,18 @@
 Entity Resolution Service - Search-Before-Insert for Entity Consolidation
 
 This service helps avoid duplicate entities during incremental ingestion by:
-1. Searching for similar existing entities using BM25 search
-2. Using threshold-based decisions for high-confidence matches
-3. Batching ambiguous cases for LLM confirmation
-4. Caching results within a batch for performance
+1. Searching for candidate matches using BM25 search (fast retrieval)
+2. Re-ranking candidates using embedding cosine similarity (accurate scoring)
+3. Using threshold-based decisions for high-confidence matches
+4. Batching ambiguous cases for LLM confirmation
+5. Caching results within a batch for performance
 """
 
 import logging
 from dataclasses import dataclass
 from typing import Any
+
+import numpy as np
 
 from tenant_legal_guidance.models.entities import LegalEntity
 
@@ -23,6 +26,14 @@ class ResolutionResult:
     existing_entity_id: str | None  # None if should create new
     confidence: float  # 0.0 to 1.0
     reason: str  # "auto_merge", "llm_confirmed", "llm_rejected", "create_new"
+
+
+# Embedding similarity thresholds (cosine similarity 0-1)
+# Note: short entity names produce lower cosine scores than expected,
+# so thresholds are set accordingly.
+AUTO_MERGE_THRESHOLD = 0.92  # Auto-merge without LLM
+BORDERLINE_THRESHOLD = 0.70  # Send to LLM for confirmation
+# Below BORDERLINE_THRESHOLD -> create new entity
 
 
 class EntityResolver:
@@ -38,18 +49,40 @@ class EntityResolver:
         self.kg = knowledge_graph
         self.llm = llm_client
         self.logger = logging.getLogger(__name__)
+        self._embeddings = None
 
         # Within-batch cache: (name, entity_type) -> existing_entity_id or None
         self._cache: dict[tuple[str, str], str | None] = {}
+
+    def _get_embeddings(self):
+        """Lazy-load EmbeddingsService."""
+        if self._embeddings is None:
+            from tenant_legal_guidance.services.embeddings import EmbeddingsService
+            self._embeddings = EmbeddingsService()
+        return self._embeddings
+
+    def _embedding_sim_score(self, name_a: str, desc_a: str | None, name_b: str, desc_b: str | None) -> float:
+        """Compute cosine similarity between two entities using embeddings."""
+        emb = self._get_embeddings()
+        text_a = f"{name_a}. {desc_a or ''}"
+        text_b = f"{name_b}. {desc_b or ''}"
+        vecs = emb.embed([text_a, text_b])
+        a, b = vecs[0], vecs[1]
+        dot = float(np.dot(a, b))
+        norm = float(np.linalg.norm(a) * np.linalg.norm(b))
+        return dot / norm if norm > 0 else 0.0
 
     async def resolve_entities(
         self, entities: list[LegalEntity], auto_merge_threshold: float = 0.95
     ) -> dict[str, str | None]:
         """Resolve a batch of extracted entities to existing entities.
 
+        Uses BM25 for fast candidate retrieval, then embedding cosine similarity
+        for accurate merge/reject decisions.
+
         Args:
             entities: List of extracted entities to resolve
-            auto_merge_threshold: BM25 score threshold for automatic merging (default 0.95)
+            auto_merge_threshold: Ignored (kept for API compat). Uses embedding thresholds.
 
         Returns:
             Dict mapping extracted entity ID -> existing entity ID (or None if should create new)
@@ -68,7 +101,7 @@ class EntityResolver:
 
         self.logger.info(f"[EntityResolver] Resolving {len(entities)} entities...")
 
-        # Phase 1: BM25 search and threshold-based decisions
+        # Phase 1: BM25 candidate retrieval + embedding re-ranking
         for entity in entities:
             try:
                 # Check cache first
@@ -78,36 +111,48 @@ class EntityResolver:
                     stats["cache_hits"] += 1
                     continue
 
-                # Search for similar entities
+                # BM25 search for candidates (fast, broad retrieval)
                 candidates = self.kg.search_similar_entities(
-                    name=entity.name, entity_type=entity.entity_type.value, limit=3
+                    name=entity.name, entity_type=entity.entity_type.value, limit=5
                 )
 
                 if not candidates:
-                    # No candidates found, create new
                     resolution_map[entity.id] = None
                     self._cache[cache_key] = None
                     stats["create_new"] += 1
                     continue
 
-                # Check top candidate score
-                top_candidate = candidates[0]
-                score = float(top_candidate.get("score", 0.0))
+                # Re-rank candidates by embedding similarity
+                best_candidate = None
+                best_sim = 0.0
 
-                if score >= auto_merge_threshold:
+                for candidate in candidates:
+                    sim = self._embedding_sim_score(
+                        entity.name, entity.description,
+                        candidate["name"], candidate.get("description"),
+                    )
+                    if sim > best_sim:
+                        best_sim = sim
+                        best_candidate = candidate
+
+                if best_sim >= AUTO_MERGE_THRESHOLD:
                     # High confidence - auto merge
-                    existing_id = top_candidate["_key"]
+                    existing_id = best_candidate["_key"]
                     resolution_map[entity.id] = existing_id
                     self._cache[cache_key] = existing_id
                     stats["auto_merged"] += 1
                     self.logger.debug(
-                        f"[EntityResolver] Auto-merge: '{entity.name}' -> '{top_candidate['name']}' "
-                        f"(score={score:.3f})"
+                        f"[EntityResolver] Auto-merge: '{entity.name}' -> '{best_candidate['name']}' "
+                        f"(embedding_sim={best_sim:.3f})"
                     )
-                elif score >= 0.7:
+                elif best_sim >= BORDERLINE_THRESHOLD:
                     # Ambiguous - needs LLM confirmation
-                    ambiguous_pairs.append((entity, top_candidate))
+                    ambiguous_pairs.append((entity, best_candidate))
                     stats["needs_llm"] += 1
+                    self.logger.debug(
+                        f"[EntityResolver] Borderline: '{entity.name}' vs '{best_candidate['name']}' "
+                        f"(embedding_sim={best_sim:.3f})"
+                    )
                 else:
                     # Low similarity - create new
                     resolution_map[entity.id] = None
@@ -132,6 +177,7 @@ class EntityResolver:
                     existing_id = candidate["_key"]
                     resolution_map[entity.id] = existing_id
                     self._cache[cache_key] = existing_id
+                    stats["auto_merged"] += 1
                     self.logger.debug(
                         f"[EntityResolver] LLM confirmed merge: '{entity.name}' -> '{candidate['name']}'"
                     )
@@ -169,24 +215,23 @@ class EntityResolver:
             # Build prompt for batch processing
             prompt = self._build_batch_match_prompt(pairs)
 
-            # Call LLM
-            response = await self.llm.chat_completion(
-                messages=[
-                    {
-                        "role": "system",
-                        "content": "You are an expert at determining if two legal entities refer to the same thing. "
-                        "Respond with a JSON object mapping pair numbers to YES or NO.",
-                    },
-                    {"role": "user", "content": prompt},
-                ],
-                temperature=0.0,
-                response_format={"type": "json_object"},
+            # Prepend system instruction to prompt (DeepSeekClient takes a plain string)
+            full_prompt = (
+                "You are an expert at determining if two legal entities refer to the same thing. "
+                "Respond with ONLY a JSON object mapping pair numbers to YES or NO.\n\n"
+                + prompt
             )
 
-            # Parse response
-            import json
+            # Call LLM
+            response = await self.llm.chat_completion(full_prompt)
 
-            decisions = json.loads(response.choices[0].message.content)
+            # Parse response — extract JSON from response string
+            import json
+            import re
+
+            # Find JSON object in response
+            match = re.search(r"\{[^}]+\}", response)
+            decisions = json.loads(match.group(0)) if match else {}
 
             # Build results
             results = []
@@ -237,7 +282,7 @@ async def resolve_entity(
         entity: Entity to resolve
         knowledge_graph: ArangoDBGraph instance
         llm_client: LLM client
-        auto_merge_threshold: Score threshold for auto-merge
+        auto_merge_threshold: Kept for API compat. Uses embedding thresholds internally.
 
     Returns:
         Existing entity ID to merge with, or None if should create new

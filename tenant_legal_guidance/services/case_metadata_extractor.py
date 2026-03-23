@@ -77,6 +77,15 @@ class CaseMetadataExtractor:
             else:
                 procedural_history = []
 
+            # Parse damages_awarded safely
+            damages_raw = case_data.get("damages_awarded")
+            damages_awarded = None
+            if damages_raw is not None:
+                try:
+                    damages_awarded = float(damages_raw) if float(damages_raw) > 0 else None
+                except (ValueError, TypeError):
+                    damages_awarded = None
+
             # Create CASE_DOCUMENT entity
             case_entity = LegalEntity(
                 id=f"case_document:{source_id}",
@@ -94,12 +103,18 @@ class CaseMetadataExtractor:
                 holdings=case_data.get("holdings", []),
                 procedural_history=procedural_history,
                 citations=case_data.get("citations", []),
+                # Case outcome fields
+                outcome=case_data.get("outcome"),
+                ruling_type=case_data.get("ruling_type"),
+                relief_granted=case_data.get("relief_granted"),
+                damages_awarded=damages_awarded,
                 # Additional metadata
                 attributes={
                     "jurisdiction": metadata.jurisdiction or "",
                     "authority_level": metadata.authority.value,
                     "document_type": "court_opinion",
                     "extraction_method": "llm_analysis_with_regex",
+                    "claim_types": ",".join(case_data.get("claim_types", [])),
                 },
             )
 
@@ -302,6 +317,11 @@ Extract the following information in JSON format:
         "List of case law citations mentioned",
         "Statutes or regulations cited"
     ],
+    "outcome": "plaintiff_win | defendant_win | tenant_win | landlord_win | mixed | dismissed | settled",
+    "ruling_type": "judgment | summary_judgment | dismissal | order | default_judgment",
+    "relief_granted": ["List of specific remedies ordered (e.g., 'rent abatement', 'repairs ordered', 'lease renewal', 'treble damages')"],
+    "damages_awarded": 0.00,
+    "claim_types": ["Canonical claim types at issue, using: HABITABILITY_VIOLATION, HP_ACTION_REPAIRS, HARASSMENT, DEREGULATION_CHALLENGE, RENT_OVERCHARGE, SECURITY_DEPOSIT_RETURN, RETALIATORY_EVICTION, CONSTRUCTIVE_EVICTION, RENT_STABILIZATION_VIOLATION, or a descriptive ALL_CAPS name"],
     "summary": "Brief 2-3 sentence summary of the case and its significance"
 }}
 
@@ -313,6 +333,10 @@ Focus on:
 5. Extracting key legal holdings and principles
 6. Identifying important citations
 7. Providing a concise but informative summary
+8. Determining the case OUTCOME — who won on the main issue? Use tenant_win/landlord_win for housing cases
+9. Listing specific RELIEF GRANTED by the court (rent abatement, repairs, damages, injunctions)
+10. Setting damages_awarded to the monetary amount if specified, or 0.0 if none/not specified
+11. Identifying the CLAIM TYPES at issue using canonical names
 
 Return only valid JSON, no additional text.
 """

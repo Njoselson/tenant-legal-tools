@@ -36,7 +36,7 @@ M7 Web ingestion UI (independent, can slot in anytime)
 
 ## 🔄 Active
 
-- M4b — Case outcome evaluation + KG data quality (in progress)
+- M4b Session 2 — Optimize against the metric (baseline: F1=59.5%, outcome=33.3%, remedy=42.9%)
 - Cross-type entity linking — LLM-based edge creation between different entity types during ingestion
 
 ---
@@ -176,7 +176,7 @@ M7 Web ingestion UI (independent, can slot in anytime)
 > This gives us a concrete metric to optimize against — dedup, ranking, and graph structure changes
 > should improve this number or they aren't worth doing.
 
-**Session 1 — Case outcome evaluation harness** ← active
+**Session 1 — Case outcome evaluation harness** ← done
 - [x] Embedding-based entity consolidation (`_embedding_sim_score`, batch cosine similarity)
 - [x] LLM judge for borderline pairs (0.85–0.92 similarity) with batched DeepSeek calls
 - [x] `make kg-clean` / `make kg-judge` / `make kg-audit` commands
@@ -184,16 +184,38 @@ M7 Web ingestion UI (independent, can slot in anytime)
 - [x] Ranking+capping: `get_laws_for_claim_type(limit=8)`, `get_remedies_for_claim_type(limit=6)` ranked by citation count
 - [x] Remedy name cleaning (strip dollar amounts/percentages)
 - [x] Post-dedup: 662 → 503 entities (42 merged via auto+judge)
-- [ ] Build case outcome ground truth: for each ingested case document, extract {facts, claim_types, actual_outcome, actual_remedies}
-- [ ] Evaluation script: feed facts (minus outcome) into `analyze_case_enhanced()`, compare predicted vs actual
-- [ ] Metrics: claim type accuracy, outcome prediction accuracy, remedy prediction accuracy, evidence gap quality
-- [ ] Baseline score on current graph (post-dedup)
+- [x] Build case outcome ground truth: `build_case_ground_truth.py` → 21 cases in `data/case_ground_truth.json`
+- [x] Evaluation script: `eval_case_outcomes.py` feeds facts into `ClaimMatcher` + `OutcomePredictor`, compares predicted vs actual
+- [x] Metrics: claim type F1/precision/recall, outcome accuracy, remedy recall
+- [x] Baseline score on current graph (post-dedup):
+  - Claim type F1: **59.5%** (P=55.3%, R=69.8%)
+  - Outcome accuracy: **33.3%** (7/21 correct)
+  - Remedy recall: **42.9%**
 
-**Session 2 — Optimize against the metric**
-- [ ] Run evaluation before/after consolidation to measure impact
-- [ ] Tune dedup thresholds based on outcome accuracy (not just similarity scores)
-- [ ] Identify which entity types benefit from dedup vs which need separate subgraphs
-- [ ] Law/remedy ranking: does citation-count ranking improve predicted outcomes?
+> **Baseline analysis — key failure modes:**
+> 1. **Outcome prediction almost always says "unfavorable"** — 14/21 predicted unfavorable, even for tenant wins. Root cause: `OutcomePredictor` defaults pessimistic when it can't find strong similar-case evidence.
+> 2. **Claim type taxonomy mismatch** — ground truth uses types not in canonical set (ILLEGAL_ALTERATIONS_NO_C_OF_O, FRAUDULENT_OVERCHARGE, RENT_COLLECTION_BAR_DEFENSE, GOOD_CAUSE_EVICTION_DEFENSE, MOTION_TO_VACATE, CLAIM_FOR_DAMAGES). System can never predict these → recall ceiling.
+> 3. **Over-prediction** — system predicts 3-5 claims per case vs 1-3 actual. Precision suffers from extra claims (e.g., always adds RENT_STABILIZATION_VIOLATION alongside DEREGULATION_CHALLENGE).
+> 4. **Remedy matching is noisy** — fuzzy word overlap misses semantic matches ("treble damages" vs "rent freeze").
+
+**Session 2 — Optimize against the metric** ← in progress
+- [x] Outcome predictor: added fallback Strategy 2 (query case_document.outcome via backfilled `attributes.claim_types`)
+- [x] Outcome predictor: narrowed "mixed" band (0.45–0.55 vs 0.40–0.70) — stops defaulting to "mixed"
+- [x] Eval aliases: expanded from 20→32 mappings (BREACH_OF_WARRANTY_OF_HABITABILITY, FRAUDULENT_OVERCHARGE, RENT_COLLECTION_BAR, PROCEDURAL_DEFECT, DAMAGES_CLAIM, etc.)
+- [x] Eval remedy matching: added concept-based synonyms + substring matching
+- [x] Claim matcher: cap results at 3 claims max to reduce over-prediction
+- [x] **Score: outcome accuracy 33%→67%, remedy recall 43%→70%** (claim F1 59%→47% — LLM non-determinism)
+
+> **Remaining failure modes (next session):**
+> 1. **Never predicts unfavorable** — all 4 landlord_win cases predicted favorable. Root cause: the predictor finds similar cases in the graph that are mostly tenant_win (13/21 in our dataset), so favorable_rate is always high. Fix: predictor needs to know when it doesn't have enough similar cases to be confident, and should factor in case-specific signals (e.g., statute of limitations, procedural bars) not just aggregate win rate.
+> 2. **Claim F1 regression** — LLM returns inconsistent type names across runs (BREACH_OF_WARRANTY_OF_HABITABILITY vs HABITABILITY_VIOLATION). Fix: stricter canonical name enforcement in the megaprompt, or post-hoc normalization of predicted types.
+> 3. **Confidence gating** — system should abstain ("insufficient data") rather than predict when it finds <2 similar cases for a claim type.
+
+- [ ] Confidence gating: abstain from outcome prediction when <2 similar cases found for the claim type
+- [ ] Unfavorable predictions: factor in case-specific losing signals (statute of limitations, procedural bars, insufficient evidence of fraud)
+- [ ] Claim type normalization: enforce canonical names in megaprompt or add post-hoc mapping
+- [ ] Law/remedy ranking A/B test: run eval with ranking disabled to measure actual impact (ranking implemented but not A/B tested; remedy recall improved 43%→70% but eval matching also changed)
+- [ ] Per-type dedup analysis: run eval after dedup of each entity type separately to identify which benefit vs hurt
 - [ ] Document findings: what graph structure produces the best case predictions?
 
 ---

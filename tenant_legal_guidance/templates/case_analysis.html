@@ -104,10 +104,24 @@
 
         /* Results */
         #results { display: none; }
-        .results-header {
-            font-size: 1.3rem;
-            font-weight: 700;
-            margin-bottom: 16px;
+
+        /* Summary Card */
+        .summary-card {
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            color: #fff;
+            border-radius: 12px;
+            padding: 20px 24px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+        }
+        .summary-card .summary-text {
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+        .summary-card .summary-detail {
+            font-size: 0.9rem;
+            opacity: 0.85;
+            margin-top: 4px;
         }
 
         /* Extracted Evidence */
@@ -141,10 +155,21 @@
         .claim-card {
             background: #fff;
             border-radius: 12px;
-            padding: 20px 24px;
             margin-bottom: 16px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.08);
             border-left: 5px solid #3498db;
+            overflow: hidden;
+        }
+        .claim-card-header {
+            padding: 20px 24px;
+            cursor: pointer;
+            user-select: none;
+        }
+        .claim-card-body {
+            padding: 0 24px 20px;
+        }
+        .claim-card.collapsed .claim-card-body {
+            display: none;
         }
         .claim-header {
             display: flex;
@@ -155,6 +180,17 @@
         .claim-name {
             font-size: 1.1rem;
             font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .chevron {
+            font-size: 0.8rem;
+            transition: transform 0.2s;
+            color: #95a5a6;
+        }
+        .claim-card.collapsed .chevron {
+            transform: rotate(-90deg);
         }
         .strength-badge {
             font-size: 0.85rem;
@@ -162,14 +198,15 @@
             padding: 4px 10px;
             border-radius: 20px;
             color: #fff;
+            white-space: nowrap;
         }
-        .strength-high { background: #27ae60; }
-        .strength-medium { background: #f39c12; }
-        .strength-low { background: #e74c3c; }
+        .strength-strong { background: #27ae60; }
+        .strength-moderate { background: #f39c12; }
+        .strength-weak { background: #e74c3c; }
 
         /* Progress bar */
         .progress-container {
-            margin-bottom: 14px;
+            margin-bottom: 4px;
         }
         .progress-label {
             font-size: 0.85rem;
@@ -187,20 +224,54 @@
             border-radius: 4px;
             transition: width 0.5s ease;
         }
-        .fill-high { background: #27ae60; }
-        .fill-medium { background: #f39c12; }
-        .fill-low { background: #e74c3c; }
+        .fill-strong { background: #27ae60; }
+        .fill-moderate { background: #f39c12; }
+        .fill-weak { background: #e74c3c; }
+
+        /* Collapsible Sections */
+        .section-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 0;
+            cursor: pointer;
+            user-select: none;
+            border-top: 1px solid #f0f2f5;
+            margin-top: 8px;
+        }
+        .section-toggle:first-child {
+            border-top: none;
+            margin-top: 0;
+        }
+        .section-toggle h4 {
+            font-size: 0.92rem;
+            color: #2c3e50;
+            margin: 0;
+            flex: 1;
+        }
+        .section-chevron {
+            font-size: 0.7rem;
+            color: #95a5a6;
+            transition: transform 0.2s;
+        }
+        .section-content {
+            max-height: 500px;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+        .section-content.collapsed {
+            max-height: 0;
+        }
+        .collapsed + .section-content .section-chevron,
+        .section-toggle.collapsed .section-chevron {
+            transform: rotate(-90deg);
+        }
 
         /* Evidence lists */
-        .evidence-section h4 {
-            font-size: 0.9rem;
-            margin-bottom: 6px;
-            color: #555;
-        }
         .evidence-list {
             list-style: none;
             padding: 0;
-            margin-bottom: 12px;
+            margin-bottom: 8px;
         }
         .evidence-list li {
             padding: 5px 0;
@@ -223,18 +294,81 @@
             font-style: italic;
             margin-left: 22px;
             display: block;
+            padding: 2px 0 4px;
         }
+
+        /* Legal basis */
+        .law-item {
+            padding: 6px 0;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+        }
+        .law-icon {
+            color: #8e44ad;
+            flex-shrink: 0;
+        }
+        .law-citation {
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        .law-desc {
+            color: #666;
+            font-size: 0.85rem;
+        }
+
+        /* Similar cases */
+        .case-item {
+            padding: 6px 0;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+        }
+        .case-icon { flex-shrink: 0; }
+        .case-name { font-weight: 600; }
+        .outcome-badge {
+            font-size: 0.78rem;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-weight: 600;
+            display: inline-block;
+            margin-left: 6px;
+        }
+        .outcome-favorable { background: #d5f5e3; color: #1e8449; }
+        .outcome-unfavorable { background: #fadbd8; color: #c0392b; }
+        .outcome-mixed { background: #fdebd0; color: #b7950b; }
+        .outcome-unknown { background: #eaecee; color: #7f8c8d; }
+
+        /* Remedies */
+        .remedy-list {
+            list-style: none;
+            padding: 0;
+        }
+        .remedy-list li {
+            padding: 4px 0;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .remedy-icon { color: #2980b9; }
 
         /* Predicted outcome */
         .outcome-section {
             background: #f8f9fa;
             border-radius: 8px;
-            padding: 10px 14px;
-            margin-top: 10px;
-            font-size: 0.88rem;
+            padding: 12px 16px;
+            margin-top: 4px;
+            font-size: 0.9rem;
             color: #555;
         }
         .outcome-section strong { color: #2c3e50; }
+        .outcome-probability {
+            font-size: 1.1rem;
+            font-weight: 700;
+        }
 
         /* Next Steps */
         .next-steps {
@@ -405,8 +539,7 @@
         </div>
 
         <div id="results">
-            <div class="results-header">Analysis Results</div>
-
+            <div id="summary-container"></div>
             <div id="extracted-container"></div>
             <div id="claims-container"></div>
             <div id="next-steps-container"></div>
@@ -418,7 +551,6 @@
         var thinkingStart = 0;
         var thinkingStepIndex = 0;
         var thinkingSteps = ['step-read', 'step-evidence', 'step-search', 'step-claims', 'step-gaps', 'step-plan'];
-        // Delays before advancing to next step (ms) — staggered to feel natural
         var stepDelays = [800, 2500, 5000, 9000, 14000, 19000];
 
         function startThinking() {
@@ -428,29 +560,23 @@
             thinkingStepIndex = 0;
             thinkingStart = Date.now();
 
-            // Reset all steps
             thinkingSteps.forEach(function(id) {
                 var el = document.getElementById(id);
                 el.classList.remove('active', 'done');
             });
 
-            // Activate first step
             document.getElementById(thinkingSteps[0]).classList.add('active');
 
-            // Schedule remaining steps
             for (var i = 1; i < thinkingSteps.length; i++) {
                 (function(idx) {
                     setTimeout(function() {
-                        // Mark previous as done
                         document.getElementById(thinkingSteps[idx - 1]).classList.remove('active');
                         document.getElementById(thinkingSteps[idx - 1]).classList.add('done');
-                        // Mark current as active
                         document.getElementById(thinkingSteps[idx]).classList.add('active');
                     }, stepDelays[idx]);
                 })(i);
             }
 
-            // Update elapsed time
             thinkingTimer = setInterval(function() {
                 var elapsed = Math.round((Date.now() - thinkingStart) / 1000);
                 document.getElementById('thinking-elapsed').textContent = elapsed + 's elapsed';
@@ -462,17 +588,14 @@
                 clearInterval(thinkingTimer);
                 thinkingTimer = null;
             }
-            // Mark all steps as done
             thinkingSteps.forEach(function(id) {
                 var el = document.getElementById(id);
                 el.classList.remove('active');
                 el.classList.add('done');
                 el.querySelector('.step-icon').textContent = '\u2713';
             });
-            // Brief pause to show completion, then hide
             setTimeout(function() {
                 document.getElementById('thinking-container').style.display = 'none';
-                // Reset icons for next run
                 thinkingSteps.forEach(function(id, i) {
                     document.getElementById(id).querySelector('.step-icon').textContent = String(i + 1);
                     document.getElementById(id).classList.remove('done');
@@ -533,14 +656,22 @@
 
         function renderResults(data) {
             var resultsDiv = document.getElementById('results');
+            var summaryContainer = document.getElementById('summary-container');
             var extractedContainer = document.getElementById('extracted-container');
             var claimsContainer = document.getElementById('claims-container');
             var nextStepsContainer = document.getElementById('next-steps-container');
 
+            summaryContainer.innerHTML = '';
             extractedContainer.innerHTML = '';
             claimsContainer.innerHTML = '';
             nextStepsContainer.innerHTML = '';
 
+            // Summary card
+            if (data.summary) {
+                summaryContainer.innerHTML = renderSummary(data.summary);
+            }
+
+            // Extracted evidence
             if (data.extracted_evidence && data.extracted_evidence.length > 0) {
                 var items = data.extracted_evidence.map(function(ev) {
                     return '<li>' + escapeHtml(ev) + '</li>';
@@ -552,15 +683,17 @@
                     '</div>';
             }
 
+            // Claim cards
             var claims = data.possible_claims || [];
             if (claims.length === 0) {
                 claimsContainer.innerHTML = '<p style="color:#7f8c8d;">No claims identified. Try providing more detail about your situation.</p>';
             } else {
-                claimsContainer.innerHTML = claims.map(function(claim) {
-                    return renderClaimCard(claim);
+                claimsContainer.innerHTML = claims.map(function(claim, index) {
+                    return renderClaimCard(claim, index);
                 }).join('');
             }
 
+            // Next steps
             var steps = data.next_steps || [];
             if (steps.length > 0) {
                 var stepItems = steps.map(function(s) {
@@ -577,28 +710,133 @@
             resultsDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
 
-        function renderClaimCard(claim) {
-            var strength = claim.evidence_strength || 0;
+        function renderSummary(summary) {
+            var claimCount = summary.claim_count || 0;
+            var strongest = summary.strongest_claim || '';
+            var strength = summary.overall_strength || 'none';
+            var strengthLabel = strength.charAt(0).toUpperCase() + strength.slice(1);
+
+            var text = claimCount + ' claim' + (claimCount !== 1 ? 's' : '') + ' identified.';
+            var detail = '';
+            if (strongest) {
+                detail = 'Strongest: ' + escapeHtml(strongest) + ' (' + strengthLabel + ')';
+            }
+
+            return '<div class="summary-card">' +
+                '<div class="summary-text">' + text + '</div>' +
+                (detail ? '<div class="summary-detail">' + detail + '</div>' : '') +
+                '</div>';
+        }
+
+        function renderClaimCard(claim, index) {
+            var strength = claim.evidence_strength || 'weak';
             var completeness = claim.completeness_score || 0;
             var pct = Math.round(completeness * 100);
-
-            var level = strength >= 0.6 ? 'high' : strength >= 0.35 ? 'medium' : 'low';
-            var levelLabel = strength >= 0.6 ? 'Strong' : strength >= 0.35 ? 'Moderate' : 'Weak';
+            var isCollapsed = index > 0;
 
             var allMatches = claim.evidence_matches || [];
             var matched = allMatches.filter(function(e) { return e.status === 'matched' || e.match_score >= 0.5; });
             var partial = allMatches.filter(function(e) { return e.status === 'partial' || (e.match_score > 0 && e.match_score < 0.5 && e.status !== 'matched'); });
-
             var gaps = claim.evidence_gaps || [];
+            var legalBasis = claim.legal_basis || [];
+            var similarCases = claim.similar_cases || [];
+            var remedies = claim.remedies || [];
 
-            var evHtml = '';
+            // Evidence section (always visible)
+            var evHtml = renderEvidenceSection(matched, partial, gaps);
+
+            // Legal basis section (collapsible)
+            var legalHtml = '';
+            if (legalBasis.length > 0) {
+                var lawItems = legalBasis.map(function(law) {
+                    var citation = escapeHtml(law.citation || law.name || '');
+                    var desc = law.description ? ' &mdash; ' + escapeHtml(law.description) : '';
+                    var citationHtml = law.source_url
+                        ? '<a href="' + escapeHtml(law.source_url) + '" target="_blank" class="law-citation" style="color:#2980b9;text-decoration:underline;">' + citation + ' &#8599;</a>'
+                        : '<span class="law-citation">' + citation + '</span>';
+                    return '<div class="law-item"><span class="law-icon">&#167;</span><span>' + citationHtml + desc + '</span></div>';
+                }).join('');
+                legalHtml = renderCollapsibleSection('Legal Basis', lawItems, 'legal-' + index, index > 0);
+            }
+
+            // Similar cases section (collapsible)
+            var casesHtml = '';
+            if (similarCases.length > 0) {
+                var caseItems = similarCases.map(function(c) {
+                    var outClass = getOutcomeClass(c.outcome);
+                    var outLabel = escapeHtml(c.outcome || 'Unknown');
+                    var detail = c.outcome_detail ? ' &mdash; ' + escapeHtml(c.outcome_detail) : '';
+                    var caseNameHtml = c.url
+                        ? '<a href="' + escapeHtml(c.url) + '" target="_blank" class="case-name" style="color:#2980b9;text-decoration:underline;">' + escapeHtml(c.case_name || 'Unknown Case') + ' &#8599;</a>'
+                        : '<span class="case-name">' + escapeHtml(c.case_name || 'Unknown Case') + '</span>';
+                    return '<div class="case-item"><span class="case-icon">&#9878;</span><span>' +
+                        caseNameHtml +
+                        '<span class="outcome-badge ' + outClass + '">' + outLabel + '</span>' +
+                        detail + '</span></div>';
+                }).join('');
+                casesHtml = renderCollapsibleSection('Similar Cases', caseItems, 'cases-' + index, index > 0);
+            }
+
+            // Predicted outcome section (collapsible)
+            var outcomeHtml = '';
+            if (claim.predicted_outcome) {
+                var po = claim.predicted_outcome;
+                var disp = escapeHtml(po.disposition || po.outcome_type || 'Unknown');
+                var prob = po.probability ? Math.round(po.probability * 100) + '%' : '';
+                var reason = po.reasoning ? '<div style="margin-top:6px;font-size:0.85rem;color:#666;">' + escapeHtml(po.reasoning) + '</div>' : '';
+                var casesCount = po.similar_cases_count ? ' based on ' + po.similar_cases_count + ' similar case' + (po.similar_cases_count !== 1 ? 's' : '') : '';
+                var outcomeContent = '<div class="outcome-section">' +
+                    '<strong>Predicted Outcome:</strong> <span class="outcome-probability">' + disp + '</span>' +
+                    (prob ? ' (' + prob + ' likely)' : '') + casesCount + reason + '</div>';
+                outcomeHtml = renderCollapsibleSection('Predicted Outcome', outcomeContent, 'outcome-' + index, index > 0);
+            }
+
+            // Remedies section (collapsible)
+            var remediesHtml = '';
+            if (remedies.length > 0) {
+                var remedyItems = '<ul class="remedy-list">' + remedies.map(function(r) {
+                    return '<li><span class="remedy-icon">&#10003;</span>' + escapeHtml(r) + '</li>';
+                }).join('') + '</ul>';
+                remediesHtml = renderCollapsibleSection('Available Remedies', remedyItems, 'remedies-' + index, index > 0);
+            }
+
+            // Description
+            var descHtml = '';
+            if (claim.claim_description) {
+                descHtml = '<p style="font-size:0.9rem;color:#666;margin-bottom:12px;">' + escapeHtml(claim.claim_description) + '</p>';
+            }
+
+            return '<div class="claim-card' + (isCollapsed ? ' collapsed' : '') + '" id="claim-card-' + index + '">' +
+                '<div class="claim-card-header" onclick="toggleCard(' + index + ')">' +
+                '<div class="claim-header">' +
+                '<span class="claim-name"><span class="chevron">&#9660;</span>' + escapeHtml(claim.claim_type_name || claim.canonical_name) + '</span>' +
+                '<span class="strength-badge strength-' + strength + '">' + strength.charAt(0).toUpperCase() + strength.slice(1) + '</span>' +
+                '</div>' +
+                '<div class="progress-container">' +
+                '<div class="progress-label">Evidence completeness: ' + pct + '%</div>' +
+                '<div class="progress-bar"><div class="progress-fill fill-' + strength + '" style="width:' + pct + '%"></div></div>' +
+                '</div>' +
+                '</div>' +
+                '<div class="claim-card-body">' +
+                descHtml +
+                legalHtml +
+                evHtml +
+                casesHtml +
+                outcomeHtml +
+                remediesHtml +
+                '</div>' +
+                '</div>';
+        }
+
+        function renderEvidenceSection(matched, partial, gaps) {
+            var html = '';
 
             if (matched.length > 0) {
                 var matchedItems = matched.map(function(e) {
                     var desc = e.user_evidence_description ? ' &mdash; ' + escapeHtml(e.user_evidence_description) : '';
                     return '<li><span class="ev-icon ev-found">&#10004;</span><span>' + escapeHtml(e.evidence_name) + desc + '</span></li>';
                 }).join('');
-                evHtml += '<h4>Evidence Found</h4><ul class="evidence-list">' + matchedItems + '</ul>';
+                html += '<h4 style="font-size:0.9rem;color:#555;margin-bottom:4px;">Evidence Found</h4><ul class="evidence-list">' + matchedItems + '</ul>';
             }
 
             if (partial.length > 0) {
@@ -606,7 +844,7 @@
                     var desc = e.user_evidence_description ? ' &mdash; ' + escapeHtml(e.user_evidence_description) : '';
                     return '<li><span class="ev-icon ev-partial">&#9679;</span><span>' + escapeHtml(e.evidence_name) + desc + '</span></li>';
                 }).join('');
-                evHtml += '<h4>Partial Evidence</h4><ul class="evidence-list">' + partialItems + '</ul>';
+                html += '<h4 style="font-size:0.9rem;color:#555;margin-bottom:4px;">Partial Evidence</h4><ul class="evidence-list">' + partialItems + '</ul>';
             }
 
             if (gaps.length > 0) {
@@ -615,30 +853,42 @@
                     var howTo = g.how_to_get ? '<li class="ev-how">' + escapeHtml(g.how_to_get) + '</li>' : '';
                     return '<li><span class="ev-icon ev-missing">&#10008;</span><span>' + escapeHtml(g.evidence_name) + critical + '</span></li>' + howTo;
                 }).join('');
-                evHtml += '<h4>Evidence Missing</h4><ul class="evidence-list">' + gapItems + '</ul>';
+                html += '<h4 style="font-size:0.9rem;color:#555;margin-bottom:4px;">Evidence Missing</h4><ul class="evidence-list">' + gapItems + '</ul>';
             }
 
-            var outcomeHtml = '';
-            if (claim.predicted_outcome) {
-                var po = claim.predicted_outcome;
-                var disp = escapeHtml(po.disposition || po.outcome_type || 'Unknown');
-                var prob = po.probability ? ' (' + Math.round(po.probability * 100) + '% likely)' : '';
-                var reason = po.reasoning ? '<br><small>' + escapeHtml(po.reasoning) + '</small>' : '';
-                outcomeHtml = '<div class="outcome-section"><strong>Predicted Outcome:</strong> ' + disp + prob + reason + '</div>';
-            }
+            return '<div style="margin-top:8px;">' + html + '</div>';
+        }
 
-            return '<div class="claim-card">' +
-                '<div class="claim-header">' +
-                '<span class="claim-name">' + escapeHtml(claim.claim_type_name || claim.canonical_name) + '</span>' +
-                '<span class="strength-badge strength-' + level + '">' + levelLabel + ' (' + Math.round(strength * 100) + '%)</span>' +
+        function renderCollapsibleSection(title, content, id, startCollapsed) {
+            var collapsedClass = startCollapsed ? ' collapsed' : '';
+            return '<div class="section-toggle' + collapsedClass + '" onclick="toggleSection(\'' + id + '\')" id="toggle-' + id + '">' +
+                '<h4>' + title + '</h4>' +
+                '<span class="section-chevron">&#9660;</span>' +
                 '</div>' +
-                '<div class="progress-container">' +
-                '<div class="progress-label">Evidence completeness: ' + pct + '%</div>' +
-                '<div class="progress-bar"><div class="progress-fill fill-' + level + '" style="width:' + pct + '%"></div></div>' +
-                '</div>' +
-                '<div class="evidence-section">' + evHtml + '</div>' +
-                outcomeHtml +
+                '<div class="section-content' + collapsedClass + '" id="section-' + id + '">' +
+                content +
                 '</div>';
+        }
+
+        function toggleCard(index) {
+            var card = document.getElementById('claim-card-' + index);
+            card.classList.toggle('collapsed');
+        }
+
+        function toggleSection(id) {
+            var toggle = document.getElementById('toggle-' + id);
+            var content = document.getElementById('section-' + id);
+            toggle.classList.toggle('collapsed');
+            content.classList.toggle('collapsed');
+        }
+
+        function getOutcomeClass(outcome) {
+            if (!outcome) return 'outcome-unknown';
+            var lower = outcome.toLowerCase();
+            if (lower.indexOf('favorable') >= 0 || lower.indexOf('granted') >= 0 || lower.indexOf('won') >= 0) return 'outcome-favorable';
+            if (lower.indexOf('unfavorable') >= 0 || lower.indexOf('dismissed') >= 0 || lower.indexOf('denied') >= 0) return 'outcome-unfavorable';
+            if (lower.indexOf('mixed') >= 0 || lower.indexOf('settled') >= 0 || lower.indexOf('partial') >= 0) return 'outcome-mixed';
+            return 'outcome-unknown';
         }
 
         function escapeHtml(str) {

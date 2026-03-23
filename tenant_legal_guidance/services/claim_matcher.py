@@ -40,6 +40,11 @@ class ClaimTypeMatch:
     evidence_strength: str  # "strong", "moderate", "weak"
     evidence_gaps: list[dict]
     completeness_score: float  # 0.0-1.0
+    claim_description: str = ""
+    legal_basis: list[dict] = None  # [{name, citation, description}]
+    similar_cases: list[dict] = None  # [{case_name, outcome, relevance_score}]
+    remedies: list[str] = None  # ["Rent reduction", ...]
+    predicted_outcome: dict | None = None  # OutcomePrediction as dict
 
 
 @dataclass
@@ -218,15 +223,18 @@ Return ONLY the JSON array, nothing else.
                             ],
                             "applicable_laws": [
                                 {
-                                    "name": law.name if hasattr(law, "name") else str(law),
-                                    "description": getattr(law, "description", "") or "",
+                                    "name": law.get("name", str(law)) if isinstance(law, dict) else (law.name if hasattr(law, "name") else str(law)),
+                                    "citation": law.get("citation", "") if isinstance(law, dict) else (getattr(law, "citation", "") or ""),
+                                    "description": law.get("description", "") if isinstance(law, dict) else (getattr(law, "description", "") or ""),
+                                    "source_url": law.get("source_url", "") if isinstance(law, dict) else "",
+                                    "source_title": law.get("source_title", "") if isinstance(law, dict) else "",
                                 }
                                 for law in (proof_chain.applicable_laws or [])
                             ],
                             "remedies": [
                                 {
-                                    "name": rem.name if hasattr(rem, "name") else str(rem),
-                                    "description": getattr(rem, "description", "") or "",
+                                    "name": rem.get("name", str(rem)) if isinstance(rem, dict) else (rem.name if hasattr(rem, "name") else str(rem)),
+                                    "description": rem.get("description", "") if isinstance(rem, dict) else (getattr(rem, "description", "") or ""),
                                 }
                                 for rem in (proof_chain.remedies or [])
                             ],
@@ -411,6 +419,9 @@ Return ONLY the JSON array, nothing else.
                     # Identify gaps
                     gaps = self._identify_evidence_gaps(evidence_assessment)
 
+                    # Pull proof chain data for legal_basis, remedies, description
+                    proof_chain = claim_type_data.get("proof_chain", {})
+
                     results.append(
                         ClaimTypeMatch(
                             claim_type_id=canonical,  # Use claim_type string as ID
@@ -423,11 +434,16 @@ Return ONLY the JSON array, nothing else.
                             ),
                             evidence_gaps=gaps,
                             completeness_score=completeness,
+                            claim_description=proof_chain.get("claim_description", ""),
+                            legal_basis=proof_chain.get("applicable_laws", []),
+                            remedies=[r.get("name", "") for r in proof_chain.get("remedies", []) if r.get("name")],
                         )
                     )
 
-                # Sort by match score
+                # Sort by match score and cap to avoid over-prediction
                 results.sort(key=lambda x: x.match_score, reverse=True)
+                # Cap at 3 claims max — cases rarely have more than 3 true claim types
+                results = results[:3]
                 return results, extracted_evidence
 
         except json.JSONDecodeError as e:

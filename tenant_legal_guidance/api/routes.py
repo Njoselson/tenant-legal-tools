@@ -1922,13 +1922,37 @@ async def analyze_my_case(
             jurisdiction=request.jurisdiction,
         )
 
-        # Predict outcomes for each claim
+        # Predict outcomes for each claim and attach similar cases
         for match in claim_matches:
             # Find similar cases
             similar_cases = await predictor.find_similar_cases(
                 claim_type=match.canonical_name,
                 situation=anonymized_situation,
             )
+
+            # Attach similar cases to the match, resolving to case documents with URLs
+            resolved_cases = []
+            for c in similar_cases[:3]:
+                claim_key = c.get("claim_id", "")
+                claim_data = c.get("claim", {})
+                outcome_data = c.get("outcome")
+
+                # Resolve to the parent case document for URL
+                case_doc = system.knowledge_graph.get_case_document_for_claim(claim_key)
+
+                case_name = (case_doc or {}).get("name") or claim_data.get("name", "Unknown Case")
+                case_url = (case_doc or {}).get("url", "")
+                outcome = outcome_data.get("disposition", "unknown") if outcome_data else (c.get("claim_outcome") or "unknown")
+                outcome_detail = outcome_data.get("name", "") if outcome_data else ""
+
+                resolved_cases.append({
+                    "case_name": case_name,
+                    "outcome": outcome,
+                    "outcome_detail": outcome_detail,
+                    "relevance_score": c.get("similarity_score", 0.5),
+                    "url": case_url,
+                })
+            match.similar_cases = resolved_cases
 
             # Predict outcome
             outcome_prediction = await predictor.predict_outcomes(
@@ -1952,39 +1976,14 @@ async def analyze_my_case(
             situation=anonymized_situation,
         )
 
-        # NEW: Retrieve chunks, entities, and relationships for graph/explorer tabs
-        from tenant_legal_guidance.services.case_analyzer import CaseAnalyzer
-        case_analyzer = CaseAnalyzer(
-            graph=system.knowledge_graph,
-            llm_client=system.deepseek,
-            vector_store=system.vector_store,
-        )
-        
-        # Extract key terms and retrieve data
-        key_terms = case_analyzer.extract_key_terms(anonymized_situation)
-        logger.info(f"Retrieving data for UI: {len(key_terms)} key terms")
-        relevant_data = case_analyzer.retrieve_relevant_entities(
-            key_terms,
-            case_text=anonymized_situation
-        )
-        
-        chunks = relevant_data.get("chunks", [])
-        entities = relevant_data.get("entities", [])
-        relationships = relevant_data.get("relationships", [])
-        
-        logger.info(f"Retrieved for UI: {len(chunks)} chunks, {len(entities)} entities, {len(relationships)} relationships")
-        
-        # Serialize entities and relationships
-        entities_response = [entity.to_api_dict() for entity in entities]
-        relationships_response = [rel.to_api_dict() for rel in relationships]
+        # Build top-level summary
+        summary = {
+            "claim_count": len(claim_matches),
+            "strongest_claim": claim_matches[0].claim_type_name if claim_matches else None,
+            "overall_strength": claim_matches[0].evidence_strength if claim_matches else "none",
+        }
 
-        # Collect similar cases from all matches
-        for match in claim_matches:
-            if match.predicted_outcome:
-                # Get cases from predictor (would need to store them)
-                pass
-
-        # Build response with retrieved data
+        # Build response
         response_obj = AnalyzeMyCaseResponse(
             possible_claims=[
                 ClaimTypeMatchSchema(
@@ -2015,26 +2014,19 @@ async def analyze_my_case(
                     ],
                     completeness_score=match.completeness_score,
                     predicted_outcome=match.predicted_outcome,
+                    claim_description=match.claim_description or "",
+                    legal_basis=match.legal_basis or [],
+                    similar_cases=match.similar_cases or [],
+                    remedies=match.remedies or [],
                 )
                 for match in claim_matches
             ],
             next_steps=next_steps,
             extracted_evidence=extracted_evidence if extracted_evidence else None,
-            similar_cases=None,  # Could populate from predictions
+            summary=summary,
         )
-        
-        # Convert to dict and add retrieved data (response_model doesn't support extra fields)
-        response_dict = response_obj.model_dump()
-        response_dict["chunks"] = chunks
-        response_dict["entities"] = entities_response
-        response_dict["relationships"] = relationships_response
-        response_dict["retrieval_stats"] = {
-            "total_chunks": len(chunks),
-            "total_entities": len(entities),
-            "total_relationships": len(relationships),
-        }
-        
-        return response_dict
+
+        return response_obj.model_dump()
 
     except Exception as e:
         logger.error(f"Analyze my case failed: {e}", exc_info=True)

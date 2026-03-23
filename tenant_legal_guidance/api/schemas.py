@@ -352,6 +352,26 @@ class EvidenceGapSchema(BaseModel):
     how_to_get: str
 
 
+class LawSchema(BaseModel):
+    """Schema for a law/statute in legal basis."""
+
+    name: str
+    citation: str = ""
+    description: str = ""
+    source_url: str = ""
+    source_title: str = ""
+
+
+class SimilarCaseSchema(BaseModel):
+    """Schema for a similar case."""
+
+    case_name: str
+    outcome: str = "unknown"
+    outcome_detail: str = ""
+    relevance_score: float = 0.0
+    url: str = ""
+
+
 class ClaimTypeMatchSchema(BaseModel):
     """Schema for claim type match result."""
 
@@ -364,6 +384,10 @@ class ClaimTypeMatchSchema(BaseModel):
     evidence_gaps: list[EvidenceGapSchema]
     completeness_score: float
     predicted_outcome: dict | None = None  # OutcomePrediction as dict
+    claim_description: str = ""
+    legal_basis: list[LawSchema] = []
+    similar_cases: list[SimilarCaseSchema] = []
+    remedies: list[str] = []
 
 
 class AnalyzeMyCaseResponse(BaseModel):
@@ -372,7 +396,7 @@ class AnalyzeMyCaseResponse(BaseModel):
     possible_claims: list[ClaimTypeMatchSchema]
     next_steps: list[str]
     extracted_evidence: list[str] | None = None  # Evidence auto-extracted from situation
-    similar_cases: list[dict] | None = None
+    summary: dict | None = None
 
 
 class ProofChainEvidenceSchema(BaseModel):

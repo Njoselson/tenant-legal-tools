@@ -1,0 +1,487 @@
+[
+  {
+    "tenant_situation": "I've been living in an apartment with severe and chronic problems for over a year. There is a persistent rodent infestation, multiple broken facilities, and hazardous conditions that make the place unsafe. I have given my landlord proper notice about all these issues, but they have consistently failed to make the necessary repairs to fix the situation.",
+    "claim_types": [
+      "HABITABILITY_VIOLATION"
+    ],
+    "outcome": "tenant_win",
+    "outcome_summary": "The court found the landlord breached the warranty of habitability and awarded the tenant a 40% rent abatement for a 14-month period.",
+    "remedies_granted": [
+      "40% rent abatement for 14 months"
+    ],
+    "key_laws": [
+      "Warranty of Habitability"
+    ],
+    "evidence_that_mattered": [
+      "Evidence of chronic rodent infestation",
+      "Evidence of broken facilities and hazardous violations",
+      "Evidence that conditions persisted for over a year",
+      "Evidence that landlord received proper notice and failed to make timely repairs"
+    ],
+    "case_name": "100 W 174 LLC v Haskins",
+    "case_key": "case_document:5c59c262-7522-ca4c-3da9-c6dd392ddd0f",
+    "source_url": "https://www.nycourts.gov/reporter/3dseries/2014/2014_51673.htm"
+  },
+  {
+    "tenant_situation": "My landlord is trying to evict me for not paying rent. The building I live in has been illegally converted into single room occupancy (SRO) units, and there is no valid certificate of occupancy for my apartment. The conditions are unsafe and violate housing codes. I have evidence that the units are illegal SROs and that the landlord has failed to obtain the proper permits and certificates.",
+    "claim_types": [
+      "ILLEGAL_ALTERATIONS_NO_C_OF_O"
+    ],
+    "outcome": "tenant_win",
+    "outcome_summary": "The court dismissed the landlord's nonpayment eviction proceeding because the landlord maintained illegal SRO units without a certificate of occupancy, which absolutely bars rent recovery under the law.",
+    "remedies_granted": [
+      "Dismissal of eviction proceeding"
+    ],
+    "key_laws": [
+      "Multiple Dwelling Law § 301",
+      "Multiple Dwelling Law § 302"
+    ],
+    "evidence_that_mattered": [
+      "Evidence of illegal SRO units",
+      "Lack of a certificate of occupancy for the dwelling"
+    ],
+    "case_name": "1245 Stratford, LLC v Osbourne",
+    "case_key": "case_document:30afa519-2621-0b5d-c6b0-fd6a6b0f0539",
+    "source_url": "https://www.nycourts.gov/reporter/3dseries/2024/2024_51562.htm"
+  },
+  {
+    "tenant_situation": "My landlord is trying to force me out of my rent-stabilized apartment by claiming it should be deregulated because the rent is too high. They refused to renew my lease, which I believe is retaliation for me asserting my rights. I have the official DHCR rent history for the apartment, which shows the legal regulated rent has never gone above $2,000 a month, but the landlord is ignoring this and making claims without solid proof.",
+    "claim_types": [
+      "RENT_STABILIZATION_VIOLATION",
+      "RENT_OVERCHARGE",
+      "RETALIATORY_EVICTION",
+      "HARASSMENT"
+    ],
+    "outcome": "tenant_win",
+    "outcome_summary": "The court denied the landlord's motions, finding they failed to prove the apartment was eligible for deregulation and sustained the tenant's counterclaims.",
+    "remedies_granted": [
+      "Denial of landlord's summary judgment motions",
+      "Sustained tenant's counterclaims for overcharges, retaliation, and harassment"
+    ],
+    "key_laws": [
+      "High-Rent Vacancy Deregulation threshold",
+      "Strict evidentiary requirements for deregulation claims"
+    ],
+    "evidence_that_mattered": [
+      "DHCR rent history showing monthly rents never surpassed $2,000",
+      "Landlord's insufficient corroborating evidence for deregulation claim"
+    ],
+    "case_name": "13 East 124 LLC v Jessica Taylor",
+    "case_key": "case_document:954d58a9-f25c-1990-9691-156bc78606a4",
+    "source_url": "https://www.nycourts.gov/reporter/3dseries/2025/2025_01765.htm"
+  },
+  {
+    "tenant_situation": "I live in an apartment that my landlord claims is deregulated and not subject to rent stabilization. However, I discovered that the building has been receiving J-51 tax benefits, which I believe should mean my apartment is rent-stabilized. The landlord deregulated my apartment after a court decision that said you can't do that while getting these tax breaks, and they also stopped filing the required annual rent registration statements. I've been paying a market-rate rent that I think is illegal, and I believe the landlord is trying to avoid the rent stabilization laws.",
+    "claim_types": [
+      "DEREGULATION_CHALLENGE",
+      "RENT_OVERCHARGE",
+      "ILLEGAL_DEREGULATION_CHALLENGE"
+    ],
+    "outcome": "tenant_win",
+    "outcome_summary": "The court dismissed the landlord's eviction case and allowed the tenant's rent overcharge counterclaim to proceed to trial, finding the apartment was improperly deregulated and the tenant made a colorable claim of fraud.",
+    "remedies_granted": [
+      "Dismissal of landlord's holdover proceeding",
+      "Permission for rent overcharge counterclaim to proceed to trial"
+    ],
+    "key_laws": [
+      "Rent Stabilization Law",
+      "J-51 tax benefit program regulations",
+      "Precedent on luxury decontrol while receiving J-51 benefits"
+    ],
+    "evidence_that_mattered": [
+      "Building's receipt of J-51 tax benefits",
+      "Landlord's deregulation of apartment after relevant appellate precedent",
+      "Landlord's failure to file annual rent registration statements"
+    ],
+    "case_name": "304-306 E 83 Realty, LLC v Mason",
+    "case_key": "case_document:9e1879d4-12c5-e12c-6a2e-7740c7b2835d",
+    "source_url": "https://www.nycourts.gov/reporter//3dseries/2025/2025_25104.htm"
+  },
+  {
+    "tenant_situation": "I moved into a rent-controlled apartment after the previous tenant left. My landlord charged me a rent above $2,000 from the start. I later discovered the apartment was registered as rent-stabilized with the state, and I believe it should have remained regulated. The landlord is now claiming the apartment was legally deregulated when I moved in because of the high rent.",
+    "claim_types": [
+      "DEREGULATION_CHALLENGE",
+      "RENT_STABILIZATION_VIOLATION"
+    ],
+    "outcome": "landlord_win",
+    "outcome_summary": "The court held the apartment was permanently deregulated when the tenant moved in at a rent above the threshold and no timely fair market rent appeal was filed, and that subsequent mistaken registration did not reimpose stabilization.",
+    "remedies_granted": [],
+    "key_laws": [
+      "Rent Regulation Reform Act of 1997 (vacancy deregulation)",
+      "Statute of limitations for fair market rent appeals (4 years)"
+    ],
+    "evidence_that_mattered": [
+      "Initial rent charged to the first tenant after vacancy",
+      "DHCR registration history showing later 'stabilized' status",
+      "Tenant's failure to file a fair market rent appeal within four years"
+    ],
+    "case_name": "3505 BWAY Owner LLC v McNeely",
+    "case_key": "case_document:9c9231b8-4b3b-d656-e602-a80d5ef68449",
+    "source_url": "https://nycourts.gov/Reporter/3dseries/2021/2021_21118.htm"
+  },
+  {
+    "tenant_situation": "My landlord is trying to evict me for nonpayment of rent. I believe I have been overcharged for years, possibly since 1993, and that the landlord has been fraudulently setting illegal rents. I have been trying to get documents from the landlord to prove this long history of overcharges, but they are resisting. The rent records from the DHCR might show inconsistencies, but I need the landlord's own records to uncover the full fraud.",
+    "claim_types": [
+      "RENT_OVERCHARGE",
+      "FRAUDULENT_OVERCHARGE"
+    ],
+    "outcome": "landlord_win",
+    "outcome_summary": "The court denied the tenant's motion for discovery, holding that the tenant failed to plead the elements of common-law fraud with sufficient specificity to justify looking back beyond the standard four-year period for rent overcharge claims.",
+    "remedies_granted": [],
+    "key_laws": [
+      "Four-year lookback period for rent overcharges",
+      "Common-law fraud pleading requirements (Burrows/Regina)"
+    ],
+    "evidence_that_mattered": [
+      "Tenant's pleadings alleging fraud",
+      "Publicly available DHCR rent history records"
+    ],
+    "case_name": "41-47 Nick LLC v Odumosu",
+    "case_key": "case_document:c314992c-2d9f-4ff8-41e2-7d2dfdabe90c",
+    "source_url": "https://www.nycourts.gov/reporter/3dseries/2023/2023_23311.htm"
+  },
+  {
+    "tenant_situation": "My landlord is trying to evict me. I have filed motions to challenge this and to vacate the court's previous orders in my case. I believe the landlord's actions are wrongful, and I am seeking significant damages for the harm caused to me.",
+    "claim_types": [
+      "MOTION_TO_VACATE",
+      "CLAIM_FOR_DAMAGES"
+    ],
+    "outcome": "landlord_win",
+    "outcome_summary": "The court denied the tenant's motion to vacate prior orders and claim for damages, applying the law of the case doctrine as the issues had already been decided.",
+    "remedies_granted": [],
+    "key_laws": [
+      "Law of the Case Doctrine"
+    ],
+    "evidence_that_mattered": [
+      "Prior court orders and rulings on the same issues"
+    ],
+    "case_name": "5712 Realty LLC v Ricketts",
+    "case_key": "case_document:0c41a68b-d77f-f773-3e46-6aa0594cac53",
+    "source_url": "https://www.nycourts.gov/reporter/3dseries/2025/2025_25012.htm"
+  },
+  {
+    "tenant_situation": "I've lived in my apartment for years, and it was always rent-stabilized. My landlord suddenly claimed the apartment was deregulated and started charging a much higher, market-rate rent. I believe they used a fraudulent scheme to remove the apartment from rent stabilization, like claiming they did major renovations or that the rent had legally passed a high-rent threshold, just to jack up the price. I have my old rent-stabilized leases and records showing the sudden, unjustified rent hike.",
+    "claim_types": [
+      "DEREGULATION_CHALLENGE",
+      "RENT_OVERCHARGE",
+      "RENT_STABILIZATION_VIOLATION"
+    ],
+    "outcome": "mixed",
+    "outcome_summary": "The court affirmed the tenant's right to a rent-stabilized lease but remanded the case for a specific finding on whether the landlord's deregulation was fraudulent, which will determine the method for calculating overcharge damages.",
+    "remedies_granted": [
+      "Declaration of right to a rent-stabilized lease",
+      "Remand for factual finding on fraudulent scheme"
+    ],
+    "key_laws": [
+      "Rent Stabilization Law",
+      "Housing Stability and Tenant Protection Act (HSTPA) - non-retroactivity of overcharge provisions"
+    ],
+    "evidence_that_mattered": [
+      "Tenant's history of rent-stabilized leases",
+      "Landlord's deregulation paperwork and justification",
+      "Timing and nature of the rent increase leading to deregulation"
+    ],
+    "case_name": "Arnold Rossman v Windermere Owners LLC et al.",
+    "case_key": "case_document:50179661-1957-2e66-74a5-f1f1abc483e4",
+    "source_url": "https://www.nycourts.gov/reporter/3dseries/2020/2020_05705.htm"
+  },
+  {
+    "tenant_situation": "My landlord has been charging me market-rate rent for years, but I believe my apartment should have remained rent-stabilized because the building was receiving J-51 tax benefits. I think they illegally deregulated my apartment as a 'luxury' unit to justify the higher rent. I have my lease and rent payment history showing the high charges, and I know the building was in the J-51 program.",
+    "claim_types": [
+      "DEREGULATION_CHALLENGE",
+      "RENT_OVERCHARGE",
+      "RENT_STABILIZATION_VIOLATION"
+    ],
+    "outcome": "tenant_win",
+    "outcome_summary": "The court allowed the tenants' class action for rent overcharges to proceed by waiving treble damages, and confirmed the Supreme Court's jurisdiction over the claims.",
+    "remedies_granted": [
+      "Proceed with class action lawsuit",
+      "Seek recovery of actual rent overcharges",
+      "Seek interest on overcharges"
+    ],
+    "key_laws": [
+      "Rent Stabilization Law",
+      "Rent Stabilization Code provisions on J-51 benefits and luxury deregulation",
+      "CPLR Article 9 (Class Actions)"
+    ],
+    "evidence_that_mattered": [
+      "Evidence of building receiving J-51 tax benefits",
+      "Tenant lease and rent payment history demonstrating overcharges",
+      "Landlord's deregulation records for the apartments"
+    ],
+    "case_name": "Elise Downing et al. v First Lenox Terrace Associates et al.",
+    "case_key": "case_document:cbb1801d-968e-0e0f-cd1e-e61aa9c8ad8b",
+    "source_url": "https://www.nycourts.gov/reporter/3dseries/2013/2013_02853.htm"
+  },
+  {
+    "tenant_situation": "My landlord is suing me for nonpayment of rent. However, the building has serious violations that the Department of Buildings issued in February 2022. I believe these violations mean the landlord is not allowed to collect rent until the problems are fixed. I want to raise this as a defense and counterclaim in the case.",
+    "claim_types": [
+      "RENT_COLLECTION_BAR_DEFENSE"
+    ],
+    "outcome": "tenant_win",
+    "outcome_summary": "The appellate court reversed the lower court and allowed the tenant to amend her answer to include a counterclaim that the landlord was barred from collecting rent due to Multiple Dwelling Law violations.",
+    "remedies_granted": [
+      "permission to amend answer to add counterclaim"
+    ],
+    "key_laws": [
+      "Multiple Dwelling Law § 302-a (or similar rent-impairing violations provision)",
+      "CPLR 3025(b) (amendment of pleadings)"
+    ],
+    "evidence_that_mattered": [
+      "Department of Buildings violations issued in February 2022"
+    ],
+    "case_name": "Four Thirty Realty LLC v Kamal",
+    "case_key": "case_document:0b5a8232-0bc9-181b-ece9-6607044c1659",
+    "source_url": "https://www.nycourts.gov/reporter/3dseries/2024/2024_51301.htm"
+  },
+  {
+    "tenant_situation": "I live in a rent-stabilized apartment, but my landlord has been charging me a market-rate rent. I believe they improperly deregulated my unit as part of a larger scheme to remove apartments from rent stabilization. I have evidence of the building's rental history showing the apartment should have remained regulated, and the landlord failed to properly register the rents with the state housing agency.",
+    "claim_types": [
+      "DEREGULATION_CHALLENGE",
+      "RENT_OVERCHARGE",
+      "RENT_STABILIZATION_VIOLATION"
+    ],
+    "outcome": "tenant_win",
+    "outcome_summary": "The court found the landlord engaged in a fraudulent scheme to deregulate the apartment, upheld treble damages for rent overcharge, and imposed a rent freeze until proper registration is filed.",
+    "remedies_granted": [
+      "treble damages for rent overcharge",
+      "rent freeze until proper registration with DHCR"
+    ],
+    "key_laws": [
+      "Rent Stabilization Law",
+      "doctrine allowing examination of rental history beyond four-year period for fraudulent schemes"
+    ],
+    "evidence_that_mattered": [
+      "building's rental history demonstrating improper deregulation",
+      "evidence of a broader fraudulent scheme to deregulate apartments",
+      "landlord's failure to file proper registrations with DHCR"
+    ],
+    "case_name": "Jocelyn Nolte v Bridgestone Associates LLC",
+    "case_key": "case_document:2ddc4394-527c-27f3-55c1-55df83af9468",
+    "source_url": "https://nycourts.gov/reporter/3dseries/2018/2018_08571.htm"
+  },
+  {
+    "tenant_situation": "My landlord has been charging me a rent of $1,500 for my apartment, which I believe is rent-stabilized. I discovered that the landlord filed paperwork with the state claiming the legal rent is much higher, but I have reason to believe those filings are fraudulent. The documents appear to contain forged signatures and false information about the apartment's history and prior rents, all in an effort to illegally deregulate my apartment and charge me more than the law allows.",
+    "claim_types": [
+      "RENT_OVERCHARGE",
+      "RENT_STABILIZATION_VIOLATION"
+    ],
+    "outcome": "tenant_win",
+    "outcome_summary": "The court ruled the landlord's fraudulent rent registration statements were invalid, froze the rent at the last lawful registered amount, and awarded the tenant treble damages for the overcharges.",
+    "remedies_granted": [
+      "Rent freeze at last lawful registered rent ($402.43)",
+      "Treble damages for rent overcharges"
+    ],
+    "key_laws": [
+      "Rent Stabilization Law (proper registration requirement)",
+      "Treble damages for willful overcharge"
+    ],
+    "evidence_that_mattered": [
+      "Landlord's DHCR rent registration statements",
+      "Evidence of forgery and fabrication in registration documents",
+      "Evidence of perjury regarding apartment history"
+    ],
+    "case_name": "John Bradbury v 342 West 30th Street Corp.",
+    "case_key": "case_document:03ae456b-de50-08ad-d2b8-db66809ad32a",
+    "source_url": "https://nycourts.gov/reporter/3dseries/2011/2011_04512.htm"
+  },
+  {
+    "tenant_situation": "I live in a building in Lower Manhattan that was converted from commercial to residential use. My landlord is trying to remove my apartment from rent stabilization, claiming it's a luxury unit and they can charge market rent. They sent me a notice saying my apartment is being deregulated because the rent has reached a certain threshold. I believe my building receives special tax benefits, and I have a copy of the notice about the 421-g program, but the landlord insists those rules don't protect me from deregulation.",
+    "claim_types": [
+      "DEREGULATION_CHALLENGE",
+      "RENT_STABILIZATION_VIOLATION"
+    ],
+    "outcome": "tenant_win",
+    "outcome_summary": "The court held that apartments in buildings receiving RPTL 421-g tax benefits are not subject to luxury deregulation, reinstating rent stabilization for the tenants.",
+    "remedies_granted": [
+      "Reinstatement of rent stabilization status",
+      "Declaration that the apartments remain subject to rent regulation"
+    ],
+    "key_laws": [
+      "RPTL 421-g(6)",
+      "Rent Stabilization Law (RSL)"
+    ],
+    "evidence_that_mattered": [
+      "The building's receipt of tax benefits under the RPTL 421-g program",
+      "The plain statutory language of RPTL 421-g(6)"
+    ],
+    "case_name": "Kuzmich v 50 Murray Street Acquisition LLC",
+    "case_key": "case_document:3d5a5d79-ff6d-8782-be43-89f297a5a4a2",
+    "source_url": "https://www.nycourts.gov/reporter/3dseries/2019/2019_05057.htm"
+  },
+  {
+    "tenant_situation": "My landlord is trying to evict me for nonpayment of rent. I believe the eviction is not for a good cause, and I am protected by the City of Poughkeepsie's Good Cause Eviction Law, which requires landlords to have a valid reason to evict tenants or raise rent. I moved to dismiss the case based on this local law, arguing that the landlord's actions are not justified.",
+    "claim_types": [
+      "GOOD_CAUSE_EVICTION_DEFENSE"
+    ],
+    "outcome": "landlord_win",
+    "outcome_summary": "The court denied the tenant's motion to dismiss and declared the City's Good Cause Eviction Law unconstitutional, finding it was preempted by state law.",
+    "remedies_granted": [],
+    "key_laws": [
+      "State Preemption of Landlord-Tenant Law",
+      "New York State Real Property Law and Real Property Actions and Proceedings Law"
+    ],
+    "evidence_that_mattered": [
+      "Text of the City of Poughkeepsie Good Cause Eviction Law",
+      "Text of New York State statutes governing landlord-tenant relationships, termination, and rent increases"
+    ],
+    "case_name": "Lakr Kaal Rock, LLC v Paul",
+    "case_key": "case_document:c429de3c-272d-91d3-d294-ffd08262385f",
+    "source_url": "https://www.nycourts.gov/reporter/3dseries/2023/2023_23070.htm"
+  },
+  {
+    "tenant_situation": "I moved into this apartment after it was used as a temporary hospital residence. The landlord never gave me a proper rent-stabilized lease, just a market-rate one. I believe the apartment should be rent-stabilized, and I've been overcharged for years. I filed a complaint with DHCR, which agreed with me about the apartment's status and the overcharges.",
+    "claim_types": [
+      "DEREGULATION_CHALLENGE",
+      "RENT_OVERCHARGE"
+    ],
+    "outcome": "mixed",
+    "outcome_summary": "The court affirmed that the apartment remained rent-stabilized because the landlord failed to offer a proper stabilized lease, but reversed the DHCR's overcharge calculation method, applying the four-year lookback rule.",
+    "remedies_granted": [
+      "Determination that apartment is rent-stabilized",
+      "Remand for recalculation of rent overcharge using the four-year lookback rule"
+    ],
+    "key_laws": [
+      "Rent Stabilization Law",
+      "Four-year lookback rule for rent overcharge calculations (CPLR 213-a)"
+    ],
+    "evidence_that_mattered": [
+      "Landlord's failure to offer a proper rent-stabilized lease to the first tenant after the temporary exemption ended",
+      "Full rental history of the apartment"
+    ],
+    "case_name": "Matter of AEJ 534 East 88th, LLC v New York State Division of Housing & Community Renewal",
+    "case_key": "case_document:dc16df75-3ee4-9e9a-f318-88bb0b7a7ae5",
+    "source_url": "https://www.nycourts.gov/reporter/3dseries/2021/2021_02977.htm"
+  },
+  {
+    "tenant_situation": "I've been living in my apartment for years, paying what I thought was the market rent. I recently discovered that my building has been receiving J-51 tax benefits, which should have meant my apartment remained rent-stabilized. Instead, the landlord deregulated it back in 2003 and has been charging me a much higher, unregulated rent ever since. I believe I've been overpaying for over a decade based on an improper deregulation.",
+    "claim_types": [
+      "RENT_OVERCHARGE",
+      "RENT_STABILIZATION_VIOLATION",
+      "DEREGULATION_CHALLENGE"
+    ],
+    "outcome": "landlord_win",
+    "outcome_summary": "The court held that, in the absence of fraud, the four-year statute of limitations applies, preventing the agency from looking back to the 2003 legal rent to calculate overcharges.",
+    "remedies_granted": [],
+    "key_laws": [
+      "Four-year statute of limitations for rent overcharge claims (NY CPLR 213-a)",
+      "Precedent from Roberts v. Tishman Speyer"
+    ],
+    "evidence_that_mattered": [
+      "Evidence of J-51 tax benefits received by the building",
+      "Lack of evidence proving a fraudulent scheme to evade rent regulation"
+    ],
+    "case_name": "Matter of Regina Metropolitan Co., LLC v New York State Division of Housing and Community Renewal",
+    "case_key": "case_document:c6a75d39-3e44-f796-e0ee-cc5d05f6d151",
+    "source_url": "https://nycourts.gov/reporter/3dseries/2018/2018_05797.htm"
+  },
+  {
+    "tenant_situation": "I live in a condominium apartment, and my neighbor's cigarette smoke constantly seeps into my unit through the walls and ventilation. The smell is overwhelming, it's causing health problems for my family, and it makes our home unlivable. I've repeatedly complained to the building's management and the landlord, but they say they can't control what another owner does and have refused to take any meaningful action to stop the smoke.",
+    "claim_types": [
+      "CONSTRUCTIVE_EVICTION",
+      "HABITABILITY_VIOLATION"
+    ],
+    "outcome": "tenant_win",
+    "outcome_summary": "The court held that the secondhand smoke constituted a breach of the warranty of habitability and could support a claim for constructive eviction, finding the landlord had a duty to take reasonable steps to abate the nuisance.",
+    "remedies_granted": [],
+    "key_laws": [
+      "Real Property Law § 235-b (Implied Warranty of Habitability)"
+    ],
+    "evidence_that_mattered": [
+      "Tenant's testimony and complaints about the persistent secondhand smoke infiltration",
+      "Evidence of the landlord's refusal or failure to take action to address the nuisance"
+    ],
+    "case_name": "Peter Poyck v Stan Bryant et al.",
+    "case_key": "case_document:14934850-1564-140a-61da-9e7cd2dbdb47",
+    "source_url": "https://nycourts.gov/reporter/3dseries/2006/2006_26343.htm"
+  },
+  {
+    "tenant_situation": "I live in a rent-stabilized apartment. My landlord deregulated the apartment in 2005, claiming the legal rent had gone over $2,000 and it was no longer covered by rent stabilization. I believe they miscalculated the rent to reach that threshold. They included a 20% vacancy increase from when the previous tenant left, and I don't think that should have been counted when determining if the rent was high enough to deregulate. Now I'm being charged a market rent.",
+    "claim_types": [
+      "DEREGULATION_CHALLENGE",
+      "RENT_STABILIZATION_VIOLATION"
+    ],
+    "outcome": "landlord_win",
+    "outcome_summary": "The court held that the statutory 20% vacancy increase must be included when calculating the legal rent for high-rent vacancy deregulation, finding the apartment was properly deregulated in 2005.",
+    "remedies_granted": [],
+    "key_laws": [
+      "Rent Stabilization Law high-rent vacancy deregulation provisions"
+    ],
+    "evidence_that_mattered": [
+      "The calculation of the legal regulated rent including the 20% statutory vacancy increase"
+    ],
+    "case_name": "Richard Altman v 285 West Fourth LLC",
+    "case_key": "case_document:2ef2cd48-13b4-6504-e36e-aef83ddde998",
+    "source_url": "https://nycourts.gov/reporter/3dseries/2018/2018_02829.htm"
+  },
+  {
+    "tenant_situation": "I have been using a parking and storage lot for my business. The company that owns the lot, South Brooklyn Railway, is trying to evict me. They sent me a notice to vacate, but it was confusing and didn't give me enough time. They also didn't serve the notice properly. Now they've started a court case to remove me, even though I believe their paperwork is wrong.",
+    "claim_types": [
+      "DEFECTIVE_PREDICATE_NOTICE",
+      "INSUFFICIENT_NOTICE_PERIOD",
+      "IMPROPER_SERVICE_OF_NOTICE"
+    ],
+    "outcome": "tenant_win",
+    "outcome_summary": "The court denied the licensor's motion for summary judgment, dismissing the holdover proceeding due to multiple jurisdictional defects in the termination notices.",
+    "remedies_granted": [
+      "Dismissal of holdover proceeding"
+    ],
+    "key_laws": [
+      "Strict construction of procedural requirements for summary proceedings",
+      "Statutory notice requirements cannot be waived"
+    ],
+    "evidence_that_mattered": [
+      "The predicate termination notices (content and service method)"
+    ],
+    "case_name": "South Brooklyn Railway Company v Heung Man Lau",
+    "case_key": "case_document:27c93798-9755-666e-36dc-bb9826424717",
+    "source_url": "https://www.nycourts.gov/reporter/3dseries/2024/2024_24139.htm"
+  },
+  {
+    "tenant_situation": "I live in Stuyvesant Town, and my landlord is trying to take my apartment out of rent stabilization. They claim that because the building's J-51 tax benefit program ended, they can now deregulate units and charge market rents. This is happening to many of my neighbors as well. We have our leases and rent history showing we were in stabilized apartments, and the landlord is citing the expiration of the tax program as their reason for deregulation.",
+    "claim_types": [
+      "DEREGULATION_CHALLENGE",
+      "RENT_STABILIZATION_VIOLATION"
+    ],
+    "outcome": "tenant_win",
+    "outcome_summary": "The court held that the Housing Stability and Tenant Protection Act of 2019 (HSTPA) prevented deregulation, voiding the prior settlement's deregulation provision and ensuring apartments stabilized on June 14, 2019 remained stabilized.",
+    "remedies_granted": [
+      "Declaratory Judgment on Rent Stabilization Status",
+      "Permanent Injunction Against Deregulation"
+    ],
+    "key_laws": [
+      "Housing Stability and Tenant Protection Act of 2019 (HSTPA)"
+    ],
+    "evidence_that_mattered": [
+      "The apartments' rent stabilization status as of June 14, 2019",
+      "The prior settlement agreement containing a deregulation provision",
+      "The expiration of the J-51 tax abatement program for the buildings"
+    ],
+    "case_name": "Stuyvesant Town—Peter Cooper Village Tenants' Association et al. v BPP ST Owner LLC et al.",
+    "case_key": "case_document:496ca9b3-444e-6e0b-53e6-e4485c26a3a4",
+    "source_url": "https://www.nycourts.gov/reporter//3dseries/2023/2023_23003.htm"
+  },
+  {
+    "tenant_situation": "I live in an apartment that I believe should be rent-stabilized, but my landlord has deregulated it and is charging a market-rate rent. I discovered that the landlord may have improperly removed the apartment from regulation, possibly through fraudulent means like an illegal high-rent vacancy increase or a false claim of substantial rehabilitation. I have my rental history and the building's registration history as evidence that the apartment was once regulated.",
+    "claim_types": [
+      "DEREGULATION_CHALLENGE",
+      "RENT_STABILIZATION_VIOLATION"
+    ],
+    "outcome": "tenant_win",
+    "outcome_summary": "The court affirmed the denial of the landlord's motion to dismiss, holding that tenants may challenge an apartment's deregulation at any time during their tenancy and are not barred by a four-year statute of limitations for such challenges.",
+    "remedies_granted": [
+      "Proceed with challenge to deregulation"
+    ],
+    "key_laws": [
+      "Rent Stabilization Law",
+      "Doctrine that fraudulent or improper deregulation can be challenged at any time"
+    ],
+    "evidence_that_mattered": [
+      "Apartment's rental history",
+      "Building's registration history with state housing agency"
+    ],
+    "case_name": "Thurman v Sullivan Properties L.P.",
+    "case_key": "case_document:abc19e46-e0e5-1f17-d465-54aceb22b311",
+    "source_url": "https://www.nycourts.gov/reporter//3dseries/2024/2024_01889.htm"
+  }
+]

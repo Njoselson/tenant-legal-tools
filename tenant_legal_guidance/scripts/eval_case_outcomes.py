@@ -347,6 +347,14 @@ async def main():
     outcome_accuracy = sum(1 for r in valid if r["outcome_correct"]) / len(valid)
     avg_remedy_recall = sum(r.get("remedy_recall", 0) for r in valid) / len(valid)
 
+    # Track abstentions (insufficient_data predictions)
+    abstained = sum(1 for r in valid if r.get("outcome_predicted") == "insufficient_data")
+    predicted = [r for r in valid if r.get("outcome_predicted") != "insufficient_data"]
+    outcome_accuracy_when_predicted = (
+        sum(1 for r in predicted if r["outcome_correct"]) / len(predicted)
+        if predicted else 0.0
+    )
+
     print(f"\n{'='*60}")
     print("  RESULTS")
     print(f"{'='*60}")
@@ -354,7 +362,10 @@ async def main():
     print(f"  Claim type F1:        {avg_claim_f1:.1%}")
     print(f"    Precision:          {avg_claim_precision:.1%}")
     print(f"    Recall:             {avg_claim_recall:.1%}")
-    print(f"  Outcome accuracy:     {outcome_accuracy:.1%}")
+    print(f"  Outcome accuracy:     {outcome_accuracy:.1%} (all cases)")
+    if abstained:
+        print(f"    When predicted:     {outcome_accuracy_when_predicted:.1%} ({len(predicted)}/{len(valid)} cases)")
+        print(f"    Abstained:          {abstained}/{len(valid)} (insufficient data)")
     print(f"  Remedy recall:        {avg_remedy_recall:.1%}")
     print()
 
@@ -364,7 +375,12 @@ async def main():
     for r in valid:
         name = r["case_name"][:45]
         f1 = f"{r['claim_type_f1']:.2f}"
-        outcome_str = "OK" if r["outcome_correct"] else f"MISS({r.get('outcome_predicted','?')}/{r.get('outcome_actual','?')})"
+        if r.get("outcome_predicted") == "insufficient_data":
+            outcome_str = "ABSTAIN"
+        elif r["outcome_correct"]:
+            outcome_str = "OK"
+        else:
+            outcome_str = f"MISS({r.get('outcome_predicted','?')}/{r.get('outcome_actual','?')})"
         rem = f"{r.get('remedy_recall', 0):.2f}"
         print(f"  {name:<45} {f1:>5} {outcome_str:>10} {rem:>5}")
 

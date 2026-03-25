@@ -11,8 +11,11 @@ This service implements the "Analyze My Case" functionality:
 import logging
 from dataclasses import dataclass
 
+import numpy as np
+
 from tenant_legal_guidance.graph.arango_graph import ArangoDBGraph
 from tenant_legal_guidance.services.deepseek import DeepSeekClient
+from tenant_legal_guidance.services.embeddings import EmbeddingsService
 from tenant_legal_guidance.services.proof_chain import ProofChainService
 
 
@@ -68,6 +71,9 @@ class ClaimMatcher:
         self.kg = knowledge_graph
         self.llm_client = llm_client
         self.logger = logging.getLogger(__name__)
+        self._embeddings_svc = None
+        self._canonical_type_cache = None  # (types_list, embeddings_matrix)
+
         # Create proof chain service if not provided
         if proof_chain_service is None:
             from tenant_legal_guidance.services.vector_store import QdrantVectorStore
@@ -79,6 +85,68 @@ class ClaimMatcher:
             )
         else:
             self.proof_chain_service = proof_chain_service
+
+    def _get_embeddings(self) -> EmbeddingsService:
+        if self._embeddings_svc is None:
+            self._embeddings_svc = EmbeddingsService()
+        return self._embeddings_svc
+
+    def _build_canonical_type_index(self, db_types: list[str]) -> tuple[list[str], np.ndarray]:
+        """Build an embedding index of canonical claim types from the DB.
+
+        Deduplicates by human-readable form so e.g. BREACH_OF_WARRANTY_OF_HABITABILITY
+        and HABITABILITY_VIOLATION both exist in the DB but we only keep the one with
+        more claims.
+        """
+        if self._canonical_type_cache is not None:
+            cached_types, cached_embs = self._canonical_type_cache
+            if set(cached_types) == set(db_types):
+                return cached_types, cached_embs
+
+        emb_svc = self._get_embeddings()
+        # Embed the human-readable form (spaces instead of underscores)
+        readable = [t.replace("_", " ").lower() for t in db_types]
+        embeddings = emb_svc.embed(readable)
+        self._canonical_type_cache = (db_types, embeddings)
+        return db_types, embeddings
+
+    def normalize_to_db_type(
+        self, predicted: str, db_types: list[str], threshold: float = 0.75
+    ) -> str | None:
+        """Map a predicted claim type to the closest DB claim type via embedding similarity.
+
+        Returns the DB type if similarity >= threshold, else None (unknown type).
+        """
+        if not db_types:
+            return None
+
+        # Exact match first (fast path)
+        predicted_upper = predicted.strip().upper().replace(" ", "_")
+        if predicted_upper in db_types:
+            return predicted_upper
+
+        canonical_types, canonical_embs = self._build_canonical_type_index(db_types)
+        emb_svc = self._get_embeddings()
+        pred_emb = emb_svc.embed([predicted.replace("_", " ").lower()])
+
+        # Cosine similarity (embeddings are already normalized)
+        similarities = np.dot(canonical_embs, pred_emb.T).flatten()
+        best_idx = int(np.argmax(similarities))
+        best_sim = float(similarities[best_idx])
+
+        if best_sim >= threshold:
+            matched = canonical_types[best_idx]
+            if matched != predicted_upper:
+                self.logger.info(
+                    f"Normalized claim type '{predicted}' → '{matched}' (sim={best_sim:.3f})"
+                )
+            return matched
+
+        self.logger.warning(
+            f"Claim type '{predicted}' does not match any DB type "
+            f"(best: '{canonical_types[best_idx]}' at {best_sim:.3f} < {threshold})"
+        )
+        return None
 
     async def extract_evidence_from_situation(
         self,
@@ -161,12 +229,11 @@ Return ONLY the JSON array, nothing else.
             return [], []
 
         # Get all unique claim types from stored claims
-        all_claim_types = self.kg.get_all_claim_types()
+        raw_claim_types = self.kg.get_all_claim_types()
 
-        if not all_claim_types:
+        if not raw_claim_types:
             self.logger.warning("No claim types found in stored claims")
-            # Fallback to common claim types
-            all_claim_types = [
+            raw_claim_types = [
                 "DEREGULATION_CHALLENGE",
                 "RENT_OVERCHARGE",
                 "HP_ACTION_REPAIRS",
@@ -174,19 +241,46 @@ Return ONLY the JSON array, nothing else.
                 "SECURITY_DEPOSIT_RETURN",
             ]
 
+        # Deduplicate DB claim types via embedding similarity.
+        # E.g., BREACH_OF_WARRANTY_OF_HABITABILITY and HABITABILITY_VIOLATION
+        # in the DB should collapse to one canonical type for the LLM prompt.
+        # We keep the first occurrence as canonical and record aliases so we can
+        # query claims under any variant name.
+        all_claim_types = []
+        seen_canonical = set()
+        # Maps canonical_name → [all DB type names that map to it]
+        type_aliases: dict[str, list[str]] = {}
+        for ct in raw_claim_types:
+            ct_str = ct.get("canonical_name", ct) if isinstance(ct, dict) else str(ct)
+            # Normalize against types we've already accepted
+            if all_claim_types:
+                normalized = self.normalize_to_db_type(ct_str, all_claim_types, threshold=0.80)
+                if normalized and normalized != ct_str.upper():
+                    self.logger.info(f"Deduped DB claim type '{ct_str}' → '{normalized}'")
+                    type_aliases[normalized].append(ct_str)
+                    continue
+            canonical = ct_str.upper()
+            if canonical not in seen_canonical:
+                all_claim_types.append(canonical)
+                seen_canonical.add(canonical)
+                type_aliases[canonical] = [ct_str]
+
+        self.logger.info(
+            f"Claim types: {len(raw_claim_types)} in DB → {len(all_claim_types)} canonical"
+        )
+
         # Build claim types with FULL PROOF CHAINS (not just required evidence)
         claim_types_data = []
         for claim_type_item in all_claim_types:
-            # Handle both string and dict formats
-            if isinstance(claim_type_item, dict):
-                claim_type_str = claim_type_item.get("canonical_name") or claim_type_item.get(
-                    "name", ""
-                )
-            else:
-                claim_type_str = str(claim_type_item)
+            claim_type_str = str(claim_type_item)
 
-            # Get a sample claim of this type to build proof chain
+            # Get a sample claim — try canonical name first, then aliases
             claim_ids = self.kg.get_claims_by_type(claim_type_str, limit=1)
+            if not claim_ids:
+                for alias in type_aliases.get(claim_type_str, []):
+                    claim_ids = self.kg.get_claims_by_type(alias, limit=1)
+                    if claim_ids:
+                        break
             proof_chain_data = None
             
             if claim_ids:
@@ -316,7 +410,20 @@ Return ONLY the JSON array, nothing else.
                 results = []
 
                 for match_data in matched_claims:
-                    canonical = match_data.get("claim_type_canonical", "").upper()
+                    raw_canonical = match_data.get("claim_type_canonical", "").upper()
+
+                    # Normalize LLM output against DB types via similarity
+                    canonical = self.normalize_to_db_type(
+                        raw_canonical,
+                        [ct["canonical_name"] for ct in claim_types_data],
+                        threshold=0.75,
+                    )
+                    if not canonical:
+                        self.logger.info(
+                            f"Dropping unknown claim type '{raw_canonical}' — "
+                            f"no similar type in knowledge graph"
+                        )
+                        continue
 
                     # Find the claim type data
                     claim_type_data = next(

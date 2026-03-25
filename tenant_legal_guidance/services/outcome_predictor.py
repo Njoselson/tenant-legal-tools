@@ -209,32 +209,17 @@ class OutcomePredictor:
         Returns:
             OutcomePrediction with probability and reasoning
         """
-        if not similar_cases:
-            # No similar cases - use evidence strength alone
-            if evidence_strength == "strong":
-                return OutcomePrediction(
-                    outcome_type="favorable",
-                    disposition="granted",
-                    probability=0.70,
-                    similar_cases=[],
-                    reasoning="Strong evidence profile suggests favorable outcome, though no direct precedent available.",
-                )
-            elif evidence_strength == "moderate":
-                return OutcomePrediction(
-                    outcome_type="mixed",
-                    disposition="unknown",
-                    probability=0.50,
-                    similar_cases=[],
-                    reasoning="Moderate evidence. Outcome uncertain without precedent cases.",
-                )
-            else:
-                return OutcomePrediction(
-                    outcome_type="unfavorable",
-                    disposition="dismissed",
-                    probability=0.30,
-                    similar_cases=[],
-                    reasoning="Weak evidence profile suggests case may be dismissed.",
-                )
+        if len(similar_cases) < 2:
+            # Not enough precedent — abstain rather than guess
+            return OutcomePrediction(
+                outcome_type="insufficient_data",
+                disposition="unknown",
+                probability=0.50,
+                similar_cases=similar_cases,
+                reasoning=f"Found only {len(similar_cases)} similar case(s) in our database. "
+                "We need more precedent to make a reliable prediction. "
+                f"Evidence strength: {evidence_strength}.",
+            )
 
         # Analyze similar cases
         favorable_count = 0

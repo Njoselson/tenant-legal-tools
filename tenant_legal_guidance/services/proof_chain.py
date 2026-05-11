@@ -13,6 +13,7 @@ Also handles extraction and dual storage (ArangoDB + Qdrant) for proof chain ent
 
 import asyncio
 import logging
+import re
 import time
 from dataclasses import dataclass
 from typing import Literal
@@ -20,7 +21,6 @@ from typing import Literal
 import numpy as np
 
 from tenant_legal_guidance.graph.arango_graph import ArangoDBGraph
-from tenant_legal_guidance.models.claim_types import ClaimType
 from tenant_legal_guidance.models.entities import (
     EntityType,
     LegalEntity,
@@ -54,12 +54,23 @@ class ProofChainEvidence:
 
 
 @dataclass
+class ProofChainProcedure:
+    """Procedure item in the proof chain with satisfaction status."""
+
+    procedure_id: str
+    name: str
+    description: str
+    is_satisfied: bool = False
+    source_reference: str | None = None
+
+
+@dataclass
 class ProofChain:
     """Complete proof chain for a legal claim."""
 
     claim_id: str
     claim_description: str
-    claim_type: ClaimType | None = None  # Validated ClaimType enum
+    claim_type: str | None = None  # Normalized claim type (UPPERCASE_SNAKE_CASE)
     claimant: str | None = None
     case_id: str | None = None  # Link to source CASE_DOCUMENT
 
@@ -67,6 +78,10 @@ class ProofChain:
     required_evidence: list[ProofChainEvidence] = None  # From statutes/guides
     presented_evidence: list[ProofChainEvidence] = None  # From case
     missing_evidence: list[ProofChainEvidence] = None  # Required but not satisfied
+
+    # Procedure breakdown
+    required_procedures: list[ProofChainProcedure] = None  # From statutes/guides
+    missing_procedures: list[ProofChainProcedure] = None  # Required but not satisfied
 
     # Outcome if resolved
     outcome: dict | None = None  # {id, disposition, description}
@@ -99,6 +114,10 @@ class ProofChain:
             self.presented_evidence = []
         if self.missing_evidence is None:
             self.missing_evidence = []
+        if self.required_procedures is None:
+            self.required_procedures = []
+        if self.missing_procedures is None:
+            self.missing_procedures = []
         if self.critical_gaps is None:
             self.critical_gaps = []
         if self.applicable_laws is None:
@@ -347,22 +366,61 @@ class ProofChainService:
                             }
                         )
 
+            # Get required procedures for this claim type
+            required_procedures = []
+            missing_procedures = []
+            if claim_type_str:
+                procedure_entities = self.kg.get_required_procedures_for_claim_type(claim_type_str)
+                self.logger.info(f"Found {len(procedure_entities)} required procedures for claim type {claim_type_str}")
+
+                for proc in procedure_entities:
+                    proc_obj = ProofChainProcedure(
+                        procedure_id=proc.get("_key", ""),
+                        name=proc.get("name", ""),
+                        description=proc.get("description", ""),
+                        is_satisfied=False,
+                        source_reference=proc.get("source_reference"),
+                    )
+                    required_procedures.append(proc_obj)
+
+                # Check if presented evidence satisfies any procedure requirements
+                # Use keyword matching against presented evidence descriptions
+                for proc in required_procedures:
+                    proc_keywords = set(proc.name.lower().split()) | set(proc.description.lower().split())
+                    # Remove common stop words
+                    proc_keywords -= {"the", "a", "an", "of", "in", "for", "to", "and", "or", "is", "be", "must", "should", "with"}
+
+                    for pres_ev in presented_evidence:
+                        pres_keywords = set(pres_ev.description.lower().split())
+                        overlap = len(proc_keywords & pres_keywords)
+                        total = len(proc_keywords | pres_keywords)
+                        if total > 0 and overlap / total > 0.25:
+                            proc.is_satisfied = True
+                            break
+
+                missing_procedures = [p for p in required_procedures if not p.is_satisfied]
+
             # Calculate completeness
             # If no required evidence, set completeness to 0.0 (can't assess without requirements)
-            if not required_evidence:
+            if not required_evidence and not required_procedures:
                 completeness_score = 0.0
                 self.logger.warning(
-                    f"Cannot calculate completeness for claim {claim_id}: no required evidence defined"
+                    f"Cannot calculate completeness for claim {claim_id}: no required evidence or procedures defined"
                 )
             else:
                 completeness_score = self.compute_completeness_score(
                     required_evidence=required_evidence,
                     satisfied_evidence=satisfied_evidence,
                     missing_evidence=missing_evidence,
+                    required_procedures=required_procedures,
+                    missing_procedures=missing_procedures,
                 )
 
-            # Identify critical gaps
+            # Identify critical gaps (evidence + procedures)
             critical_gaps = [ev.description for ev in missing_evidence if ev.is_critical]
+            # All missing procedures are critical — procedural failures lose cases
+            for proc in missing_procedures:
+                critical_gaps.append(f"Procedure: {proc.name}")
 
             # Fetch applicable laws and remedies for this claim type
             applicable_laws = []
@@ -372,17 +430,16 @@ class ProofChainService:
                 remedies_list = self.kg.get_remedies_for_claim_type(claim_type_str)
 
             # Build the proof chain
-            # Convert string claim_type_str to ClaimType enum
-            claim_type_enum = ClaimType.from_string(claim_type_str) if claim_type_str else None
-
             proof_chain = ProofChain(
                 claim_id=claim_id,
                 claim_description=claim.name or claim.description or "",
-                claim_type=claim_type_enum,
+                claim_type=claim_type_str,
                 claimant=claim.claimant,
                 required_evidence=required_evidence,
                 presented_evidence=presented_evidence,
                 missing_evidence=missing_evidence,
+                required_procedures=required_procedures,
+                missing_procedures=missing_procedures,
                 outcome=outcome,
                 damages=damages if damages else None,
                 applicable_laws=applicable_laws,
@@ -511,19 +568,30 @@ class ProofChainService:
         required_evidence: list[ProofChainEvidence],
         satisfied_evidence: list[ProofChainEvidence],
         missing_evidence: list[ProofChainEvidence],
+        required_procedures: list[ProofChainProcedure] | None = None,
+        missing_procedures: list[ProofChainProcedure] | None = None,
     ) -> float:
         """
         Compute a completeness score (0.0-1.0) for the proof chain.
+
+        Procedures are weighted at 2.0x (same as critical evidence) because
+        procedural failures (missed SOL, improper pleading) lose cases
+        regardless of evidence strength.
 
         Args:
             required_evidence: All required evidence items
             satisfied_evidence: Required evidence that has been satisfied
             missing_evidence: Required evidence that is missing
+            required_procedures: All required procedures (optional)
+            missing_procedures: Required procedures not satisfied (optional)
 
         Returns:
             Completeness score between 0.0 and 1.0
         """
-        if not required_evidence:
+        required_procedures = required_procedures or []
+        missing_procedures = missing_procedures or []
+
+        if not required_evidence and not required_procedures:
             # No requirements = 100% complete (or undefined)
             return 1.0
 
@@ -538,6 +606,13 @@ class ProofChainService:
             # Check if satisfied
             if any(sev.evidence_id == req_ev.evidence_id for sev in satisfied_evidence):
                 satisfied_weight += weight
+
+        # Procedures weighted at 2.0 (critical) — procedural failures lose cases
+        procedure_weight = 2.0
+        for proc in required_procedures:
+            total_weight += procedure_weight
+            if proc.is_satisfied:
+                satisfied_weight += procedure_weight
 
         if total_weight == 0:
             return 1.0
@@ -771,13 +846,41 @@ class ProofChainService:
                     self.logger.warning(f"Error converting claim {claim.id}: {e}", exc_info=True)
                     storage_errors.append(f"Error converting claim {claim.id}: {e}")
 
+            from tenant_legal_guidance.models.entities import LegalDocumentType
+            is_court_opinion = (
+                metadata is not None
+                and metadata.document_type == LegalDocumentType.COURT_OPINION
+            )
+            skipped_presented = 0
             for evidence in extraction_result.evidence:
                 try:
+                    # Evidence routing for court opinions (3-outcome logic):
+                    # - existing_entity_id present → enrich existing canonical node (handled post-storage)
+                    # - evidence_context == "required" → new canonical standard established by the case
+                    # - evidence_context == "presented" + no existing_entity_id → stays in Qdrant text only
+                    if (
+                        is_court_opinion
+                        and evidence.evidence_context == "presented"
+                        and not getattr(evidence, "existing_entity_id", None)
+                    ):
+                        skipped_presented += 1
+                        continue
+                    # Dedup gate: reuse canonical node if name matches an existing evidence node
+                    ev_id = evidence.id
+                    if self.kg:
+                        existing_key = self.kg.upsert_canonical_entity("evidence", evidence.name)
+                        if existing_key:
+                            ev_id = existing_key
                     entity = self._extracted_evidence_to_legal_entity(evidence, metadata, stored_entities=stored_entities)
-                    entity_items.append((evidence.id, entity))
+                    entity.id = ev_id
+                    entity_items.append((ev_id, entity))
                 except Exception as e:
                     self.logger.warning(f"Error converting evidence {evidence.id}: {e}", exc_info=True)
                     storage_errors.append(f"Error converting evidence {evidence.id}: {e}")
+            if skipped_presented:
+                self.logger.info(
+                    f"Skipped {skipped_presented} presented evidence items (court opinion — stays in Qdrant text only)"
+                )
 
             for outcome in extraction_result.outcomes:
                 try:
@@ -797,6 +900,11 @@ class ProofChainService:
 
             for law_dict in extraction_result.laws:
                 try:
+                    # Dedup gate: reuse canonical node if name matches an existing law
+                    if self.kg:
+                        existing_key = self.kg.upsert_canonical_entity("law", law_dict["name"])
+                        if existing_key:
+                            law_dict = {**law_dict, "id": existing_key}
                     entity = self._law_dict_to_legal_entity(law_dict, metadata)
                     entity_items.append((law_dict["id"], entity))
                 except Exception as e:
@@ -805,6 +913,11 @@ class ProofChainService:
 
             for proc_dict in extraction_result.procedures:
                 try:
+                    # Dedup gate: reuse canonical node if name matches an existing procedure
+                    if self.kg:
+                        existing_key = self.kg.upsert_canonical_entity("legal_procedure", proc_dict["name"])
+                        if existing_key:
+                            proc_dict = {**proc_dict, "id": existing_key}
                     entity = self._procedure_dict_to_legal_entity(proc_dict, metadata)
                     entity_items.append((proc_dict["id"], entity))
                 except Exception as e:
@@ -831,6 +944,35 @@ class ProofChainService:
                 self.logger.warning(f"Some entities failed to store: {len(storage_errors)} errors")
                 for error in storage_errors[:5]:  # Log first 5 errors
                     self.logger.debug(error)
+
+            # Wire LEGAL_CLAIM → IS_TYPE_OF → CLAIM_TYPE nodes
+            for claim in extraction_result.claims:
+                if claim.id not in stored_entities or not claim.claim_type:
+                    continue
+                try:
+                    claim_type_node_key = self.kg.upsert_claim_type_node(claim.claim_type)
+                    from tenant_legal_guidance.models.relationships import LegalRelationship
+                    self.kg.add_relationship(LegalRelationship(
+                        source_id=claim.id,
+                        target_id=claim_type_node_key,
+                        relationship_type=RelationshipType.IS_TYPE_OF,
+                    ))
+                except Exception as e:
+                    self.logger.warning(f"Failed to wire claim type node for {claim.id}: {e}")
+
+            # Handle enrich-existing-node path for evidence with existing_entity_id
+            for evidence in extraction_result.evidence:
+                if not getattr(evidence, "existing_entity_id", None):
+                    continue
+                if evidence.evidence_context == "presented":
+                    # Case-specific artifact matching canonical node — enrich it
+                    try:
+                        self.kg.enrich_existing_node(
+                            existing_key=evidence.existing_entity_id,
+                            new_description_fragment=evidence.description or None,
+                        )
+                    except Exception as e:
+                        self.logger.warning(f"Failed to enrich existing node {evidence.existing_entity_id}: {e}")
 
             # Store relationships (handle missing entities gracefully)
             relationship_errors = []
@@ -1049,10 +1191,12 @@ class ProofChainService:
         if metadata is None:
             metadata = SourceMetadata(source=claim.id, source_type=SourceType.FILE)
 
-        # Infer claim_type from name/description if not set by LLM
         claim_type = claim.claim_type
-        if not claim_type:
-            claim_type = self._infer_claim_type(claim.name, claim.claim_description)
+        if not claim_type and claim.name:
+            # Normalize claim name to UPPERCASE_SNAKE_CASE as a fallback claim type
+            descriptive = re.sub(r"[^a-zA-Z0-9\s]", "", claim.name).strip()
+            descriptive = re.sub(r"\s+", "_", descriptive).upper()
+            claim_type = descriptive if descriptive and len(descriptive) <= 60 else None
 
         return LegalEntity(
             id=claim.id,
@@ -1071,34 +1215,6 @@ class ProofChainService:
             # All claim fields are direct fields, not in attributes dict
             attributes={},
         )
-
-    @staticmethod
-    def _infer_claim_type(name: str, description: str | None = None) -> str | None:
-        """Infer canonical claim_type from claim name/description.
-
-        Uses ClaimType.from_string() which does fuzzy matching against the enum.
-        If no canonical type matches, generates a descriptive ALL_CAPS type
-        from the claim name rather than discarding it.
-        """
-        from tenant_legal_guidance.models.claim_types import ClaimType
-
-        # Try matching from name first, then combined
-        for text in [name, f"{name} {description or ''}"]:
-            if not text:
-                continue
-            result = ClaimType.from_string(text)
-            if result != ClaimType.OTHER:
-                return result.value
-
-        # No canonical match — generate a descriptive type from the name
-        if name:
-            # Convert "Breach of Lease Agreement" → "BREACH_OF_LEASE_AGREEMENT"
-            import re
-            descriptive = re.sub(r'[^a-zA-Z0-9\s]', '', name).strip()
-            descriptive = re.sub(r'\s+', '_', descriptive).upper()
-            if descriptive and len(descriptive) <= 60:
-                return descriptive
-        return None
 
     def _extracted_evidence_to_legal_entity(
         self, evidence, metadata: SourceMetadata | None, stored_entities: dict[str, LegalEntity] | None = None

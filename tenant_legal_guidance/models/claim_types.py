@@ -1,8 +1,13 @@
 """
 ClaimType enum for tenant legal guidance system.
 
-Provides validated, enumerated claim types for legal claims with fuzzy matching
-to handle inconsistent string representations in existing data.
+REFERENCE ONLY — these values are NOT used as a validation gate during ingestion.
+Claim types are dynamic graph nodes created automatically at ingestion time.
+This enum exists only for API display purposes (display_name, description).
+
+Do NOT call ClaimType.from_string() in ingestion code paths — it silently falls
+back to OTHER for unrecognized values, which is the root cause of the
+SUCCESSION_RIGHTS → OTHER bug that was fixed in M4c.
 """
 
 from enum import Enum
@@ -10,11 +15,8 @@ from enum import Enum
 
 class ClaimType(str, Enum):
     """
-    Enumerated claim types for the tenant legal guidance system.
-
-    Each claim type represents a specific legal cause of action that a tenant
-    can pursue. The enum values are UPPERCASE_SNAKE_CASE for consistency with
-    existing database storage.
+    Reference enum of known claim types — used only for API display.
+    Ingestion creates claim_type nodes dynamically; this enum is not authoritative.
     """
 
     # Rent-related claims
@@ -53,83 +55,6 @@ class ClaimType(str, Enum):
     # Generic/Other
     OTHER = "OTHER"
 
-    @classmethod
-    def from_string(cls, value: str | None) -> "ClaimType":
-        """
-        Convert string to ClaimType with fuzzy matching.
-
-        Handles case insensitivity, underscores/spaces/hyphens, and common
-        abbreviations. Falls back to OTHER for unrecognized values.
-
-        Args:
-            value: String representation of claim type (case-insensitive)
-
-        Returns:
-            Matching ClaimType enum value, or OTHER if no match found
-        """
-        if not value:
-            return cls.OTHER
-
-        # Normalize: uppercase, replace separators with underscores
-        normalized = value.upper().replace(" ", "_").replace("-", "_")
-
-        # Direct match by value
-        try:
-            return cls(normalized)
-        except ValueError:
-            pass
-
-        # Try by name
-        try:
-            return cls[normalized]
-        except KeyError:
-            pass
-
-        # Fuzzy matching for common variations and abbreviations
-        fuzzy_map = {
-            # Deregulation variations
-            "DEREG": cls.DEREGULATION_CHALLENGE,
-            "DEREGULATED": cls.DEREGULATION_CHALLENGE,
-            "DECONTROL": cls.DEREGULATION_CHALLENGE,
-            "VACANCY_DECONTROL": cls.DEREGULATION_CHALLENGE,
-            "HIGH_RENT_VACANCY": cls.HIGH_RENT_VACANCY_CHALLENGE,
-            "HRV": cls.HIGH_RENT_VACANCY_CHALLENGE,
-            # Rent overcharge variations
-            "OVERCHARGE": cls.RENT_OVERCHARGE,
-            "RENT_OVER": cls.RENT_OVERCHARGE,
-            "ILLEGAL_RENT": cls.RENT_OVERCHARGE,
-            # Habitability variations
-            "HP_ACTION": cls.HP_ACTION_REPAIRS,
-            "HP": cls.HP_ACTION_REPAIRS,
-            "REPAIRS": cls.HP_ACTION_REPAIRS,
-            "HABITABILITY": cls.HABITABILITY_VIOLATION,
-            "WARRANTY_OF_HABITABILITY": cls.BREACH_OF_WARRANTY_OF_HABITABILITY,
-            "UNINHABITABLE": cls.HABITABILITY_VIOLATION,
-            # Harassment variations
-            "HARASS": cls.HARASSMENT,
-            "INTIMIDATION": cls.HARASSMENT,
-            # Lockout variations
-            "LOCKOUT": cls.ILLEGAL_LOCKOUT,
-            "ILLEGAL_LOCK": cls.ILLEGAL_LOCKOUT,
-            # Security deposit variations
-            "DEPOSIT": cls.SECURITY_DEPOSIT_RETURN,
-            "SECURITY": cls.SECURITY_DEPOSIT_RETURN,
-            # Eviction variations
-            "RETALIATION": cls.RETALIATORY_EVICTION,
-            "RETALIATORY": cls.RETALIATORY_EVICTION,
-            "CONSTRUCTIVE": cls.CONSTRUCTIVE_EVICTION,
-            # Discrimination variations
-            "DISCRIMINATION": cls.HOUSING_DISCRIMINATION,
-            "FAIR_HOUSING": cls.HOUSING_DISCRIMINATION,
-        }
-
-        # Check for fuzzy matches (partial matching)
-        for key, claim_type in fuzzy_map.items():
-            if key in normalized or normalized in key:
-                return claim_type
-
-        return cls.OTHER
-
     @property
     def display_name(self) -> str:
         """Human-readable display name for UI presentation."""
@@ -159,24 +84,3 @@ class ClaimType(str, Enum):
             self.OTHER: "Other claim type",
         }
         return descriptions.get(self, "")
-
-
-# Convenience groupings for filtering
-RENT_RELATED_CLAIMS = frozenset({
-    ClaimType.RENT_OVERCHARGE,
-    ClaimType.RENT_STABILIZATION_VIOLATION,
-    ClaimType.DEREGULATION_CHALLENGE,
-    ClaimType.HIGH_RENT_VACANCY_CHALLENGE,
-})
-
-HABITABILITY_CLAIMS = frozenset({
-    ClaimType.HABITABILITY_VIOLATION,
-    ClaimType.HP_ACTION_REPAIRS,
-    ClaimType.BREACH_OF_WARRANTY_OF_HABITABILITY,
-})
-
-LANDLORD_MISCONDUCT_CLAIMS = frozenset({
-    ClaimType.HARASSMENT,
-    ClaimType.ILLEGAL_LOCKOUT,
-    ClaimType.RETALIATORY_EVICTION,
-})

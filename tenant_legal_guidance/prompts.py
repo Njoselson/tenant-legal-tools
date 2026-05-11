@@ -516,25 +516,17 @@ Important:
 # TYPE-AWARE EXTRACTION PROMPTS (for test harness + future ingestion pipeline)
 # ============================================================================
 
-# Valid claim types for LLM validation
-_CLAIM_TYPES = (
-    "RENT_OVERCHARGE | RENT_STABILIZATION_VIOLATION | DEREGULATION_CHALLENGE | "
-    "HIGH_RENT_VACANCY_CHALLENGE | HABITABILITY_VIOLATION | HP_ACTION_REPAIRS | "
-    "BREACH_OF_WARRANTY_OF_HABITABILITY | HARASSMENT | ILLEGAL_LOCKOUT | "
-    "RETALIATORY_EVICTION | SECURITY_DEPOSIT_RETURN | SECURITY_DEPOSIT_VIOLATION | "
-    "LEASE_VIOLATION | CONSTRUCTIVE_EVICTION | HOUSING_DISCRIMINATION | "
-    "IMPROPER_SERVICE | PROCEDURAL_DEFECT | OTHER"
-)
-
 # Unified output schema used by all 3 type-aware prompts
+# No hardcoded claim type list — claim types are dynamic graph nodes.
 _UNIFIED_OUTPUT_SCHEMA = """\
 Return ONLY valid JSON with this exact structure (no markdown, no extra keys, use double quotes for ALL keys and strings):
 {{
     "claims": [
         {{
             "id": "c1",
+            "existing_entity_id": null,
             "name": "Short descriptive name",
-            "claim_type": "HP_ACTION_REPAIRS",
+            "claim_type": "SUCCESSION_RIGHTS",
             "description": "What right or cause of action this represents",
             "relief_sought": ["list of remedies sought"],
             "source_quote": "Direct quote from the text that best describes this claim"
@@ -543,7 +535,8 @@ Return ONLY valid JSON with this exact structure (no markdown, no extra keys, us
     "evidence": [
         {{
             "id": "e1",
-            "name": "Specific, named evidence item (e.g. HPD Inspection Report)",
+            "existing_entity_id": null,
+            "name": "Canonical evidence TYPE (e.g. 'Proof of 2-year co-primary residence'), NOT a case artifact ('John\\'s Con Ed bill')",
             "description": "What this evidence proves or requires",
             "is_critical": true,
             "evidence_context": "required",
@@ -554,6 +547,7 @@ Return ONLY valid JSON with this exact structure (no markdown, no extra keys, us
     "procedures": [
         {{
             "id": "p1",
+            "existing_entity_id": null,
             "name": "Short name",
             "description": "What this procedure accomplishes",
             "steps": ["Step 1", "Step 2"],
@@ -573,6 +567,7 @@ Return ONLY valid JSON with this exact structure (no markdown, no extra keys, us
     "laws": [
         {{
             "id": "l1",
+            "existing_entity_id": null,
             "name": "Short name",
             "citation": "RPL § 235-b",
             "description": "What this law establishes or requires",
@@ -588,18 +583,57 @@ Return ONLY valid JSON with this exact structure (no markdown, no extra keys, us
 }}
 
 Rules:
-- claim_type MUST be one of: {claim_types}
+- claim_type: use UPPERCASE_SNAKE_CASE. If the claim type exists in the context block below, reuse that exact name. Never use OTHER as a fallback — invent a new descriptive UPPERCASE_SNAKE_CASE name instead.
+- existing_entity_id: if the entity matches one in the context block, set this to its ID. If genuinely new, set to null.
 - outcome_type MUST be one of: monetary | injunctive | procedural | declaratory
 - evidence_context MUST be one of: required | presented | recommended
 - Relationship types: enables | requires | results_in | authorizes | cites | addresses | supports
-- Be SPECIFIC in names — "HPD Inspection Report" not "inspection report"
+- Evidence names must be CANONICAL TYPES, not case-specific artifacts ("Proof of primary residence", not "Smith's 2019 lease")
 - If a concept appears as both evidence and procedure, pick whichever fits better
 - Do NOT invent entity types — use only the 5 types shown above
 - Include a source_quote for every evidence item if the text mentions it directly
 - Every relationship must reference IDs that exist in the entities above"""
 
 
-def get_statute_extraction_prompt(text: str) -> str:
+def _build_graph_context_block(
+    graph_context: dict | None, known_claim_types: list[str] | None
+) -> str:
+    """Build a context block from graph data to inject into extraction prompts."""
+    if not graph_context and not known_claim_types:
+        return ""
+
+    lines = ["\nEXISTING GRAPH ENTITIES — reference by existing_entity_id if they apply:"]
+
+    if known_claim_types:
+        lines.append(f"Known claim types: {', '.join(known_claim_types)}")
+
+    if graph_context:
+        ev_list = graph_context.get("evidence", [])
+        if ev_list:
+            lines.append("Canonical evidence requirements:")
+            for ev in ev_list[:20]:
+                lines.append(f"  [id: {ev['id']}] {ev['name']}")
+
+        law_list = graph_context.get("laws", [])
+        if law_list:
+            lines.append("Laws:")
+            for law in law_list[:15]:
+                lines.append(f"  [id: {law['id']}] {law.get('citation') or law['name']}")
+
+        proc_list = graph_context.get("procedures", [])
+        if proc_list:
+            lines.append("Procedures:")
+            for proc in proc_list[:10]:
+                lines.append(f"  [id: {proc['id']}] {proc['name']}")
+
+    return "\n".join(lines)
+
+
+def get_statute_extraction_prompt(
+    text: str,
+    graph_context: dict | None = None,
+    known_claim_types: list[str] | None = None,
+) -> str:
     """
     Type-aware extraction prompt for statutory text.
 
@@ -608,6 +642,8 @@ def get_statute_extraction_prompt(text: str) -> str:
 
     Args:
         text: Statute text chunk (will be sanitized)
+        graph_context: Existing graph entities from get_extraction_context()
+        known_claim_types: All known claim type names from get_all_claim_type_names()
 
     Returns:
         Formatted prompt string
@@ -615,6 +651,7 @@ def get_statute_extraction_prompt(text: str) -> str:
     from tenant_legal_guidance.services.security import create_safe_prompt
 
     sanitized_text = sanitize_for_llm(text[:15000])
+    context_block = _build_graph_context_block(graph_context, known_claim_types)
 
     system_instructions = f"""\
 You are a legal extraction engine. Analyze the STATUTE text in USER_INPUT and extract structured legal information.
@@ -624,15 +661,14 @@ A statute creates legal obligations and rights. Your task:
 2. LEGAL_CLAIM — for each obligation or right the statute creates, extract the claim a tenant could make if violated.
    A statute may not use the word "claim" — look for obligations ("landlord shall..."), rights ("tenant is entitled to..."), or prohibitions ("no landlord may..."). Each becomes a potential LEGAL_CLAIM.
 3. EVIDENCE — what the statute says must be proven. Use evidence_context = "required".
-   Be specific: name the actual document or fact (e.g., "Written notice of rent increase" not "notice").
+   Name the CANONICAL TYPE of proof required (e.g., "Proof of 2-year co-primary residence"), not a case artifact.
 4. LEGAL_PROCEDURE — formal processes the statute defines (e.g., "HP Action in Housing Court").
 5. LEGAL_OUTCOME — penalties, remedies, or relief the statute authorizes (rent reduction, repairs ordered, treble damages).
 
 CRITICAL: Do NOT produce vague LEGAL_CONCEPT or catch-all OTHER entities. Every entity must be one of the 5 types above.
+{context_block}"""
 
-Valid claim_type values: {_CLAIM_TYPES}"""
-
-    output_format = _UNIFIED_OUTPUT_SCHEMA.format(claim_types=_CLAIM_TYPES)
+    output_format = _UNIFIED_OUTPUT_SCHEMA
 
     return create_safe_prompt(
         system_instructions=system_instructions,
@@ -641,7 +677,11 @@ Valid claim_type values: {_CLAIM_TYPES}"""
     )
 
 
-def get_guide_extraction_prompt(text: str) -> str:
+def get_guide_extraction_prompt(
+    text: str,
+    graph_context: dict | None = None,
+    known_claim_types: list[str] | None = None,
+) -> str:
     """
     Type-aware extraction prompt for tenant guide / advisory text.
 
@@ -650,6 +690,8 @@ def get_guide_extraction_prompt(text: str) -> str:
 
     Args:
         text: Guide text chunk (will be sanitized)
+        graph_context: Existing graph entities from get_extraction_context()
+        known_claim_types: All known claim type names from get_all_claim_type_names()
 
     Returns:
         Formatted prompt string
@@ -657,6 +699,7 @@ def get_guide_extraction_prompt(text: str) -> str:
     from tenant_legal_guidance.services.security import create_safe_prompt
 
     sanitized_text = sanitize_for_llm(text[:15000])
+    context_block = _build_graph_context_block(graph_context, known_claim_types)
 
     system_instructions = f"""\
 You are a legal extraction engine. Analyze the TENANT GUIDE text in USER_INPUT and extract structured legal information.
@@ -666,18 +709,17 @@ A tenant guide gives practical advice. Your task:
 2. LEGAL_CLAIM — what legal claims or causes of action the guide says tenants can pursue.
    Look for phrases like "you can file", "you are entitled to", "your landlord must".
 3. EVIDENCE — what the guide recommends tenants gather or document. Use evidence_context = "recommended".
-   Be specific: "Photos of the condition with date stamps" not "photos".
+   Name the CANONICAL TYPE of proof (e.g., "Proof of primary residence via utility bills"), not a specific artifact.
 4. LEGAL_PROCEDURE — step-by-step processes the guide describes (filing complaints, going to court, contacting HPD).
    Include the actual steps list when given.
 5. LEGAL_OUTCOME — what outcomes the guide says tenants can expect (repairs ordered, rent reduction, damages).
 
 CRITICAL: Do NOT produce vague LEGAL_CONCEPT entities. Every entity must be one of the 5 types above.
-If the same concept (e.g., "HPD Inspection Report") appears in both a statute and a guide, it must be typed
-as EVIDENCE in both — consistency across source types is essential.
+If the same concept (e.g., "Proof of primary residence") appears in both a statute and a guide, reuse the
+existing_entity_id from the context block — do NOT create a duplicate.
+{context_block}"""
 
-Valid claim_type values: {_CLAIM_TYPES}"""
-
-    output_format = _UNIFIED_OUTPUT_SCHEMA.format(claim_types=_CLAIM_TYPES)
+    output_format = _UNIFIED_OUTPUT_SCHEMA
 
     return create_safe_prompt(
         system_instructions=system_instructions,
@@ -686,7 +728,11 @@ Valid claim_type values: {_CLAIM_TYPES}"""
     )
 
 
-def get_case_extraction_prompt(text: str) -> str:
+def get_case_extraction_prompt(
+    text: str,
+    graph_context: dict | None = None,
+    known_claim_types: list[str] | None = None,
+) -> str:
     """
     Type-aware extraction prompt for court case / opinion text.
 
@@ -695,6 +741,8 @@ def get_case_extraction_prompt(text: str) -> str:
 
     Args:
         text: Case text chunk (will be sanitized)
+        graph_context: Existing graph entities from get_extraction_context()
+        known_claim_types: All known claim type names from get_all_claim_type_names()
 
     Returns:
         Formatted prompt string
@@ -702,6 +750,7 @@ def get_case_extraction_prompt(text: str) -> str:
     from tenant_legal_guidance.services.security import create_safe_prompt
 
     sanitized_text = sanitize_for_llm(text[:30000])
+    context_block = _build_graph_context_block(graph_context, known_claim_types)
 
     system_instructions = f"""\
 You are a legal extraction engine. Analyze the COURT CASE text in USER_INPUT and extract structured legal information.
@@ -709,9 +758,10 @@ You are a legal extraction engine. Analyze the COURT CASE text in USER_INPUT and
 A court case records what actually happened. Your task:
 1. LAWS — laws the court cited or applied. Include citations (e.g., "RPL § 235-b").
 2. LEGAL_CLAIM — exactly one entity per claim the tenant (or petitioner) made. Use the exact claim name from the case.
-   Map each claim to the closest claim_type from the valid list.
+   Map each claim to the closest claim_type using the known types in the context block below.
 3. EVIDENCE — what was actually presented to or considered by the court. Use evidence_context = "presented".
-   Be specific: "HPD Inspection Report dated March 2024" not "inspection records".
+   Name the CANONICAL TYPE of proof (e.g., "Proof of co-primary residence"), NOT a case-specific artifact
+   ("Smith's 2019 Con Ed bill"). If the evidence matches a canonical node in the context block, set existing_entity_id.
    Include evidence that FAILED or was REJECTED — this is equally important.
 4. LEGAL_PROCEDURE — the procedure the tenant used to bring the case (HP Action, DHCR complaint, Housing Court proceeding).
 5. LEGAL_OUTCOME — what the court actually ordered. Be concrete: "Landlord ordered to make repairs within 30 days"
@@ -719,10 +769,9 @@ A court case records what actually happened. Your task:
 
 CRITICAL: Do NOT conflate what was claimed with what was ordered. A LEGAL_CLAIM is what the tenant asserted.
 A LEGAL_OUTCOME is what the court decided. They are always separate entities linked by a relationship.
+{context_block}"""
 
-Valid claim_type values: {_CLAIM_TYPES}"""
-
-    output_format = _UNIFIED_OUTPUT_SCHEMA.format(claim_types=_CLAIM_TYPES)
+    output_format = _UNIFIED_OUTPUT_SCHEMA
 
     return create_safe_prompt(
         system_instructions=system_instructions,

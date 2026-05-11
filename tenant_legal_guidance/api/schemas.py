@@ -370,6 +370,14 @@ class SimilarCaseSchema(BaseModel):
     outcome_detail: str = ""
     relevance_score: float = 0.0
     url: str = ""
+    procedures: list[str] = []
+
+
+class ProcedureGapSchema(BaseModel):
+    """Schema for a missing procedural requirement."""
+
+    name: str
+    description: str = ""
 
 
 class ClaimTypeMatchSchema(BaseModel):
@@ -382,6 +390,7 @@ class ClaimTypeMatchSchema(BaseModel):
     evidence_matches: list[EvidenceMatchSchema]
     evidence_strength: str  # "strong", "moderate", "weak"
     evidence_gaps: list[EvidenceGapSchema]
+    procedure_gaps: list[ProcedureGapSchema] = []
     completeness_score: float
     predicted_outcome: dict | None = None  # OutcomePrediction as dict
     claim_description: str = ""

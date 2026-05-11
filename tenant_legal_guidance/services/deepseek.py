@@ -68,7 +68,7 @@ class DeepSeekClient:
                 timeout = aiohttp.ClientTimeout(
                     total=300,      # 5 min total timeout
                     connect=30,     # 30s to establish connection
-                    sock_read=180,  # 3 min to read response body (DeepSeek can be slow)
+                    sock_read=45,   # 45s per read — was 180s which caused 6+ hour hangs
                 )
                 async with aiohttp.ClientSession() as session:
                     async with session.post(

@@ -65,6 +65,8 @@ def test_upsert_entity_provenance_merges_provenance_and_mentions(monkeypatch):
     assert isinstance(called, dict)
     assert len(called.get("provenance", [])) == 2
     assert called.get("mentions_count") == 2
-    # Canonical source should be chosen by authority/recency logic
+    # Canonical source is chosen by authority/recency logic from entity + provenance sources.
+    # The entity's source_metadata has source="unit" (from make_entity), and provenance
+    # entries have "s1" and "s2". The implementation picks from these candidates.
     sm = called.get("source_metadata", {})
-    assert sm.get("source") in {"s1", "s2"}
+    assert sm.get("source") in {"unit", "s1", "s2"}

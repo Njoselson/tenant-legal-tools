@@ -1,10 +1,10 @@
 {
   "summary": {
     "cases_evaluated": 21,
-    "claim_type_f1": 0.486,
-    "claim_type_precision": 0.484,
+    "claim_type_f1": 0.494,
+    "claim_type_precision": 0.492,
     "claim_type_recall": 0.532,
-    "outcome_accuracy": 0.714,
+    "outcome_accuracy": 0.667,
     "remedy_recall": 0.698
   },
   "per_case": [
@@ -96,16 +96,15 @@
     },
     {
       "case_name": "304-306 E 83 Realty, LLC v Mason",
-      "claim_type_precision": 0.6666666666666666,
+      "claim_type_precision": 1.0,
       "claim_type_recall": 1.0,
-      "claim_type_f1": 0.8,
+      "claim_type_f1": 1.0,
       "outcome_correct": true,
       "outcome_predicted": "favorable",
       "outcome_actual": "tenant_win",
       "remedy_recall": 1.0,
       "claims_predicted": [
         "DEREGULATION_CHALLENGE",
-        "OTHER",
         "RENT_OVERCHARGE"
       ],
       "claims_actual": [
@@ -118,10 +117,8 @@
         "RENT_OVERCHARGE"
       ],
       "claims_missed": [],
-      "claims_extra": [
-        "OTHER"
-      ],
-      "num_matches": 3
+      "claims_extra": [],
+      "num_matches": 2
     },
     {
       "case_name": "3505 BWAY Owner LLC v McNeely",
@@ -189,6 +186,7 @@
       "outcome_actual": "landlord_win",
       "remedy_recall": 1.0,
       "claims_predicted": [
+        "HARASSMENT",
         "OTHER",
         "RETALIATORY_EVICTION"
       ],
@@ -202,22 +200,24 @@
         "MOTION_TO_VACATE"
       ],
       "claims_extra": [
+        "HARASSMENT",
         "OTHER",
         "RETALIATORY_EVICTION"
       ],
-      "num_matches": 2
+      "num_matches": 3
     },
     {
       "case_name": "Arnold Rossman v Windermere Owners LLC et al.",
-      "claim_type_precision": 1.0,
+      "claim_type_precision": 0.6666666666666666,
       "claim_type_recall": 0.6666666666666666,
-      "claim_type_f1": 0.8,
+      "claim_type_f1": 0.6666666666666666,
       "outcome_correct": false,
       "outcome_predicted": "favorable",
       "outcome_actual": "mixed",
       "remedy_recall": 0.5,
       "claims_predicted": [
         "DEREGULATION_CHALLENGE",
+        "OTHER",
         "RENT_OVERCHARGE"
       ],
       "claims_actual": [
@@ -232,8 +232,10 @@
       "claims_missed": [
         "RENT_STABILIZATION_VIOLATION"
       ],
-      "claims_extra": [],
-      "num_matches": 2
+      "claims_extra": [
+        "OTHER"
+      ],
+      "num_matches": 3
     },
     {
       "case_name": "Elise Downing et al. v First Lenox Terrace Associates et al.",
@@ -323,15 +325,16 @@
     },
     {
       "case_name": "John Bradbury v 342 West 30th Street Corp.",
-      "claim_type_precision": 0.5,
+      "claim_type_precision": 0.3333333333333333,
       "claim_type_recall": 0.5,
-      "claim_type_f1": 0.5,
+      "claim_type_f1": 0.4,
       "outcome_correct": true,
       "outcome_predicted": "favorable",
       "outcome_actual": "tenant_win",
       "remedy_recall": 0.5,
       "claims_predicted": [
         "DEREGULATION_CHALLENGE",
+        "OTHER",
         "RENT_OVERCHARGE"
       ],
       "claims_actual": [
@@ -345,9 +348,10 @@
         "RENT_STABILIZATION_VIOLATION"
       ],
       "claims_extra": [
-        "DEREGULATION_CHALLENGE"
+        "DEREGULATION_CHALLENGE",
+        "OTHER"
       ],
-      "num_matches": 2
+      "num_matches": 3
     },
     {
       "case_name": "Kuzmich v 50 Murray Street Acquisition LLC",
@@ -384,8 +388,8 @@
       "claim_type_precision": 0.0,
       "claim_type_recall": 0.0,
       "claim_type_f1": 0.0,
-      "outcome_correct": true,
-      "outcome_predicted": "unfavorable",
+      "outcome_correct": false,
+      "outcome_predicted": "favorable",
       "outcome_actual": "landlord_win",
       "remedy_recall": 1.0,
       "claims_predicted": [
@@ -407,15 +411,14 @@
     },
     {
       "case_name": "Matter of AEJ 534 East 88th, LLC v New York State Division of Housing & Community Renewal",
-      "claim_type_precision": 0.6666666666666666,
+      "claim_type_precision": 1.0,
       "claim_type_recall": 1.0,
-      "claim_type_f1": 0.8,
+      "claim_type_f1": 1.0,
       "outcome_correct": false,
       "outcome_predicted": "favorable",
       "outcome_actual": "mixed",
       "remedy_recall": 1.0,
       "claims_predicted": [
-        "BREACH_OF_WARRANTY_OF_HABITABILITY",
         "DEREGULATION_CHALLENGE",
         "RENT_OVERCHARGE"
       ],
@@ -428,10 +431,8 @@
         "RENT_OVERCHARGE"
       ],
       "claims_missed": [],
-      "claims_extra": [
-        "HABITABILITY_VIOLATION"
-      ],
-      "num_matches": 3
+      "claims_extra": [],
+      "num_matches": 2
     },
     {
       "case_name": "Matter of Regina Metropolitan Co., LLC v New York State Division of Housing and Community Renewal",

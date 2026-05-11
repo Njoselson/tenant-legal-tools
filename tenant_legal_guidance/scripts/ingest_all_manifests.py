@@ -25,7 +25,16 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from tenant_legal_guidance.scripts.ingest import process_manifest
+import aiohttp
+
+from tenant_legal_guidance.models.metadata_schemas import ManifestEntry
+from tenant_legal_guidance.scripts.ingest import (
+    IngestionCheckpoint,
+    IngestionStats,
+    ingest_entry,
+    process_manifest,
+)
+from tenant_legal_guidance.services.resource_processor import LegalResourceProcessor
 from tenant_legal_guidance.services.tenant_system import TenantLegalSystem
 
 
@@ -62,24 +71,35 @@ async def ingest_all_manifests(
     archive_dir: Path | None,
     checkpoint_path: Path | None,
     skip_existing: bool,
+    retry_failed: bool = False,
 ) -> dict[str, Any]:
     """
     Process all manifest files in the directory.
 
+    Entries from all manifests are flattened into one pool and processed with a
+    single semaphore at the given concurrency level.  This eliminates the old
+    sequential-manifest bottleneck (manifest N had to finish entirely before
+    manifest N+1 could start).
+
+    Ordering guarantee: statutes → guides → cases is preserved because
+    `find_manifest_files()` returns manifests in that order and entries are
+    appended per-manifest, so the natural queue order is correct.
+
     Args:
         system: TenantLegalSystem instance
         manifests_dir: Directory containing manifest files
-        concurrency: Number of concurrent requests
+        concurrency: Number of concurrent requests across all manifests
         archive_dir: Directory for text archives
         checkpoint_path: Path to checkpoint file
         skip_existing: Whether to skip already-processed sources
+        retry_failed: If True, retry URLs that previously failed
 
     Returns:
         Dictionary with summary statistics
     """
     logger = logging.getLogger(__name__)
 
-    # Find all manifest files
+    # Find all manifest files (statutes → guides → cases order)
     manifest_files = find_manifest_files(manifests_dir)
     if not manifest_files:
         logger.warning(f"No manifest files found in {manifests_dir}")
@@ -94,76 +114,101 @@ async def ingest_all_manifests(
             "manifests": [],
         }
 
-    logger.info(f"Found {len(manifest_files)} manifest file(s) to process")
+    logger.info(f"Found {len(manifest_files)} manifest file(s) — flattening into one pool (concurrency={concurrency})")
 
-    # Overall statistics
-    overall_stats = {
+    # Collect all entries from all manifests up-front, preserving ordering
+    all_entries: list[tuple[str, ManifestEntry]] = []  # (manifest_name, entry)
+    manifest_entry_counts: dict[str, int] = {}
+    for manifest_path in manifest_files:
+        entries: list[ManifestEntry] = []
+        with manifest_path.open("r", encoding="utf-8") as f:
+            for line_num, line in enumerate(f, start=1):
+                stripped = line.strip()
+                if not stripped:
+                    continue
+                try:
+                    data = json.loads(stripped)
+                    entries.append(ManifestEntry(**data))
+                except Exception as e:
+                    logger.warning(f"Skipping invalid entry at {manifest_path.name}:{line_num}: {e}")
+        manifest_entry_counts[manifest_path.name] = len(entries)
+        all_entries.extend((manifest_path.name, e) for e in entries)
+
+    total_entries = len(all_entries)
+    logger.info(f"Loaded {total_entries} total entries across {len(manifest_files)} manifests")
+
+    # Shared checkpoint + stats
+    checkpoint = IngestionCheckpoint(checkpoint_path) if checkpoint_path else None
+    if checkpoint and retry_failed:
+        checkpoint.failed.clear()
+    stats = IngestionStats()
+    stats.total = total_entries
+
+    if archive_dir:
+        archive_dir.mkdir(parents=True, exist_ok=True)
+
+    resource_processor = LegalResourceProcessor(system.deepseek)
+    semaphore = asyncio.Semaphore(concurrency)
+
+    from tqdm import tqdm
+
+    async def process_one(manifest_name: str, entry: ManifestEntry) -> bool:
+        async with semaphore:
+            if checkpoint and checkpoint.should_skip(entry.locator, retry_failed=retry_failed):
+                stats.add_skip()
+                pbar.update(1)
+                return True
+            try:
+                async with aiohttp.ClientSession() as session:
+                    return await asyncio.wait_for(
+                        ingest_entry(
+                            system,
+                            entry,
+                            session,
+                            resource_processor,
+                            archive_dir,
+                            checkpoint,
+                            stats,
+                            skip_existing,
+                            pbar,
+                        ),
+                        timeout=360,  # 6 min hard ceiling per document
+                    )
+            except asyncio.TimeoutError:
+                logger.warning(f"Document timed out after 360s, skipping: {entry.locator}")
+                stats.add_failure(entry.locator, "TimeoutError: exceeded 360s per-document ceiling")
+                if checkpoint:
+                    checkpoint.mark_failed(entry.locator)
+                pbar.update(1)
+                return False
+
+    overall_stats: dict[str, Any] = {
         "total_manifests": len(manifest_files),
-        "total_entries": 0,
-        "processed": 0,
-        "skipped": 0,
-        "failed": 0,
-        "added_entities": 0,
-        "added_relationships": 0,
-        "manifests": [],
+        "total_entries": total_entries,
         "start_time": datetime.utcnow().isoformat(),
     }
 
-    # Process each manifest sequentially
-    for i, manifest_path in enumerate(manifest_files, 1):
-        logger.info("")
-        logger.info("=" * 60)
-        logger.info(f"Processing manifest {i}/{len(manifest_files)}: {manifest_path.name}")
-        logger.info("=" * 60)
-
-        try:
-            # Process this manifest
-            stats = await process_manifest(
-                system=system,
-                manifest_path=manifest_path,
-                concurrency=concurrency,
-                archive_dir=archive_dir,
-                checkpoint_path=checkpoint_path,
-                skip_existing=skip_existing,
-            )
-
-            summary = stats.summary()
-
-            # Accumulate statistics
-            overall_stats["total_entries"] += summary["total"]
-            overall_stats["processed"] += summary["processed"]
-            overall_stats["skipped"] += summary["skipped"]
-            overall_stats["failed"] += summary["failed"]
-            overall_stats["added_entities"] += summary["added_entities"]
-            overall_stats["added_relationships"] += summary["added_relationships"]
-
-            # Store per-manifest stats
-            overall_stats["manifests"].append(
-                {
-                    "manifest": manifest_path.name,
-                    "total": summary["total"],
-                    "processed": summary["processed"],
-                    "skipped": summary["skipped"],
-                    "failed": summary["failed"],
-                    "added_entities": summary["added_entities"],
-                    "added_relationships": summary["added_relationships"],
-                }
-            )
-
-            logger.info(f"✓ Completed {manifest_path.name}: {summary['processed']} processed, {summary['skipped']} skipped, {summary['failed']} failed")
-
-        except Exception as e:
-            logger.error(f"✗ Failed to process {manifest_path.name}: {e}", exc_info=True)
-            overall_stats["manifests"].append(
-                {
-                    "manifest": manifest_path.name,
-                    "error": str(e),
-                }
-            )
+    with tqdm(total=total_entries, desc="Ingesting all manifests", unit="doc") as pbar:
+        tasks = [process_one(mname, entry) for mname, entry in all_entries]
+        await asyncio.gather(*tasks)
 
     overall_stats["end_time"] = datetime.utcnow().isoformat()
-    elapsed = (datetime.fromisoformat(overall_stats["end_time"]) - datetime.fromisoformat(overall_stats["start_time"])).total_seconds()
+    elapsed = (
+        datetime.fromisoformat(overall_stats["end_time"])
+        - datetime.fromisoformat(overall_stats["start_time"])
+    ).total_seconds()
     overall_stats["elapsed_seconds"] = elapsed
+
+    summary = stats.summary()
+    overall_stats["processed"] = summary["processed"]
+    overall_stats["skipped"] = summary["skipped"]
+    overall_stats["failed"] = summary["failed"]
+    overall_stats["added_entities"] = summary["added_entities"]
+    overall_stats["added_relationships"] = summary["added_relationships"]
+    overall_stats["manifests"] = [
+        {"manifest": name, "total": count}
+        for name, count in manifest_entry_counts.items()
+    ]
 
     return overall_stats
 
@@ -192,8 +237,8 @@ def main():
     parser.add_argument(
         "--concurrency",
         type=int,
-        default=3,
-        help="Number of concurrent requests (default: 3)",
+        default=8,
+        help="Number of concurrent requests across all manifests (default: 8)",
     )
 
     parser.add_argument(
@@ -213,6 +258,12 @@ def main():
         "--skip-existing",
         action="store_true",
         help="Skip sources that have been processed (checks database by locator)",
+    )
+
+    parser.add_argument(
+        "--retry-failed",
+        action="store_true",
+        help="Retry URLs that previously failed (default: skip them)",
     )
 
     parser.add_argument(
@@ -261,6 +312,7 @@ def main():
                 archive_dir=args.archive,
                 checkpoint_path=args.checkpoint,
                 skip_existing=args.skip_existing,
+                retry_failed=args.retry_failed,
             )
         )
 
@@ -295,12 +347,7 @@ def main():
                 if "error" in manifest_info:
                     print(f"  ✗ {manifest_info['manifest']}: ERROR - {manifest_info['error']}")
                 else:
-                    print(
-                        f"  ✓ {manifest_info['manifest']}: "
-                        f"{manifest_info['processed']} processed, "
-                        f"{manifest_info['skipped']} skipped, "
-                        f"{manifest_info['failed']} failed"
-                    )
+                    print(f"  ✓ {manifest_info['manifest']}: {manifest_info['total']} entries")
 
         # Write report if requested
         if args.report:

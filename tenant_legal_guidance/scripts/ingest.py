@@ -108,9 +108,13 @@ class IngestionCheckpoint:
         if self.checkpoint_path:
             self.save()
 
-    def should_skip(self, locator: str) -> bool:
+    def should_skip(self, locator: str, retry_failed: bool = False) -> bool:
         """Check if a source should be skipped."""
-        return locator in self.processed
+        if locator in self.processed:
+            return True
+        if not retry_failed and locator in self.failed:
+            return True
+        return False
 
 
 class IngestionStats:
@@ -174,11 +178,16 @@ async def fetch_text(
         Extracted text or None if failed
     """
     try:
-        # Try PDF extraction first
+        loop = asyncio.get_running_loop()
+        # Run blocking requests calls in a thread so asyncio.wait_for can cancel on timeout
         if locator.lower().endswith(".pdf"):
-            return resource_processor.scrape_text_from_pdf(locator)
+            return await loop.run_in_executor(
+                None, resource_processor.scrape_text_from_pdf, locator
+            )
         else:
-            return resource_processor.scrape_text_from_url(locator)
+            return await loop.run_in_executor(
+                None, resource_processor.scrape_text_from_url, locator
+            )
     except Exception as e:
         logging.getLogger(__name__).debug(f"Failed to fetch {locator}: {e}")
         return None
@@ -328,6 +337,7 @@ async def process_manifest(
     archive_dir: Path | None,
     checkpoint_path: Path | None,
     skip_existing: bool,
+    retry_failed: bool = False,
 ) -> IngestionStats:
     """
     Process a manifest file.
@@ -363,6 +373,8 @@ async def process_manifest(
 
     # Initialize checkpoint and stats
     checkpoint = IngestionCheckpoint(checkpoint_path) if checkpoint_path else None
+    if checkpoint and retry_failed:
+        checkpoint.failed.clear()  # clear failed set so they'll be retried
     stats = IngestionStats()
     stats.total = len(entries)
 
@@ -376,18 +388,37 @@ async def process_manifest(
 
     async def process_with_semaphore(entry: ManifestEntry) -> bool:
         async with semaphore:
-            async with aiohttp.ClientSession() as session:
-                return await ingest_entry(
-                    system,
-                    entry,
-                    session,
-                    resource_processor,
-                    archive_dir,
-                    checkpoint,
-                    stats,
-                    skip_existing,
-                    pbar,
-                )
+            # Fast skip check before acquiring an HTTP session
+            if checkpoint and checkpoint.should_skip(entry.locator, retry_failed=retry_failed):
+                stats.add_skip()
+                if pbar:
+                    pbar.update(1)
+                return True
+            try:
+                async with aiohttp.ClientSession() as session:
+                    return await asyncio.wait_for(
+                        ingest_entry(
+                            system,
+                            entry,
+                            session,
+                            resource_processor,
+                            archive_dir,
+                            checkpoint,
+                            stats,
+                            skip_existing,
+                            pbar,
+                        ),
+                        timeout=360,  # 6 min hard ceiling per document
+                    )
+            except asyncio.TimeoutError:
+                logger = logging.getLogger(__name__)
+                logger.warning(f"Document timed out after 360s, skipping: {entry.locator}")
+                stats.add_failure(entry.locator, "TimeoutError: exceeded 360s per-document ceiling")
+                if checkpoint:
+                    checkpoint.mark_failed(entry.locator)
+                if pbar:
+                    pbar.update(1)
+                return False
 
     # Process with progress bar
     with tqdm(total=len(entries), desc="Ingesting", unit="doc") as pbar:

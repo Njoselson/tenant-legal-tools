@@ -29,6 +29,7 @@ from tenant_legal_guidance.api.schemas import (
     EnhancedCaseAnalysisRequest,
     EvidenceGapSchema,
     EvidenceMatchSchema,
+    ProcedureGapSchema,
     ExpandRequest,
     GenerateAnalysisRequest,
     HybridSearchRequest,
@@ -1797,16 +1798,23 @@ async def get_claim_types(
     try:
         kg = system.knowledge_graph
 
-        # Get claim types from database (returns ClaimType enums)
-        claim_types = kg.get_all_claim_types()
+        # Get claim_type nodes from graph (M4c: dynamic nodes, not hardcoded enum)
+        ct_nodes = kg.get_all_claim_type_nodes()
 
-        # If no claim types in DB, return all available enums
-        if not claim_types:
-            claim_types = list(ClaimType)
+        # Fallback to enum values if no dynamic nodes exist yet
+        if not ct_nodes:
+            ct_nodes = [{"name": ct.value, "description": ct.description} for ct in ClaimType]
 
         return ClaimTypesResponse(
-            claim_types=[ClaimTypeSchema.from_enum(ct) for ct in claim_types],
-            count=len(claim_types),
+            claim_types=[
+                ClaimTypeSchema(
+                    value=node["name"],
+                    display_name=node["name"].replace("_", " ").title(),
+                    description=node.get("description", ""),
+                )
+                for node in ct_nodes
+            ],
+            count=len(ct_nodes),
         )
     except Exception as e:
         logger.error(f"Failed to get claim types: {e}", exc_info=True)
@@ -1825,19 +1833,12 @@ async def get_required_evidence(
     try:
         kg = system.knowledge_graph
 
-        # Convert string to ClaimType enum (handles validation)
-        try:
-            claim_type_enum = ClaimType.from_string(claim_type)
-        except (ValueError, KeyError):
-            raise HTTPException(
-                status_code=400,
-                detail=f"Invalid claim type: {claim_type}. Valid types: {[ct.value for ct in ClaimType]}",
-            )
+        claim_type_normalized = claim_type.upper().replace(" ", "_").replace("-", "_")
 
-        evidence = kg.get_required_evidence_for_claim_type(claim_type_enum)
+        evidence = kg.get_required_evidence_for_claim_type(claim_type_normalized)
 
         return RequiredEvidenceResponse(
-            claim_type=ClaimTypeSchema.from_enum(claim_type_enum),
+            claim_type=ClaimTypeSchema(value=claim_type_normalized, display_name=claim_type_normalized.replace("_", " ").title(), description=""),
             required_evidence=evidence,
             count=len(evidence),
         )
@@ -1928,6 +1929,10 @@ async def analyze_my_case(
             similar_cases = await predictor.find_similar_cases(
                 claim_type=match.canonical_name,
                 situation=anonymized_situation,
+                evidence_profile=[
+                    {"status": em.status, "name": em.evidence_name}
+                    for em in (match.evidence_matches or [])
+                ],
             )
 
             # Attach similar cases to the match, resolving to case documents with URLs
@@ -1937,11 +1942,15 @@ async def analyze_my_case(
                 claim_data = c.get("claim", {})
                 outcome_data = c.get("outcome")
 
-                # Resolve to the parent case document for URL
-                case_doc = system.knowledge_graph.get_case_document_for_claim(claim_key)
-
-                case_name = (case_doc or {}).get("name") or claim_data.get("name", "Unknown Case")
-                case_url = (case_doc or {}).get("url", "")
+                # M4c Strategy 3 cases already carry URL + name directly
+                if c.get("_m4c_url"):
+                    case_name = c.get("case_name", "Unknown Case")
+                    case_url = c["_m4c_url"]
+                else:
+                    # Strategies 1 & 2: resolve via claim → case_document traversal
+                    case_doc = system.knowledge_graph.get_case_document_for_claim(claim_key)
+                    case_name = (case_doc or {}).get("name") or claim_data.get("name", "Unknown Case")
+                    case_url = (case_doc or {}).get("url", "")
                 outcome = outcome_data.get("disposition", "unknown") if outcome_data else (c.get("claim_outcome") or "unknown")
                 outcome_detail = outcome_data.get("name", "") if outcome_data else ""
 
@@ -1951,6 +1960,7 @@ async def analyze_my_case(
                     "outcome_detail": outcome_detail,
                     "relevance_score": c.get("similarity_score", 0.5),
                     "url": case_url,
+                    "procedures": c.get("procedures") or [],
                 })
             match.similar_cases = resolved_cases
 
@@ -1962,12 +1972,19 @@ async def analyze_my_case(
             )
 
             # Attach prediction to match
+            proc_counts: dict[str, int] = {}
+            for sc in similar_cases:
+                for p in (sc.get("procedures") or []):
+                    proc_counts[p] = proc_counts.get(p, 0) + 1
+            top_procs = [p for p, _ in sorted(proc_counts.items(), key=lambda x: x[1], reverse=True)[:3]]
+
             match.predicted_outcome = {
                 "outcome_type": outcome_prediction.outcome_type,
                 "disposition": outcome_prediction.disposition,
                 "probability": outcome_prediction.probability,
                 "reasoning": outcome_prediction.reasoning,
                 "similar_cases_count": len(similar_cases),
+                "procedures_used": top_procs,
             }
 
         # Generate next steps
@@ -2011,6 +2028,13 @@ async def analyze_my_case(
                             how_to_get=gap["how_to_get"],
                         )
                         for gap in match.evidence_gaps
+                    ],
+                    procedure_gaps=[
+                        ProcedureGapSchema(
+                            name=pg.get("name", pg) if isinstance(pg, dict) else str(pg),
+                            description=pg.get("description", "") if isinstance(pg, dict) else "",
+                        )
+                        for pg in (match.procedure_gaps or [])
                     ],
                     completeness_score=match.completeness_score,
                     predicted_outcome=match.predicted_outcome,

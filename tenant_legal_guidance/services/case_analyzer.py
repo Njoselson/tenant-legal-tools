@@ -1440,11 +1440,11 @@ Be specific and actionable. Focus on what this data means for the tenant's case.
             authority_level = "informational_only"
             if hasattr(remedy, "source_metadata") and remedy.source_metadata:
                 if hasattr(remedy.source_metadata, "authority"):
-                    authority_level = str(remedy.source_metadata.authority).lower()
+                    auth = remedy.source_metadata.authority
+                    authority_level = (auth.value if hasattr(auth, "value") else str(auth)).lower()
                 elif isinstance(remedy.source_metadata, dict):
-                    authority_level = str(
-                        remedy.source_metadata.get("authority", "informational_only")
-                    ).lower()
+                    auth = remedy.source_metadata.get("authority", "informational_only")
+                    authority_level = (auth.value if hasattr(auth, "value") else str(auth)).lower()
 
             authority_weight = authority_weights.get(authority_level, 1) / 6.0  # Normalize to 0-1
 
@@ -3262,16 +3262,6 @@ Return ONLY valid JSON:
                         "verified_in_graph": True,
                         "from_graph_only": True,
                     })
-        
-        # Match elements to case facts with satisfaction scoring
-        # TODO: Implement _match_elements_to_case_facts method
-        # if legal_elements and case_text:
-        #     try:
-        #         legal_elements = await self._match_elements_to_case_facts(
-        #             legal_elements, case_text, applicable_laws
-        #         )
-        #     except Exception as e:
-        #         self.logger.warning(f"Error matching elements to case facts: {e}", exc_info=True)
         
         # Calculate element satisfaction summary
         satisfied_count = sum(1 for elem in legal_elements if elem.get("status") == "satisfied")

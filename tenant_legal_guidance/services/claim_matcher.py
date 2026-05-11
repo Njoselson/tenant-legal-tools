@@ -48,6 +48,7 @@ class ClaimTypeMatch:
     similar_cases: list[dict] = None  # [{case_name, outcome, relevance_score}]
     remedies: list[str] = None  # ["Rent reduction", ...]
     predicted_outcome: dict | None = None  # OutcomePrediction as dict
+    procedure_gaps: list[dict] = None  # [{name, description}]
 
 
 @dataclass
@@ -228,12 +229,17 @@ Return ONLY the JSON array, nothing else.
         if not situation or not situation.strip():
             return [], []
 
-        # Get all unique claim types from stored claims
-        raw_claim_types = self.kg.get_all_claim_types()
+        # Get all claim_type nodes from the graph (M4c: dynamic nodes, not enum strings)
+        raw_claim_type_nodes = self.kg.get_all_claim_type_nodes()
 
-        if not raw_claim_types:
-            self.logger.warning("No claim types found in stored claims")
-            raw_claim_types = [
+        # Fallback: if no claim_type nodes exist yet, get unique types from stored claims
+        if not raw_claim_type_nodes:
+            legacy_types = self.kg.get_all_claim_types()
+            raw_claim_type_nodes = legacy_types if legacy_types else []
+
+        if not raw_claim_type_nodes:
+            self.logger.warning("No claim types found in graph")
+            raw_claim_type_nodes = [
                 "DEREGULATION_CHALLENGE",
                 "RENT_OVERCHARGE",
                 "HP_ACTION_REPAIRS",
@@ -250,8 +256,12 @@ Return ONLY the JSON array, nothing else.
         seen_canonical = set()
         # Maps canonical_name → [all DB type names that map to it]
         type_aliases: dict[str, list[str]] = {}
-        for ct in raw_claim_types:
-            ct_str = ct.get("canonical_name", ct) if isinstance(ct, dict) else str(ct)
+        for ct in raw_claim_type_nodes:
+            # claim_type nodes have "name"; legacy strings or dicts may have "canonical_name"
+            if isinstance(ct, dict):
+                ct_str = ct.get("name") or ct.get("canonical_name") or str(ct)
+            else:
+                ct_str = str(ct)
             # Normalize against types we've already accepted
             if all_claim_types:
                 normalized = self.normalize_to_db_type(ct_str, all_claim_types, threshold=0.80)
@@ -266,7 +276,7 @@ Return ONLY the JSON array, nothing else.
                 type_aliases[canonical] = [ct_str]
 
         self.logger.info(
-            f"Claim types: {len(raw_claim_types)} in DB → {len(all_claim_types)} canonical"
+            f"Claim types: {len(raw_claim_type_nodes)} in graph → {len(all_claim_types)} canonical"
         )
 
         # Build claim types with FULL PROOF CHAINS (not just required evidence)
@@ -315,6 +325,23 @@ Return ONLY the JSON array, nothing else.
                                 }
                                 for ev in (proof_chain.missing_evidence or [])
                             ],
+                            "required_procedures": [
+                                {
+                                    "id": proc.procedure_id,
+                                    "name": proc.name,
+                                    "description": proc.description or "",
+                                    "is_satisfied": proc.is_satisfied,
+                                }
+                                for proc in (proof_chain.required_procedures or [])
+                            ],
+                            "procedure_gaps": [
+                                {
+                                    "id": proc.procedure_id,
+                                    "name": proc.name,
+                                    "description": proc.description or "",
+                                }
+                                for proc in (proof_chain.missing_procedures or [])
+                            ],
                             "applicable_laws": [
                                 {
                                     "name": law.get("name", str(law)) if isinstance(law, dict) else (law.name if hasattr(law, "name") else str(law)),
@@ -358,6 +385,8 @@ Return ONLY the JSON array, nothing else.
                     ],
                     "presented_evidence": [],
                     "missing_evidence": [],
+                    "required_procedures": [],
+                    "procedure_gaps": [],
                     "applicable_laws": [],
                     "remedies": [],
                     "completeness_score": 0.0,
@@ -529,6 +558,24 @@ Return ONLY the JSON array, nothing else.
                     # Pull proof chain data for legal_basis, remedies, description
                     proof_chain = claim_type_data.get("proof_chain", {})
 
+                    # Get procedure gaps from proof chain and factor into completeness
+                    proc_gaps = proof_chain.get("procedure_gaps", [])
+                    required_procs = proof_chain.get("required_procedures", [])
+                    if required_procs:
+                        # Weight procedures at 2.0 (critical) in completeness calculation
+                        proc_weight = 2.0
+                        total_proc_weight = len(required_procs) * proc_weight
+                        satisfied_proc_weight = sum(
+                            proc_weight for p in required_procs if p.get("is_satisfied", False)
+                        )
+                        # Blend evidence completeness with procedure completeness
+                        ev_weight = max(len(evidence_assessment), 1)
+                        total_weight = ev_weight + total_proc_weight
+                        completeness = (
+                            (completeness * ev_weight + satisfied_proc_weight)
+                            / total_weight
+                        )
+
                     results.append(
                         ClaimTypeMatch(
                             claim_type_id=canonical,  # Use claim_type string as ID
@@ -544,6 +591,7 @@ Return ONLY the JSON array, nothing else.
                             claim_description=proof_chain.get("claim_description", ""),
                             legal_basis=proof_chain.get("applicable_laws", []),
                             remedies=[r.get("name", "") for r in proof_chain.get("remedies", []) if r.get("name")],
+                            procedure_gaps=proc_gaps,
                         )
                     )
 

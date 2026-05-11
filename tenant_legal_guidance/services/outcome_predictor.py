@@ -81,6 +81,14 @@ class OutcomePredictor:
                         RETURN other
                 )
                 FILTER case_doc != null
+                LET procedures = (
+                    FOR proc_edge IN edges
+                        FILTER proc_edge._to == case_doc._id
+                        FILTER proc_edge.type == "RESULTS_IN"
+                        LET proc = DOCUMENT(proc_edge._from)
+                        FILTER proc != null AND proc.type == "legal_procedure"
+                        RETURN proc.name
+                )
                 LIMIT @limit
                 RETURN {
                     claim: claim,
@@ -93,7 +101,8 @@ class OutcomePredictor:
                     case_ruling_type: case_doc.ruling_type,
                     case_damages: case_doc.damages_awarded,
                     case_relief: case_doc.relief_granted,
-                    case_name: case_doc.name
+                    case_name: case_doc.name,
+                    procedures: procedures
                 }
             """
 
@@ -121,6 +130,14 @@ class OutcomePredictor:
                     FILTER cd.type == "case_document"
                     FILTER cd.outcome != null
                     FILTER @claim_type IN (cd.attributes.claim_types || [])
+                    LET procedures = (
+                        FOR proc_edge IN edges
+                            FILTER proc_edge._to == cd._id
+                            FILTER proc_edge.type == "RESULTS_IN"
+                            LET proc = DOCUMENT(proc_edge._from)
+                            FILTER proc != null AND proc.type == "legal_procedure"
+                            RETURN proc.name
+                    )
                     LIMIT @limit
                     RETURN {
                         claim: null,
@@ -133,7 +150,8 @@ class OutcomePredictor:
                         case_ruling_type: cd.ruling_type,
                         case_damages: cd.damages_awarded,
                         case_relief: cd.relief_granted,
-                        case_name: cd.name
+                        case_name: cd.name,
+                        procedures: procedures
                     }
                 """
                 cursor2 = self.kg.db.aql.execute(
@@ -153,6 +171,35 @@ class OutcomePredictor:
                 )
             except Exception as e:
                 self.logger.error(f"Strategy 2 failed: {e}")
+
+        # Strategy 3: M4c ADDRESSES edges — CASE_DOCUMENT → ADDRESSES → CLAIM_TYPE
+        if len(cases) < limit:
+            try:
+                seen_keys = {c.get("claim_id") for c in cases}
+                m4c_cases = self.kg.get_cases_for_claim_type(claim_type, limit=limit)
+                for cd in m4c_cases:
+                    if cd.get("id") not in seen_keys:
+                        cases.append({
+                            "claim": None,
+                            "outcome": None,
+                            "claim_id": cd["id"],
+                            "claim_damages": None,
+                            "claim_relief": cd.get("outcome"),
+                            "claim_outcome": cd.get("outcome"),
+                            "case_outcome": cd.get("outcome"),
+                            "case_ruling_type": None,
+                            "case_damages": None,
+                            "case_relief": None,
+                            "case_name": cd.get("name", ""),
+                            "procedures": [],
+                            "_m4c_url": cd.get("url", ""),
+                        })
+                        seen_keys.add(cd["id"])
+                self.logger.info(
+                    f"Strategy 3 (M4c ADDRESSES edges): total {len(cases)} cases"
+                )
+            except Exception as e:
+                self.logger.error(f"Strategy 3 failed: {e}")
 
         # Score similarity
         scored_cases = []
@@ -370,10 +417,23 @@ class OutcomePredictor:
             outcome_type = "unfavorable"
             disposition = "dismissed"
 
+        # Aggregate procedures used across similar cases
+        procedure_counts: dict[str, int] = {}
+        for case in similar_cases:
+            for proc_name in (case.get("procedures") or []):
+                procedure_counts[proc_name] = procedure_counts.get(proc_name, 0) + 1
+
         # Generate reasoning
         reasoning = f"Based on {total_count} similar case(s): {favorable_count} favorable, {total_count - favorable_count} unfavorable. "
         reasoning += f"Evidence strength: {evidence_strength}. "
-        reasoning += f"Predicted probability: {probability:.0%}"
+        reasoning += f"Predicted probability: {probability:.0%}."
+        if procedure_counts:
+            top_procedures = sorted(procedure_counts.items(), key=lambda x: x[1], reverse=True)
+            proc_summary = ", ".join(
+                f"{name} ({count}/{total_count} cases)"
+                for name, count in top_procedures[:3]
+            )
+            reasoning += f" Procedures used in similar cases: {proc_summary}."
 
         return OutcomePrediction(
             outcome_type=outcome_type,

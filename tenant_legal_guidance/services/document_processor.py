@@ -546,6 +546,7 @@ class DocumentProcessor:
 
         # Step 5.7: Link CASE_DOCUMENT to all entities extracted from this case
         # Creates ADDRESSES (→ LEGAL_CLAIM), CITES (→ LAW), RESULTS_IN (→ LEGAL_OUTCOME) edges
+        # Also creates LEGAL_PROCEDURE --[RESULTS_IN]--> CASE_DOCUMENT (procedure initiated this case)
         if metadata.document_type == LegalDocumentType.COURT_OPINION and case_document_entity:
             try:
                 type_to_rel = {
@@ -558,6 +559,17 @@ class DocumentProcessor:
                 for entity_id in all_candidate_ids:
                     entity = self.knowledge_graph.get_entity(entity_id)
                     if not entity:
+                        continue
+                    # LEGAL_PROCEDURE edge is reversed: procedure --[RESULTS_IN]--> case_document
+                    # (the procedure initiated/produced this case, not the other way around)
+                    if entity.entity_type == EntityType.LEGAL_PROCEDURE:
+                        rel = LegalRelationship(
+                            source_id=entity_id,
+                            target_id=case_document_entity.id,
+                            relationship_type=RelationshipType.RESULTS_IN,
+                        )
+                        if self.knowledge_graph.add_relationship(rel):
+                            edges_created += 1
                         continue
                     rel_type = type_to_rel.get(entity.entity_type)
                     if not rel_type:
@@ -575,6 +587,33 @@ class DocumentProcessor:
                 )
             except Exception as e:
                 self.logger.error(f"Step 5.7 case-entity linking failed: {e}", exc_info=True)
+
+            # Step 5.7b: CASE_DOCUMENT → ADDRESSES → CLAIM_TYPE nodes
+            try:
+                all_case_entity_ids = list(set(proof_chain_entity_ids + [e.id for e in added_entities]))
+                claim_type_node_keys_seen: set[str] = set()
+                for entity_id in all_case_entity_ids:
+                    entity = self.knowledge_graph.get_entity(entity_id)
+                    if not entity or entity.entity_type != EntityType.LEGAL_CLAIM:
+                        continue
+                    claim_type_str = getattr(entity, "claim_type", None)
+                    if not claim_type_str:
+                        continue
+                    ct_key = self.knowledge_graph.upsert_claim_type_node(claim_type_str)
+                    if ct_key in claim_type_node_keys_seen:
+                        continue
+                    claim_type_node_keys_seen.add(ct_key)
+                    self.knowledge_graph.add_relationship(LegalRelationship(
+                        source_id=case_document_entity.id,
+                        target_id=ct_key,
+                        relationship_type=RelationshipType.ADDRESSES,
+                    ))
+                if claim_type_node_keys_seen:
+                    self.logger.info(
+                        f"Step 5.7b: Linked CASE_DOCUMENT to {len(claim_type_node_keys_seen)} claim_type nodes"
+                    )
+            except Exception as e:
+                self.logger.error(f"Step 5.7b claim_type node linking failed: {e}", exc_info=True)
 
         # Step 5.8: Cross-type linking — connect new entities to existing graph entities
         # by claim_type, shared legal concepts, and semantic similarity

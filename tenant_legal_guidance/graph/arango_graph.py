@@ -190,12 +190,8 @@ class ArangoDBGraph:
                     pass
             # Create vertex collections for all entity types
             vertex_collections = [
-                "actors",
                 "laws",
-                "remedies",
-                "court_cases",
                 "legal_procedures",
-                "damages",
                 "legal_concepts",
                 # Organizing entities
                 "tenant_groups",
@@ -210,7 +206,7 @@ class ArangoDBGraph:
                 "legal_outcomes",
                 "organizing_outcomes",
                 # Issues and events
-                "tenant_issues",
+                "tenant_issues",  # legacy collection still queried by compute_next_steps AQL
                 "events",
                 # Documentation and evidence
                 "documents",
@@ -571,78 +567,6 @@ class ArangoDBGraph:
         except Exception as e:
             self.logger.warning(f"Error deleting source by locator: {e}")
             return False
-
-    def ensure_text_entities(
-        self, source_id: str, full_text: str, chunk_size: int = 3500
-    ) -> dict[str, object]:
-        """DEPRECATED: legacy path that stored text as entities. Prefer register_source_with_text which uses text_chunks."""
-        try:
-            canon = canonicalize_text(full_text)
-            src_sha = source_id.split(":", 1)[1] if ":" in source_id else sha256(canon)
-            full_blob_id = self.upsert_text_blob(canon)
-            ent_coll = self.db.collection("entities")
-            textdoc_id = f"textdoc:{src_sha}"
-            doc = {
-                "_key": textdoc_id,
-                "type": "TEXT_DOCUMENT",
-                "name": f"Source {src_sha}",
-                "attributes": {
-                    "source_id": source_id,
-                    "blob_id": full_blob_id,
-                    "length": len(canon),
-                },
-            }
-            if ent_coll.has(textdoc_id):
-                ent_coll.update(doc)
-            else:
-                ent_coll.insert(doc)
-            total_len = len(canon)
-            chunk_ids: list[str] = []
-            idx = 0
-            start = 0
-            step = max(1, int(chunk_size))
-            while start < total_len:
-                end = min(total_len, start + step)
-                chunk_text = canon[start:end]
-                blob_id = self.upsert_text_blob(chunk_text)
-                chunk_id = f"textchunk:{src_sha}:{idx}"
-                chunk_doc = {
-                    "_key": chunk_id,
-                    "type": "TEXT_CHUNK",
-                    "name": f"Chunk {idx} of {src_sha}",
-                    "attributes": {
-                        "chunk_index": idx,
-                        "blob_id": blob_id,
-                        "sha256": blob_id.split(":", 1)[1] if ":" in blob_id else None,
-                        "start_offset": start,
-                        "end_offset": end,
-                        "source_id": source_id,
-                        "textdoc_id": textdoc_id,
-                    },
-                }
-                if ent_coll.has(chunk_id):
-                    ent_coll.update(chunk_doc)
-                else:
-                    ent_coll.insert(chunk_doc)
-                chunk_ids.append(chunk_id)
-                idx += 1
-                start = end
-            return {
-                "textdoc_id": textdoc_id,
-                "chunk_ids": chunk_ids,
-                "total_length": total_len,
-                "chunk_size": step,
-                "src_sha": src_sha,
-            }
-        except Exception as e:
-            self.logger.error(f"ensure_text_entities failed for {source_id}: {e}")
-            return {
-                "textdoc_id": "",
-                "chunk_ids": [],
-                "total_length": 0,
-                "chunk_size": int(chunk_size),
-                "src_sha": "",
-            }
 
     def register_source_with_text(
         self,
@@ -1580,7 +1504,7 @@ class ArangoDBGraph:
         # Deduplicate: skip if identical edge exists
         try:
             aql = """
-            FOR e IN @@edge
+            FOR e IN edges
                 FILTER e._from == CONCAT(@from_coll, '/', @from_id) AND e._to == CONCAT(@to_coll, '/', @to_id) AND e.type == @type
                 LIMIT 1
                 RETURN e
@@ -2849,6 +2773,29 @@ class ArangoDBGraph:
             self.logger.error(f"Failed to get required evidence for {claim_type}: {e}")
             return []
 
+    def get_required_procedures_for_claim_type(self, claim_type: str) -> list[dict]:
+        """
+        Get required procedures for a claim type string.
+
+        Args:
+            claim_type: The claim type string (e.g., "DEREGULATION_CHALLENGE")
+
+        Returns:
+            List of legal_procedure entities with linked_claim_type=claim_type
+        """
+        try:
+            aql = """
+            FOR proc IN entities
+                FILTER proc.type == "legal_procedure"
+                FILTER proc.linked_claim_type == @claim_type
+                RETURN proc
+            """
+            cursor = self.db.aql.execute(aql, bind_vars={"claim_type": claim_type})
+            return list(cursor)
+        except Exception as e:
+            self.logger.error(f"Failed to get required procedures for {claim_type}: {e}")
+            return []
+
     def get_all_claim_types(self) -> list[str]:
         """
         Get all unique claim type strings from stored claims.
@@ -3057,3 +3004,387 @@ class ArangoDBGraph:
         except Exception as e:
             self.logger.error(f"Failed to get case document for claim {claim_key}: {e}")
             return None
+
+    # Canonical entity types where name-based dedup applies across documents
+    _CANONICAL_ENTITY_TYPES = frozenset({"law", "evidence", "legal_procedure"})
+
+    def upsert_canonical_entity(self, entity_type: str, name: str) -> str | None:
+        """
+        For canonical entity types, return the _key of an existing node with the same
+        name (case-insensitive), or None if no match found.
+
+        Algorithm:
+        1. Exact name match (case-insensitive) → return existing _key
+        2. BM25 candidates + cosine similarity >= 0.90 → return best match _key
+        3. Below threshold → return None (caller proceeds with its generated ID)
+
+        Only applies to _CANONICAL_ENTITY_TYPES. Returns None immediately for others.
+        """
+        if entity_type not in self._CANONICAL_ENTITY_TYPES:
+            return None
+        name = name.strip()
+        if not name:
+            return None
+
+        # Step 1: exact name match (case-insensitive)
+        try:
+            cursor = self.db.aql.execute(
+                """FOR doc IN entities
+                   FILTER doc.type == @t AND LOWER(doc.name) == LOWER(@name)
+                   LIMIT 1 RETURN doc._key""",
+                bind_vars={"t": entity_type, "name": name},
+            )
+            results = list(cursor)
+            if results:
+                self.logger.info(
+                    f"[dedup] '{name}' ({entity_type}) → existing {results[0]} (exact name match)"
+                )
+                return results[0]
+        except Exception as e:
+            self.logger.warning(f"Exact {entity_type} name lookup failed: {e}")
+
+        # Step 2: BM25 candidates + cosine similarity
+        try:
+            cursor = self.db.aql.execute(
+                """FOR doc IN kg_entities_view
+                   SEARCH ANALYZER(TOKENS(@name, "text_en") ANY IN doc.name, "text_en")
+                   FILTER doc.type == @t
+                   SORT BM25(doc) DESC LIMIT 5
+                   RETURN {key: doc._key, name: doc.name}""",
+                bind_vars={"t": entity_type, "name": name},
+            )
+            candidates = list(cursor)
+        except Exception:
+            candidates = []
+
+        if candidates:
+            try:
+                from tenant_legal_guidance.services.embeddings import EmbeddingsService
+                import numpy as np
+
+                emb_svc = EmbeddingsService()
+                query_vec = emb_svc.embed([name])[0]
+                best_key, best_score = None, 0.0
+                for cand in candidates:
+                    cand_vec = emb_svc.embed([cand["name"]])[0]
+                    score = float(np.dot(query_vec, cand_vec)) / max(
+                        float(np.linalg.norm(query_vec) * np.linalg.norm(cand_vec)), 1e-9
+                    )
+                    if score > best_score:
+                        best_score, best_key = score, cand["key"]
+                if best_score >= 0.90 and best_key:
+                    self.logger.info(
+                        f"[dedup] '{name}' ({entity_type}) → existing {best_key} (cosine={best_score:.3f})"
+                    )
+                    return best_key
+            except Exception as emb_err:
+                self.logger.warning(f"Embedding dedup for {entity_type} failed: {emb_err}")
+
+        return None
+
+    def get_cases_for_claim_type(self, claim_type_name: str, limit: int = 10) -> list[dict]:
+        """
+        Traverse CLAIM_TYPE ← ADDRESSES ← CASE_DOCUMENT to get cases that addressed
+        this claim type (M4c edges written during ingestion Step 5.7b).
+
+        Args:
+            claim_type_name: UPPERCASE_SNAKE_CASE claim type name (e.g. "SUCCESSION_RIGHTS")
+            limit: Max cases to return, sorted by decision_date DESC
+
+        Returns:
+            List of {id, name, url, outcome, decision_date, court}
+        """
+        try:
+            aql = """
+            FOR ct IN entities
+                FILTER ct.type == "claim_type"
+                FILTER ct.name == @claim_type_name
+                FOR e IN edges
+                    FILTER e._to == ct._id
+                    FILTER e.type == "ADDRESSES"
+                    LET doc = DOCUMENT(e._from)
+                    FILTER doc != null AND doc.type == "case_document"
+                    SORT doc.decision_date DESC
+                    LIMIT @limit
+                    RETURN DISTINCT {
+                        id: doc._key,
+                        name: doc.name,
+                        url: doc.source_metadata.source,
+                        outcome: doc.outcome,
+                        decision_date: doc.decision_date,
+                        court: doc.court
+                    }
+            """
+            cursor = self.db.aql.execute(
+                aql, bind_vars={"claim_type_name": claim_type_name, "limit": limit}
+            )
+            results = list(cursor)
+            self.logger.info(
+                f"get_cases_for_claim_type('{claim_type_name}'): {len(results)} cases via ADDRESSES edges"
+            )
+            return results
+        except Exception as e:
+            self.logger.error(f"get_cases_for_claim_type failed for '{claim_type_name}': {e}")
+            return []
+
+    # -------------------------------------------------------------------------
+    # M4c — Query-informed extraction methods
+    # -------------------------------------------------------------------------
+
+    def get_all_claim_type_names(self) -> list[str]:
+        """Return names of all claim_type nodes in the graph."""
+        try:
+            aql = """
+            FOR doc IN entities
+                FILTER doc.type == "claim_type"
+                RETURN doc.name
+            """
+            cursor = self.db.aql.execute(aql)
+            return list(cursor)
+        except Exception as e:
+            self.logger.error(f"Failed to get claim type names: {e}")
+            return []
+
+    def get_all_claim_type_nodes(self) -> list[dict]:
+        """Return all claim_type nodes (for ClaimMatcher and API listing)."""
+        try:
+            aql = """
+            FOR doc IN entities
+                FILTER doc.type == "claim_type"
+                RETURN doc
+            """
+            cursor = self.db.aql.execute(aql)
+            return list(cursor)
+        except Exception as e:
+            self.logger.error(f"Failed to get claim type nodes: {e}")
+            return []
+
+    def get_extraction_context(self, claim_type_names: list[str]) -> dict:
+        """
+        Query existing graph entities for the given claim type names.
+
+        Returns a structured dict for injection into extraction prompts so the
+        LLM can reuse existing entity IDs rather than creating duplicates.
+
+        Structure:
+        {
+          "claim_types": [{"id": "...", "name": "SUCCESSION_RIGHTS"}],
+          "evidence": [{"id": "...", "name": "...", "description": "..."}],
+          "laws": [{"id": "...", "name": "...", "citation": "..."}],
+          "procedures": [{"id": "...", "name": "...", "description": "..."}],
+        }
+        """
+        if not claim_type_names:
+            return {"claim_types": [], "evidence": [], "laws": [], "procedures": []}
+
+        try:
+            # Claim type nodes
+            aql_ct = """
+            FOR doc IN entities
+                FILTER doc.type == "claim_type"
+                FILTER doc.name IN @names
+                RETURN {id: doc._key, name: doc.name}
+            """
+            claim_types = list(
+                self.db.aql.execute(aql_ct, bind_vars={"names": claim_type_names})
+            )
+
+            # Canonical evidence required for these claim types
+            aql_ev = """
+            FOR doc IN entities
+                FILTER doc.type == "evidence"
+                FILTER doc.evidence_context == "required"
+                FILTER doc.linked_claim_type IN @names
+                RETURN {id: doc._key, name: doc.name, description: doc.description}
+            """
+            evidence = list(
+                self.db.aql.execute(aql_ev, bind_vars={"names": claim_type_names})
+            )
+
+            # Laws linked to these claim types (via ADDRESSES edge or linked_claim_type attr)
+            aql_law = """
+            FOR doc IN entities
+                FILTER doc.type == "law"
+                FILTER doc.linked_claim_type IN @names
+                RETURN {id: doc._key, name: doc.name, citation: (doc.citation OR doc.name)}
+            """
+            laws = list(
+                self.db.aql.execute(aql_law, bind_vars={"names": claim_type_names})
+            )
+
+            # Procedures linked to these claim types
+            aql_proc = """
+            FOR doc IN entities
+                FILTER doc.type == "legal_procedure"
+                FILTER doc.linked_claim_type IN @names
+                RETURN {id: doc._key, name: doc.name, description: doc.description}
+            """
+            procedures = list(
+                self.db.aql.execute(aql_proc, bind_vars={"names": claim_type_names})
+            )
+
+            return {
+                "claim_types": claim_types,
+                "evidence": evidence,
+                "laws": laws,
+                "procedures": procedures,
+            }
+        except Exception as e:
+            self.logger.error(f"Failed to get extraction context: {e}")
+            return {"claim_types": [], "evidence": [], "laws": [], "procedures": []}
+
+    def upsert_claim_type_node(self, claim_type_str: str) -> str:
+        """
+        Return the entity ID for the given claim type string, creating a node if needed.
+
+        Algorithm:
+        1. Normalize to UPPERCASE_SNAKE_CASE
+        2. Exact name match → return existing ID
+        3. BM25 search → cosine similarity dedup (AUTO_MERGE >= 0.92)
+        4. Below threshold → create new claim_type node
+
+        Returns the entity _key of the canonical claim_type node.
+        """
+        import hashlib
+
+        normalized = claim_type_str.upper().replace(" ", "_").replace("-", "_")
+
+        # Step 1: exact match
+        try:
+            aql_exact = """
+            FOR doc IN entities
+                FILTER doc.type == "claim_type"
+                FILTER doc.name == @name
+                LIMIT 1
+                RETURN doc._key
+            """
+            cursor = self.db.aql.execute(aql_exact, bind_vars={"name": normalized})
+            results = list(cursor)
+            if results:
+                return results[0]
+        except Exception as e:
+            self.logger.warning(f"Exact claim type lookup failed: {e}")
+
+        # Step 2: BM25 candidates + cosine dedup
+        try:
+            aql_candidates = """
+            FOR doc IN kg_entities_view
+                SEARCH ANALYZER(
+                    TOKENS(@name, "text_en") ANY IN doc.name, "text_en"
+                )
+                FILTER doc.type == "claim_type"
+                SORT BM25(doc) DESC
+                LIMIT 10
+                RETURN {key: doc._key, name: doc.name, description: doc.description}
+            """
+            cursor = self.db.aql.execute(aql_candidates, bind_vars={"name": normalized})
+            candidates = list(cursor)
+        except Exception:
+            candidates = []
+
+        if candidates:
+            try:
+                from tenant_legal_guidance.services.embeddings import EmbeddingsService
+                import numpy as np
+
+                emb_svc = EmbeddingsService()
+                query_vec = emb_svc.embed([normalized])[0]
+
+                best_key = None
+                best_score = 0.0
+                for cand in candidates:
+                    cand_text = f"{cand['name']}. {cand.get('description') or ''}"
+                    cand_vec = emb_svc.embed([cand_text])[0]
+                    score = float(np.dot(query_vec, cand_vec)) / max(
+                        float(np.linalg.norm(query_vec) * np.linalg.norm(cand_vec)), 1e-9
+                    )
+                    if score > best_score:
+                        best_score = score
+                        best_key = cand["key"]
+
+                AUTO_MERGE_THRESHOLD = 0.92
+                if best_score >= AUTO_MERGE_THRESHOLD and best_key:
+                    self.logger.info(
+                        f"Claim type '{normalized}' merged into '{best_key}' (score={best_score:.3f})"
+                    )
+                    return best_key
+            except Exception as emb_err:
+                self.logger.warning(f"Embedding dedup for claim type failed: {emb_err}")
+
+        # Step 3: create new claim_type node
+        node_key = f"claim_type:{hashlib.sha256(normalized.encode()).hexdigest()[:8]}"
+        try:
+            collection = self.db.collection("entities")
+            if not collection.has(node_key):
+                collection.insert({
+                    "_key": node_key,
+                    "type": "claim_type",
+                    "name": normalized,
+                    "description": f"Claim type: {normalized.replace('_', ' ').title()}",
+                    "source_metadata": {"source": "auto_created", "source_type": "system"},
+                })
+                self.logger.info(f"Created new claim_type node: {node_key} ({normalized})")
+        except Exception as e:
+            self.logger.error(f"Failed to create claim_type node for '{normalized}': {e}")
+
+        return node_key
+
+    def enrich_existing_node(
+        self,
+        existing_key: str,
+        new_chunk_ids: list[str] | None = None,
+        new_source_id: str | None = None,
+        new_description_fragment: str | None = None,
+    ) -> bool:
+        """
+        Enrich an existing canonical node with additional evidence from a new source.
+
+        - Appends to chunk_ids (deduped)
+        - Appends to source_ids (deduped)
+        - Appends description fragment with separator
+
+        Used when the LLM identifies an existing entity via existing_entity_id.
+        """
+        try:
+            updates: dict = {}
+            if new_chunk_ids:
+                updates["chunk_ids"] = new_chunk_ids
+            if new_source_id:
+                updates["source_ids"] = [new_source_id]
+            if new_description_fragment:
+                updates["_description_append"] = new_description_fragment
+
+            if not updates:
+                return True
+
+            # Build AQL that merges arrays and appends description
+            set_clauses = []
+            bind_vars: dict = {"key": existing_key}
+
+            if new_chunk_ids:
+                bind_vars["new_chunks"] = new_chunk_ids
+                set_clauses.append(
+                    "chunk_ids: APPEND(doc.chunk_ids OR [], @new_chunks, true)"
+                )
+            if new_source_id:
+                bind_vars["new_source"] = new_source_id
+                set_clauses.append(
+                    "source_ids: APPEND(doc.source_ids OR [], [@new_source], true)"
+                )
+            if new_description_fragment:
+                bind_vars["desc_frag"] = new_description_fragment
+                set_clauses.append(
+                    'description: CONCAT(doc.description OR "", "\\n---\\n", @desc_frag)'
+                )
+
+            aql = f"""
+            LET doc = DOCUMENT(CONCAT("entities/", @key))
+            UPDATE @key WITH {{
+                {", ".join(set_clauses)}
+            }} IN entities
+            """
+            self.db.aql.execute(aql, bind_vars=bind_vars)
+            return True
+        except Exception as e:
+            self.logger.error(f"Failed to enrich node '{existing_key}': {e}")
+            return False

@@ -7,9 +7,7 @@ from collections import defaultdict
 
 from tenant_legal_guidance.config import get_settings
 from tenant_legal_guidance.graph.arango_graph import ArangoDBGraph
-from tenant_legal_guidance.models.claim_types import ClaimType
 from tenant_legal_guidance.models.entities import get_claim_retrieval_types
-from tenant_legal_guidance.services.case_law_retriever import CaseLawRetriever
 from tenant_legal_guidance.services.embeddings import EmbeddingsService
 from tenant_legal_guidance.services.vector_store import QdrantVectorStore
 
@@ -26,8 +24,7 @@ class HybridRetriever:
         # Initialize vector components (required)
         self.embeddings_svc = EmbeddingsService()
         self.vector_store = vector_store or QdrantVectorStore()
-        # Initialize case law retriever
-        self.case_law_retriever = CaseLawRetriever(knowledge_graph, self.vector_store)
+
 
     def retrieve(
         self,
@@ -135,22 +132,6 @@ class HybridRetriever:
                     f"{len(results['entities'])} entities"
                 )
 
-            # ENHANCED: Detect claim types in query using ClaimType enum
-            detected_claim_types = self._detect_claim_types_in_query(query_text)
-
-            # Search for claim type entities explicitly
-            for claim_type in detected_claim_types:
-                try:
-                    claim_entities = self.kg.search_entities_by_text(
-                        claim_type.value, types=["legal_claim"], limit=5
-                    )
-                    # Add to results if not already present
-                    for ce in claim_entities:
-                        if ce.id not in [e.id for e in results["entities"]]:
-                            results["entities"].append(ce)
-                except Exception:
-                    pass
-
             # Search for evidence types explicitly (e.g., "DHCR rent history", "prior tenant affidavit")
             evidence_keywords = self._detect_evidence_keywords_in_query(query_text)
 
@@ -232,43 +213,6 @@ class HybridRetriever:
                 scores[item_id] += 1.0 / (k + rank)
         sorted_items = sorted(scores.items(), key=lambda x: x[1], reverse=True)
         return sorted_items
-
-    def _detect_claim_types_in_query(self, query: str) -> list[ClaimType]:
-        """
-        Detect claim types mentioned in query text using ClaimType enum.
-
-        Uses keyword patterns derived from ClaimType values to find relevant
-        claim types in the query.
-
-        Args:
-            query: The query text to analyze
-
-        Returns:
-            List of ClaimType enum values detected in the query
-        """
-        query_upper = query.upper()
-        detected = []
-
-        # Mapping of keywords to claim types (derived from ClaimType enum)
-        keyword_map = {
-            ClaimType.RENT_OVERCHARGE: ["OVERCHARGE", "OVER CHARGE", "ILLEGAL RENT", "RENT STABILIZED"],
-            ClaimType.DEREGULATION_CHALLENGE: ["DEREGULATION", "DEREGULATED", "DECONTROL", "HIGH RENT VACANCY"],
-            ClaimType.HABITABILITY_VIOLATION: ["HABITABILITY", "UNINHABITABLE", "UNLIVABLE", "WARRANTY OF HABITABILITY"],
-            ClaimType.HP_ACTION_REPAIRS: ["HP ACTION", "REPAIRS", "VIOLATIONS", "HOUSING COURT"],
-            ClaimType.HARASSMENT: ["HARASSMENT", "HARASS", "INTIMIDATE", "THREATENING"],
-            ClaimType.SECURITY_DEPOSIT_RETURN: ["SECURITY DEPOSIT", "DEPOSIT RETURN", "DEPOSIT NOT RETURNED"],
-            ClaimType.ILLEGAL_LOCKOUT: ["LOCKOUT", "LOCKED OUT", "ILLEGAL LOCK"],
-            ClaimType.RETALIATORY_EVICTION: ["RETALIATION", "RETALIATORY", "REVENGE EVICTION"],
-            ClaimType.LEASE_VIOLATION: ["LEASE VIOLATION", "BREACH OF LEASE"],
-            ClaimType.CONSTRUCTIVE_EVICTION: ["CONSTRUCTIVE EVICTION", "FORCED TO LEAVE"],
-            ClaimType.HOUSING_DISCRIMINATION: ["DISCRIMINATION", "DISCRIMINATE", "FAIR HOUSING"],
-        }
-
-        for claim_type, keywords in keyword_map.items():
-            if any(kw in query_upper for kw in keywords):
-                detected.append(claim_type)
-
-        return detected
 
     def _detect_evidence_keywords_in_query(self, query: str) -> list[str]:
         """

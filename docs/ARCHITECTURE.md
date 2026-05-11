@@ -1,292 +1,200 @@
 # Legal Knowledge Graph Architecture
 
+> Last updated: 2026-04-19 (M4c). For project status see `ROADMAP.md`.
+
 ## Overview
 
-This document explains how quotes, chunks, and entities work together in the Tenant Legal Guidance system. This architecture supports both **legal sources** (laws, guides) and **cases** (court opinions), enabling predictive legal analysis backed by solid evidence.
+Tenant Legal Guidance is a hybrid retrieval + reasoning system. Given a tenant's situation in plain language, it identifies applicable legal claims, required evidence, procedural requirements, and comparable case outcomes.
+
+**Stack:** ArangoDB (knowledge graph) + Qdrant (vector store) + DeepSeek (LLM reasoning)
 
 ---
 
-## Core Concepts
+## Core Data Model
 
-### Entities (ArangoDB)
-**What they are:** Structured legal concepts extracted from documents.
+### ArangoDB — `entities` collection
 
-**Examples:**
-- Laws: "Warranty of Habitability", "Rent Stabilization Law RSC §26-511"
-- Remedies: "HP Action", "Rent Reduction", "Housing Court Complaint"
-- Procedures: "File Complaint with DHPD", "Serve Notice to Cure"
-- Evidence: "Photos of Mold", "Repair Request Records", "Receipts"
-- Cases: "756 Liberty Realty LLC v Garcia"
+Structured legal concepts extracted from source documents. All nodes share a common schema with type-specific fields in `attributes`.
 
-**How they're stored:**
-- **Collection:** `entities` in ArangoDB
-- **Fields:** `id`, `type`, `name`, `description`, `best_quote`, `chunk_ids`, `source_ids`, `outcome` (for cases)
-- **Links:** Connected via `chunk_ids` list (all chunks mentioning this entity)
+| Entity type | What it represents | Canonical? |
+|---|---|---|
+| `law` | A statute, code section, or legal rule | Yes — deduplicated by name |
+| `evidence` | A canonical evidence type required to prove a claim | Yes — deduplicated by name |
+| `legal_procedure` | A procedural requirement (SOL, filing deadline, etc.) | Yes — deduplicated by name |
+| `claim_type` | A dynamic claim type node (e.g. SUCCESSION_RIGHTS) | Yes — deduplicated by `upsert_claim_type_node()` |
+| `legal_claim` | A specific claim extracted from a case or guide | No — case-specific |
+| `case_document` | A court opinion or legal case | No — one per source |
+| `legal_outcome` | An outcome from a specific case | No — case-specific |
+| `damages` | Damages awarded in a specific case | No — case-specific |
 
-**How they're used:**
-- Build knowledge graph of legal concepts
-- Enable relationship tracking (law → remedy → procedure)
-- Support proof chains for legal arguments
-- Filter case law by outcome (tenant won/lost)
+**Canonical types** (law, evidence, legal_procedure, claim_type) are deduplicated across documents — many source documents may reference the same law and it should appear as one graph node. **Case-specific types** are unique per case.
 
----
+**Key generation:** `{type}:{sha256(type:name)[:8]}` for most types. Canonical types go through a name-based dedup gate before this runs (see Deduplication below).
 
-### Chunks (Qdrant)
-**What they are:** 3.5k-character text blocks from source documents, with vector embeddings for semantic search.
+### ArangoDB — `edges` collection
 
-**Purpose:**
-- **Semantic search:** Find relevant passages via vector similarity
-- **Context display:** Show users the actual text from sources
-- **Entity anchoring:** Link entities back to source text locations
+Relationships between entities. Key relationship types:
 
-**How they're stored:**
-- **Collection:** `legal_chunks` in Qdrant
-- **ID format:** `{source_uuid}:{chunk_index}` (e.g., "550e8400...:5")
-- **Payload:** Contains `text`, `entities` list, metadata, `prev_chunk_id`/`next_chunk_id`
+| Edge type | From → To | Meaning |
+|---|---|---|
+| `IS_TYPE_OF` | `legal_claim` → `claim_type` | This claim is an instance of this claim type |
+| `ADDRESSES` | `case_document` → `claim_type` | This case addressed this claim type |
+| `ADDRESSES` | `law` → `legal_claim` | This law governs this claim |
+| `REQUIRED_FOR` | `evidence` → `legal_claim` | This evidence is required to prove this claim |
+| `REQUIRED_FOR` | `legal_procedure` → `claim_type` | This procedure is required for this claim type |
+| `RESULTS_IN` | `legal_claim` → `legal_outcome` | This claim resulted in this outcome |
+| `RESULTS_IN` | `legal_procedure` → `case_document` | This procedure was used in this case |
 
-**How they're used:**
-- Vector search to find similar passages
-- Context expansion (get chunk ±N neighbors)
-- Display actual source text to users
-- Navigate document structure
+### Qdrant — `legal_chunks` collection
+
+3,000-character text chunks from source documents, with vector embeddings for semantic search. Chunks are the primary text retrieval mechanism — entities in ArangoDB hold structured metadata and relationships, but the actual source text lives in Qdrant.
+
+**Payload fields:** `text`, `source_id`, `source_type`, `doc_title`, `document_type`, `organization`, `jurisdiction`, `entities` (list of entity IDs appearing in this chunk), `chunk_index`, `prev_chunk_id`, `next_chunk_id`, `content_hash`
 
 ---
 
-### Quotes (Simplified)
-**What they are:** Best sentence highlighting an entity, with explanation.
+## Deduplication
 
-**Purpose:** Show users the specific text that connects an entity to its source.
+### Claim type nodes (`claim_type`)
+`upsert_claim_type_node(claim_type_str)` in `arango_graph.py`:
+1. Normalize to UPPERCASE_SNAKE_CASE
+2. Exact name match → return existing `_key`
+3. BM25 candidates + cosine similarity ≥ 0.92 → auto-merge
+4. Below threshold → create new node
 
-**Implementation:**
-- Each entity has ONE `best_quote` object
-- **Not a separate collection** - stored directly in entity document
-- Includes: `text`, `source_id`, `chunk_id`, `explanation`
+### Canonical entities (law, evidence, legal_procedure)
+`upsert_canonical_entity(entity_type, name)` in `arango_graph.py`:
+1. Case-insensitive exact name match → return existing `_key`
+2. BM25 candidates + cosine similarity ≥ 0.90 → return best match `_key`
+3. Below threshold → return None (caller uses citation-based hash)
 
-**Display format:**
-```
-Warranty of Habitability
-"Every landlord must maintain premises in habitable condition and free from hazards."
+Called in `proof_chain.py` before creating each law, evidence, or procedure entity. If an existing canonical node is found, its `_key` replaces the generated ID so `add_entity()` enriches the existing node rather than creating a duplicate.
 
-[NYC Tenant Rights Guide, Section 3.2]
-(This quote defines the landlord's core obligation under NYC housing law.)
-```
-
-**Multi-source support:**
-- Entity also has `all_quotes: List[Dict]` with quotes from ALL sources
-- `best_quote` is the highest-quality one across all sources
-- Users can see: "This law appears in 3 sources with these quotes..."
+### Case-specific entities
+No name-based dedup. IDs are hashed from type + name and rely on exact `_key` match in `add_entity()`.
 
 ---
 
-## Data Flow: Ingestion
+## Ingestion Pipeline
 
 ```
-Legal Document (PDF/URL/Text)
+Source document (URL or PDF)
     ↓
-1. CHUNK TEXT (3.5k chars)
+1. SCRAPE + CHUNK
+   - BeautifulSoup (static) or Playwright (auth-gated)
+   - 3,000-char chunks with 200-char overlap
    - Store in Qdrant with embeddings
-   - Include source metadata (title, jurisdiction, document_type)
-   
+
     ↓
-2. EXTRACT ENTITIES (LLM)
-   - Laws, remedies, procedures, evidence
-   - For cases: parties, outcome, holdings
-   - Store in ArangoDB `entities`
-   
+2. ENRICH CHUNKS (LLM)
+   - Metadata enrichment: description, proves, entities
+   - Runs in parallel batches
+
     ↓
-3. EXTRACT BEST QUOTE
-   - Find all chunks mentioning entity.name
-   - Score sentences (definitions, action verbs, completeness)
-   - Pick highest-scoring sentence
-   - Generate explanation (LLM)
-   - Store as entity.best_quote
-   
+3. QUERY GRAPH CONTEXT
+   - get_all_claim_type_names() → known claim types
+   - get_extraction_context(hint_types) → existing entities for prompt injection
+   - Prevents LLM from creating duplicates of already-known entities
+
     ↓
-4. LINK ENTITY ↔ CHUNKS
-   - Add chunk IDs to entity.chunk_ids
-   - Add entity ID to chunk.payload.entities
-   - Bidirectional linkage complete
-   
+4. EXTRACT PROOF CHAINS (LLM — typed by document_type)
+   - statute prompt: laws, evidence, procedures, claims
+   - guide prompt: same but tuned for guide language
+   - case prompt: claims, outcomes, damages, cited laws
+   - Output schema includes existing_entity_id field — LLM reuses known entity IDs
+
     ↓
-5. CROSS-DOCUMENT CONSOLIDATION
-   - If entity already exists (semantic match):
-     * Add new quote to entity.all_quotes
-     * Append new chunk_ids (deduplicated)
-     * Append new source_id (deduplicated)
-     * Update best_quote if new one is better
-   - Result: Entity reflects information from ALL sources
+5. STORE ENTITIES
+   - Canonical types: name-based dedup gate → add_entity() enriches existing node
+   - Case-specific types: direct add_entity()
+   - Evidence routing for court opinions:
+     * existing_entity_id set → enrich existing canonical node
+     * evidence_context=required → new canonical standard
+     * evidence_context=presented, no match → skip (stays in Qdrant text only)
+
+    ↓
+6. WIRE RELATIONSHIPS
+   - IS_TYPE_OF: LEGAL_CLAIM → CLAIM_TYPE (via upsert_claim_type_node)
+   - ADDRESSES: CASE_DOCUMENT → CLAIM_TYPE (Step 5.7b in document_processor.py)
+   - REQUIRED_FOR: evidence/procedure → claim (from extraction)
+   - ADDRESSES: law → claim (from extraction)
 ```
 
 ---
 
-## Data Flow: Retrieval & Analysis
+## Query + Analysis Pipeline
 
 ```
-User: "My landlord won't fix the mold in my bathroom..."
+User situation (plain text)
     ↓
-1. EXTRACT ENTITIES from user story
-   - "tenant_issue:mold"
-   - "tenant_issue:repairs_not_made"
-   
+1. ANONYMIZE PII
+   - Names, addresses, phones, emails → placeholder tokens
+
     ↓
-2. RETRIEVE VIA KNOWLEDGE GRAPH
-   - Find entities in KG
-   - Follow relationships (tenant_issue → law → remedy)
-   - Get required evidence, procedures
-   
+2. HYBRID RETRIEVAL (HybridRetriever)
+   - Vector search: Qdrant ANN on situation embedding → top chunks
+   - Entity search: ArangoSearch BM25 on keyword-focused query → top entities
+   - KG expansion: 1-hop neighbors of matched entities
+   - Score fusion: RRF (Reciprocal Rank Fusion)
+
     ↓
-3. RETRIEVE CHUNKS (Vector Search)
-   - Find similar text passages
-   - Filter by document_type (case vs guide)
-   - Filter by outcome (tenant won/lost)
-   
+3. CLAIM MATCHING (ClaimMatcher)
+   - Load all claim_type nodes from graph (dynamic — not hardcoded enum)
+   - Megaprompt: situation + evidence + claim types → matched claims with scores
+   - For each matched claim: build proof chain (required evidence, procedures, laws)
+   - Assess evidence completeness + procedure gaps
+
     ↓
-4. DISPLAY ANALYSIS WITH QUOTES
-   - Show entity names
-   - Display best_quote.text with source
-   - Explain via best_quote.explanation
-   - Show multiple sources when available
+4. SIMILAR CASES (OutcomePredictor.find_similar_cases)
+   - Strategy 1: legal_claim entities with matching claim_type → traverse to case_document
+   - Strategy 2: case_document.attributes.claim_types backfill
+   - Strategy 3 (M4c): CLAIM_TYPE ← ADDRESSES ← CASE_DOCUMENT traversal (direct M4c edges)
+   - Score by evidence profile similarity
+
+    ↓
+5. OUTCOME PREDICTION (OutcomePredictor.predict_outcomes)
+   - Win rate from similar cases + evidence strength
+   - Abstain if <2 similar cases found (insufficient data)
+
+    ↓
+6. NEXT STEPS (LLM)
+   - Generate actionable next steps based on claims + gaps
 ```
-
----
-
-## The Quote Flow
-
-```
-Entity "Warranty of Habitability"
-    ↓
-Display best_quote.text:
-"Every landlord must maintain premises in habitable condition..."
-
-    ↓
-Link to source:
-best_quote.source_id → "NYC Tenant Rights Guide" (from sources collection)
-
-    ↓
-Show explanation:
-best_quote.explanation
-"This quote defines the landlord's core obligation"
-
-    ↓
-If entity in multiple sources:
-Show all_quotes count: "Appears in 3 sources"
-Allow user to browse all quotes
-```
-
----
-
-## Proof Relationships
-
-**Edges in knowledge graph represent legal logic:**
-
-```
-evidence:mold_photos
-    --[SUPPORTS]-->
-remedy:hp_action
-
-law:warranty_of_habitability
-    --[ENABLES]-->
-remedy:rent_reduction
-
-law:rent_stabilization_code
-    --[REQUIRES]-->
-evidence:lease_document
-
-law:rent_stabilization_code
-    --[APPLIES_TO]-->
-tenant_issue:overcharge_claim
-```
-
-**Used for:** Building proof chains that show legal reasoning.
 
 ---
 
 ## Key Design Decisions
 
-### Why Chunks and Quotes Are Separate
+**Dynamic claim types (M4c):** Claim types are graph nodes, not a Python enum. The `ClaimType` enum in `models/claim_types.py` exists only for API display (display_name, description) — it is never used as a validation gate during ingestion or retrieval. New claim types emerge automatically as the LLM extracts them.
 
-**Chunks** are for **retrieval** (semantic search finds relevant 3.5k passages).
+**Canonical evidence in ArangoDB only from statutes/guides:** Court opinions create evidence nodes only when they establish a new canonical standard (`evidence_context=required`). Case-specific evidence artifacts (e.g. "Smith's Marriage Certificate") stay in Qdrant text only, not as ArangoDB nodes. This keeps claim nodes clean: only the 1–4 required evidence types a tenant actually needs to gather.
 
-**Quotes** are for **display** (show users the best sentence highlighting a concept).
+**Query-informed extraction:** Before each LLM extraction call, the graph is queried for existing entities of the same claim types. The LLM receives a list of known entity IDs and is instructed to reuse them via `existing_entity_id`. This is the primary dedup mechanism; the embedding-based dedup gate is a safety net.
 
-**Not redundant because:**
-- Chunk = 3500 chars (too long to display inline)
-- Quote = 1 sentence (perfect for UI)
-- One chunk can contain multiple entities → multiple quotes
+**RRF fusion:** Hybrid retrieval uses Reciprocal Rank Fusion to combine vector search (semantic) and BM25 entity search (keyword) scores. Neither dominates — the combination handles both "what laws apply to succession rights" (keyword) and "my dad wants to add me to his stabilized lease" (semantic).
 
-### Why Quotes Are Inline (Not Separate Collection)
-
-**Simpler:** Entity document contains its own quote.
-
-**Less joins:** Display entity → show quote (no lookup needed).
-
-**Multi-source support:** `all_quotes` list shows all quotes from all sources.
-
-### Why `chunk_ids` List Instead of Provenance
-
-**Provenance table** was complex and rarely queried.
-
-**`chunk_ids` list** is simple and fast:
-- Entity → Get all chunks: `for chunk_id in entity.chunk_ids:`
-- Chunk → Get all entities: `for entity_id in chunk.entities:`
+**Evidence routing for court opinions:** Three outcomes based on `evidence_context` and `existing_entity_id`:
+1. `existing_entity_id` set → `enrich_existing_node()` — merge chunk_ids + source into canonical
+2. `evidence_context=required`, no match → create new canonical evidence node
+3. `evidence_context=presented`, no match → skip (Qdrant text only, no ArangoDB node)
 
 ---
 
-## Case Support
+## File Map
 
-### For Case Documents
-
-**Entities of type `CASE_DOCUMENT` include:**
-- `case_name`: "756 Liberty Realty LLC v Garcia"
-- `court`: "NYC Housing Court"
-- `parties`: {"plaintiff": [...], "defendant": [...]}
-- `outcome`: "plaintiff_win" | "defendant_win" | "settlement" | "dismissed"
-- `ruling_type`: "judgment" | "summary_judgment" | "dismissal"
-- `relief_granted`: ["rent_reduction", "attorney_fees", "repairs_ordered"]
-- `holdings`: ["Key legal principles established"]
-
-### Case Retrieval
-
-```python
-# Find similar cases where tenant won
-similar_cases = find_precedent_cases_with_outcome(
-    issue="mold habitability",
-    outcome="plaintiff_win",
-    jurisdiction="NYC"
-)
-
-# Result: List of CASE_DOCUMENT entities with matching outcomes
-```
-
----
-
-## Evaluation
-
-### What We Measure
-
-1. **Quote Quality**
-   - Does quote contain entity name? (+)
-   - Is it a definition/explanation? (+)
-   - Is it too vague? (-)
-
-2. **Entity ↔ Chunk Linking**
-   - Are expected chunks in entity.chunk_ids? ✓
-   - Are expected entities in chunk.entities? ✓
-
-3. **Retrieval Accuracy**
-   - Does search return relevant entities/chunks? ✓
-   - Are results ranked correctly? ✓
-
-### How We Measure
-
-**Test dataset:** 10 entities, 10 queries with expected results.
-
-**Simple evaluator:** Pass/fail checks, not complex metrics.
-
-**Target:** >80% pass rate on all tests.
-
----
-
-## Next: Implementation
-
-See `docs/INGESTION_FLOW.md` for detailed ingestion pipeline steps.
+| Area | Key files |
+|---|---|
+| Graph DB | `graph/arango_graph.py` |
+| Vector store | `services/vector_store.py` |
+| Ingestion orchestration | `services/document_processor.py` |
+| LLM extraction | `services/claim_extractor.py` |
+| Proof chain building | `services/proof_chain.py` |
+| Hybrid retrieval | `services/retrieval.py` |
+| Claim matching | `services/claim_matcher.py` |
+| Outcome prediction + cases | `services/outcome_predictor.py` |
+| LLM prompts | `tenant_legal_guidance/prompts.py` |
+| Entity models | `models/entities.py` |
+| API routes | `api/routes.py` |
+| API schemas | `api/schemas.py` |
+| Graph validation | `scripts/validate_graph.py` |
+| Ingestion scripts | `scripts/ingest.py`, `scripts/ingest_all_manifests.py` |

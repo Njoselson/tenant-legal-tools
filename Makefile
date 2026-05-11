@@ -261,3 +261,61 @@ prod-kg-judge:
 prod-kg-audit:
 	@echo "Running KG audit on production..."
 	$(DOCKER_RUN) -m tenant_legal_guidance.scripts.kg_maintain --audit
+
+# ── Case manifest rebuilding (CourtListener) ─────────────────────────────────
+# Requires COURTLISTENER_API_TOKEN in .env
+# Replaces broken nycourts.gov/justia URLs with CourtListener opinion pages
+
+rebuild-case-manifests:
+	@echo "Rebuilding all case manifests from CourtListener..."
+	@echo "Requires COURTLISTENER_API_TOKEN in .env"
+	uv run python -m tenant_legal_guidance.scripts.build_manifest \
+		--courtlistener-search "rent stabilization deregulation overcharge luxury" \
+		--cl-max 20 --output data/manifests/deregulation_cases.jsonl || true
+	@sleep 2
+	uv run python -m tenant_legal_guidance.scripts.build_manifest \
+		--courtlistener-search "warranty of habitability repairs heat hot water mold" \
+		--cl-max 20 --output data/manifests/habitability_cases.jsonl || true
+	@sleep 2
+	uv run python -m tenant_legal_guidance.scripts.build_manifest \
+		--courtlistener-search "tenant harassment unlawful eviction self-help" \
+		--cl-max 20 --output data/manifests/harassment_cases.jsonl || true
+	@sleep 2
+	uv run python -m tenant_legal_guidance.scripts.build_manifest \
+		--courtlistener-search "illegal lockout self-help eviction lock change" \
+		--cl-max 15 --output data/manifests/illegal_lockout_cases.jsonl || true
+	@sleep 2
+	uv run python -m tenant_legal_guidance.scripts.build_manifest \
+		--courtlistener-search "J-51 421-a rent stabilization tax abatement" \
+		--cl-max 15 --output data/manifests/j51_421a_cases.jsonl || true
+	@sleep 2
+	uv run python -m tenant_legal_guidance.scripts.build_manifest \
+		--courtlistener-search "nonpayment eviction defense rent abatement habitability" \
+		--cl-max 20 --output data/manifests/nonpayment_defense_cases.jsonl || true
+	@sleep 2
+	uv run python -m tenant_legal_guidance.scripts.build_manifest \
+		--courtlistener-search "rent overcharge treble damages DHCR stabilization" \
+		--cl-max 20 --output data/manifests/rent_overcharge_cases.jsonl || true
+	@sleep 2
+	uv run python -m tenant_legal_guidance.scripts.build_manifest \
+		--courtlistener-search "landlord retaliation tenant complaint harassment" \
+		--cl-max 15 --output data/manifests/retaliation_cases.jsonl || true
+	@sleep 2
+	uv run python -m tenant_legal_guidance.scripts.build_manifest \
+		--courtlistener-search "roommate subletting primary residence occupant" \
+		--cl-max 15 --output data/manifests/roommate_rights_cases.jsonl || true
+	@sleep 2
+	uv run python -m tenant_legal_guidance.scripts.build_manifest \
+		--courtlistener-search "security deposit return wrongful withholding" \
+		--cl-max 15 --output data/manifests/security_deposit_cases.jsonl || true
+	@sleep 2
+	uv run python -m tenant_legal_guidance.scripts.build_manifest \
+		--courtlistener-search "succession rights primary residence family member rent stabilized" \
+		--cl-max 20 --output data/manifests/succession_rights_cases.jsonl || true
+	@sleep 2
+	uv run python -m tenant_legal_guidance.scripts.build_manifest \
+		--courtlistener-search "Crown Heights Brooklyn rent stabilization harassment organizer" \
+		--cl-max 15 --output data/manifests/chtu_cases.jsonl || true
+	@echo ""
+	@echo "✓ Case manifests rebuilt. Entry counts:"
+	@wc -l data/manifests/*_cases.jsonl

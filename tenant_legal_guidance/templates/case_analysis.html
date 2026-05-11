@@ -738,12 +738,13 @@
             var matched = allMatches.filter(function(e) { return e.status === 'matched' || e.match_score >= 0.5; });
             var partial = allMatches.filter(function(e) { return e.status === 'partial' || (e.match_score > 0 && e.match_score < 0.5 && e.status !== 'matched'); });
             var gaps = claim.evidence_gaps || [];
+            var procedureGaps = claim.procedure_gaps || [];
             var legalBasis = claim.legal_basis || [];
             var similarCases = claim.similar_cases || [];
             var remedies = claim.remedies || [];
 
             // Evidence section (always visible)
-            var evHtml = renderEvidenceSection(matched, partial, gaps);
+            var evHtml = renderEvidenceSection(matched, partial, gaps, procedureGaps);
 
             // Legal basis section (collapsible)
             var legalHtml = '';
@@ -828,7 +829,7 @@
                 '</div>';
         }
 
-        function renderEvidenceSection(matched, partial, gaps) {
+        function renderEvidenceSection(matched, partial, gaps, procedureGaps) {
             var html = '';
 
             if (matched.length > 0) {
@@ -854,6 +855,14 @@
                     return '<li><span class="ev-icon ev-missing">&#10008;</span><span>' + escapeHtml(g.evidence_name) + critical + '</span></li>' + howTo;
                 }).join('');
                 html += '<h4 style="font-size:0.9rem;color:#555;margin-bottom:4px;">Evidence Missing</h4><ul class="evidence-list">' + gapItems + '</ul>';
+            }
+
+            if (procedureGaps && procedureGaps.length > 0) {
+                var procItems = procedureGaps.map(function(p) {
+                    var desc = p.description ? '<li class="ev-how">' + escapeHtml(p.description) + '</li>' : '';
+                    return '<li><span class="ev-icon ev-missing">&#9888;</span><span>' + escapeHtml(p.name) + ' <strong>(procedural requirement)</strong></span></li>' + desc;
+                }).join('');
+                html += '<h4 style="font-size:0.9rem;color:#555;margin-bottom:4px;">Procedural Requirements</h4><ul class="evidence-list">' + procItems + '</ul>';
             }
 
             return '<div style="margin-top:8px;">' + html + '</div>';

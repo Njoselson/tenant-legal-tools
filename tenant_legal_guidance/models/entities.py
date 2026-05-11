@@ -18,10 +18,6 @@ class EntityType(str, Enum):
     LEGAL_PROCEDURE = "legal_procedure"  # Court processes, administrative procedures
     LEGAL_CONCEPT = "legal_concept"  # Legal concepts and principles
 
-    # Deprecated extraction types — do not use in new prompts
-    REMEDY = "remedy"  # DEPRECATED: use LEGAL_OUTCOME with outcome_type='available_remedy'
-    DAMAGES = "damages"  # DEPRECATED: use LEGAL_OUTCOME with outcome_type='monetary'
-
     # Organizing entities
     TENANT_GROUP = "tenant_group"  # Associations, unions, block groups
     CAMPAIGN = "campaign"  # Specific organizing campaigns
@@ -38,7 +34,6 @@ class EntityType(str, Enum):
     ORGANIZING_OUTCOME = "organizing_outcome"  # Policy changes, building wins, power building
 
     # Issues and events
-    TENANT_ISSUE = "tenant_issue"  # DEPRECATED: use LEGAL_CLAIM
     EVENT = "event"  # Specific incidents, violations, filings
 
     # Documentation and evidence
@@ -78,10 +73,6 @@ ENTITY_CATEGORIES: dict[EntityType, EntityCategory] = {
     EntityType.LEGAL_PROCEDURE: EntityCategory.CORE_CLAIM_PROVING,
     # Supporting entities (in retrieval but secondary)
     EntityType.LEGAL_CONCEPT: EntityCategory.SUPPORTING,
-    EntityType.TENANT_ISSUE: EntityCategory.SUPPORTING,
-    # Deprecated types — kept for backwards compat with existing graph data
-    EntityType.REMEDY: EntityCategory.SUPPORTING,
-    EntityType.DAMAGES: EntityCategory.SUPPORTING,
     # Reference entities (metadata, not primary retrieval targets)
     EntityType.CASE_DOCUMENT: EntityCategory.REFERENCE,
     EntityType.JURISDICTION: EntityCategory.REFERENCE,
@@ -376,18 +367,12 @@ class LegalEntity(BaseModel):
     @field_validator("claim_type", "linked_claim_type", mode="before")
     @classmethod
     def validate_claim_type(cls, v):
-        """Validate and normalize claim type values to ClaimType enum."""
+        """Normalize claim type strings to UPPERCASE_SNAKE_CASE. No enum validation."""
         if v is None:
             return None
         if isinstance(v, str):
-            # Import here to avoid circular imports
-            from tenant_legal_guidance.models.claim_types import ClaimType
-
-            try:
-                return ClaimType.from_string(v).value
-            except Exception:
-                return v
-        # If it's already a ClaimType enum, get its value
+            return v.upper().replace(" ", "_").replace("-", "_")
+        # If it's a ClaimType enum (legacy), get its value
         if hasattr(v, "value"):
             return v.value
         return v

@@ -41,6 +41,7 @@ from pathlib import Path
 from typing import Any
 
 from tenant_legal_guidance.graph.arango_graph import ArangoDBGraph
+from tenant_legal_guidance.services.court_listener import CourtListenerClient
 
 
 def _serialize_value(v: Any) -> Any:
@@ -319,6 +320,126 @@ async def build_justia_manifest(
     return stats
 
 
+async def build_courtlistener_manifest(
+    query: str,
+    output_path: Path,
+    courts: list[str] | None = None,
+    date_after: str | None = None,
+    max_results: int = 20,
+    tags: list[str] | None = None,
+    apply_relevance_filter: bool = False,
+) -> dict[str, Any]:
+    """
+    Build a manifest by searching CourtListener for NY court opinions.
+
+    Args:
+        query: Full-text search query (e.g. "rent stabilization overcharge")
+        output_path: Path to write manifest JSONL file
+        courts: CourtListener court IDs (defaults to NY courts)
+        date_after: Only include opinions after this date ("YYYY-MM-DD")
+        max_results: Maximum number of results
+        tags: Extra tags to add to each manifest entry
+        apply_relevance_filter: Whether to run CaseRelevanceFilter
+
+    Returns:
+        Stats dict
+    """
+    logger = logging.getLogger(__name__)
+    logger.info(f"[CourtListener] Searching: '{query}' (max={max_results})")
+
+    client = CourtListenerClient()
+
+    opinions = await client.search_opinions(
+        query=query,
+        courts=courts,
+        date_after=date_after,
+        max_results=max_results,
+    )
+
+    if not opinions:
+        logger.warning("No opinions found for query.")
+        return {"total": 0, "entries_written": 0, "failed": 0}
+
+    logger.info(f"[CourtListener] Got {len(opinions)} results — building manifest entries")
+
+    relevance_filter = None
+    if apply_relevance_filter:
+        from tenant_legal_guidance.services.case_relevance_filter import CaseRelevanceFilter
+        relevance_filter = CaseRelevanceFilter()
+
+    entries = []
+    skipped = 0
+    for op in opinions:
+        absolute_url = op.get("absolute_url", "")
+        if not absolute_url:
+            skipped += 1
+            continue
+
+        locator = (
+            absolute_url
+            if absolute_url.startswith("http")
+            else f"https://www.courtlistener.com{absolute_url}"
+        )
+
+        # Optional relevance filter (keyword-based, fast)
+        if relevance_filter:
+            result = await relevance_filter.filter_case(
+                case_name=op.get("case_name", ""),
+                court=op.get("court", ""),
+                decision_date=op.get("date_filed", ""),
+                text_snippet=op.get("snippet", ""),
+                url=locator,
+                use_llm=False,
+            )
+            if not result.is_relevant:
+                logger.debug(f"Skipping (not relevant): {op.get('case_name', locator)}")
+                skipped += 1
+                continue
+
+        # Build citation string
+        citations = op.get("citation", [])
+        citation_str = citations[0] if isinstance(citations, list) and citations else str(citations)
+
+        entry: dict[str, Any] = {
+            "locator": locator,
+            "kind": "url",
+            "title": op.get("case_name", ""),
+            "document_type": "court_opinion",
+            "authority": "binding_legal_authority",
+            "jurisdiction": "New York",
+        }
+
+        metadata: dict[str, Any] = {}
+        if op.get("court"):
+            metadata["court"] = op["court"]
+        if op.get("date_filed"):
+            metadata["decision_date"] = op["date_filed"]
+        if citation_str:
+            metadata["citation"] = citation_str
+        if metadata:
+            entry["metadata"] = metadata
+
+        entry["tags"] = list(tags or []) + ["tenant_law"]
+        entries.append(entry)
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with output_path.open("w", encoding="utf-8") as f:
+        for entry in entries:
+            f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+
+    stats = {
+        "total": len(opinions),
+        "entries_written": len(entries),
+        "skipped": skipped,
+        "failed": 0,
+    }
+    logger.info(
+        f"[CourtListener] Written {stats['entries_written']} entries to {output_path} "
+        f"({stats['skipped']} skipped)"
+    )
+    return stats
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Build manifest from existing database sources or Justia URLs",
@@ -343,9 +464,37 @@ def main():
         help="Search for cases involving specific landlords (e.g., 'Croman' 'Kushner')",
     )
     input_group.add_argument(
+        "--courtlistener-search",
+        nargs="+",
+        metavar="KEYWORD",
+        help="Search CourtListener API for NY court opinions matching keywords",
+    )
+    input_group.add_argument(
         "--from-db",
         action="store_true",
         help="Extract sources from database (default if no --justia provided)",
+    )
+
+    # CourtListener-specific options
+    parser.add_argument(
+        "--cl-courts",
+        nargs="+",
+        default=None,
+        metavar="COURT_ID",
+        help="CourtListener court IDs to filter (default: nyhcg nyappdiv nyag nycivct ny nysc)",
+    )
+    parser.add_argument(
+        "--cl-date-after",
+        default="2010-01-01",
+        metavar="YYYY-MM-DD",
+        help="Only include opinions filed after this date (default: 2010-01-01)",
+    )
+    parser.add_argument(
+        "--cl-max",
+        type=int,
+        default=20,
+        metavar="N",
+        help="Max CourtListener results per search (default: 20)",
     )
 
     parser.add_argument(
@@ -404,8 +553,31 @@ def main():
     try:
         output_path = Path(args.output)
 
+        # Mode 0: CourtListener search (preferred — API-based, no 403 issues)
+        if args.courtlistener_search:
+            logger.info("=== COURTLISTENER SEARCH MODE ===")
+            query = " ".join(args.courtlistener_search)
+            logger.info(f"Query: '{query}'")
+            logger.info(f"Courts: {args.cl_courts or 'NY defaults'}")
+            logger.info(f"Date after: {args.cl_date_after}")
+            logger.info(f"Max results: {args.cl_max}")
+
+            stats = asyncio.run(
+                build_courtlistener_manifest(
+                    query=query,
+                    output_path=output_path,
+                    courts=args.cl_courts,
+                    date_after=args.cl_date_after,
+                    max_results=args.cl_max,
+                    apply_relevance_filter=args.filter_relevance,
+                )
+            )
+
+            print(f"\n✓ CourtListener manifest: {stats['entries_written']} entries → {output_path}")
+            return 0 if stats["entries_written"] > 0 else 1
+
         # Mode 1: Automated Justia search
-        if args.justia_search:
+        elif args.justia_search:
             logger.info("=== JUSTIA AUTO-SEARCH MODE ===")
 
             # Validate required options

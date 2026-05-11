@@ -6,38 +6,58 @@
 
 ## 🎯 Goal
 
-Build a system that can analyze a real NYC tenant case (habitability violations, harassment, illegal rent destabilization) and tell the tenant:
-1. What claims they have and what evidence they need
-2. What evidence they're missing (gap analysis)
-3. How likely they are to win based on comparable cases
+A tenant inputs their situation. The system tells them:
+
+1. **What claims and legal procedures they have** — grounded in statute and case law
+2. **What steps to take** — the actual procedural path (file HP action, send demand letter, etc.)
+3. **What evidence to gather or document** — specific, matched to their claim type
+4. **Likelihood of success** — how did similar cases and claims go?
+5. **Connection to organizing and representation** — tenant union, legal aid, legal clinic
+
+**Users:** Tenants inputting their own situation. Also tenant union members (CHTU) using it for legal advice. When the graph is missing something, advocates can search and ingest new cases to fill the gap — enrichment is a first-class workflow, not an admin task.
+
+**Architectural principle:** The graph is the harness. The LLM can only assert what the graph supports — every claim is backed by a node, every statement by a quote. This means a cheap LLM works fine. The graph quality *is* the product quality.
+
+> The graph should be high-quality and minimal: canonical nodes for claims, laws, evidence, and procedures. No case-specific artifacts cluttering the canonical layer. The LLM does assembly and explanation; the graph does grounding and verification.
 
 ---
 
 ## Milestone Map (dependencies flow top to bottom)
 
 ```
-M1 Entity model + graph quality + ingestion performance
+M1 Entity model + graph quality + ingestion performance        ✅ done
     ↓
-M2 Ingest habitability/heat/mold laws + cases
-M3 Ingest harassment + destabilization laws + cases  (parallel with M2)
+M2 Ingest habitability/heat/mold laws + cases                  ✅ done
+M3 Ingest harassment + destabilization laws + cases            ✅ done
     ↓
-M4 Proof chain unification (required evidence wired to CLAIM_TYPE nodes)
+M4  Proof chain unification                                    ✅ done
+M4b Case outcome evaluation harness                            ✅ done (71% accuracy)
+M4c Graph schema overhaul (dynamic claim types, canonical dedup) ✅ done
     ↓
-M5 Tenant interview ingestion + gap analysis
+M4d Advocate Demo  ← YOU ARE HERE
+    Phase 1: Graph arch + ingestion reliability (exit: eval ≥ 80% outcome accuracy)
+    Phase 2: Eval set expansion (exit: 50+ cases, stable score across 3 runs)
+    Phase 3: Advocate UI — case search/filter + case detail view
+    ↓
+M5 Tenant interview ingestion + gap analysis (post-consultation flow)
     ↓
 M6 Win probability from case outcomes
     ↓
-M7 Web ingestion UI (independent, can slot in anytime)
+M7 Web ingestion UI — independent, can slot in anytime (mostly done)
 ```
-
-> **Why M1 must finish before M2/M3:** We have duplicate entities, imprecise chunk-entity links, and slow ingestion. Ingesting 50+ documents before fixing these will make the graph harder to clean up. M1 validates that what we ingest is correct and queryable.
 
 ---
 
-## 🔄 Active
+## 🔄 Active (2026-05-10)
 
-- M4b Session 2 — Optimize against the metric (baseline: F1=59.5%, outcome=33.3%, remedy=42.9%)
-- Cross-type entity linking — LLM-based edge creation between different entity types during ingestion
+**Ingestion revamp ✅ done:** 22 manifests → 16, 220 entries, 0 failed URLs, timeout hang fixed (blocking `requests` now runs in thread pool so the 360s `asyncio.wait_for` ceiling fires correctly).
+
+Two workstreams remaining before Phase 1 exit criterion:
+
+1. **Graph architecture** — fix cross-type linking (CASE_DOCUMENT→CITES→LAW, →RESULTS_IN→LEGAL_OUTCOME), verify LLM is reusing existing entity IDs from prompt context, migrate deprecated node types. **This is the blocker for eval and UI.**
+2. **Dead code** — remove `context_expander.py`, `legal_element_extractor.py`, deprecated entity types, stale scripts. Do as warmup, not a standalone session.
+
+> ⚠️ Exit criterion for Phase 1: CASE_DOCUMENT→RESULTS_IN→LEGAL_OUTCOME exists for ≥80% of case documents AND eval outcome accuracy improves from 71% to ≥80%. Without this gate, don't start Phase 3 UI work.
 
 ---
 
@@ -211,12 +231,113 @@ M7 Web ingestion UI (independent, can slot in anytime)
 > 2. **Claim F1 regression** — LLM returns inconsistent type names across runs (BREACH_OF_WARRANTY_OF_HABITABILITY vs HABITABILITY_VIOLATION). Fix: stricter canonical name enforcement in the megaprompt, or post-hoc normalization of predicted types.
 > 3. **Confidence gating** — system should abstain ("insufficient data") rather than predict when it finds <2 similar cases for a claim type.
 
-- [ ] Confidence gating: abstain from outcome prediction when <2 similar cases found for the claim type
-- [ ] Unfavorable predictions: factor in case-specific losing signals (statute of limitations, procedural bars, insufficient evidence of fraud)
-- [ ] Claim type normalization: enforce canonical names in megaprompt or add post-hoc mapping
-- [ ] Law/remedy ranking A/B test: run eval with ranking disabled to measure actual impact (ranking implemented but not A/B tested; remedy recall improved 43%→70% but eval matching also changed)
+- [x] Confidence gating: abstain from outcome prediction when <2 similar cases found for the claim type
+- [x] Claim type normalization: embedding-based matching of LLM output against DB types (threshold 0.75), DB type dedup before prompt
+- [x] **Score: outcome accuracy 71.4%, claim F1 48.6%, remedy recall 69.8%**
+
+> **Root cause of remaining failures (6/21 wrong):**
+> The graph stores outcome labels (tenant_win/landlord_win) but NOT *why* cases were lost.
+> The 4 landlord_win cases all lost on legal technicalities:
+> - 3505 BWAY v McNeely: missed 4-year statute of limitations for fair market rent appeal
+> - 41-47 Nick v Odumosu: failed to plead fraud with sufficient specificity
+> - Regina Metro v DHCR: no fraud evidence, 4-year lookback bar applied
+> - Altman v 285 W Fourth: vacancy increase properly calculated under statute
+> The proof chain checks evidential completeness but NOT procedural bars, SOL, or pleading standards.
+
+- [x] **Wire LEGAL_PROCEDURE into proof chain**: LEGAL_PROCEDURE entities exist in the graph but are disconnected from proof chains. The proof chain only checks evidence completeness, not procedural requirements (statute of limitations, filing deadlines, pleading standards). Cases are lost when procedures aren't followed — this is the root cause of never predicting unfavorable.
+  - [x] Backfill `linked_claim_type` on existing LEGAL_PROCEDURE entities (same field EVIDENCE uses)
+  - [x] Add `get_required_procedures_for_claim_type()` to `arango_graph.py`
+  - [x] Extend `ProofChain` dataclass + `build_proof_chain()` to query + match required procedures
+  - [x] Procedure gaps flow through existing completeness → strength → probability pipeline
+  - [x] Show procedure gaps in frontend alongside evidence gaps
+  - [x] Run backfill (73/90 procedures linked) + eval: outcome 66.7%, F1 49.9%, remedy 69.8%
+  - [ ] **Next**: Add procedures to megaprompt for situation-specific assessment (current keyword matching against sample claim evidence can't distinguish tenant_win from landlord_win — all procedures show unsatisfied equally)
+- [ ] Law/remedy ranking A/B test: run eval with ranking disabled to measure actual impact
 - [ ] Per-type dedup analysis: run eval after dedup of each entity type separately to identify which benefit vs hurt
 - [ ] Document findings: what graph structure produces the best case predictions?
+
+---
+
+### M4c — Graph Schema Overhaul [~2 sessions]
+
+> **Why:** Live graph audit (2026-04-15) revealed two compounding problems that make the tool return
+> unhelpful answers. See `docs/GRAPH_SCHEMA.md` for full design decisions.
+>
+> **Problem 1 — Hardcoded claim type enum breaks silently.**
+> `SUCCESSION_RIGHTS` isn't in `ClaimType` enum → stored as `OTHER` → `get_required_evidence_for_claim_type`
+> returns nothing → query "Can I take over my dad's rent-stabilized apartment?" gets no useful answer.
+> Same issue for ROOMMATE_RIGHTS, NONPAYMENT_DEFENSE, and others in manifests but not in enum.
+>
+> **Problem 2 — Case-specific evidence clutters the graph.**
+> Court opinion ingestion creates EVIDENCE nodes like "Scherley's Marriage Certificate" with no `case_id`,
+> mislabeled `evidence_source_type="statute"`, and `evidence_context="presented"`. These accumulate at
+> claim nodes across every ingested case (succession rights claim node had ~30 of them). They crowd out
+> the 1-4 canonical required-evidence nodes that actually answer "what do I need to prove?"
+>
+> **Fix:** Wipe DB and re-ingest with a corrected pipeline. Architecture: claim types are dynamic
+> graph nodes (no enum); evidence nodes are canonical-only (from statutes/guides); court opinion
+> evidence matches to canonical nodes and links Qdrant chunks, or is skipped entirely.
+> See `docs/GRAPH_SCHEMA.md`.
+
+**Core design:** Query-informed extraction — query the graph before each LLM call, inject existing
+entities into the prompt, LLM reuses existing IDs. Embedding dedup is a safety net, not primary mechanism.
+See `docs/GRAPH_SCHEMA.md` for per-document-type behavior and the full node-creation decision table.
+
+**Session 1 — Ingestion pipeline** ← done (2026-04-19)
+- [x] Remove `ClaimType` enum as validation gate (`claim_extractor.py`, `proof_chain.py`); normalize claim type strings directly
+- [x] Add `get_extraction_context(claim_type_names)` to `arango_graph.py`: returns existing canonical evidence, laws, procedures for those claim types — used to build LLM prompt context
+- [x] Add `upsert_claim_type_node(claim_type_str)`, `get_all_claim_type_names()`, `get_all_claim_type_nodes()` to `arango_graph.py`
+- [x] Replace hardcoded `_CLAIM_TYPES` in `prompts.py` with dynamic context block; add `existing_entity_id` optional field to extraction output schema; update court opinion evidence name instruction to canonical types not case artifacts
+- [x] Before each extraction call: fetch `get_extraction_context()` + `get_all_claim_type_names()` → inject into prompt
+- [x] Add `enrich_existing_node()` path: when LLM returns `existing_entity_id`, append chunk_ids + source_id + merge description instead of creating a new node
+- [x] Evidence routing for court opinions: `existing_entity_id` present → enrich; `context=required` + no match → create canonical; `context=presented` + no match → skip (Qdrant only)
+- [x] On `LEGAL_CLAIM` creation: `upsert_claim_type_node` + `IS_TYPE_OF` edge
+- [x] On `CASE_DOCUMENT` creation: `CASE_DOCUMENT → ADDRESSES → CLAIM_TYPE` edge
+
+**Session 2 — Retrieval + wipe/re-ingest + cleanup** ← done (2026-04-19)
+- [x] Update `ClaimMatcher`: use `get_all_claim_type_nodes()` instead of distinct string attribute values
+- [x] Cases-to-cite: `get_cases_for_claim_type()` traverses `CLAIM_TYPE ← ADDRESSES ← CASE_DOCUMENT`; wired as Strategy 3 in `OutcomePredictor.find_similar_cases()`; URL resolution fixed in `routes.py`
+- [x] New `scripts/validate_graph.py`: 7 AQL invariant checks (orphan claims, presented-evidence nodes, duplicate edges, case docs without claim type, etc.)
+- [x] Canonical entity dedup gate: `upsert_canonical_entity(type, name)` in `arango_graph.py` — case-insensitive exact match → BM25 + cosine (≥0.90) → None. Applied in `proof_chain.py` for law, evidence, legal_procedure storage loops. Diagnosis showed 29 duplicate law name groups pre-fix (2 code paths with different ID generation).
+- [x] Codebase cleanup: removed `_detect_claim_types_in_query()` (hardcoded enum map), fixed `/api/v1/claim-types` endpoint (KeyError on dynamic strings), removed 3 unused frozensets, deleted 4 one-off migration scripts
+- [x] Wipe DB + re-ingest all manifests (running)
+- [ ] Run validate_graph — all 5 hard invariants should show 0
+- [ ] Verify target query: "Can I take over my dad's rent-stabilized apartment? I've been on the lease 2 years but not living there" → SUCCESSION_RIGHTS + RSC citations + procedure + cases + explanation that lease ≠ co-residency
+
+---
+
+### M4d — Tenant & Advocate Tool [~6–8 sessions]
+
+> **Users:** Tenants inputting their situation. Tenant union members (CHTU) using it for advice. Advocates enriching the graph when something is missing.
+> **Product goal:** Input a problem → get claims, steps, evidence, likelihood, and organizing/representation connections — all grounded by graph quotes, no hallucination.
+> **Exit criterion for Phase 1:** CASE_DOCUMENT→RESULTS_IN→LEGAL_OUTCOME edges exist for ≥80% of case documents AND eval outcome accuracy ≥ 80%.
+
+**Phase 1 — Graph arch + ingestion reliability** (current)
+- [ ] Fix cross-type linking: ensure CASE_DOCUMENT→CITES→LAW and CASE_DOCUMENT→RESULTS_IN→LEGAL_OUTCOME edges are populated at ingest time for all court opinions (AQL audit first — how many exist now?)
+- [ ] Verify query-informed extraction is working: is the LLM reusing existing_entity_id from prompt context, or creating new nodes anyway? Fix prompts if not.
+- [ ] Migrate deprecated node types in graph data: REMEDY→LEGAL_OUTCOME, DAMAGES→LEGAL_OUTCOME, TENANT_ISSUE→LEGAL_CLAIM
+- [ ] Consolidate 29 manifests → clear groups (by legal topic + source type); fix DeepSeek timeout hang (max-retry-then-skip); fix broken URLs; re-ingest clean
+- [ ] Run eval — confirm outcome accuracy ≥ 80% before proceeding to Phase 2
+- [ ] Dead code: remove `context_expander.py`, `legal_element_extractor.py`, deprecated entity types (do as warmup during other sessions)
+
+**Phase 2 — Eval set expansion**
+- [ ] Expand `data/case_ground_truth.json` from 21 → 50+ cases (diverse: wins, losses, procedural bars, mixed outcomes)
+- [ ] Run eval 3× to confirm score is stable (LLM non-determinism has caused F1 swings before)
+- [ ] Document findings: which graph structure changes produced the biggest lift?
+
+**Phase 3 — Tenant UI (the main product)**
+- [ ] Tenant input flow: paste or describe situation → system returns all 5 outputs:
+  1. Claims + legal procedures identified (grounded in CLAIM_TYPE + LEGAL_PROCEDURE nodes)
+  2. Steps to take (procedural path — HP action, demand letter, DHCR complaint, etc.)
+  3. Evidence to gather/document (REQUIRED_FOR edges + gap analysis against what tenant has)
+  4. Likelihood of success + how similar cases went (OutcomePredictor + CASE_DOCUMENT traversal)
+  5. Organizing + representation connections (TENANT_GROUP + LEGAL_SERVICE nodes — see gap note below)
+- [ ] Every output backed by a graph quote — LLM cannot assert anything without a node/quote grounding it
+- [ ] Advocate case search: filter by claim type, outcome, date range — for union members finding precedent
+- [ ] Easy enrichment: drag-and-drop URL/file on Sources page → one-click ingest when graph has a gap (this is what makes the tool self-improving by union members)
+- [ ] Smoke test: run a real CHTU tenant situation through the full flow end-to-end
+
+> ⚠️ **Organizing + representation gap (output #5):** TENANT_GROUP and LEGAL_SERVICE nodes exist in the schema but have almost no data and no graph connections to claim types or procedures. Before Phase 3 ships, need a manifest of: CHTU resources, legal clinic intake flows, legal aid contact patterns, and organizing tactics linked to specific claim types (e.g., HARASSMENT → neighbor organizing → collective HP action). This is a small data project, not an architecture change.
 
 ---
 
@@ -274,6 +395,8 @@ M7 Web ingestion UI (independent, can slot in anytime)
 ---
 
 ## ✅ Done (recent)
+
+- **M4c — Graph schema overhaul** (2026-04-19): Dynamic claim type nodes replace hardcoded enum. Canonical evidence only in ArangoDB; case-specific artifacts stay in Qdrant text. Query-informed extraction injects existing graph entities into every LLM call. Cases-to-cite wired via `CASE_DOCUMENT → ADDRESSES → CLAIM_TYPE` traversal (Strategy 3 in `OutcomePredictor`). Canonical entity dedup gate for law/evidence/procedure — name-based (case-insensitive exact match → BM25 + cosine ≥0.90). Codebase cleaned: dead code removed, live bug fixed (`/api/v1/claim-types`), migration scripts deleted. Re-ingestion running with all fixes.
 
 - **M2 + M3 — data ingestion** — ingested 25 statutes/guides + 17 case opinions across habitability (heat, mold, repairs) and harassment/destabilization (overcharge, deregulation, treble damages). Graph: 659 entities, 1,113 edges, 24 case documents. Retrieval test: 82% combined (100% type, 95% topic, 50% law). Fixed amlegal.com 403s by swapping to nycadmincode.readthedocs.io and nycourts.gov reporter URLs. Justia now 403s scraper too — all case law sourced from nycourts.gov.
 - **Sources page** — replaced KG Input with manifest browser showing all JSONL manifests, per-entry ingestion status (green/gray dots), and one-click bulk ingest with progress tracking. Nav updated across all pages.

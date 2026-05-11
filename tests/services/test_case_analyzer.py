@@ -718,7 +718,7 @@ async def test_graph_chains_integration_with_valid_chains(mock_graph, mock_llm):
         {
             "chain": [
                 {
-                    "type": "tenant_issue",
+                    "type": "legal_claim",
                     "id": "issue1",
                     "name": "mold",
                     "cite": {"source": "guide"},
@@ -732,7 +732,7 @@ async def test_graph_chains_integration_with_valid_chains(mock_graph, mock_llm):
                 },
                 {"rel": "ENABLES"},
                 {
-                    "type": "remedy",
+                    "type": "legal_outcome",
                     "id": "remedy1",
                     "name": "HP Action",
                     "cite": {"source": "guide"},
@@ -869,7 +869,7 @@ async def test_legal_elements_extraction_from_graph_chains(mock_graph, mock_llm)
     mock_graph_chains = [
         {
             "chain": [
-                {"type": "tenant_issue", "name": "harassment"},
+                {"type": "legal_claim", "name": "harassment"},
                 {"rel": "APPLIES_TO"},
                 {"type": "law", "name": "Anti-Harassment Law"},
                 {"rel": "REQUIRES"},
@@ -935,11 +935,11 @@ async def test_remedies_prioritized_from_graph_chain(mock_graph, mock_llm):
     mock_graph_chains = [
         {
             "chain": [
-                {"type": "tenant_issue", "name": "repairs"},
+                {"type": "legal_claim", "name": "repairs"},
                 {"rel": "APPLIES_TO"},
                 {"type": "law", "name": "Warranty of Habitability"},
                 {"rel": "ENABLES"},
-                {"type": "remedy", "name": "HP Action"},  # This should be prioritized
+                {"type": "legal_outcome", "name": "HP Action"},  # This should be prioritized
             ],
             "score": 1.0,
         }

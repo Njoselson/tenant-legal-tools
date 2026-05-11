@@ -220,7 +220,7 @@ async def test_resolve_entities_batch_llm_confirmation(
         if "Rent" in name:
             return [{"_key": "law:rsl_ex", "name": "RSL", "entity_type": "law", "score": 0.8}]
         else:
-            return [{"_key": "remedy:hp_ex", "name": "HP", "entity_type": "remedy", "score": 0.8}]
+            return [{"_key": "legal_outcome:hp_ex", "name": "HP", "entity_type": "legal_outcome", "score": 0.8}]
 
     mock_knowledge_graph.search_similar_entities = MagicMock(side_effect=mock_search)
 

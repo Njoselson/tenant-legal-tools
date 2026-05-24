@@ -1,0 +1,370 @@
+# NYC + NYS Laws — curated taxonomy
+# Covers statutes applicable to NYC tenant law in NYC-first jurisdiction.
+# citation: canonical legal citation string
+# jurisdiction: NYC (city law) | NYS (state law applicable in NYC)
+
+# ── NYC Administrative Code (Housing Maintenance Code) ──────────────────────
+
+- id: nyc_admin_27_2005
+  name: NYC Admin Code § 27-2005 — Landlord Duties
+  description: Sets out the general duties of building owners to maintain premises in good repair and habitable condition.
+  jurisdiction: NYC
+  status: canonical
+  aliases:
+    - HMC § 27-2005
+    - Housing Maintenance Code 27-2005
+  citation: NYC Admin Code § 27-2005
+
+- id: nyc_admin_27_2005d
+  name: NYC Admin Code § 27-2005(d) — Anti-Harassment
+  description: Prohibits landlord harassment of tenants occupying rent-regulated units; enumerates specific prohibited conduct.
+  jurisdiction: NYC
+  status: canonical
+  aliases:
+    - HMC 27-2005(d)
+    - anti-harassment provision
+  citation: NYC Admin Code § 27-2005(d)
+
+- id: nyc_admin_27_2013
+  name: NYC Admin Code § 27-2013 — Heat and Hot Water
+  description: Requires landlords to provide heat (68°F day / 55°F night Oct–May; 62°F year-round at night) and hot water (120°F year-round).
+  jurisdiction: NYC
+  status: canonical
+  aliases:
+    - heat requirement
+    - hot water law
+  citation: NYC Admin Code § 27-2013
+
+- id: nyc_admin_27_2028
+  name: NYC Admin Code § 27-2028 — Lead Paint
+  description: Requires owners of pre-1960 multiple dwellings to investigate and remediate lead paint hazards where children under 6 reside.
+  jurisdiction: NYC
+  status: canonical
+  aliases:
+    - lead paint law
+    - Local Law 1 (lead)
+  citation: NYC Admin Code § 27-2028
+
+- id: nyc_admin_27_2115
+  name: NYC Admin Code § 27-2115 — Civil Penalties (HPD Violations)
+  description: Establishes civil penalties for Housing Maintenance Code violations and HPD enforcement mechanisms.
+  jurisdiction: NYC
+  status: canonical
+  aliases:
+    - HPD penalties
+    - HMC civil penalties
+  citation: NYC Admin Code § 27-2115
+
+- id: nyc_admin_26_504
+  name: NYC Admin Code § 26-504 — Rent Stabilization Coverage
+  description: Defines which housing accommodations are subject to the Rent Stabilization Law in NYC.
+  jurisdiction: NYC
+  status: canonical
+  aliases:
+    - RSL coverage
+    - rent stabilization coverage
+  citation: NYC Admin Code § 26-504
+
+- id: nyc_admin_26_504_2
+  name: NYC Admin Code § 26-504.2 — High-Rent Vacancy Decontrol
+  description: Governed high-rent vacancy decontrol (largely repealed by HSTPA 2019); still relevant for pre-2019 deregulation challenges.
+  jurisdiction: NYC
+  status: canonical
+  aliases:
+    - HRVC statute
+    - high rent vacancy decontrol provision
+  citation: NYC Admin Code § 26-504.2
+
+- id: nyc_admin_26_511
+  name: NYC Admin Code § 26-511 — RSL Lease Renewal
+  description: Requires landlords to offer rent-stabilized tenants renewal leases on the same terms and conditions.
+  jurisdiction: NYC
+  status: canonical
+  aliases:
+    - lease renewal requirement
+    - RSL renewal
+  citation: NYC Admin Code § 26-511
+
+- id: nyc_admin_26_516
+  name: NYC Admin Code § 26-516 — Rent Overcharge
+  description: Provides tenants the right to file overcharge complaints; establishes penalties including treble damages for willful overcharge.
+  jurisdiction: NYC
+  status: canonical
+  aliases:
+    - overcharge statute
+    - treble damages provision
+  citation: NYC Admin Code § 26-516
+
+- id: nyc_admin_26_521
+  name: NYC Admin Code § 26-521 — Unlawful Eviction / Lockout
+  description: Prohibits unlawful eviction or exclusion of tenants and provides for civil penalties.
+  jurisdiction: NYC
+  status: canonical
+  aliases:
+    - lockout statute
+    - unlawful eviction provision
+  citation: NYC Admin Code § 26-521
+
+# ── Rent Stabilization Code (RSC) ──────────────────────────────────────────
+
+- id: rsc_2522_5
+  name: RSC § 2522.5 — Allowable Rent Increases
+  description: Sets out the formula for calculating allowable annual and vacancy rent increases for rent-stabilized units.
+  jurisdiction: NYC
+  status: canonical
+  aliases:
+    - RSC annual increases
+    - allowable rent increase
+  citation: 9 NYCRR § 2522.5
+
+- id: rsc_2523_5
+  name: RSC § 2523.5 — Lease Renewal Offer Requirements
+  description: Specifies timing and content requirements for lease renewal offers to rent-stabilized tenants.
+  jurisdiction: NYC
+  status: canonical
+  aliases:
+    - renewal offer timing
+  citation: 9 NYCRR § 2523.5
+
+- id: rsc_2525_6
+  name: RSC § 2525.6 — Succession Rights
+  description: Governs the right of qualified family members and other occupants to succeed to a rent-stabilized lease.
+  jurisdiction: NYC
+  status: canonical
+  aliases:
+    - succession rights regulation
+  citation: 9 NYCRR § 2525.6
+
+- id: rsc_2526_1
+  name: RSC § 2526.1 — Overcharge Penalties
+  description: Specifies overcharge complaint procedures, look-back period, and treble damages for willful overcharge.
+  jurisdiction: NYC
+  status: canonical
+  aliases:
+    - overcharge penalty
+    - treble damages RSC
+  citation: 9 NYCRR § 2526.1
+
+# ── NY Real Property Law (RPL) ──────────────────────────────────────────────
+
+- id: rpl_220
+  name: RPL § 220 — Landlord's Duty to Repair
+  description: Obligates landlord to keep dwelling premises in good repair.
+  jurisdiction: NYS
+  status: canonical
+  aliases:
+    - RPL repair duty
+  citation: NY Real Property Law § 220
+
+- id: rpl_223_b
+  name: RPL § 223-b — Anti-Retaliation
+  description: Prohibits landlord from retaliating against a tenant who exercises a legal right (complaining, organizing, withholding rent for conditions).
+  jurisdiction: NYS
+  status: canonical
+  aliases:
+    - anti-retaliation statute
+    - RPL 223-b
+  citation: NY Real Property Law § 223-b
+
+- id: rpl_226_b
+  name: RPL § 226-b — Subletting
+  description: Governs tenant's right to sublet and landlord's right to withhold consent.
+  jurisdiction: NYS
+  status: canonical
+  aliases:
+    - subletting statute
+  citation: NY Real Property Law § 226-b
+
+- id: rpl_227
+  name: RPL § 227 — Constructive Eviction / Destruction
+  description: Allows tenant to vacate and terminate lease where premises are unfit for occupancy.
+  jurisdiction: NYS
+  status: canonical
+  aliases:
+    - constructive eviction statute
+  citation: NY Real Property Law § 227
+
+- id: rpl_235_b
+  name: RPL § 235-b — Warranty of Habitability
+  description: Codifies the implied warranty of habitability; landlord must maintain safe and habitable conditions for the duration of the tenancy.
+  jurisdiction: NYS
+  status: canonical
+  aliases:
+    - warranty of habitability statute
+    - WOH
+  citation: NY Real Property Law § 235-b
+
+- id: rpl_235_e
+  name: RPL § 235-e — Rent Receipts
+  description: Requires landlords to provide written rent receipts.
+  jurisdiction: NYS
+  status: canonical
+  aliases:
+    - rent receipt requirement
+  citation: NY Real Property Law § 235-e
+
+- id: rpl_238_a
+  name: RPL § 238-a — Rental Application Fee Cap
+  description: Limits fees a landlord may charge in connection with a rental application.
+  jurisdiction: NYS
+  status: canonical
+  aliases:
+    - application fee cap
+  citation: NY Real Property Law § 238-a
+
+# ── NY Real Property Actions and Proceedings Law (RPAPL) ───────────────────
+
+- id: rpapl_711
+  name: RPAPL § 711 — Grounds for Summary Proceeding
+  description: Sets out the grounds (non-payment, holdover, etc.) on which a landlord may commence a summary proceeding in housing court.
+  jurisdiction: NYS
+  status: canonical
+  aliases:
+    - summary proceeding grounds
+  citation: RPAPL § 711
+
+- id: rpapl_721
+  name: RPAPL § 721 — Persons Who May Maintain Proceeding
+  description: Specifies who has standing to commence a summary proceeding.
+  jurisdiction: NYS
+  status: canonical
+  aliases:
+    - standing to sue
+  citation: RPAPL § 721
+
+- id: rpapl_735
+  name: RPAPL § 735 — Service of Notice of Petition
+  description: Sets out the method and timing requirements for proper service of a notice of petition in a summary proceeding.
+  jurisdiction: NYS
+  status: canonical
+  aliases:
+    - service requirements
+    - proper service
+  citation: RPAPL § 735
+
+- id: rpapl_741
+  name: RPAPL § 741 — Contents of Petition
+  description: Specifies what the landlord's petition must contain to be valid.
+  jurisdiction: NYS
+  status: canonical
+  aliases:
+    - petition requirements
+  citation: RPAPL § 741
+
+- id: rpapl_749
+  name: RPAPL § 749 — Warrant of Eviction
+  description: Governs the issuance of a warrant of eviction and the role of the city marshal.
+  jurisdiction: NYS
+  status: canonical
+  aliases:
+    - eviction warrant
+  citation: RPAPL § 749
+
+- id: rpapl_768
+  name: RPAPL § 768 — Unlawful Eviction
+  description: Creates a private right of action for unlawful eviction; provides for treble damages.
+  jurisdiction: NYS
+  status: canonical
+  aliases:
+    - unlawful eviction statute
+    - illegal lockout damages
+  citation: RPAPL § 768
+
+- id: rpapl_853
+  name: RPAPL § 853 — Criminal Trespass / Self-Help Eviction
+  description: Prohibits self-help evictions; provides for treble damages where landlord wrongfully ousts tenant.
+  jurisdiction: NYS
+  status: canonical
+  aliases:
+    - self-help eviction
+    - illegal lockout treble damages
+  citation: RPAPL § 853
+
+# ── Housing Stability and Tenant Protection Act (HSTPA 2019) ────────────────
+
+- id: hstpa_2019
+  name: Housing Stability and Tenant Protection Act of 2019
+  description: Landmark 2019 NY law strengthening rent regulations, eliminating most deregulation paths, extending protections, and increasing overcharge look-back period to 6 years.
+  jurisdiction: NYS
+  status: canonical
+  aliases:
+    - HSTPA
+    - 2019 rent reform
+  citation: L. 2019, c. 36
+
+# ── NY General Obligations Law ───────────────────────────────────────────────
+
+- id: gol_7_105
+  name: GOL § 7-105 — Security Deposit (Multiple Dwellings)
+  description: "Governs security deposits for multiple dwellings: 1-month maximum, interest requirements, itemization deadline."
+  jurisdiction: NYS
+  status: canonical
+  aliases:
+    - security deposit law
+    - GOL 7-105
+  citation: NY General Obligations Law § 7-105
+
+- id: gol_7_108
+  name: GOL § 7-108 — Security Deposit Return
+  description: Requires landlord to return deposit with itemized statement of deductions within 14 days of tenancy end.
+  jurisdiction: NYS
+  status: canonical
+  aliases:
+    - deposit return deadline
+  citation: NY General Obligations Law § 7-108
+
+# ── NYC Human Rights Law ─────────────────────────────────────────────────────
+
+- id: nyc_admin_8_107
+  name: NYC Admin Code § 8-107 — Unlawful Discriminatory Practices
+  description: Prohibits discrimination in housing based on protected characteristics including source of income, race, national origin, disability, etc.
+  jurisdiction: NYC
+  status: canonical
+  aliases:
+    - NYCHRL discrimination
+    - NYC Human Rights Law housing
+  citation: NYC Admin Code § 8-107
+
+# ── NYC Multiple Dwelling Law (MDL) ──────────────────────────────────────────
+
+- id: mdl_78
+  name: MDL § 78 — Maintenance Obligations
+  description: Requires owners of multiple dwellings to keep premises in good repair.
+  jurisdiction: NYC
+  status: canonical
+  aliases:
+    - multiple dwelling maintenance
+  citation: NY Multiple Dwelling Law § 78
+
+- id: mdl_80
+  name: MDL § 80 — Tenant Protection on Building Sale
+  description: Governs certain tenant protections when a multiple dwelling is sold.
+  jurisdiction: NYC
+  status: canonical
+  aliases:
+    - building sale tenant rights
+  citation: NY Multiple Dwelling Law § 80
+
+# ── Emergency Tenant Protection Act (ETPA) ───────────────────────────────────
+
+- id: etpa
+  name: Emergency Tenant Protection Act
+  description: NYS statute enabling municipalities outside NYC to opt into rent stabilization; provides base framework for rent stabilization.
+  jurisdiction: NYS
+  status: canonical
+  aliases:
+    - ETPA
+    - Emergency Tenant Protection Act
+  citation: L. 1974, c. 576
+
+# ── NYC Rent Guidelines Board ────────────────────────────────────────────────
+
+- id: rgb_annual_order
+  name: NYC Rent Guidelines Board Annual Order
+  description: Annual order setting the maximum allowable rent increases for rent-stabilized leases.
+  jurisdiction: NYC
+  status: canonical
+  aliases:
+    - RGB order
+    - rent guidelines
+  citation: NYC Rent Guidelines Board Order (current year)

@@ -1,0 +1,226 @@
+# NYC Tenant Claim Types — curated taxonomy
+# Slug IDs: lowercase_underscores, ≤30 chars
+# jurisdiction: NYC (city law applies) | NYS (state law only)
+# status: canonical | proposed
+
+- id: rent_overcharge
+  name: Rent Overcharge
+  description: Landlord charges rent above the legally permitted amount for a rent-stabilized unit.
+  jurisdiction: NYC
+  status: canonical
+  aliases:
+    - overcharge
+    - rent overcharge claim
+
+- id: rent_stabilization_violation
+  name: Rent Stabilization Violation
+  description: Landlord violates rent stabilization rules (improper increases, failure to renew lease, etc.) short of full deregulation.
+  jurisdiction: NYC
+  status: canonical
+  aliases:
+    - RSC violation
+
+- id: deregulation_challenge
+  name: Deregulation Challenge
+  description: Tenant challenges improper removal of unit from rent stabilization coverage.
+  jurisdiction: NYC
+  status: canonical
+  aliases:
+    - illegal deregulation
+    - deregulation challenge
+
+- id: high_rent_vacancy_challenge
+  name: High-Rent Vacancy Challenge
+  description: Tenant challenges decontrol based on high-rent vacancy where the unit did not qualify.
+  jurisdiction: NYC
+  status: canonical
+  aliases:
+    - HRVC
+    - high rent vacancy decontrol
+
+- id: habitability_violation
+  name: Habitability Violation
+  description: Unit conditions violate the implied warranty of habitability — heat, hot water, mold, structural defects, pests.
+  jurisdiction: NYC
+  status: canonical
+  aliases:
+    - warranty of habitability
+    - unsafe conditions
+    - lack of heat
+
+- id: hp_action_repairs
+  name: HP Action — Repairs
+  description: Housing court HP proceeding compelling landlord to make required repairs.
+  jurisdiction: NYC
+  status: canonical
+  aliases:
+    - housing part action
+    - HP proceeding
+    - order to correct
+
+- id: breach_warranty_habitability
+  name: Breach of Warranty of Habitability
+  description: Civil claim for rent abatement or damages where landlord fails to maintain habitable conditions.
+  jurisdiction: NYS
+  status: canonical
+  aliases:
+    - warranty of habitability breach
+    - WOH
+
+- id: harassment
+  name: Landlord Harassment
+  description: Landlord engages in conduct intended to force tenant out of rent-stabilized unit.
+  jurisdiction: NYC
+  status: canonical
+  aliases:
+    - tenant harassment
+    - landlord harassment
+
+- id: illegal_lockout
+  name: Illegal Lockout
+  description: Landlord unlawfully locks tenant out of their unit without a court order.
+  jurisdiction: NYS
+  status: canonical
+  aliases:
+    - unlawful lockout
+    - lockout
+
+- id: retaliatory_eviction
+  name: Retaliatory Eviction
+  description: Landlord retaliates against tenant for exercising a legal right (e.g., complaining to HPD, organizing).
+  jurisdiction: NYS
+  status: canonical
+  aliases:
+    - retaliation
+    - retaliatory action
+
+- id: security_deposit_return
+  name: Security Deposit Return
+  description: Landlord fails to return security deposit within the statutory deadline.
+  jurisdiction: NYS
+  status: canonical
+  aliases:
+    - deposit return
+    - security deposit claim
+
+- id: security_deposit_violation
+  name: Security Deposit Violation
+  description: Landlord violates rules governing collection, holding, or use of security deposits.
+  jurisdiction: NYS
+  status: canonical
+  aliases:
+    - deposit violation
+
+- id: constructive_eviction
+  name: Constructive Eviction
+  description: Conditions are so severe that the tenant is effectively forced to vacate.
+  jurisdiction: NYS
+  status: canonical
+  aliases:
+    - constructive eviction claim
+
+- id: housing_discrimination
+  name: Housing Discrimination
+  description: Discrimination in housing based on protected class (race, national origin, disability, source of income, etc.).
+  jurisdiction: NYC
+  status: canonical
+  aliases:
+    - discrimination
+    - fair housing violation
+
+- id: improper_service
+  name: Improper Service
+  description: Legal papers were not served in compliance with statutory requirements.
+  jurisdiction: NYS
+  status: canonical
+  aliases:
+    - defective service
+    - service of process defect
+
+- id: procedural_defect
+  name: Procedural Defect
+  description: A procedural error that may invalidate a legal proceeding (e.g., improper predicate notice).
+  jurisdiction: NYS
+  status: canonical
+  aliases:
+    - defective notice
+    - procedural challenge
+
+- id: succession_rights
+  name: Succession Rights
+  description: Family member or co-occupant asserts right to succeed to a rent-stabilized lease after the named tenant vacates.
+  jurisdiction: NYC
+  status: canonical
+  aliases:
+    - lease succession
+    - succession claim
+
+- id: primary_residence_challenge
+  name: Primary Residence Challenge
+  description: Tenant contests landlord's claim that the unit is not tenant's primary residence.
+  jurisdiction: NYC
+  status: canonical
+  aliases:
+    - primary residence
+
+- id: preferential_rent_dispute
+  name: Preferential Rent Dispute
+  description: Dispute over landlord's right to restore rent to the legal regulated rent after charging a preferential rate.
+  jurisdiction: NYC
+  status: canonical
+  aliases:
+    - preferential rent
+
+- id: owner_use_eviction
+  name: Owner-Use / Immediate Family Use
+  description: Landlord seeks to recover unit for personal use or use by an immediate family member.
+  jurisdiction: NYC
+  status: canonical
+  aliases:
+    - owner occupancy
+    - owner use eviction
+
+- id: illegal_apartment
+  name: Illegal Apartment
+  description: Unit lacks required certificates of occupancy or is otherwise illegally converted.
+  jurisdiction: NYC
+  status: canonical
+  aliases:
+    - illegal conversion
+    - no CO
+
+- id: condo_coop_conversion
+  name: Condo / Co-op Conversion
+  description: Landlord converts building to condo or co-op while tenant claims protections under conversion plan.
+  jurisdiction: NYC
+  status: canonical
+  aliases:
+    - conversion eviction
+    - non-eviction plan
+
+- id: lead_paint_violation
+  name: Lead Paint Violation
+  description: Landlord fails to remediate lead paint hazards in units with children under 6.
+  jurisdiction: NYC
+  status: canonical
+  aliases:
+    - lead hazard
+    - lead paint
+
+- id: mci_challenge
+  name: MCI Rent Increase Challenge
+  description: Tenant challenges a Major Capital Improvement rent increase granted to landlord.
+  jurisdiction: NYC
+  status: canonical
+  aliases:
+    - MCI challenge
+    - major capital improvement dispute
+
+- id: iae_challenge
+  name: IAE / IAI Rent Increase Challenge
+  description: Tenant challenges an Individual Apartment Enhancement or Individual Apartment Improvement rent increase.
+  jurisdiction: NYC
+  status: canonical
+  aliases:
+    - IAI challenge
+    - individual apartment improvement dispute

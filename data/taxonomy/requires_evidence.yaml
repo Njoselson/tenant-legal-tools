@@ -1,0 +1,352 @@
+# Curated evidence requirements per claim type.
+# critical: true  → missing this evidence is likely fatal to the claim
+# critical: false → helpful but not necessarily required
+
+# ── Rent Overcharge ──────────────────────────────────────────────────────────
+- claim_type_id: rent_overcharge
+  evidence_id: dhcr_rent_history
+  critical: true
+
+- claim_type_id: rent_overcharge
+  evidence_id: dhcr_rent_registration
+  critical: true
+
+- claim_type_id: rent_overcharge
+  evidence_id: lease_agreement
+  critical: true
+
+- claim_type_id: rent_overcharge
+  evidence_id: rent_receipts
+  critical: true
+
+- claim_type_id: rent_overcharge
+  evidence_id: rent_increase_notices
+  critical: false
+
+- claim_type_id: rent_overcharge
+  evidence_id: dhcr_order_determination
+  critical: false
+
+# ── Rent Stabilization Violation ────────────────────────────────────────────
+- claim_type_id: rent_stabilization_violation
+  evidence_id: dhcr_rent_history
+  critical: true
+
+- claim_type_id: rent_stabilization_violation
+  evidence_id: lease_agreement
+  critical: true
+
+- claim_type_id: rent_stabilization_violation
+  evidence_id: lease_non_renewal_notice
+  critical: false
+
+- claim_type_id: rent_stabilization_violation
+  evidence_id: rent_increase_notices
+  critical: false
+
+# ── Deregulation Challenge ───────────────────────────────────────────────────
+- claim_type_id: deregulation_challenge
+  evidence_id: dhcr_rent_history
+  critical: true
+
+- claim_type_id: deregulation_challenge
+  evidence_id: original_apartment_registration
+  critical: true
+
+- claim_type_id: deregulation_challenge
+  evidence_id: lease_agreement
+  critical: true
+
+- claim_type_id: deregulation_challenge
+  evidence_id: building_sale_documents
+  critical: false
+
+- claim_type_id: deregulation_challenge
+  evidence_id: dhcr_order_determination
+  critical: false
+
+# ── High-Rent Vacancy Challenge ──────────────────────────────────────────────
+- claim_type_id: high_rent_vacancy_challenge
+  evidence_id: dhcr_rent_history
+  critical: true
+
+- claim_type_id: high_rent_vacancy_challenge
+  evidence_id: original_apartment_registration
+  critical: true
+
+- claim_type_id: high_rent_vacancy_challenge
+  evidence_id: lease_agreement
+  critical: true
+
+# ── Habitability Violation ───────────────────────────────────────────────────
+- claim_type_id: habitability_violation
+  evidence_id: hpd_violation_record
+  critical: true
+
+- claim_type_id: habitability_violation
+  evidence_id: written_notice_to_landlord
+  critical: true
+
+- claim_type_id: habitability_violation
+  evidence_id: photos_video_conditions
+  critical: true
+
+- claim_type_id: habitability_violation
+  evidence_id: 311_complaint_record
+  critical: false
+
+- claim_type_id: habitability_violation
+  evidence_id: hpd_inspection_report
+  critical: false
+
+- claim_type_id: habitability_violation
+  evidence_id: landlord_non_response_evidence
+  critical: false
+
+- claim_type_id: habitability_violation
+  evidence_id: repair_request_communications
+  critical: false
+
+- claim_type_id: habitability_violation
+  evidence_id: medical_records
+  critical: false
+
+# ── HP Action — Repairs ──────────────────────────────────────────────────────
+- claim_type_id: hp_action_repairs
+  evidence_id: hpd_violation_record
+  critical: true
+
+- claim_type_id: hp_action_repairs
+  evidence_id: written_notice_to_landlord
+  critical: true
+
+- claim_type_id: hp_action_repairs
+  evidence_id: photos_video_conditions
+  critical: true
+
+- claim_type_id: hp_action_repairs
+  evidence_id: repair_request_communications
+  critical: false
+
+- claim_type_id: hp_action_repairs
+  evidence_id: dob_violation_record
+  critical: false
+
+- claim_type_id: hp_action_repairs
+  evidence_id: prior_court_orders
+  critical: false
+
+# ── Breach of Warranty of Habitability ───────────────────────────────────────
+- claim_type_id: breach_warranty_habitability
+  evidence_id: hpd_violation_record
+  critical: true
+
+- claim_type_id: breach_warranty_habitability
+  evidence_id: written_notice_to_landlord
+  critical: true
+
+- claim_type_id: breach_warranty_habitability
+  evidence_id: photos_video_conditions
+  critical: true
+
+- claim_type_id: breach_warranty_habitability
+  evidence_id: landlord_non_response_evidence
+  critical: true
+
+- claim_type_id: breach_warranty_habitability
+  evidence_id: contractor_estimates
+  critical: false
+
+- claim_type_id: breach_warranty_habitability
+  evidence_id: expert_report
+  critical: false
+
+# ── Harassment ───────────────────────────────────────────────────────────────
+- claim_type_id: harassment
+  evidence_id: harassment_incident_log
+  critical: true
+
+- claim_type_id: harassment
+  evidence_id: repair_request_communications
+  critical: false
+
+- claim_type_id: harassment
+  evidence_id: landlord_buyout_offer
+  critical: false
+
+- claim_type_id: harassment
+  evidence_id: witness_affidavits
+  critical: false
+
+- claim_type_id: harassment
+  evidence_id: photos_video_conditions
+  critical: false
+
+- claim_type_id: harassment
+  evidence_id: lease_non_renewal_notice
+  critical: false
+
+- claim_type_id: harassment
+  evidence_id: hpd_violation_record
+  critical: false
+
+# ── Illegal Lockout ──────────────────────────────────────────────────────────
+- claim_type_id: illegal_lockout
+  evidence_id: lease_agreement
+  critical: true
+
+- claim_type_id: illegal_lockout
+  evidence_id: marshal_eviction_notice
+  critical: false
+
+- claim_type_id: illegal_lockout
+  evidence_id: witness_affidavits
+  critical: false
+
+- claim_type_id: illegal_lockout
+  evidence_id: photos_video_conditions
+  critical: false
+
+# ── Retaliatory Eviction ─────────────────────────────────────────────────────
+- claim_type_id: retaliatory_eviction
+  evidence_id: 311_complaint_record
+  critical: true
+
+- claim_type_id: retaliatory_eviction
+  evidence_id: written_notice_to_landlord
+  critical: false
+
+- claim_type_id: retaliatory_eviction
+  evidence_id: predicate_notice
+  critical: false
+
+- claim_type_id: retaliatory_eviction
+  evidence_id: lease_non_renewal_notice
+  critical: false
+
+# ── Security Deposit Return ──────────────────────────────────────────────────
+- claim_type_id: security_deposit_return
+  evidence_id: security_deposit_receipt
+  critical: true
+
+- claim_type_id: security_deposit_return
+  evidence_id: lease_agreement
+  critical: true
+
+- claim_type_id: security_deposit_return
+  evidence_id: bank_itemization_letter
+  critical: false
+
+# ── Security Deposit Violation ───────────────────────────────────────────────
+- claim_type_id: security_deposit_violation
+  evidence_id: security_deposit_receipt
+  critical: true
+
+- claim_type_id: security_deposit_violation
+  evidence_id: lease_agreement
+  critical: true
+
+- claim_type_id: security_deposit_violation
+  evidence_id: bank_itemization_letter
+  critical: false
+
+# ── Constructive Eviction ────────────────────────────────────────────────────
+- claim_type_id: constructive_eviction
+  evidence_id: hpd_violation_record
+  critical: true
+
+- claim_type_id: constructive_eviction
+  evidence_id: written_notice_to_landlord
+  critical: true
+
+- claim_type_id: constructive_eviction
+  evidence_id: photos_video_conditions
+  critical: true
+
+- claim_type_id: constructive_eviction
+  evidence_id: expert_report
+  critical: false
+
+- claim_type_id: constructive_eviction
+  evidence_id: medical_records
+  critical: false
+
+# ── Housing Discrimination ───────────────────────────────────────────────────
+- claim_type_id: housing_discrimination
+  evidence_id: lease_non_renewal_notice
+  critical: false
+
+- claim_type_id: housing_discrimination
+  evidence_id: written_notice_to_landlord
+  critical: false
+
+- claim_type_id: housing_discrimination
+  evidence_id: witness_affidavits
+  critical: false
+
+# ── Succession Rights ────────────────────────────────────────────────────────
+- claim_type_id: succession_rights
+  evidence_id: succession_cohabitation_proof
+  critical: true
+
+- claim_type_id: succession_rights
+  evidence_id: lease_agreement
+  critical: true
+
+# ── Improper Service ─────────────────────────────────────────────────────────
+- claim_type_id: improper_service
+  evidence_id: predicate_notice
+  critical: true
+
+# ── Procedural Defect ────────────────────────────────────────────────────────
+- claim_type_id: procedural_defect
+  evidence_id: predicate_notice
+  critical: false
+
+# ── Owner-Use Eviction ───────────────────────────────────────────────────────
+- claim_type_id: owner_use_eviction
+  evidence_id: lease_agreement
+  critical: true
+
+- claim_type_id: owner_use_eviction
+  evidence_id: predicate_notice
+  critical: true
+
+# ── MCI Challenge ────────────────────────────────────────────────────────────
+- claim_type_id: mci_challenge
+  evidence_id: mci_application_record
+  critical: true
+
+- claim_type_id: mci_challenge
+  evidence_id: dhcr_order_determination
+  critical: false
+
+- claim_type_id: mci_challenge
+  evidence_id: building_permit_records
+  critical: false
+
+# ── IAE / IAI Challenge ──────────────────────────────────────────────────────
+- claim_type_id: iae_challenge
+  evidence_id: iai_documentation
+  critical: true
+
+- claim_type_id: iae_challenge
+  evidence_id: building_permit_records
+  critical: false
+
+- claim_type_id: iae_challenge
+  evidence_id: lease_agreement
+  critical: false
+
+# ── Lead Paint Violation ─────────────────────────────────────────────────────
+- claim_type_id: lead_paint_violation
+  evidence_id: lead_xrf_test_results
+  critical: true
+
+- claim_type_id: lead_paint_violation
+  evidence_id: hpd_violation_record
+  critical: false
+
+- claim_type_id: lead_paint_violation
+  evidence_id: medical_records
+  critical: false

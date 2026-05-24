@@ -915,3 +915,82 @@ Guidelines:
         output_format=output_format,
         additional_context=additional_context,
     )
+
+
+# ── Phase 1b: Bootstrap taxonomy extraction ──────────────────────────────────
+
+
+def get_permissive_extraction_prompt(source_text: str, source_metadata: dict) -> str:
+    """
+    Permissive-propose prompt for bootstrapping the taxonomy.
+
+    Called with no existing taxonomy — the LLM proposes everything it sees.
+    Used by scripts/bootstrap_taxonomy.py to produce *.yaml.draft clusters.
+
+    source_text: Fetched document text (may be empty if URL was inaccessible).
+    source_metadata: Dict with title, document_type, jurisdiction, tags, organization, etc.
+    """
+    from tenant_legal_guidance.services.security import sanitize_for_llm
+
+    title = source_metadata.get("title", "")
+    doc_type = source_metadata.get("document_type", "unknown")
+    jurisdiction = source_metadata.get("jurisdiction", "NYC")
+    tags = ", ".join(source_metadata.get("tags") or [])
+    org = source_metadata.get("organization", "")
+    metadata_str = source_metadata.get("metadata") or {}
+    court = metadata_str.get("court", "") if isinstance(metadata_str, dict) else ""
+    decision_date = metadata_str.get("decision_date", "") if isinstance(metadata_str, dict) else ""
+
+    context_block = f"Title: {title}"
+    if org:
+        context_block += f"\nOrganization: {org}"
+    if doc_type:
+        context_block += f"\nDocument type: {doc_type}"
+    if jurisdiction:
+        context_block += f"\nJurisdiction: {jurisdiction}"
+    if tags:
+        context_block += f"\nTags: {tags}"
+    if court:
+        context_block += f"\nCourt: {court}"
+    if decision_date:
+        context_block += f"\nDecision date: {decision_date}"
+
+    text_block = ""
+    if source_text and source_text.strip():
+        cleaned = sanitize_for_llm(source_text[:6000])
+        text_block = f"\n\nDocument text (excerpt):\n{cleaned}"
+
+    return f"""You are extracting legal taxonomy concepts from a NYC/NYS tenant law document.
+
+Source metadata:
+{context_block}{text_block}
+
+Extract ALL legal concepts you can identify from this source, grouped by kind.
+Be permissive — propose anything that looks like a distinct concept, even if vaguely stated.
+For each item, provide a SHORT slug (lowercase_underscores, ≤30 chars), a name, a one-sentence description, and a brief quote from the text (or empty string if no text provided).
+Infer jurisdiction as "NYC" (NYC city law applies) or "NYS" (state law, applicable in NYC).
+
+Return ONLY valid JSON with this exact structure:
+{{
+  "claim_types": [
+    {{"slug": "...", "name": "...", "description": "...", "jurisdiction": "NYC", "source_quote": "..."}}
+  ],
+  "evidence_types": [
+    {{"slug": "...", "name": "...", "description": "...", "jurisdiction": "NYC", "source_quote": "..."}}
+  ],
+  "procedures": [
+    {{"slug": "...", "name": "...", "description": "...", "jurisdiction": "NYC", "source_quote": "..."}}
+  ],
+  "laws": [
+    {{"slug": "...", "name": "...", "citation": "...", "description": "...", "jurisdiction": "NYC", "source_quote": "..."}}
+  ]
+}}
+
+Rules:
+- claim_types: tenant legal claims (e.g., habitability violation, rent overcharge, harassment)
+- evidence_types: concrete, obtainable proof (e.g., HPD violation record, rent receipts, lease agreement)
+- procedures: legal proceedings or administrative filings (e.g., HP action, DHCR overcharge complaint)
+- laws: specific statutes, codes, or regulations with a citation (e.g., NYC Admin Code § 27-2005)
+- If a category has no items, return an empty array []
+- Do NOT include general legal concepts, parties, or outcomes — only the four kinds above
+- Slugs must be ≤30 chars, no spaces, no special chars except underscores"""

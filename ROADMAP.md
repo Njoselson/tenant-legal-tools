@@ -313,12 +313,63 @@ See `docs/GRAPH_SCHEMA.md` for per-document-type behavior and the full node-crea
 > **Exit criterion for Phase 1:** CASE_DOCUMENT→RESULTS_IN→LEGAL_OUTCOME edges exist for ≥80% of case documents AND eval outcome accuracy ≥ 80%.
 
 **Phase 1 — Graph arch + ingestion reliability** (current)
-- [ ] Fix cross-type linking: ensure CASE_DOCUMENT→CITES→LAW and CASE_DOCUMENT→RESULTS_IN→LEGAL_OUTCOME edges are populated at ingest time for all court opinions (AQL audit first — how many exist now?)
-- [ ] Verify query-informed extraction is working: is the LLM reusing existing_entity_id from prompt context, or creating new nodes anyway? Fix prompts if not.
-- [ ] Migrate deprecated node types in graph data: REMEDY→LEGAL_OUTCOME, DAMAGES→LEGAL_OUTCOME, TENANT_ISSUE→LEGAL_CLAIM
-- [ ] Consolidate 29 manifests → clear groups (by legal topic + source type); fix DeepSeek timeout hang (max-retry-then-skip); fix broken URLs; re-ingest clean
-- [ ] Run eval — confirm outcome accuracy ≥ 80% before proceeding to Phase 2
-- [ ] Dead code: remove `context_expander.py`, `legal_element_extractor.py`, deprecated entity types (do as warmup during other sessions)
+
+> **Diagnosis update (2026-05-23):** Four parallel-agent code reviews converged on the same root causes for the "still lots of duplicate entities" problem and the "claims/procedures/evidence don't link to tenant evidence" problem. Concrete todos below grouped A/B/C/D.
+
+**A. Entity identity & dedup (highest leverage — fixes duplicates everywhere downstream)**
+- [ ] Expand `_CANONICAL_ENTITY_TYPES` in `graph/arango_graph.py:3009` to include `legal_claim`, `legal_outcome`, `damages` — currently only `law`, `evidence`, `legal_procedure` go through `upsert_canonical_entity`. Mirror the dedup-gate call in `services/proof_chain.py` (currently called at `:871/905/918` only for the 3 covered types).
+- [ ] Add a `canonicalize_entity_name(name, entity_type)` helper used by both `services/entity_service.py:118` and `services/claim_extractor.py:172-181` before hashing. Must: lowercase, collapse whitespace, strip punctuation, normalize statute citations (`§ 26-511` → `26-511`), expand a small alias table (RSL → Rent Stabilization Law, RSC → Rent Stabilization Code, HMC → Housing Maintenance Code, ETPA → Emergency Tenant Protection Act). Today the only normalization is `.lower()` — so "Rent Stabilization Law" / "RSL" / "rent stabilization law §26-504" each hash to a different node.
+- [ ] Fix `EntityResolver` so it actually consolidates: after `_merge_entity_sources` writes the merged record onto the existing ID (`services/document_processor.py:331-343`), call `self.knowledge_graph.delete_entity(entity.id)` when `entity.id != resolved_entity_id`. Right now a successful match doubles dupes instead of halving them (the just-written record with the new hash ID is never removed — `grep delete_entity services/` returns zero).
+- [ ] Strip the `source_id` prefix from case-entity IDs in `claim_extractor._extract_entities_from_case_analysis` — currently `id=f"issue:{source_id}:{hash}"` makes "Habitability Violation" in Case A and Case B unmergeable.
+- [ ] Use the LLM's `existing_entity_id` hint for claims/laws: in `services/proof_chain.py:_extracted_claim_to_legal_entity` (`:1187-1217`) and `_law_dict_to_legal_entity`, if `claim.existing_entity_id` is set, use it as `entity.id` instead of hashing. The prompt already asks the LLM to populate this (`prompts.py:587`) and the parser already reads it (`claim_extractor.py:333, 360`) — it's just discarded for these types today (only used for the `evidence + 'presented' + 'enrich'` branch at `proof_chain.py:963-975`).
+- [ ] Fix BM25 candidate search: `arango_graph.py:2434` uses `ANALYZER(TOKENS(@name, "text_en") ALL IN doc.name)` — requires every input token to be present. "NYC RSC" vs "Rent Stabilization Code" returns zero candidates so the resolver never scores the synonym. Switch to ANY-IN semantics with a token-overlap threshold, or use phrase + cosine fallback.
+- [ ] After A is done: AQL count `(type, LOWER(name))` groups with count>1 to measure baseline dupe rate; re-ingest a fixed test set; expect ~order-of-magnitude reduction before declaring done.
+
+**B. Edge writing — make the graph load-bearing instead of the LLM**
+
+> The hub-and-spoke design in `docs/GRAPH_SCHEMA.md:93-102` is aspirational. `REQUIRED_FOR` is declared in `models/relationships.py:26` and only *referenced* by `scripts/validate_graph.py` — no ingestion code ever writes it. The only thing tying evidence to a claim type today is a string attribute `linked_claim_type` populated by the LLM. Queries are denormalized filters (`arango_graph.py:2762-2770`), not traversals.
+
+- [ ] Existing TODO: ensure CASE_DOCUMENT→CITES→LAW and CASE_DOCUMENT→RESULTS_IN→LEGAL_OUTCOME edges are populated at ingest for all court opinions (AQL audit first — how many exist now?)
+- [ ] Existing TODO: verify query-informed extraction is working — is the LLM reusing `existing_entity_id` from prompt context, or creating new nodes anyway? Inspect a sample of recent ingestions.
+- [ ] Existing TODO: migrate deprecated node types in graph data: REMEDY→LEGAL_OUTCOME, DAMAGES→LEGAL_OUTCOME, TENANT_ISSUE→LEGAL_CLAIM.
+- [ ] **NEW**: Write `EVIDENCE → REQUIRED_FOR → CLAIM_TYPE` edges at ingest time. In the same `proof_chain.py` block that writes `IS_TYPE_OF` (`:955-959`), when an evidence node has `evidence_context="required"` + `linked_claim_type`, also create the edge. Then switch `get_required_evidence_for_claim_type` (`arango_graph.py:2762-2770`) from attribute-filter to edge-traversal.
+- [ ] **NEW**: Write `LEGAL_PROCEDURE → ADDRESSES → CLAIM_TYPE` edges at ingest time (mirror of evidence-required edge). Switch `get_required_procedures_for_claim_type` (`arango_graph.py:2787-2792`) to a traversal.
+- [ ] **NEW**: Remove the hardcoded 5-claim-type keyword table at `document_processor.py:1377-1419`. Once REQUIRED_FOR is real, SUCCESSION_RIGHTS etc. get cross-linking for free.
+- [ ] **NEW**: Fix edge-collection routing — `_get_collection_for_relationship` (`:2051-2074`) maps to per-type edge collections but actual edges are written to a single `"edges"` collection (`:1500`). The `_merge_two_docs` consolidator therefore orphans edges across collections. Either drop the per-type collection scheme entirely, or write edges through the routing helper.
+- [ ] **NEW**: Fix `_get_collection_for_entity` returning `"entities"` always (`:445-447`) — `consolidate_all_entities` iterates `target_types` and re-scans the same docs N times, pairing entities **across types** (LAW × REMEDY).
+- [ ] Existing TODO: consolidate manifests, fix DeepSeek timeout hang, fix broken URLs, re-ingest clean.
+- [ ] Existing TODO: run eval — confirm outcome accuracy ≥ 80% before proceeding to Phase 2.
+
+**C. Promote Procedure to a real first-class type**
+
+> Today `LEGAL_PROCEDURE` is just name + description. "How do I file an HP action?" returns whatever the LLM put in `description`.
+
+- [ ] Add structured fields to LEGAL_PROCEDURE in `models/entities.py`: `venue` (HP Part / DHCR / Small Claims / 311), `agency`, `forms` (list of form names + URLs), `filing_deadline_days`, `fee`, `prerequisites` (list of EVIDENCE _keys).
+- [ ] One-time Python seeder: load HP Action form set, DHCR Form RA-89 (overcharge), 311 complaint flow as Procedure nodes with the structured fields populated. NYC Admin Code §§ 27-2115 (HP), DHCR procedures, NYC HMC chapter 2 are already referenced in `data/manifests/`.
+
+**D. Tenant-side data model — required for "given my uploads, what can I claim?"**
+
+> Today `evidence_i_have: list[str]` (`api/schemas.py:331`) is passed verbatim to a megaprompt (`routes.py:1919-1924`). No graph node exists for the tenant's evidence; no link to uploaded files. `/api/upload-document` (`routes.py:141-166`) routes tenant uploads through the same `ingest_legal_source` path used for statutes.
+
+- [ ] Add `TenantEvidence` entity type (distinct from canonical EVIDENCE): fields `tenant_case_id`, `source_file_id`, `mime_type`, `captured_at`, `tenant_description`.
+- [ ] Add `TenantCase` container entity.
+- [ ] Use the existing `SATISFIES` relationship (`models/relationships.py:24`, already declared, never written) for `TenantEvidence → SATISFIES → EVIDENCE` edges. Created at upload time by a query-informed LLM mapping pass (same pattern as case ingestion).
+- [ ] Replace the `evidence_i_have: list[str]` API contract with a `tenant_case_id` reference. The analyze-my-case query becomes a real traversal: `TenantEvidence -SATISFIES-> EVIDENCE -REQUIRED_FOR-> CLAIM_TYPE`, group by CLAIM_TYPE, rank by % of requirements satisfied.
+
+**Dead code (in progress on branch `cleanup/dead-code-2026-05`)**
+- [ ] Drop 12 unused deps from `pyproject.toml` (torch, torch-geometric, transformers, spacy, networkx, python-jose, passlib, jinja2, pytesseract, pdf2image, python-docx, aiofiles) — multi-GB install win.
+- [ ] Delete legacy `main.py` (uvicorn entrypoint; Dockerfile/Makefile use `api.app:app`).
+- [ ] Delete unused `services/cache.py` (122 LOC; `utils/analysis_cache.py` is canonical).
+- [ ] Delete unused `constants.py`.
+- [ ] Delete orphan eval stack: `eval/evaluator.py` + `eval/metrics.py` + `eval/report.py` + `scripts/evaluate_system.py` (~700 LOC; production uses the per-entity stack `eval/framework.py` + `eval/report_generator.py`).
+- [ ] Delete one-shot `graph/migrate_types.py` + `migrate_types_to_values` method on `arango_graph.py:2478`.
+- [ ] After branch lands: regenerate `uv.lock`.
+- [ ] Existing TODO: remove `context_expander.py`, `legal_element_extractor.py`, deprecated entity types.
+
+**Open questions to resolve before/during Phase 1**
+- [ ] Is `graph/seed.py` (192 LOC, zero references) still needed for bootstrap, or can it go? It writes edges to entity IDs (`tenant_issue:`, `remedy:`) that don't match the current schema.
+- [ ] Is the parallel Justia scraper situation intentional? `services/justia_scraper.py` (sync, requests) vs `services/justia_search.py` (async, aiohttp, implements `LegalSearchService` ABC with one subclass). Worth unifying.
+- [ ] `docs/ENTITY_MANAGEMENT.md` and `docs/ARCHITECTURE.md` describe contradictory dedup pipelines. ENTITY_MANAGEMENT is pre-M4c and stale. Either delete or rewrite to reflect the current `upsert_canonical_entity` flow.
 
 **Phase 2 — Eval set expansion**
 - [ ] Expand `data/case_ground_truth.json` from 21 → 50+ cases (diverse: wins, losses, procedural bars, mixed outcomes)

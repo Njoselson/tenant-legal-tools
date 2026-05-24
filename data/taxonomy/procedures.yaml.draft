@@ -1,0 +1,385 @@
+# Bootstrap draft — procedures
+# 111 novel proposals not yet in canonical YAML
+# Review: promote (copy to canonical YAML), merge as alias, or delete
+# After first-pass curation: 99 entries
+# After second-pass curation: 25 entries
+
+- id: 311_complaint_for_heat_hot_water
+  name: 311 Complaint for Heat/Hot Water
+  description: A procedure to call 311 to report lack of heat or hot water, leading
+    to an HPD inspection and violation record.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id001 []
+  _bootstrap:
+    sources:
+    - https://www.metcouncilonhousing.org/help-answers/rent-control/
+    sample_quotes:
+    - If the problem is lack of heat and hot water, tenants should call 311 until
+      an inspector visits and records the violation
+    suggested_aliases: *id001
+- id: challenge_mbr_increase
+  name: Challenge MBR Increase
+  description: A procedure for rent-controlled tenants to challenge a Maximum Base
+    Rent increase by filing an RA-94 within 35 days of receiving the RN-26.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id002 []
+  _bootstrap:
+    sources:
+    - https://www.metcouncilonhousing.org/help-answers/rent-control/
+    sample_quotes:
+    - To challenge the increase, you must file an RA-94 within 35 days of receiving
+      the RN-26
+    suggested_aliases: *id002
+- id: charity_rent_assistance_application
+  name: Charity Rent Assistance Application
+  description: Application to private nonprofit organizations for emergency back rent
+    payments, requiring a housing court case or rent demand.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id003 []
+  _bootstrap:
+    sources:
+    - https://housingcourtanswers.org/answers/for-tenants/housing-court-tenants/rent-arrears-tenants/
+    sample_quotes:
+    - Charities Private nonprofit organizations that help tenants with emergency back
+      rent payments.
+    suggested_aliases: *id003
+- id: criminal_complaint_for_harassment
+  name: Criminal Complaint for Harassment
+  description: Filing a criminal complaint with law enforcement or the district attorney's
+    office under Penal Law § 241.05.
+  jurisdiction: NYS
+  status: proposed
+  aliases: &id004 []
+  _bootstrap:
+    sources:
+    - https://www.nysenate.gov/legislation/laws/PEN/241.05
+    sample_quotes: []
+    suggested_aliases: *id004
+- id: dhcr_administrative_appeal
+  name: DHCR Administrative Appeal
+  description: An appeal to the DHCR's Deputy Commissioner or Commissioner from a
+    determination by a Rent Administrator in a rent overcharge or other rent regulation
+    proceeding.
+  jurisdiction: NYS
+  status: proposed
+  aliases: &id005
+  - Administrative Appeal
+  - Administrative Appeal to DHCR
+  _bootstrap:
+    sources:
+    - https://www.courtlistener.com/opinion/4807583/matter-of-kostic-v-new-york-state-div-of-hous-community-renewal/
+    - https://www.courtlistener.com/opinion/10131664/matter-of-aidekman-v-state-of-ny-div-of-hous-community-renewal/
+    - https://www.courtlistener.com/opinion/4832002/matter-of-kostic-v-new-york-state-div-of-hous-community-renewal/
+    - https://www.courtlistener.com/opinion/2759844/corsini-v-morgan/
+    - https://www.courtlistener.com/opinion/4680212/matter-of-bedeau-realty-corp-v-state-of-new-york-div-of-hous/
+    - https://www.courtlistener.com/opinion/5997156/73-warren-street-llc-v-state-of-new-york-division-of-housing-community/
+    - https://www.courtlistener.com/opinion/5997157/73-warren-street-llc-v-state-of-new-york-division-of-housing-community/
+    sample_quotes:
+    - The landlord appealed the DHCR determination to the Commissioner.
+    - The landlord appealed the rent administrator's determination to the Deputy Commissioner.
+    - The matter was appealed to the Deputy Commissioner, who affirmed the rent administrator's
+      finding of no overcharge.
+    suggested_aliases: *id005
+- id: dhcr_administrative_determination
+  name: DHCR Administrative Determination
+  description: A procedure to file a letter with DHCR requesting an official determination
+    that an apartment is rent stabilized.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id006 []
+  _bootstrap:
+    sources:
+    - https://www.justfix.org/en/learn/rent-history-101
+    sample_quotes:
+    - write a letter to DHCR asking for an 'administrative determination' that your
+      apartment is rent stabilized
+    suggested_aliases: *id006
+- id: dhcr_complaint_cooling
+  name: DHCR Complaint for Cooling System Failure
+  description: An administrative complaint filed with the Division of Homes and Community
+    Renewal (DHCR) to address a landlord's failure to maintain a cooling system, potentially
+    leading to rent reduction or freeze.
+  jurisdiction: NYS
+  status: proposed
+  aliases: &id007 []
+  _bootstrap:
+    sources:
+    - https://www.justfix.org/en/learn/air-conditioning-laws
+    sample_quotes:
+    - you can file a complaint with the State agency that oversees rent stabilization,
+      the Division of Homes and Community Renewal (“DHCR”). DHCR may freeze or reduce
+      your rent until the landlord corrects the problems.
+    suggested_aliases: *id007
+- id: dhcr_par_proceeding
+  name: DHCR Petition for Administrative Review (PAR)
+  description: An administrative appeal to DHCR challenging a rent administrator's
+    determination on a rent overcharge or service complaint.
+  jurisdiction: NYS
+  status: proposed
+  aliases: &id008 []
+  _bootstrap:
+    sources:
+    - https://www.courtlistener.com/opinion/10364727/matter-of-5511-777-st-marks-ave-bk-llc-v-state-of-new-york-div-of-hous/
+    sample_quotes:
+    - petitioner commenced this CPLR article 78 proceeding to challenge a determination
+      of the respondent State of New York Division of Housing and Community Renewal
+      (DHCR) which denied its petition for administrative review
+    suggested_aliases: *id008
+- id: dhcr_rent_decrease_filing
+  name: DHCR Rent Decrease Filing
+  description: An administrative proceeding to request a rent reduction due to landlord's
+    failure to provide services or repairs.
+  jurisdiction: NYS
+  status: proposed
+  aliases: &id009 []
+  _bootstrap:
+    sources:
+    - https://www.metcouncilonhousing.org/help-answers/rent-control/
+    sample_quotes:
+    - the tenant can file for a decrease with the DHCR
+    suggested_aliases: *id009
+- id: dhcr_rent_history_request
+  name: DHCR Rent History Request
+  description: An administrative procedure to obtain the rent history of an apartment
+    from the New York State Division of Housing and Community Renewal, often by texting
+    a specific number.
+  jurisdiction: NYS
+  status: proposed
+  aliases: &id010 []
+  _bootstrap:
+    sources:
+    - https://www.justfix.org/en/learn/rent-history-101
+    - https://www.metcouncilonhousing.org/help-answers/about-rent-stabilization/
+    - https://www.metcouncilonhousing.org/help-answers/how-can-i-find-out-if-i-am-rent-stabilized/
+    - https://www.metcouncilonhousing.org/help-answers/rent-stabilization-overcharges/
+    sample_quotes:
+    - JustFix’s Rent History Tool helps you request your rent history from the New
+      York State Division of Homes and Community Renewal ('DHCR') via snail mail
+    - You can obtain a printout of the registered rents for your apartment – called
+      a ‘rent history’ – from the NYS Division of Housing & Community Renewal.
+    - Get a copy of your apartment’s rent history from the DHCR by texting “MCH” to
+      (855) 610-2450 and following the prompts.
+    suggested_aliases: *id010
+- id: drie_application
+  name: DRIE Application
+  description: An application process for tenants with disabilities to obtain exemption
+    from rent increases.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id011 []
+  _bootstrap:
+    sources:
+    - https://www.metcouncilonhousing.org/help-answers/rent-control/
+    sample_quotes:
+    - Tenants who qualify for the Senior Citizen Rent Increase Exemption or Disability
+      Rent Increase Exemption programs should apply as soon as they qualify
+    suggested_aliases: *id011
+- id: department_of_health_complaint
+  name: Department of Health Complaint
+  description: Filing a complaint with the NYC Department of Health regarding mold
+    as a health hazard.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id012 []
+  _bootstrap:
+    sources:
+    - https://www.justfix.org/en/learn/mold-in-apartment
+    sample_quotes:
+    - In addition to reporting violations to HPD, consider filing a complaint with
+      the Department of Health.
+    suggested_aliases: *id012
+- id: fheps_application
+  name: FHEPS Application
+  description: Ongoing assistance for families on public assistance with minor children
+    to pay higher monthly shelter allowance and arrears up to $7,000.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id013 []
+  _bootstrap:
+    sources:
+    - https://housingcourtanswers.org/answers/for-tenants/housing-court-tenants/rent-arrears-tenants/
+    sample_quotes:
+    - The Family Homelessness and Eviction Prevention Supplement (FHEPS) is ongoing
+      assistance for families with minor children on public assistance.
+    suggested_aliases: *id013
+- id: fair_market_rent_appeal_filing
+  name: Fair Market Rent Appeal Filing
+  description: An administrative process with DHCR to challenge the initial rent at
+    the start of rent stabilization and seek a refund.
+  jurisdiction: NYS
+  status: proposed
+  aliases: &id014 []
+  _bootstrap:
+    sources:
+    - https://hcr.ny.gov/rent-stabilization-and-emergency-tenant-protection-act
+    sample_quotes:
+    - the right to file a Fair Market Rent Appeal
+    suggested_aliases: *id014
+- id: heap_application
+  name: HEAP Application for Cooling Assistance
+  description: An application to the Home Energy Assistance Program (HEAP) for financial
+    assistance with the purchase, installation, and electrical costs of cooling an
+    apartment.
+  jurisdiction: NYS
+  status: proposed
+  aliases: &id015 []
+  _bootstrap:
+    sources:
+    - https://www.justfix.org/en/learn/air-conditioning-laws
+    sample_quotes:
+    - The Home Energy Assistance Program (“HEAP”) offers eligible households with
+      financial assistance for the purchase, installation, and electrical costs associated
+      with cooling your apartment.
+    suggested_aliases: *id015
+- id: hpd_attorney_involvement
+  name: HPD Attorney Involvement
+  description: The role of the HPD attorney in court, who represents the city and
+    seeks enforcement of building and apartment standards, and to whom tenants present
+    evidence.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id016 []
+  _bootstrap:
+    sources:
+    - https://housingcourtanswers.org/answers/for-tenants/hp-actions-tenants/
+    sample_quotes:
+    - The HPD lawyer represents the city. He or she wants to enforce apartment and
+      building standards.
+    suggested_aliases: *id016
+- id: hpd_emergency_repairs_program
+  name: HPD Emergency Repairs Program
+  description: A program where HPD makes emergency repairs and bills the landlord,
+    used in extreme cases of mold or related hazards.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id017 []
+  _bootstrap:
+    sources:
+    - https://www.justfix.org/en/learn/mold-in-apartment
+    sample_quotes:
+    - In extreme cases, HPD may call your landlord directly or even make repairs and
+      bill the landlord for their trouble through the Emergency Repairs Program.
+    suggested_aliases: *id017
+- id: homebase_program
+  name: HomeBase Program
+  description: A program that may help tenants with rent arrears, mentioned as a potential
+    source of assistance.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id018 []
+  _bootstrap:
+    sources:
+    - https://housingcourtanswers.org/answers/for-tenants/housing-court-tenants/rent-arrears-tenants/
+    sample_quotes:
+    - The HomeBase program may also help you...
+    suggested_aliases: *id018
+- id: letter_of_complaint
+  name: Letter of Complaint to Landlord
+  description: A formal written request to the landlord to fix a cooling system issue,
+    often a prerequisite before filing an official complaint.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id019 []
+  _bootstrap:
+    sources:
+    - https://www.justfix.org/en/learn/air-conditioning-laws
+    sample_quotes:
+    - Before filing an official complaint with DHCR, try asking your landlord to fix
+      the cooling system using JustFix’s Letter of Complaint.
+    suggested_aliases: *id019
+- id: one_shot_deal_application
+  name: One Shot Deal Application
+  description: A one-time payment from HRA to pay back rent to avoid eviction, applied
+    for via Access HRA or at an HRA center.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id020 []
+  _bootstrap:
+    sources:
+    - https://housingcourtanswers.org/answers/for-tenants/housing-court-tenants/rent-arrears-tenants/
+    sample_quotes:
+    - A one shot deal is a one time payment from the Human Resources Administration
+      (HRA) to pay back rent to avoid an eviction.
+    suggested_aliases: *id020
+- id: reasonable_accommodation_request
+  name: Reasonable Accommodation Request for Air Conditioning
+  description: A process by which a tenant with a disability requests that the landlord
+    allow or facilitate air conditioning installation, including electrical upgrades,
+    under fair housing laws.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id021 []
+  _bootstrap:
+    sources:
+    - https://www.justfix.org/en/learn/air-conditioning-laws
+    sample_quotes:
+    - 'A reasonable accommodation request involves a few steps: Prove the Disability...
+      Wait for a Response...'
+    suggested_aliases: *id021
+- id: rent_impoundment
+  name: Rent Impoundment
+  description: A court order allowing the tenant to pay rent into an escrow account
+    until the landlord makes necessary repairs, often granted in an HP action.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id022
+  - Rent Impoundment (Rent Abatement)
+  _bootstrap:
+    sources:
+    - https://www.courtlistener.com/opinion/3159177/foster-v-britton/
+    - https://www.courtlistener.com/opinion/4414807/m-c-v-texas-department-of-family-and-protective-services/
+    - https://www.courtlistener.com/opinion/6315365/north-driggs-holdings-llc-v-burstiner/
+    sample_quotes:
+    - The court ordered rent impoundment pending completion of repairs.
+    suggested_aliases: *id022
+- id: scrie_application
+  name: SCRIE Application
+  description: An application process for senior citizens to obtain exemption from
+    rent increases.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id023 []
+  _bootstrap:
+    sources:
+    - https://www.metcouncilonhousing.org/help-answers/rent-control/
+    sample_quotes:
+    - Tenants who qualify for the Senior Citizen Rent Increase Exemption or Disability
+      Rent Increase Exemption programs should apply as soon as they qualify
+    suggested_aliases: *id023
+- id: small_claims_action
+  name: Small Claims Action for Security Deposit
+  description: A lawsuit in small claims court to recover a wrongfully withheld security
+    deposit, up to the jurisdictional limit.
+  jurisdiction: NYS
+  status: proposed
+  aliases: &id024 []
+  _bootstrap:
+    sources:
+    - https://www.courtlistener.com/opinion/4414807/m-c-v-texas-department-of-family-and-protective-services/
+    sample_quotes: []
+    suggested_aliases: *id024
+- id: supreme_court_declaratory_judgment
+  name: Supreme Court Declaratory Judgment Action
+  description: A civil action in New York State Supreme Court seeking a judicial declaration
+    of the parties' rights, often used in complex landlord-tenant disputes involving
+    regulatory status.
+  jurisdiction: NYS
+  status: proposed
+  aliases: &id025
+  - Declaratory Judgment Action
+  _bootstrap:
+    sources:
+    - https://www.courtlistener.com/opinion/2170691/mbia-insurance-corp-v-federal-deposit-insurance/
+    - https://www.courtlistener.com/opinion/10360824/independent-435-cpw-tenants-assn-v-park-front-apts-llc/
+    - https://www.courtlistener.com/opinion/10598390/matter-of-901-bklyn-realty-llc-v-manigat/
+    sample_quotes:
+    - The tenants brought a declaratory judgment action in Supreme Court, seeking
+      a determination that their apartments were subject to rent stabilization.
+    - MBIA Insurance Corp. v. Federal Deposit Insurance Corp., 2011 WL 4527400 (D.D.C.
+      2011)
+    - petitioner commenced this proceeding seeking, among other things, a declaration
+      that the rent for the subject apartment was not overcharged
+    suggested_aliases: *id025

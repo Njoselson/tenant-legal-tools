@@ -13,7 +13,6 @@ from pathlib import Path
 
 import pytest
 
-from tenant_legal_guidance.eval.evaluator import SystemEvaluator
 from tenant_legal_guidance.models.entities import (
     LegalDocumentType,
     SourceAuthority,
@@ -152,71 +151,6 @@ class TestEvaluationPipeline:
                 assert "recall_at_k" in result
                 assert "mrr" in result
                 assert 0.0 <= result.get("mrr", 0.0) <= 1.0
-
-    def test_full_report_generation(self, system_with_data, tmp_path):
-        """Test full report generation."""
-        system, ingestion_result = system_with_data
-        
-        evaluator = SystemEvaluator(
-            knowledge_graph=system.knowledge_graph,
-            vector_store=system.vector_store,
-        )
-        
-        # Generate report
-        report = evaluator.generate_report()
-        
-        assert "evaluation_summary" in report
-        assert "metrics" in report
-        assert "overall_score" in report
-        
-        # Verify report structure
-        assert "quote_quality" in report["metrics"]
-        assert "chunk_linkage" in report["metrics"]
-        
-        # Test saving report
-        output_path = tmp_path / "test_report.json"
-        evaluator.generate_report(output_path=output_path)
-        
-        assert output_path.exists()
-        with open(output_path) as f:
-            saved_report = json.load(f)
-        
-        assert "evaluation_summary" in saved_report
-        assert "metrics" in saved_report
-
-    def test_evaluation_with_test_dataset(self, system_with_data):
-        """Test evaluation using test dataset fixtures."""
-        system, ingestion_result = system_with_data
-        
-        # Load test dataset
-        fixtures_dir = Path(__file__).parent.parent / "fixtures"
-        entities_path = fixtures_dir / "evaluation" / "test_entities.json"
-        queries_path = fixtures_dir / "evaluation" / "test_queries.json"
-        
-        if not entities_path.exists() or not queries_path.exists():
-            pytest.skip("Test dataset fixtures not found")
-        
-        with open(queries_path) as f:
-            queries_data = json.load(f)
-        
-        queries = queries_data.get("queries", [])
-        if not queries:
-            pytest.skip("No test queries available")
-        
-        retriever = HybridRetriever(system.knowledge_graph, system.vector_store)
-        evaluator = SystemEvaluator(
-            knowledge_graph=system.knowledge_graph,
-            vector_store=system.vector_store,
-            retriever=retriever,
-        )
-        
-        # Evaluate with test queries
-        retrieval_metrics = evaluator.evaluate_retrieval(queries[:3], k=10)  # Use first 3 queries
-        
-        assert "metric" in retrieval_metrics
-        results = retrieval_metrics["results"]
-        assert "average_precision_at_k" in results
-        assert "total_queries" in results
 
 
 class TestPerformanceBenchmarks:

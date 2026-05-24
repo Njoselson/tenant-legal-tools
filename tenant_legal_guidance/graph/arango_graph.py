@@ -2475,45 +2475,6 @@ class ArangoDBGraph:
             # Return empty list on failure (graceful degradation)
             return []
 
-    def migrate_types_to_values(self) -> dict[str, int]:
-        """Migrate stored entity 'type' from enum NAME (e.g., 'LAW') to enum VALUE (e.g., 'law').
-        Returns a dict of collection -> updated_count.
-        """
-        from tenant_legal_guidance.utils.entity_helpers import normalize_entity_type
-
-        updated_counts: dict[str, int] = {}
-        for entity_type in EntityType:
-            collection_name = self._get_collection_for_entity(entity_type)
-            collection = self.db.collection(collection_name)
-            updated = 0
-            try:
-                for doc in collection.all():
-                    stored_type = doc.get("type")
-                    if not stored_type:
-                        continue
-                    # If it's already the value, skip
-                    if stored_type == entity_type.value:
-                        continue
-                    # Try to normalize using utility
-                    try:
-                        normalized = normalize_entity_type(stored_type)
-                        target_value = normalized.value
-                        if target_value != stored_type:
-                            doc["type"] = target_value
-                            collection.update(doc)
-                            updated += 1
-                    except ValueError:
-                        self.logger.warning(
-                            f"Skipping migration for {doc.get('_key', 'unknown')} in {collection_name}: unknown type '{stored_type}'"
-                        )
-                        continue
-                updated_counts[collection_name] = updated
-                self.logger.info(f"Migrated {updated} docs in {collection_name} to type values")
-            except Exception as e:
-                self.logger.error(f"Error migrating collection {collection_name}: {e}")
-                updated_counts[collection_name] = -1
-        return updated_counts
-
     def compute_next_steps(self, issues: list[str], jurisdiction: str | None = None) -> list[dict]:
         """Compute deterministic next steps from issues through applicable laws, remedies, procedures, and evidence.
         This is a heuristic placeholder; refine with AQL/graph traversal later.

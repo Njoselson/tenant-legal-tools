@@ -1,0 +1,790 @@
+# Bootstrap draft — claim_types
+# 82 novel proposals not yet in canonical YAML
+# Review: promote (copy to canonical YAML), merge as alias, or delete
+# After first-pass curation: 78 entries
+# After second-pass curation: 47 entries
+
+- id: breach_of_lease
+  name: Breach of Lease
+  description: A claim that a landlord violated the terms of a lease agreement, such
+    as failing to provide essential services or maintain the premises.
+  jurisdiction: NYS
+  status: proposed
+  aliases: &id001
+  - Breach of Contract
+  - Landlord Breach of Contract
+  _bootstrap:
+    sources:
+    - https://www.courtlistener.com/opinion/4289658/gary-hodge-and-robert-hart-iii-v-stephen-kraft-ind-and-as-member-on/
+    - https://www.courtlistener.com/opinion/2831336/coinmach-corp-fka-solon-automated-services-inc-v-aspenwood-apartment/
+    - https://www.courtlistener.com/opinion/4798112/gerald-dix-v-edelman-financial-services/
+    - https://www.courtlistener.com/opinion/7323114/federal-deposit-insurance-corp-v-dee/
+    - https://www.courtlistener.com/opinion/2170691/mbia-insurance-corp-v-federal-deposit-insurance/
+    - https://www.courtlistener.com/opinion/4281716/in-re-vsdh-vaquero-venture-ltd-and-douglas-m-hickok/
+    - https://www.courtlistener.com/opinion/9355567/terry-v-pub-serv-co-of-nc/
+    - https://www.courtlistener.com/opinion/8523899/giuliano-v-federal-deposit-insurance-in-re-downey-financial-corp/
+    - https://www.courtlistener.com/opinion/4274214/linda-s-nowlin-v-lori-keaton/
+    - https://www.courtlistener.com/opinion/4854807/12636-research-ltd-hsu-realty-company-inc-and-chi-kao-hsu-indian/
+    - https://www.metcouncilonhousing.org/help-answers/if-you-want-to-break-your-lease/
+    - https://www.courtlistener.com/opinion/4798029/gerald-dix-v-edelman-financial-services/
+    - https://www.courtlistener.com/opinion/2831351/coinmach-corp-fka-solon-automated-services-inc-v-a/
+    sample_quotes:
+    - Plaintiff also asserted a claim for breach of contract.
+    - Nowlin argues that Keaton breached the lease by failing to provide air conditioning
+      and other essential services.
+    - VSDH Vaquero Venture, Ltd. and Douglas M. Hickok appeal from a judgment in favor
+      of appellees on their breach of contract claim.
+    suggested_aliases: *id001
+- id: breach_of_quiet_enjoyment
+  name: Breach of Quiet Enjoyment
+  description: A claim that the landlord substantially interfered with the tenant's
+    right to use and enjoy the rental property peacefully.
+  jurisdiction: NYS
+  status: proposed
+  aliases: &id002 []
+  _bootstrap:
+    sources:
+    - https://www.courtlistener.com/opinion/9440172/kiemle-hagood-company-v-mariam-p-daniels-aka-phoebe-daniels/
+    - https://www.courtlistener.com/opinion/10160713/eddy-v-anderson/
+    sample_quotes:
+    - The court considered whether the landlord's actions constituted a breach of
+      the covenant of quiet enjoyment.
+    suggested_aliases: *id002
+- id: challenge_rent_increase
+  name: Challenge Rent Increase
+  description: A claim that a rent-controlled tenant can challenge a landlord's application
+    for a rent increase due to uncorrected violations or failure to provide essential
+    services.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id003 []
+  _bootstrap:
+    sources:
+    - https://www.metcouncilonhousing.org/help-answers/rent-control/
+    sample_quotes:
+    - Rent-controlled tenants can challenge the increase if the violations were not
+      removed
+    suggested_aliases: *id003
+- id: criminal_harassment
+  name: Criminal Harassment
+  description: Conduct that impairs habitability, endangers safety or health, or causes
+    physical injury to a tenant or third person.
+  jurisdiction: NYS
+  status: proposed
+  aliases: &id004 []
+  _bootstrap:
+    sources:
+    - https://legalaidnyc.org/get-help/housing-problems/what-you-need-to-know-about-tenant-harassment/
+    sample_quotes:
+    - 'Criminal harassment includes: Any conduct that impairs the habitability of
+      a housing unit Conduct that creates or maintains a condition which endangers
+      the safety or health of tenants Conduct likely to interfere or disturb, or is
+      intended to disturb the comfort of a person legally entitled to live in an apartment
+      or room Conduct intended to or that causes physical injury to tenant or a third
+      person'
+    suggested_aliases: *id004
+- id: dhcr_determination_challenge
+  name: DHCR Determination Challenge
+  description: A claim challenging an order or determination issued by the New York
+    State Division of Housing and Community Renewal.
+  jurisdiction: NYS
+  status: proposed
+  aliases: &id005 []
+  _bootstrap:
+    sources:
+    - https://www.courtlistener.com/opinion/10634373/matter-of-57-elmhurst-llc-v-new-york-state-div-of-hous-community/
+    sample_quotes:
+    - petition to review a determination of the New York State Division of Housing
+      and Community Renewal
+    suggested_aliases: *id005
+- id: disability_ac_accommodation
+  name: Disability Accommodation for Air Conditioning
+  description: A claim that a landlord must reasonably accommodate a tenant's disability
+    by allowing or facilitating air conditioning installation, including upgrading
+    electrical systems, unless it causes undue hardship.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id006 []
+  _bootstrap:
+    sources:
+    - https://www.justfix.org/en/learn/air-conditioning-laws
+    sample_quotes:
+    - City, State, and Federal Fair Housing laws require landlords to make reasonable
+      accommodations, including potentially upgrading electric systems to allow for
+      air conditioning installations.
+    suggested_aliases: *id006
+- id: disability_rent_increase_exemption
+  name: Disability Rent Increase Exemption (DRIE)
+  description: A claim for exemption from rent increases for qualifying tenants with
+    disabilities in rent-controlled apartments.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id007 []
+  _bootstrap:
+    sources:
+    - https://www.metcouncilonhousing.org/help-answers/rent-control/
+    sample_quotes:
+    - Tenants who qualify for the Senior Citizen Rent Increase Exemption or Disability
+      Rent Increase Exemption programs should apply as soon as they qualify
+    suggested_aliases: *id007
+- id: disability_or_elderly_protection
+  name: Disability or Elderly Protection
+  description: A claim that a disabled or elderly tenant can delay eviction by providing
+    proof to the marshal, who must notify Adult Protective Services.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id008 []
+  _bootstrap:
+    sources:
+    - https://housingcourtanswers.org/answers/for-tenants/stop-an-eviction/
+    sample_quotes:
+    - Someone who lives in my home is disabled or elderly. Send proof to the marshal’s
+      office.
+    suggested_aliases: *id008
+- id: domestic_violence_lease_termination
+  name: Domestic Violence Lease Termination
+  description: A right for tenants with a court order of protection to break a lease
+    if safety is jeopardized, with ten days' notice.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id009 []
+  _bootstrap:
+    sources:
+    - https://www.metcouncilonhousing.org/help-answers/if-you-want-to-break-your-lease/
+    sample_quotes:
+    - If you have a court order of protection and your safety is jeopardized by remaining
+      in the apartment, you may be able to break the lease with ten days’ notice to
+      your landlord.
+    suggested_aliases: *id009
+- id: emergency_hp_action
+  name: Emergency HP Action
+  description: An expedited HP action filed when there are serious, dangerous conditions
+    in the apartment requiring immediate court intervention.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id010 []
+  _bootstrap:
+    sources:
+    - https://housingcourtanswers.org/answers/for-tenants/hp-actions-tenants/
+    sample_quotes:
+    - If you have serious, dangerous conditions in your apartment, you can file an
+      emergency HP action.
+    suggested_aliases: *id010
+- id: excessive_rent_increase
+  name: Excessive Rent Increase
+  description: A claim that a landlord has imposed an unjust or unreasonable rent
+    increase beyond what is permitted under rent stabilization.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id011 []
+  _bootstrap:
+    sources:
+    - https://nycadmincode.readthedocs.io/t26/c04/
+    sample_quotes:
+    - exactions of unjust, unreasonable and oppressive rents and rental agreements
+    suggested_aliases: *id011
+- id: failure_to_maintain_cooling
+  name: Failure to Maintain Cooling System
+  description: A claim that a landlord failed to maintain a cooling system that was
+    present when the tenant moved in, potentially violating habitability or rent stabilization
+    obligations.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id012 []
+  _bootstrap:
+    sources:
+    - https://www.justfix.org/en/learn/air-conditioning-laws
+    sample_quotes:
+    - If your landlord fails to maintain the cooling system you had when you moved
+      in, you can file a complaint with the State agency that oversees rent stabilization,
+      the Division of Homes and Community Renewal (“DHCR”).
+    suggested_aliases: *id012
+- id: failure_to_maintain_services
+  name: Failure to Maintain Services
+  description: A claim that a landlord has failed to provide essential services or
+    maintain the building in good repair, potentially affecting rent regulation.
+  jurisdiction: NYS
+  status: proposed
+  aliases: &id013 []
+  _bootstrap:
+    sources:
+    - https://www.courtlistener.com/opinion/10364727/matter-of-5511-777-st-marks-ave-bk-llc-v-state-of-new-york-div-of-hous/
+    sample_quotes:
+    - the tenant complained of a reduction in building-wide services
+    suggested_aliases: *id013
+- id: failure_to_provide_essential_services
+  name: Failure to Provide Essential Services
+  description: A claim that the landlord failed to provide heat, hot water, electricity,
+    or other essential services required by law.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id014 []
+  _bootstrap:
+    sources:
+    - https://www.courtlistener.com/opinion/8286581/ellis-v-doe/
+    sample_quotes: []
+    suggested_aliases: *id014
+- id: failure_to_provide_reasonable_accommodation
+  name: Failure to Provide Reasonable Accommodation
+  description: Landlord's failure to provide reasonable accommodation to tenants with
+    disabilities, which is a form of discrimination.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id015 []
+  _bootstrap:
+    sources:
+    - https://www.metcouncilonhousing.org/help-answers/housing-discrimination/
+    sample_quotes:
+    - Complaints about discrimination of any kind or landlord’s failure to provide
+      reasonable accomodation to tenants with disabilities (see below) can be made
+      to the New York City Commission on Human Rights.
+    suggested_aliases: *id015
+- id: failure_to_register
+  name: Failure to Register Apartment
+  description: A claim that the landlord failed to file required rent registration
+    statements with DHCR, affecting rent stabilization status.
+  jurisdiction: NYS
+  status: proposed
+  aliases: &id016
+  - Failure to Register Rent
+  - Failure to Register as Rent Stabilized
+  _bootstrap:
+    sources:
+    - https://www.justfix.org/en/learn/rent-history-101
+    - https://www.courtlistener.com/opinion/5997156/73-warren-street-llc-v-state-of-new-york-division-of-housing-community/
+    - https://www.nysenate.gov/legislation/laws/ETP/5
+    sample_quotes:
+    - The landlord failed to register the apartment with DHCR for several years.
+    - Your landlord violated the law by failing to register your apartment
+    - The owner shall file with the division of housing and community renewal a registration
+      statement.
+    suggested_aliases: *id016
+- id: failure_to_renew_lease
+  name: Failure to Renew Lease
+  description: A claim that a landlord failed to offer a renewal lease to a rent-stabilized
+    tenant, entitling the tenant to withhold rent increases.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id017 []
+  _bootstrap:
+    sources:
+    - https://www.metcouncilonhousing.org/help-answers/about-rent-stabilization/
+    - https://www.metcouncilonhousing.org/help-answers/how-can-i-find-out-if-i-am-rent-stabilized/
+    sample_quotes:
+    - your landlord must offer you a renewal lease in order to collect a rent increase.
+      If your landlord doesn’t offer you a valid lease renewal, you don’t need to
+      pay the increase
+    - Rent stabilization means your rent increases are determined by the Rent Guidelines
+      Board (Appointed by the Mayor) & that they landlord must renew your lease
+    suggested_aliases: *id017
+- id: fair_housing_act_discrimination
+  name: Fair Housing Act Discrimination
+  description: Discrimination in the sale, rental, financing, or other housing-related
+    transactions based on race, color, national origin, religion, sex, familial status,
+    or disability.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id018 []
+  _bootstrap:
+    sources:
+    - https://www.metcouncilonhousing.org/help-answers/housing-discrimination/
+    sample_quotes:
+    - The Fair Housing Act, as amended in 1988, prohibits housing discrimination on
+      the basis of race, color, religion, sex, disability, familial status, and national
+      origin.
+    suggested_aliases: *id018
+- id: fair_market_rent_appeal
+  name: Fair Market Rent Appeal
+  description: A tenant's right to challenge the initial rent set at the start of
+    rent stabilization, seeking a refund if the rent increased excessively.
+  jurisdiction: NYS
+  status: proposed
+  aliases: &id019 []
+  _bootstrap:
+    sources:
+    - https://hcr.ny.gov/rent-stabilization-and-emergency-tenant-protection-act
+    sample_quotes:
+    - The fair market rent guideline provided that a tenant has the right to file
+      a fair market rent appeal with the Division of Housing and Community Renewal
+      ('DHCR') to seek a refund if his or her rent increased by more than 16% between
+      January 1, 2019 and July 30, 2022.
+    suggested_aliases: *id019
+- id: fraudulent_deregulation
+  name: Fraudulent Deregulation
+  description: A claim that a landlord improperly removed a unit from rent stabilization
+    through fraud, such as false statements about vacancy or improvements.
+  jurisdiction: NYS
+  status: proposed
+  aliases: &id020 []
+  _bootstrap:
+    sources:
+    - https://www.courtlistener.com/opinion/9492811/gourin-v-72a-realty-assoc-lp/
+    - https://www.courtlistener.com/opinion/10472015/matter-of-140-25-ash-assoc-llc-v-state-of-new-york-div-of-hous/
+    - https://www.courtlistener.com/opinion/4632516/john-kuzmich-v-50-murray-street-acquisition-llc-william-t-west-v/
+    - https://www.courtlistener.com/opinion/10131664/matter-of-aidekman-v-state-of-ny-div-of-hous-community-renewal/
+    - https://www.courtlistener.com/opinion/4678184/matter-of-gray-v-new-york-state-div-of-hous-community-renewal/
+    - https://www.courtlistener.com/opinion/4393779/trust-for-the-benefit-of-goldstein-v-lipetz/
+    - https://www.courtlistener.com/opinion/4858343/united-states-v-skelos/
+    - https://www.courtlistener.com/opinion/4865090/people-v-dr-226-holdings-llc/
+    sample_quotes:
+    - plaintiffs alleged that the rent was fraudulently deregulated
+    - The scheme involved the use of bribery to secure rent-stabilized apartments
+      and to facilitate the deregulation of units.
+    - The issue in these appeals is whether the four-year lookback period for rent
+      overcharge claims under the Rent Stabilization Law applies to claims of fraudulent
+      deregulation.
+    suggested_aliases: *id020
+- id: fraudulent_rent_registration
+  name: Fraudulent Rent Registration
+  description: A claim that a landlord knowingly filed false or misleading rent registration
+    statements with DHCR to justify an illegal rent increase.
+  jurisdiction: NYS
+  status: proposed
+  aliases: &id021 []
+  _bootstrap:
+    sources:
+    - https://www.courtlistener.com/opinion/2759844/corsini-v-morgan/
+    - https://www.courtlistener.com/opinion/4847455/matter-of-bergen-realty-mgt-llc-v-new-york-state-div-of-hous/
+    sample_quotes:
+    - the court held that DHCR may examine the rental history of a housing accommodation
+      prior to the four-year lookback period where there is a finding of fraud
+    - The tenant alleged that the landlord had fraudulently registered the apartment's
+      rent.
+    suggested_aliases: *id021
+- id: group_hp_action
+  name: Group HP Action
+  description: A single HP action filed by multiple tenants in the same building against
+    the landlord, addressing individual apartment issues and common areas.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id022 []
+  _bootstrap:
+    sources:
+    - https://housingcourtanswers.org/answers/for-tenants/hp-actions-tenants/
+    sample_quotes:
+    - Several tenants in a building filing one case against the landlord together.
+    suggested_aliases: *id022
+- id: habitability_violation_mold
+  name: Habitability Violation for Mold
+  description: A claim that the landlord failed to maintain the premises in a habitable
+    condition by not addressing mold and its underlying causes.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id023 []
+  _bootstrap:
+    sources:
+    - https://www.justfix.org/en/learn/mold-in-apartment
+    sample_quotes:
+    - If you rent in New York City, your landlord must take specific steps to eliminate
+      all visible mold as well as the poor housing conditions that led to the mold.
+    suggested_aliases: *id023
+- id: harassment_of_rent_regulated_tenant
+  name: Harassment of a Rent Regulated Tenant
+  description: A criminal offense for intentionally harassing a tenant in a rent regulated
+    dwelling, including acts like threats, repeated interruptions of services, or
+    other conduct intended to force the tenant to vacate.
+  jurisdiction: NYS
+  status: proposed
+  aliases: &id024 []
+  _bootstrap:
+    sources:
+    - https://www.nysenate.gov/legislation/laws/PEN/241.05
+    sample_quotes:
+    - A person is guilty of harassment of a rent regulated tenant when he or she,
+      with intent to induce a tenant to vacate a rent regulated dwelling unit... engages
+      in a course of conduct which interferes with or disturbs the tenant's quiet
+      enjoyment...
+    suggested_aliases: *id024
+- id: heat_violation
+  name: Heat Violation
+  description: A claim that a landlord failed to provide adequate heat during the
+    required heating season, violating minimum temperature standards.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id025 []
+  _bootstrap:
+    sources:
+    - https://nycadmincode.readthedocs.io/t27/c02/sch02/art08/
+    sample_quotes:
+    - During the period from October first through May thirty-first, centrally-supplied
+      heat... shall be furnished so as to maintain... a temperature of at least sixty-eight
+      degrees Fahrenheit whenever the outside temperature falls below fifty-five degrees.
+    suggested_aliases: *id025
+- id: hot_water_violation
+  name: Hot Water Violation
+  description: A claim that a landlord failed to supply hot water at the required
+    minimum temperature during specified hours.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id026 []
+  _bootstrap:
+    sources:
+    - https://nycadmincode.readthedocs.io/t27/c02/sch02/art08/
+    sample_quotes:
+    - every bath, shower, washbasin and sink in any dwelling unit... shall be supplied
+      at all times between the hours of six a. m. and midnight with hot water at a
+      constant minimum temperature of one hundred twenty degrees Fahrenheit
+    suggested_aliases: *id026
+- id: illegal_eviction
+  name: Illegal Eviction (Self-Help Eviction)
+  description: A claim that the landlord removed the tenant without a court order,
+    such as by changing locks or removing belongings.
+  jurisdiction: NYS
+  status: proposed
+  aliases: &id027
+  - Unlawful Self-Help Eviction
+  _bootstrap:
+    sources:
+    - https://www.courtlistener.com/opinion/4414807/m-c-v-texas-department-of-family-and-protective-services/
+    - https://www.courtlistener.com/opinion/4272286/regina-sophus-v-houston-police-department-homicide-division-and-new-hope/
+    sample_quotes: []
+    suggested_aliases: *id027
+- id: illegal_eviction_roommate
+  name: Illegal Eviction of Roommate
+  description: A prime tenant cannot evict a roommate by changing locks or other self-help
+    measures if the roommate has tenancy rights.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id028 []
+  _bootstrap:
+    sources:
+    - https://housingcourtanswers.org/answers/for-tenants/roommate-issues/
+    sample_quotes:
+    - No! If your roommate has ever paid you or if they have a signed rental agreement
+      with you or if they haven’t paid...
+    suggested_aliases: *id028
+- id: illegal_rent_increase
+  name: Illegal Rent Increase
+  description: A claim that a landlord has raised rent beyond allowed limits, such
+    as through false renovation claims or improper vacancy increases.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id029
+  - Unlawful Rent Increase
+  _bootstrap:
+    sources:
+    - https://www.courtlistener.com/opinion/9367604/tammie-guilford-v-weidner-investment-services-inc-weidner-investment/
+    - https://www.metcouncilonhousing.org/help-answers/rent-stabilization-overcharges/
+    sample_quotes:
+    - Guilford alleged that the rent increase was not permitted under the lease or
+      applicable regulations.
+    - A sudden jump in the rent could be an indication of an illegal rent increase
+      – you’ll have to do further research in order to find out.
+    suggested_aliases: *id029
+- id: improper_service_defense
+  name: Improper Service Defense
+  description: A defense that the court papers were not served on the tenant in the
+    correct manner, such as lacking personal, substitute, or conspicuous service.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id030 []
+  _bootstrap:
+    sources:
+    - https://housingcourtanswers.org/answers/for-tenants/housing-court-tenants/tenant-nonpayment-cases/
+    sample_quotes:
+    - You did not receive the court papers. The court papers were not served on you
+      the right...
+    suggested_aliases: *id030
+- id: lease_violation
+  name: Lease Violation
+  description: A claim that a landlord failed to comply with lease terms or rent stabilization
+    requirements regarding lease offers or renewals.
+  jurisdiction: NYS
+  status: proposed
+  aliases: &id031 []
+  _bootstrap:
+    sources:
+    - https://hcr.ny.gov/rent-stabilization-and-emergency-tenant-protection-act
+    sample_quotes:
+    - lease violation complaints
+    suggested_aliases: *id031
+- id: military_lease_termination
+  name: Military Lease Termination
+  description: A right for tenants entering active military service to break a lease
+    with proper notice.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id032 []
+  _bootstrap:
+    sources:
+    - https://www.metcouncilonhousing.org/help-answers/if-you-want-to-break-your-lease/
+    sample_quotes:
+    - If you are going into active military service, you can break the lease if it’s
+      in your name.
+    suggested_aliases: *id032
+- id: negligent_maintenance
+  name: Negligent Maintenance
+  description: A claim that the landlord negligently failed to repair or maintain
+    the property, causing harm to the tenant.
+  jurisdiction: NYS
+  status: proposed
+  aliases: &id033 []
+  _bootstrap:
+    sources:
+    - https://law.justia.com/codes/new-york/mdw/article-3/title-3/78/
+    - https://www.courtlistener.com/opinion/2326384/haslam-james-v-lawrence/
+    - https://www.courtlistener.com/opinion/4489054/city-of-bridgeport-v-grace-bldg-llc/
+    sample_quotes:
+    - The tenant also asserted a claim for negligent maintenance of the common areas.
+    - The complaint included a claim for negligent maintenance based on the landlord's
+      failure to address known hazardous conditions.
+    - The owner shall keep the premises in good repair.
+    suggested_aliases: *id033
+- id: relocation_services_claim
+  name: Relocation Services Claim
+  description: A claim by a displaced tenant for relocation services such as information
+    on vacant accommodations and registration facilities.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id034
+  - Relocation Payment Claim
+  _bootstrap:
+    sources:
+    - https://nycadmincode.readthedocs.io/t26/c02/index.html
+    sample_quotes:
+    - to fix and promulgate and from time to time amend a schedule of payments to
+      be made to or for the benefit of and to aid in the relocation of tenants
+    - To provide and maintain tenant relocation services ... for tenants of real property
+      which the commissioner of housing preservation and development is authorized
+      to maintain and supervise
+    suggested_aliases: *id034
+- id: rent_abatement
+  name: Rent Abatement
+  description: A claim for reduction or refund of rent due to the landlord's failure
+    to provide essential services or maintain habitable conditions.
+  jurisdiction: NYS
+  status: proposed
+  aliases: &id035 []
+  _bootstrap:
+    sources:
+    - https://www.courtlistener.com/opinion/6316425/1515-macombs-llc-v-jackson/
+    - https://www.courtlistener.com/opinion/5988893/gordon-v-305-riverside-corp/
+    - https://www.courtlistener.com/opinion/6317338/pena-v-lockenwitz/
+    - https://www.courtlistener.com/opinion/10266532/1719-gates-llc-v-torres/
+    - https://www.courtlistener.com/opinion/10442824/304-306-e-83-realty-llc-v-mason/
+    sample_quotes:
+    - Tenant sought rent abatement for the period during which the apartment was uninhabitable
+      due to water damage.
+    - Tenant sought rent abatement for the period during which the apartment lacked
+      heat and hot water.
+    - Tenant sought rent abatement for the period during which the apartment was uninhabitable
+      due to mold.
+    suggested_aliases: *id035
+- id: rent_freeze_and_reduction
+  name: Rent Freeze and Reduction
+  description: A claim that a rent-regulated tenant is entitled to a rent freeze or
+    reduction if the landlord fails to provide essential services or make repairs.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id036 []
+  _bootstrap:
+    sources:
+    - https://www.metcouncilonhousing.org/help-answers/rent-control/
+    sample_quotes:
+    - like all rent-regulated tenants, rent-controlled tenants can get a rent freeze
+      and rent reduction if the landlord is not providing services or making repairs
+      and the tenant follows the proper procedures
+    suggested_aliases: *id036
+- id: repair_neglect
+  name: Repair Neglect
+  description: A claim that a landlord failed to make necessary repairs to the rental
+    unit or common areas, causing harm or inconvenience.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id037 []
+  _bootstrap:
+    sources:
+    - https://up.codes/viewer/new_york_city/nyc-housing-maintenance-code/chapter/5/legal-remedies-and-enforcement
+    sample_quotes:
+    - 'Subchapter 5 Legal Remedies and Enforcement: New York City Housing Maintenance
+      Code'
+    suggested_aliases: *id037
+- id: retaliation_for_housing_court_action
+  name: Retaliation for Prior Housing Court Action
+  description: Unlawful for a building owner to refuse to rent to a tenant because
+    of prior action against the tenant in Housing Court.
+  jurisdiction: NYS
+  status: proposed
+  aliases: &id038 []
+  _bootstrap:
+    sources:
+    - https://www.metcouncilonhousing.org/help-answers/housing-discrimination/
+    sample_quotes:
+    - Under the Housing Stability and Tenant Protection Act of 2019, it is also unlawful
+      for building owner to refuse to rent to a tenant because of prior action against
+      the tenant in Housing Court.
+    suggested_aliases: *id038
+- id: senior_citizen_rent_increase_exemption
+  name: Senior Citizen Rent Increase Exemption (SCRIE)
+  description: A claim for exemption from rent increases for qualifying senior citizens
+    in rent-controlled apartments.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id039 []
+  _bootstrap:
+    sources:
+    - https://www.metcouncilonhousing.org/help-answers/rent-control/
+    sample_quotes:
+    - Tenants who qualify for the Senior Citizen Rent Increase Exemption or Disability
+      Rent Increase Exemption programs should apply as soon as they qualify
+    suggested_aliases: *id039
+- id: senior_lease_termination
+  name: Senior Lease Termination
+  description: A right for tenants aged 62 or older to break a lease under specific
+    circumstances, such as relocation to senior housing or medical necessity.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id040 []
+  _bootstrap:
+    sources:
+    - https://www.metcouncilonhousing.org/help-answers/if-you-want-to-break-your-lease/
+    sample_quotes:
+    - If you or your spouse is 62 or older, you can break the lease if you are re-locating
+      to a nursing home, senior housing, or other adult care facility.
+    suggested_aliases: *id040
+- id: service_reduction
+  name: Service Reduction
+  description: A claim that a landlord decreased essential building or apartment services,
+    violating rent stabilization obligations.
+  jurisdiction: NYS
+  status: proposed
+  aliases: &id041 []
+  _bootstrap:
+    sources:
+    - https://hcr.ny.gov/rent-stabilization-and-emergency-tenant-protection-act
+    sample_quotes:
+    - the maintenance of individual apartment and/or building-wide services
+    suggested_aliases: *id041
+- id: succession_rights_violation
+  name: Succession Rights Violation
+  description: A claim that a landlord denied a family member the right to take over
+    a rent-stabilized lease after the tenant's death or move-out.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id042 []
+  _bootstrap:
+    sources:
+    - https://www.metcouncilonhousing.org/help-answers/about-rent-stabilization/
+    sample_quotes:
+    - if you are the immediate family member of a rent-stabilized tenant and have
+      been living with them immediately prior to their moving or passing away, you
+      might be entitled to take over the lease.
+    suggested_aliases: *id042
+- id: tenant_rights_roommate
+  name: Tenant Rights for Roommates
+  description: A roommate who has lived in the unit for at least 30 days or has a
+    signed rental agreement has tenancy rights and cannot be evicted without proper
+    legal process.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id043 []
+  _bootstrap:
+    sources:
+    - https://housingcourtanswers.org/answers/for-tenants/roommate-issues/
+    sample_quotes:
+    - If you have been living in the room for at least 30 days or have a signed rental
+      agreement, you have tenancy rights.
+    suggested_aliases: *id043
+- id: treble_damages
+  name: Treble Damages
+  description: A claim for three times the amount of an overcharge as a penalty for
+    willful overcharging.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id044 []
+  _bootstrap:
+    sources:
+    - https://law.justia.com/codes/new-york/2006/new-york-city-administrative-code-new/adc026-516_26-516.html
+    sample_quotes:
+    - treble_damages
+    suggested_aliases: *id044
+- id: unlawful_ac_fees
+  name: Unlawful Air Conditioning Fees
+  description: A claim that a landlord improperly charged or attempted to collect
+    fees for air conditioning units, including fees not authorized by lease or waived
+    by delay.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id045 []
+  _bootstrap:
+    sources:
+    - https://www.justfix.org/en/learn/air-conditioning-laws
+    sample_quotes:
+    - If you don’t receive a bill for your air conditioning units within a reasonable
+      period of time, the landlord waives the right to collect this fee for as long
+      as you have the AC units.
+    suggested_aliases: *id045
+- id: unlawful_eviction
+  name: Unlawful Eviction
+  description: A claim that the landlord removed the tenant from the premises without
+    following proper legal procedures, such as obtaining a court order.
+  jurisdiction: NYS
+  status: proposed
+  aliases: &id046
+  - Illegal Eviction
+  - Wrongful Eviction
+  _bootstrap:
+    sources:
+    - https://www.courtlistener.com/opinion/4740501/turpin-v-district-of-columbia/
+    - https://www.courtlistener.com/opinion/2675136/hapugalle-v-chastleton-cooperative-association/
+    - https://www.courtlistener.com/opinion/10160713/eddy-v-anderson/
+    - https://www.courtlistener.com/opinion/10679704/walker-v-us-department-of-agriculture-rural-development/
+    - https://www.metcouncilonhousing.org/help-answers/about-rent-stabilization/
+    - https://www.courtlistener.com/opinion/10304904/burcica-v-ludy/
+    - https://www.courtlistener.com/opinion/4272286/regina-sophus-v-houston-police-department-homicide-division-and-new-hope/
+    - https://www.courtlistener.com/opinion/9470445/steven-m-selz-v-lauren-mckagen-and-stephen-hursey/
+    - https://www.courtlistener.com/opinion/9500925/south-brooklyn-ry-co-v-heung-man-lau/
+    - https://www.courtlistener.com/opinion/4389766/south-boston-elderly-residences-inc-v-moynahan/
+    - https://www.courtlistener.com/opinion/8720199/davis-v-city-of-new-york/
+    - https://www.courtlistener.com/opinion/9383662/shaffer-v-dixon/
+    - https://law.justia.com/cases/new-york/other-courts/2025/2025-ny-slip-op-33306-u.html
+    - https://www.courtlistener.com/opinion/9401538/william-angel-patricia-belk-dorothy-brown-robert-brown-anthony-buggs/
+    - https://nycadmincode.readthedocs.io/t26/c04/
+    - https://www.courtlistener.com/opinion/9440172/kiemle-hagood-company-v-mariam-p-daniels-aka-phoebe-daniels/
+    - https://www.courtlistener.com/opinion/5313644/wheeling-v-selene-finance/
+    - https://www.courtlistener.com/opinion/4854807/12636-research-ltd-hsu-realty-company-inc-and-chi-kao-hsu-indian/
+    - https://www.courtlistener.com/opinion/3161152/boston-redevelopment-authority-v-pham/
+    - https://www.courtlistener.com/opinion/4992210/duhon-v-briley/
+    - https://www.courtlistener.com/opinion/9478117/tuyen-dinh-v-matthew-raines-and-melissa-clayton/
+    - https://www.courtlistener.com/opinion/8716929/charron-v-pinnacle-group-ny-llc/
+    - https://www.courtlistener.com/opinion/2772083/mosser-companies-v-san-francisco-rent-stabilization-arbitration-board/
+    - https://www.courtlistener.com/opinion/7323114/federal-deposit-insurance-corp-v-dee/
+    - https://www.courtlistener.com/opinion/10642469/lavrich-v-snyderburn/
+    - https://www.courtlistener.com/opinion/8716132/smith-v-housing-authority/
+    - https://www.courtlistener.com/opinion/2677838/erlach-v-sierra-asset-servicing-llc/
+    - https://www.courtlistener.com/opinion/3192367/affordable-autos-inc-v-irvin-a-dietert/
+    - https://hcr.ny.gov/rent-stabilization-and-emergency-tenant-protection-act
+    - https://www.courtlistener.com/opinion/4513050/stewart-v-hargan/
+    - https://www.courtlistener.com/opinion/4878933/pickens-vs-la-villa-vegas-inc/
+    - https://www.courtlistener.com/opinion/4519506/germadnik-v-auld/
+    - https://www.courtlistener.com/opinion/6472229/woods-v-sharkin/
+    - https://www.courtlistener.com/opinion/10582208/304-306-e-83-realty-llc-v-mason/
+    - https://www.courtlistener.com/opinion/5326578/sengul-v-cms-franklin-inc/
+    - https://www.courtlistener.com/opinion/7860639/myers-v-district-of-columbia-housing-authority/
+    - https://www.courtlistener.com/opinion/8523899/giuliano-v-federal-deposit-insurance-in-re-downey-financial-corp/
+    - https://www.courtlistener.com/opinion/4274214/linda-s-nowlin-v-lori-keaton/
+    - https://www.courtlistener.com/opinion/4750158/kahawaiolaa-v-hawaiian-sun-investments-inc/
+    - https://www.courtlistener.com/opinion/4885245/elsayed-v-miamisburg-by-the-mall/
+    - https://www.courtlistener.com/opinion/9367604/tammie-guilford-v-weidner-investment-services-inc-weidner-investment/
+    sample_quotes:
+    - Plaintiffs allege they were wrongfully evicted from their apartment without
+      due process.
+    - Landlord changed the locks without a warrant of eviction, constituting an illegal
+      eviction.
+    - The landlord changed the locks and removed the tenant's belongings without a
+      court order.
+    suggested_aliases: *id046
+- id: unlawful_eviction_claim
+  name: Unlawful Eviction Claim
+  description: A claim arising from displacement without proper relocation services
+    or payments as required by law.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id047 []
+  _bootstrap:
+    sources:
+    - https://nycadmincode.readthedocs.io/t26/c02/index.html
+    sample_quotes:
+    - for tenants of any privately owned building where the displacement of such tenants
+      results from the enforcement of any law, regulation, order or requirement
+    suggested_aliases: *id047

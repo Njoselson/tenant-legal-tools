@@ -38,7 +38,7 @@ class TenantLegalSystem:
         self.deepseek = DeepSeekClient(deepseek_api_key, max_concurrent=settings.max_concurrent_llm)
         self.knowledge_graph = ArangoDBGraph()
         self.document_processor = DocumentProcessor(
-            self.deepseek, self.knowledge_graph, enable_entity_search=enable_entity_search
+            self.deepseek, self.knowledge_graph
         )
         self.vector_store = self.document_processor.vector_store
         self.logger = logging.getLogger(__name__)

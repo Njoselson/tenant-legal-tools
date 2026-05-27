@@ -53,7 +53,8 @@ def make_fake_system_with_docs(num_docs: int = 5):
     for i in range(num_docs):
         docs.append(
             {
-                "_key": f"law:{i}",
+                "_key": f"law_{i}",
+                "_id": f"laws/law_{i}",
                 "type": "law",
                 "name": f"Law {i}",
                 "description": f"Desc {i}",
@@ -121,10 +122,10 @@ def test_edge_unique_index_created():
     # Call index initialization
     ArangoDBGraph._init_indexes(graph)
 
-    # Verify each edge collection received a unique index on (_from,_to,type)
+    # Verify each edge collection received a unique index on (_from, _to)
     for rel in RelationshipType:
         coll = fdb.collection(rel.name.lower())
         assert any(
-            idx.get("unique") is True and idx.get("fields") == ["_from", "_to", "type"]
+            idx.get("unique") is True and idx.get("fields") == ["_from", "_to"]
             for idx in coll.added_indexes
         )

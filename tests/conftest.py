@@ -37,11 +37,15 @@ def deepseek_client():
     def mock_chat_completion(prompt: str) -> str:
         """Return a mock response based on prompt content."""
         prompt_lower = prompt.lower()
-        
+
+        # Taxonomy-first tenant query extraction (new ClaimMatcher flow)
+        if "curated claim types" in prompt_lower and "evidence_i_have" in prompt_lower:
+            return '{"claim_types": [], "evidence_i_have": []}'
+
         # If prompt asks for evidence extraction (standalone method), return a JSON array
         if "extract all evidence" in prompt_lower and "tenant situation" in prompt_lower:
             return '["Lease document", "Rent receipts", "Communication with landlord"]'
-        
+
         # If prompt is the analyze-my-case megaprompt (contains situation and claim types)
         if ("situation:" in prompt_lower or "user's situation" in prompt_lower) and ("claim_type" in prompt_lower or "canonical_name" in prompt_lower):
             return '''{

@@ -100,7 +100,7 @@ class DeepSeekClient:
 
                         if "choices" in response_data and len(response_data["choices"]) > 0:
                             content = response_data["choices"][0].get("message", {}).get("content", "")
-                            if not content:
+                            if not content or not content.strip():
                                 raise ValueError(
                                     f"Empty response from API. Response structure: {list(response_data.keys())}"
                                 )

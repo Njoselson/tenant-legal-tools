@@ -5,12 +5,70 @@ Resource processing service for the Tenant Legal Guidance System.
 import hashlib
 import io
 import logging
+import os
+import re
 
 import PyPDF2
 import requests
 from bs4 import BeautifulSoup
+from dotenv import load_dotenv
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
+
+load_dotenv()
+
+_COURTLISTENER_TOKEN = os.getenv("COURTLISTENER_API_TOKEN")
+_CL_CLUSTER_RE = re.compile(r"courtlistener\.com/opinion/(\d+)/")
+_CL_BASE = "https://www.courtlistener.com/api/rest/v4"
+_CL_HEADERS = {"Accept": "application/json"}
+if _COURTLISTENER_TOKEN:
+    _CL_HEADERS["Authorization"] = f"Token {_COURTLISTENER_TOKEN}"
+
+
+def _fetch_courtlistener_text(cluster_id: str) -> str | None:
+    """
+    Fetch opinion text via the CourtListener REST API.
+
+    URL format:  courtlistener.com/opinion/{cluster_id}/{slug}/
+    The cluster ID links to the case; opinion documents (with text) are in sub_opinions.
+    """
+    if not _COURTLISTENER_TOKEN:
+        return None
+    try:
+        # Step 1: cluster → get sub_opinions list
+        cluster_resp = requests.get(
+            f"{_CL_BASE}/clusters/{cluster_id}/",
+            headers=_CL_HEADERS,
+            timeout=30,
+        )
+        if cluster_resp.status_code != 200:
+            return None
+        cluster = cluster_resp.json()
+
+        sub_opinions = cluster.get("sub_opinions", [])
+        if not sub_opinions:
+            return None
+
+        # Step 2: fetch first opinion document
+        op_url = sub_opinions[0]  # full URL e.g. .../opinions/4380945/
+        op_resp = requests.get(op_url, headers=_CL_HEADERS, timeout=30)
+        if op_resp.status_code != 200:
+            return None
+        op = op_resp.json()
+
+        # Prefer plain_text; fall back to stripping html_with_citations
+        text = op.get("plain_text") or ""
+        if not text:
+            html = op.get("html_with_citations") or op.get("html") or op.get("html_lawbox") or ""
+            text = re.sub(r"<[^>]+>", " ", html)
+            text = re.sub(r"\s+", " ", text).strip()
+
+        # Don't return stub text shorter than a meaningful opinion
+        if len(text.strip()) < 200:
+            return None
+        return text
+    except Exception:
+        return None
 
 from tenant_legal_guidance.models.documents import LegalDocument
 from tenant_legal_guidance.models.entities import EntityType, LegalEntity, SourceType
@@ -40,6 +98,15 @@ class LegalResourceProcessor:
     def scrape_text_from_url(self, url: str) -> str | None:
         """Scrape text content from a URL with anti-bot measures handling."""
         self.logger.info(f"Attempting to scrape text from URL: {url}")
+
+        # CourtListener opinions: use REST API instead of scraping HTML
+        cl_match = _CL_CLUSTER_RE.search(url)
+        if cl_match:
+            text = _fetch_courtlistener_text(cl_match.group(1))
+            if text:
+                self.logger.info(f"CourtListener API returned {len(text)} chars for {url}")
+                return text
+            self.logger.warning(f"CourtListener API returned no text for {url}, falling through")
 
         # Define multiple user agents to rotate
         user_agents = [

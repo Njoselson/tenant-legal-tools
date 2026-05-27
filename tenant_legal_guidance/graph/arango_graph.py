@@ -1,5 +1,4 @@
 import logging
-import re
 import time
 from datetime import datetime
 
@@ -7,15 +6,37 @@ from arango import ArangoClient
 
 from tenant_legal_guidance.config import get_settings
 from tenant_legal_guidance.models.entities import (
+    CaseDocumentNode,
+    ClaimTypeNode,
     EntityType,
-    LegalEntity,
+    EvidenceNode,
+    LawNode,
+    ProcedureNode,
     SourceAuthority,
     SourceType,
 )
-from tenant_legal_guidance.models.relationships import LegalRelationship, RelationshipType
+from tenant_legal_guidance.models.relationships import RelationshipType
 from tenant_legal_guidance.utils.chunking import build_chunk_docs
-from tenant_legal_guidance.services.entity_resolver import AUTO_MERGE_THRESHOLD, BORDERLINE_THRESHOLD
 from tenant_legal_guidance.utils.text import canonicalize_text, sha256
+
+# Vertex collections for the 5 node types
+VERTEX_COLLECTIONS = {
+    EntityType.CLAIM_TYPE: "claim_types",
+    EntityType.EVIDENCE: "evidence_nodes",
+    EntityType.PROCEDURE: "procedures",
+    EntityType.LAW: "laws",
+    EntityType.CASE_DOCUMENT: "case_documents",
+}
+
+# Edge collections for the 3 relationship types
+EDGE_COLLECTIONS = {
+    RelationshipType.REQUIRES_EVIDENCE: "requires_evidence",
+    RelationshipType.TYPICALLY_USES: "typically_uses",
+    RelationshipType.CITES: "cites",
+}
+
+# Infrastructure collections (source, text, quote, provenance)
+INFRA_VERTEX_COLLECTIONS = ["sources", "text_blobs", "quotes", "provenance"]
 
 
 class ArangoDBGraph:
@@ -28,7 +49,6 @@ class ArangoDBGraph:
         max_retries: int = 3,
         retry_delay: int = 2,
     ):
-        # Use pydantic settings to read .env file, with fallback to provided args
         settings = get_settings()
         self.host = host or settings.arango_host
         self.db_name = db_name or settings.arango_db_name
@@ -39,428 +59,236 @@ class ArangoDBGraph:
 
         self.logger = logging.getLogger(__name__)
         self.logger.info(f"Initializing ArangoDB connection to {self.host}")
-
-        # Initialize connection with retry logic
         self._init_connection()
-
         self.logger.info("Initialized ArangoDBGraph")
 
-    def delete_entity(self, entity_id: str) -> bool:
-        """Delete an entity by id and all incident edges. Returns True if deleted, False if not found.
-        The entity collection is inferred from the id prefix before ':'.
-        """
-        try:
-            from tenant_legal_guidance.utils.entity_helpers import get_entity_type_from_id
-
-            if ":" in entity_id:
-                try:
-                    et = get_entity_type_from_id(entity_id)
-                    coll_name = self._get_collection_for_entity(et)
-                except ValueError:
-                    self.logger.warning(f"Unknown entity prefix for delete: {entity_id}")
-                    return False
-            else:
-                # Fallback: find collection that has the key
-                coll_name = None
-                for et in EntityType:
-                    cn = self._get_collection_for_entity(et)
-                    if self.db.collection(cn).has(entity_id):
-                        coll_name = cn
-                        break
-                if coll_name is None:
-                    return False
-
-            coll = self.db.collection(coll_name)
-            if not coll.has(entity_id):
-                return False
-
-            # Remove incident edges across all edge collections
-            for rel_type in RelationshipType:
-                edge_coll = self.db.collection(self._get_collection_for_relationship(rel_type))
-                try:
-                    aql = """
-                    FOR e IN @@edge_coll
-                        FILTER e._from == CONCAT(@from_coll, '/', @key) OR e._to == CONCAT(@to_coll, '/', @key)
-                        REMOVE e IN @@edge_coll
-                    """
-                    bind_vars = {
-                        "@edge_coll": edge_coll.name,
-                        "from_coll": coll_name,
-                        "to_coll": coll_name,
-                        "key": entity_id,
-                    }
-                    self.db.aql.execute(aql, bind_vars=bind_vars)
-                except Exception as e:
-                    self.logger.warning(
-                        f"Failed removing edges for {entity_id} in {edge_coll.name}: {e}"
-                    )
-
-            # Remove the vertex
-            coll.delete(entity_id)
-            return True
-        except Exception as e:
-            self.logger.error(f"Error deleting entity {entity_id}: {e}")
-            return False
-
-    def delete_entities(self, entity_ids: list[str]) -> dict[str, bool]:
-        """Bulk delete entities by ids. Returns mapping id -> success flag."""
-        results: dict[str, bool] = {}
-        for eid in entity_ids:
-            results[eid] = self.delete_entity(eid)
-        return results
+    # ─── Connection ────────────────────────────────────────────────────────────
 
     def _init_connection(self):
-        """Initialize connection to ArangoDB with retry logic."""
         for attempt in range(self.max_retries):
             try:
-                self.logger.debug(
-                    f"Attempting to connect to ArangoDB (attempt {attempt + 1}/{self.max_retries})"
-                )
                 self.client = ArangoClient(hosts=self.host)
-
-                # First connect to _system database to check/create our database
                 sys_db = self.client.db("_system", username=self.username, password=self.password)
-
-                # Check if our database exists
                 if not sys_db.has_database(self.db_name):
                     self.logger.info(f"Creating database: {self.db_name}")
                     sys_db.create_database(
                         name=self.db_name,
-                        users=[
-                            {
-                                "username": self.username,
-                                "password": self.password,
-                                "active": True,
-                                "extra": {"is_superuser": True},
-                            }
-                        ],
+                        users=[{
+                            "username": self.username,
+                            "password": self.password,
+                            "active": True,
+                            "extra": {"is_superuser": True},
+                        }],
                     )
-
-                # Now connect to our database
-                self.db = self.client.db(
-                    self.db_name, username=self.username, password=self.password
-                )
-
-                # Test connection by getting server version
+                self.db = self.client.db(self.db_name, username=self.username, password=self.password)
                 version = self.db.version()
-                self.logger.info(f"Successfully connected to ArangoDB version {version}")
-
-                # Initialize collections, indexes, and search view
+                self.logger.info(f"Connected to ArangoDB version {version}")
                 self._init_collections()
                 self._init_indexes()
                 self._ensure_search_view()
                 return
-
             except Exception as e:
                 if attempt < self.max_retries - 1:
-                    wait_time = self.retry_delay * (attempt + 1)  # Exponential backoff
-                    self.logger.warning(
-                        f"Failed to connect to ArangoDB (attempt {attempt + 1}/{self.max_retries}): {e!s}. "
-                        f"Retrying in {wait_time} seconds..."
-                    )
-                    time.sleep(wait_time)
+                    wait = self.retry_delay * (attempt + 1)
+                    self.logger.warning(f"Connect attempt {attempt+1} failed: {e}. Retrying in {wait}s...")
+                    time.sleep(wait)
                 else:
-                    self.logger.error(
-                        f"Failed to connect to ArangoDB after {self.max_retries} attempts. "
-                        f"Please ensure ArangoDB is running and accessible at {self.host}. "
-                        f"Error: {e!s}"
-                    )
+                    self.logger.error(f"Failed to connect after {self.max_retries} attempts: {e}")
                     raise ConnectionError(
-                        f"Could not connect to ArangoDB at {self.host}. "
-                        "Please ensure the database is running and accessible."
+                        f"Could not connect to ArangoDB at {self.host}."
                     ) from e
 
     def _init_collections(self):
-        """Initialize required collections in ArangoDB."""
         try:
-            # Normalized collections for collapsed graph/evidence stores
-            for name, is_edge in (
-                ("entities", False),
-                ("sources", False),
-                ("text_blobs", False),
-                ("quotes", False),
-                ("provenance", False),
-                ("edges", True),
-            ):
-                try:
-                    if not self.db.has_collection(name):
-                        self.db.create_collection(name, edge=is_edge)
-                        self.logger.info(f"Created collection: {name}")
-                except Exception:
-                    pass
-            # Create vertex collections for all entity types
-            vertex_collections = [
-                "laws",
-                "legal_procedures",
-                "legal_concepts",
-                # Organizing entities
-                "tenant_groups",
-                "campaigns",
-                "tactics",
-                # Parties
-                "tenants",
-                "landlords",
-                "legal_services",
-                "government_entities",
-                # Outcomes
-                "legal_outcomes",
-                "organizing_outcomes",
-                # Issues and events
-                "tenant_issues",  # legacy collection still queried by compute_next_steps AQL
-                "events",
-                # Documentation and evidence
-                "documents",
-                "evidence",
-                # Geographic and jurisdictional
-                "jurisdictions",
-            ]
+            # Taxonomy vertex collections
+            for et, name in VERTEX_COLLECTIONS.items():
+                if not self.db.has_collection(name):
+                    self.db.create_collection(name)
+                    self.logger.info(f"Created vertex collection: {name}")
 
-            for collection in vertex_collections:
-                if not self.db.has_collection(collection):
-                    self.db.create_collection(collection)
-                    self.logger.info(f"Created vertex collection: {collection}")
+            # Infrastructure vertex collections
+            for name in INFRA_VERTEX_COLLECTIONS:
+                if not self.db.has_collection(name):
+                    self.db.create_collection(name)
+                    self.logger.info(f"Created vertex collection: {name}")
 
-            # Create edge collections — derived from RelationshipType enum so new types auto-create
-            edge_collections = [rt.name.lower() for rt in RelationshipType] + ["mentions"]
+            # Edge collections
+            for rt, name in EDGE_COLLECTIONS.items():
+                if not self.db.has_collection(name):
+                    self.db.create_collection(name, edge=True)
+                    self.logger.info(f"Created edge collection: {name}")
 
-            for collection in edge_collections:
-                if not self.db.has_collection(collection):
-                    self.db.create_collection(collection, edge=True)
-                    self.logger.info(f"Created edge collection: {collection}")
+            # Tagging edge collections (case_documents → taxonomy nodes)
+            for tagging_coll in ("tagged_as", "demonstrates_evidence", "applied_procedure"):
+                if not self.db.has_collection(tagging_coll):
+                    self.db.create_collection(tagging_coll, edge=True)
+                    self.logger.info(f"Created edge collection: {tagging_coll}")
 
-            # Create named ArangoDB graph for traversal queries (e.g. GRAPH "legal_knowledge_graph")
+            # Named graph for traversal queries
             graph_name = "legal_knowledge_graph"
             if not self.db.has_graph(graph_name):
                 self.db.create_graph(
                     graph_name,
                     edge_definitions=[
                         {
-                            "edge_collection": "edges",
-                            "from_vertex_collections": ["entities"],
-                            "to_vertex_collections": ["entities"],
-                        }
+                            "edge_collection": "requires_evidence",
+                            "from_vertex_collections": ["claim_types"],
+                            "to_vertex_collections": ["evidence_nodes"],
+                        },
+                        {
+                            "edge_collection": "typically_uses",
+                            "from_vertex_collections": ["claim_types"],
+                            "to_vertex_collections": ["procedures"],
+                        },
+                        {
+                            "edge_collection": "cites",
+                            "from_vertex_collections": ["case_documents"],
+                            "to_vertex_collections": ["laws"],
+                        },
+                        {
+                            "edge_collection": "tagged_as",
+                            "from_vertex_collections": ["case_documents"],
+                            "to_vertex_collections": ["claim_types"],
+                        },
+                        {
+                            "edge_collection": "demonstrates_evidence",
+                            "from_vertex_collections": ["case_documents"],
+                            "to_vertex_collections": ["evidence_nodes"],
+                        },
+                        {
+                            "edge_collection": "applied_procedure",
+                            "from_vertex_collections": ["case_documents"],
+                            "to_vertex_collections": ["procedures"],
+                        },
                     ],
                 )
                 self.logger.info(f"Created named graph: {graph_name}")
-
         except Exception as e:
-            self.logger.error(f"Error initializing collections: {e!s}")
+            self.logger.error(f"Error initializing collections: {e}")
             raise
 
     def _init_indexes(self):
-        """Initialize required indexes in ArangoDB."""
         try:
-            # Add indexes for each vertex collection
-            for entity_type in EntityType:
-                coll_name = self._get_collection_for_entity(entity_type)
+            # Taxonomy collections: index on status and jurisdiction
+            for coll_name in list(VERTEX_COLLECTIONS.values()):
                 if not self.db.has_collection(coll_name):
                     continue
                 coll = self.db.collection(coll_name)
-                # Index on type and name for dedupe/lookups
-                try:
-                    coll.add_index(
-                        {"type": "persistent", "fields": ["type", "name"], "name": "idx_type_name"}
-                    )
-                except Exception:
-                    pass
-                # Index on jurisdiction to speed filtering
-                try:
-                    coll.add_index(
-                        {
-                            "type": "persistent",
-                            "fields": ["jurisdiction"],
-                            "name": "idx_jurisdiction",
-                        }
-                    )
-                except Exception:
-                    pass
+                for index in [
+                    {"type": "persistent", "fields": ["status"], "name": "idx_status"},
+                    {"type": "persistent", "fields": ["jurisdiction"], "name": "idx_jurisdiction"},
+                ]:
+                    try:
+                        coll.add_index(index)
+                    except Exception:
+                        pass
 
-            # text_chunks removed: now stored exclusively in Qdrant vector DB
-
-            # Edge collection indexes
-            for rel_type in RelationshipType:
-                edge_name = self._get_collection_for_relationship(rel_type)
-                if not self.db.has_collection(edge_name):
+            # Edge collections: index on _from and _to
+            for coll_name in EDGE_COLLECTIONS.values():
+                if not self.db.has_collection(coll_name):
                     continue
-                edges = self.db.collection(edge_name)
+                coll = self.db.collection(coll_name)
+                for index in [
+                    {"type": "persistent", "fields": ["_from", "_to"], "name": "uniq_from_to",
+                     "unique": True, "sparse": False},
+                ]:
+                    try:
+                        coll.add_index(index)
+                    except Exception:
+                        pass
+
+            # Sources: index on locator
+            if self.db.has_collection("sources"):
                 try:
-                    edges.add_index(
-                        {"type": "persistent", "fields": ["_from", "type"], "name": "idx_from_type"}
+                    self.db.collection("sources").add_index(
+                        {"type": "persistent", "fields": ["locator"], "name": "idx_locator", "unique": True, "sparse": True}
                     )
                 except Exception:
                     pass
+
+            # text_blobs: unique index on sha256
+            if self.db.has_collection("text_blobs"):
                 try:
-                    edges.add_index({"type": "persistent", "fields": ["_to"], "name": "idx_to"})
-                except Exception:
-                    pass
-                # Enforce uniqueness of edges by (_from, _to, type)
-                try:
-                    edges.add_index(
-                        {
-                            "type": "persistent",
-                            "fields": ["_from", "_to", "type"],
-                            "name": "uniq_from_to_type",
-                            "unique": True,
-                            "sparse": False,
-                        }
+                    self.db.collection("text_blobs").add_index(
+                        {"type": "persistent", "fields": ["sha256"], "name": "idx_blob_sha", "unique": True}
                     )
                 except Exception:
-                    # Ignore if already exists or not supported
                     pass
 
-            # Normalized collections indexes
-            try:
-                if self.db.has_collection("entities"):
-                    ent = self.db.collection("entities")
+            # quotes: index on source_id
+            if self.db.has_collection("quotes"):
+                for index in [
+                    {"type": "persistent", "fields": ["source_id", "start_offset", "end_offset"], "name": "idx_src_span"},
+                    {"type": "persistent", "fields": ["quote_sha256"], "name": "idx_quote_sha"},
+                ]:
                     try:
-                        ent.add_index(
-                            {
-                                "type": "persistent",
-                                "fields": ["type", "name"],
-                                "name": "idx_type_name",
-                            }
-                        )
+                        self.db.collection("quotes").add_index(index)
                     except Exception:
                         pass
-                    try:
-                        ent.add_index(
-                            {
-                                "type": "persistent",
-                                "fields": ["jurisdiction"],
-                                "name": "idx_jurisdiction",
-                            }
-                        )
-                    except Exception:
-                        pass
-            except Exception:
-                pass
-            try:
-                if self.db.has_collection("edges"):
-                    gen_edges = self.db.collection("edges")
-                    try:
-                        gen_edges.add_index(
-                            {
-                                "type": "persistent",
-                                "fields": ["_from", "type"],
-                                "name": "idx_from_type",
-                            }
-                        )
-                    except Exception:
-                        pass
-                    try:
-                        gen_edges.add_index(
-                            {"type": "persistent", "fields": ["_to"], "name": "idx_to"}
-                        )
-                    except Exception:
-                        pass
-            except Exception:
-                pass
-            try:
-                if self.db.has_collection("quotes"):
-                    q = self.db.collection("quotes")
-                    try:
-                        q.add_index(
-                            {
-                                "type": "persistent",
-                                "fields": ["source_id", "start_offset", "end_offset"],
-                                "name": "idx_src_span",
-                            }
-                        )
-                    except Exception:
-                        pass
-                    try:
-                        q.add_index(
-                            {
-                                "type": "persistent",
-                                "fields": ["quote_sha256"],
-                                "name": "idx_quote_sha",
-                            }
-                        )
-                    except Exception:
-                        pass
-            except Exception:
-                pass
-            try:
-                if self.db.has_collection("text_blobs"):
-                    b = self.db.collection("text_blobs")
-                    try:
-                        b.add_index(
-                            {
-                                "type": "persistent",
-                                "fields": ["sha256"],
-                                "name": "idx_blob_sha",
-                                "unique": True,
-                            }
-                        )
-                    except Exception:
-                        pass
-            except Exception:
-                pass
 
-            self.logger.info("Initialized database indexes")
+            # case_documents: index on claim_types array for tagged lookup
+            if self.db.has_collection("case_documents"):
+                try:
+                    self.db.collection("case_documents").add_index(
+                        {"type": "persistent", "fields": ["claim_types[*]"], "name": "idx_claim_types"}
+                    )
+                except Exception:
+                    pass
 
+            self.logger.info("Initialized indexes")
         except Exception as e:
-            self.logger.error(f"Error initializing indexes: {e!s}")
+            self.logger.error(f"Error initializing indexes: {e}")
             raise
 
     def _ensure_search_view(self):
-        """Create or update an ArangoSearch view over all entity collections."""
-        try:
-            view_name = "kg_entities_view"
-            # Build links for consolidated 'entities' only
-            # Text chunks are now stored exclusively in Qdrant vector DB
-            links: dict[str, dict] = {}
-            if self.db.has_collection("entities"):
-                links["entities"] = {
+        view_name = "kg_entities_view"
+        links: dict[str, dict] = {}
+        text_field = {"analyzers": ["text_en"]}
+        identity_field = {"analyzers": ["identity"]}
+
+        for coll_name in list(VERTEX_COLLECTIONS.values()):
+            if self.db.has_collection(coll_name):
+                links[coll_name] = {
                     "includeAllFields": False,
                     "fields": {
-                        "name": {"analyzers": ["text_en"]},
-                        "description": {"analyzers": ["text_en"]},
-                        "type": {"analyzers": ["identity"]},
-                        "entity_type": {"analyzers": ["identity"]},
-                        "jurisdiction": {"analyzers": ["identity"]},
+                        "name": text_field,
+                        "description": text_field,
+                        "aliases": text_field,
+                        "status": identity_field,
+                        "jurisdiction": identity_field,
+                        "entity_type": identity_field,
                     },
                 }
 
-            # Drop and recreate the view to guarantee links are correct.
-            # Updating an existing view with empty links silently fails in some driver versions.
-            try:
-                self.db.delete_view(view_name)
-                self.logger.info(f"Dropped existing ArangoSearch view: {view_name}")
-            except Exception:
-                pass  # View didn't exist — fine
-
-            try:
-                self.db.create_view(
-                    view_name, view_type="arangosearch", properties={"links": links}
-                )
-                self.logger.info(f"Created ArangoSearch view: {view_name} with links={list(links.keys())}")
-            except Exception as create_err:
-                self.logger.warning(
-                    f"Failed creating ArangoSearch view '{view_name}': {create_err}"
-                )
+        try:
+            self.db.delete_view(view_name)
+        except Exception:
+            pass
+        try:
+            self.db.create_view(view_name, view_type="arangosearch", properties={"links": links})
+            self.logger.info(f"Created ArangoSearch view: {view_name}")
         except Exception as e:
-            self.logger.warning(f"Failed to ensure search view: {e}")
+            self.logger.warning(f"Failed to create search view: {e}")
+
+    # ─── Collection routing ─────────────────────────────────────────────────────
 
     def _get_collection_for_entity(self, entity_type: EntityType) -> str:
-        """All entities are stored in the consolidated 'entities' collection."""
-        return "entities"
+        return VERTEX_COLLECTIONS[entity_type]
 
     def _get_collection_for_relationship(self, relationship_type: RelationshipType) -> str:
-        """Get the collection name for a relationship type."""
-        return relationship_type.name.lower()
+        return EDGE_COLLECTIONS[relationship_type]
 
-    # --- Normalized text + provenance APIs ---
+    # ─── Source / text / quote infrastructure ──────────────────────────────────
 
     def upsert_text_blob(self, text: str) -> str:
         try:
             canon = canonicalize_text(text)
-            sha = sha256(canon)
-            blob_id = f"t:{sha}"
+            s = sha256(canon)
+            blob_id = f"t:{s}"
             coll = self.db.collection("text_blobs")
             doc = {
                 "_key": blob_id,
-                "sha256": sha,
+                "sha256": s,
                 "text": canon,
                 "length": len(canon),
                 "encoding": "utf-8",
@@ -486,20 +314,15 @@ class ArangoDBGraph:
             from tenant_legal_guidance.utils.text import generate_uuid_from_text
 
             if not source_id:
-                # Fallback: generate from locator if no source_id provided
                 source_id = generate_uuid_from_text(locator)
-
-            if not sha256:
-                sha256 = sha256(locator or "")
-
             coll = self.db.collection("sources")
             doc = {
-                "_key": source_id,  # Use UUID as key
+                "_key": source_id,
                 "kind": kind,
                 "locator": locator,
                 "title": title,
                 "jurisdiction": jurisdiction,
-                "sha256": sha256,  # Store content hash separately
+                "sha256": sha256,
                 "fetched_at": datetime.utcnow().isoformat(),
                 "meta": {},
             }
@@ -513,10 +336,7 @@ class ArangoDBGraph:
             return ""
 
     def source_exists_by_locator(self, locator: str) -> bool:
-        """Check if a source with this locator already exists in the database."""
         try:
-            coll = self.db.collection("sources")
-            # Query by locator field
             cursor = self.db.aql.execute(
                 "FOR doc IN sources FILTER doc.locator == @locator LIMIT 1 RETURN doc",
                 bind_vars={"locator": locator},
@@ -527,9 +347,7 @@ class ArangoDBGraph:
             return False
 
     def get_existing_locators(self) -> set[str]:
-        """Get all existing locators from the database."""
         try:
-            coll = self.db.collection("sources")
             cursor = self.db.aql.execute("FOR doc IN sources RETURN doc.locator")
             return set(doc for doc in cursor if doc)
         except Exception as e:
@@ -537,11 +355,6 @@ class ArangoDBGraph:
             return set()
 
     def get_source_details_by_locators(self, locators: list[str]) -> dict[str, dict]:
-        """Get source details (fetched_at, source_id) for a list of locators.
-
-        Returns:
-            {locator: {fetched_at, source_id, title}} for each locator found in DB.
-        """
         try:
             cursor = self.db.aql.execute(
                 "FOR doc IN sources FILTER doc.locator IN @locators "
@@ -555,15 +368,12 @@ class ArangoDBGraph:
             return {}
 
     def delete_source_by_locator(self, locator: str) -> bool:
-        """Delete a source record by locator so it can be re-ingested."""
         try:
             cursor = self.db.aql.execute(
-                "FOR doc IN sources FILTER doc.locator == @locator "
-                "REMOVE doc IN sources RETURN OLD",
+                "FOR doc IN sources FILTER doc.locator == @locator REMOVE doc IN sources RETURN OLD",
                 bind_vars={"locator": locator},
             )
-            removed = list(cursor)
-            return len(removed) > 0
+            return len(list(cursor)) > 0
         except Exception as e:
             self.logger.warning(f"Error deleting source by locator: {e}")
             return False
@@ -577,17 +387,13 @@ class ArangoDBGraph:
         jurisdiction: str | None = None,
         chunk_size: int = 3500,
     ) -> dict[str, object]:
-        """Register source and prepare chunks for vector DB. Returns chunk docs (not persisted to Arango)."""
+        """Register source and prepare chunks for Qdrant. Returns chunk docs (not persisted to Arango)."""
         try:
             from tenant_legal_guidance.utils.text import generate_uuid_from_text
 
             canon = canonicalize_text(full_text)
             content_hash = sha256(canon)
-
-            # NEW: Use UUID instead of "src:{hash}"
-            source_id = generate_uuid_from_text(full_text)
-
-            # Store both UUID and content hash
+            source_id = generate_uuid_from_text(locator or full_text)
             self.upsert_source(
                 locator=locator,
                 kind=kind,
@@ -596,9 +402,7 @@ class ArangoDBGraph:
                 sha256=content_hash,
                 source_id=source_id,
             )
-            # Store full text blob for audit/provenance
             blob_id = self.upsert_text_blob(canon)
-            # Build chunk docs (caller will embed and persist to Qdrant)
             settings = get_settings()
             target = int(getattr(settings, "chunk_chars_target", chunk_size) or chunk_size)
             overlap = int(getattr(settings, "chunk_overlap_chars", 0) or 0)
@@ -609,13 +413,9 @@ class ArangoDBGraph:
                 target_chars=target,
                 overlap_chars=overlap,
             )
-            # Generate stable chunk IDs (caller will use as Qdrant point IDs)
-            chunk_ids = []
-            for idx, _ch in enumerate(chunks):
-                # Update chunk ID format to use UUID
-                chunk_ids.append(f"{source_id}:{idx}")  # UUID:index format
+            chunk_ids = [f"{source_id}:{idx}" for idx, _ in enumerate(chunks)]
             return {
-                "source_id": source_id,  # Now returns UUID
+                "source_id": source_id,
                 "blob_id": blob_id,
                 "chunk_docs": chunks,
                 "chunk_ids": chunk_ids,
@@ -694,15 +494,6 @@ class ArangoDBGraph:
             if coll.has(pid):
                 return False
             coll.insert(doc)
-            if subject_type == "ENTITY":
-                try:
-                    ent = self.db.collection("entities")
-                    if ent.has(subject_id):
-                        cur = ent.get(subject_id)
-                        cur["mentions_count"] = int(cur.get("mentions_count", 0)) + 1
-                        ent.update(cur)
-                except Exception:
-                    pass
             return True
         except Exception as e:
             self.logger.error(f"attach_provenance failed: {e}")
@@ -713,16 +504,10 @@ class ArangoDBGraph:
             q = self.db.collection("quotes").get(quote_id)
             if not q:
                 return None
-            source_id = q.get("source_id")
-            if not source_id:
-                return None
-            s = self.db.collection("sources").get(source_id)
+            s = self.db.collection("sources").get(q.get("source_id"))
             if not s:
                 return None
-            sha = s.get("sha256")
-            if not sha:
-                return None
-            blob = self.db.collection("text_blobs").get(f"t:{sha}")
+            blob = self.db.collection("text_blobs").get(f"t:{s.get('sha256', '')}")
             if not blob:
                 return None
             text = blob.get("text") or ""
@@ -733,2619 +518,427 @@ class ArangoDBGraph:
             self.logger.error(f"get_quote_snippet failed: {e}")
             return None
 
-    def entity_exists(self, entity_id: str) -> bool:
-        """Check if an entity exists in consolidated 'entities' or legacy collections."""
+    # ─── Taxonomy node CRUD ─────────────────────────────────────────────────────
+
+    def upsert_taxonomy_node(
+        self,
+        node: ClaimTypeNode | EvidenceNode | ProcedureNode | LawNode,
+    ) -> bool:
+        """Write or update a taxonomy node. Merges chunk_ids and source_ids on update."""
+        coll_name = self._get_collection_for_entity(node.entity_type)
+        doc = node.model_dump(mode="json")
+        doc["_key"] = node.id
         try:
-            if self.db.has_collection("entities"):
-                if self.db.collection("entities").has(entity_id):
+            coll = self.db.collection(coll_name)
+            existing = coll.get(node.id)
+            if existing:
+                doc["chunk_ids"] = list(set(existing.get("chunk_ids", []) + doc.get("chunk_ids", [])))
+                doc["source_ids"] = list(set(existing.get("source_ids", []) + doc.get("source_ids", [])))
+                coll.update({k: v for k, v in doc.items() if k != "_key"} | {"_key": node.id})
+            else:
+                coll.insert(doc)
+            return True
+        except Exception as e:
+            self.logger.error(f"upsert_taxonomy_node failed for {node.id}: {e}")
+            return False
+
+    def upsert_case_document(self, doc: CaseDocumentNode) -> bool:
+        """Write or update a CaseDocumentNode and its cites edges to canonical Laws."""
+        doc_dict = doc.model_dump(mode="json")
+        doc_dict["_key"] = doc.id
+        try:
+            coll = self.db.collection("case_documents")
+            if coll.has(doc.id):
+                coll.update(doc_dict)
+            else:
+                coll.insert(doc_dict)
+            # Write cites edges to referenced law IDs
+            for law_id in doc.citations:
+                self.add_cites_edge(doc.id, law_id)
+            # Materialize tagging arrays as graph edges
+            for ct_id in doc.claim_types:
+                self.add_tagged_as_edge(doc.id, ct_id)
+            for ev_id in doc.evidence_presented:
+                self.add_demonstrates_evidence_edge(doc.id, ev_id)
+            for pr_id in doc.procedures_used:
+                self.add_applied_procedure_edge(doc.id, pr_id)
+            return True
+        except Exception as e:
+            self.logger.error(f"upsert_case_document failed for {doc.id}: {e}")
+            return False
+
+    def get_taxonomy_nodes(
+        self,
+        kind: str,
+        jurisdiction: str | None = None,
+        include_proposed: bool = True,
+    ) -> list[dict]:
+        """List taxonomy nodes, optionally filtered by jurisdiction/status."""
+        kind_to_coll = {
+            "claim_types": "claim_types",
+            "evidence": "evidence_nodes",
+            "procedures": "procedures",
+            "laws": "laws",
+        }
+        coll_name = kind_to_coll.get(kind)
+        if not coll_name:
+            raise ValueError(f"Unknown taxonomy kind: {kind}")
+        filters = []
+        bind_vars: dict = {}
+        if jurisdiction:
+            filters.append("FILTER doc.jurisdiction == @jurisdiction")
+            bind_vars["jurisdiction"] = jurisdiction
+        if not include_proposed:
+            filters.append("FILTER doc.status == 'canonical'")
+        filter_str = "\n".join(filters)
+        aql = f"FOR doc IN {coll_name}\n{filter_str}\nRETURN doc"
+        try:
+            return list(self.db.aql.execute(aql, bind_vars=bind_vars))
+        except Exception as e:
+            self.logger.error(f"get_taxonomy_nodes failed for {kind}: {e}")
+            return []
+
+    def get_taxonomy_snapshot(self) -> dict[str, list[dict]]:
+        """Return all canonical taxonomy nodes, grouped by kind. Used by case tagger."""
+        return {
+            "claim_types": self.get_taxonomy_nodes("claim_types", include_proposed=False),
+            "evidence": self.get_taxonomy_nodes("evidence", include_proposed=False),
+            "procedures": self.get_taxonomy_nodes("procedures", include_proposed=False),
+            "laws": self.get_taxonomy_nodes("laws", include_proposed=False),
+        }
+
+    def propose_taxonomy_entry(self, kind: str, entry: dict) -> str | None:
+        """Write a proposed taxonomy entry (status=proposed). Idempotent on id."""
+        kind_to_coll = {
+            "claim_types": "claim_types",
+            "evidence": "evidence_nodes",
+            "procedures": "procedures",
+            "laws": "laws",
+        }
+        coll_name = kind_to_coll.get(kind)
+        if not coll_name or "id" not in entry:
+            return None
+        doc = {**entry, "status": "proposed", "_key": entry["id"]}
+        try:
+            self.db.collection(coll_name).insert(doc, overwrite=True, overwrite_mode="update")
+            return entry["id"]
+        except Exception as e:
+            self.logger.error(f"propose_taxonomy_entry failed: {e}")
+            return None
+
+    def accept_proposed(
+        self,
+        node_id: str,
+        kind: str,
+        action: str,
+        target_id: str | None = None,
+    ) -> bool:
+        """
+        Act on a proposed taxonomy entry.
+        action: 'promote' | 'merge_as_alias' | 'reject'
+        """
+        kind_to_coll = {
+            "claim_types": "claim_types",
+            "evidence": "evidence_nodes",
+            "procedures": "procedures",
+            "laws": "laws",
+        }
+        coll_name = kind_to_coll.get(kind)
+        if not coll_name:
+            return False
+        coll = self.db.collection(coll_name)
+        try:
+            if action == "promote":
+                coll.update({"_key": node_id, "status": "canonical"})
+            elif action == "merge_as_alias" and target_id:
+                target = coll.get(target_id)
+                if target:
+                    aliases = list(set(target.get("aliases", []) + [node_id]))
+                    coll.update({"_key": target_id, "aliases": aliases})
+                    coll.delete(node_id, ignore_missing=True)
+            elif action == "reject":
+                coll.delete(node_id, ignore_missing=True)
+            return True
+        except Exception as e:
+            self.logger.error(f"accept_proposed failed for {node_id}: {e}")
+            return False
+
+    def entity_exists(self, entity_id: str) -> bool:
+        for coll_name in VERTEX_COLLECTIONS.values():
+            try:
+                if self.db.collection(coll_name).has(entity_id):
                     return True
-        except Exception:
-            pass
-        for entity_type in EntityType:
-            collection = self.db.collection(self._get_collection_for_entity(entity_type))
-            if collection.has(entity_id):
-                return True
+            except Exception:
+                pass
         return False
 
-    def get_entity(self, entity_id: str) -> LegalEntity | None:
-        """Retrieve an entity by its ID."""
-        # FIRST: Check consolidated 'entities' collection
-        try:
-            if self.db.has_collection("entities"):
-                entities_coll = self.db.collection("entities")
-                # Try both with and without prefix for _key lookup
-                has_by_key = entities_coll.has(entity_id)
-                # Also try without prefix if entity_id contains ":"
-                has_by_id_only = False
-                if ":" in entity_id and not has_by_key:
-                    # Try looking up just the suffix part
-                    id_suffix = entity_id.split(":", 1)[1]
-                    if entities_coll.has(id_suffix):
-                        entity_id = id_suffix
-                        has_by_id_only = True
-
-                if has_by_key or has_by_id_only:
-                    data = entities_coll.get(entity_id)
-                    # Try to infer entity type from the 'type' field or from the ID prefix
-                    from tenant_legal_guidance.utils.entity_helpers import (
-                        get_entity_type_from_id,
-                        normalize_entity_type,
-                    )
-
-                    entity_type = None
-
-                    # First try: 'type' field in document
-                    type_str = data.get("type", "")
-                    if type_str:
-                        try:
-                            entity_type = normalize_entity_type(type_str)
-                        except (ValueError, KeyError):
-                            pass
-
-                    # Second try: infer from ID prefix if 'type' field failed or is missing
-                    if not entity_type and ":" in entity_id:
-                        try:
-                            entity_type = get_entity_type_from_id(entity_id)
-                        except ValueError:
-                            pass
-
-                    if entity_type:
-                        return self._parse_entity_from_doc(data, entity_type)
-                    else:
-                        # Fall through if we can't parse it - this means the entity exists but is malformed
-                        self.logger.warning(
-                            f"Found entity {entity_id} in consolidated collection but could not infer type (type field: '{type_str}'), will try legacy collections"
-                        )
-        except Exception as e:
-            self.logger.debug(f"Failed to get entity from consolidated collection: {e}")
-
-        # FALLBACK: Check type-specific collections (legacy storage)
-        # Extract entity type from ID prefix using utility
-        if ":" in entity_id:
+    def get_entity(self, entity_id: str) -> dict | None:
+        """Look up a node by _key across all taxonomy and case_document collections."""
+        for coll_name in VERTEX_COLLECTIONS.values():
             try:
-                from tenant_legal_guidance.utils.entity_helpers import get_entity_type_from_id
-
-                entity_type = get_entity_type_from_id(entity_id)
-            except ValueError:
-                entity_type = None
-            if entity_type:
-                collection = self.db.collection(self._get_collection_for_entity(entity_type))
-                if collection.has(entity_id):
-                    try:
-                        data = collection.get(entity_id)
-                        return self._parse_entity_from_doc(data, entity_type)
-                    except Exception as e:
-                        self.logger.error(
-                            f"Error retrieving or parsing entity {entity_id}: {e}", exc_info=True
-                        )
-                        return None
-
-        # Fallback: search across all collections if prefix doesn't match expected pattern
-        self.logger.debug(
-            f"Entity ID {entity_id} not found in consolidated or legacy collections, performing full search"
-        )
-        for entity_type in EntityType:
-            collection = self.db.collection(self._get_collection_for_entity(entity_type))
-            if collection.has(entity_id):
-                try:
-                    data = collection.get(entity_id)
-                    return self._parse_entity_from_doc(data, entity_type)
-                except Exception as e:
-                    self.logger.error(
-                        f"Error retrieving or parsing entity {entity_id}: {e}", exc_info=True
-                    )
-                    return None
-        return None
-
-    def find_entity_by_name(
-        self, name: str, types: list[EntityType] | None = None
-    ) -> LegalEntity | None:
-        """Find an entity by exact name across collections. Optionally restrict by types.
-        Returns the first exact match found or None.
-        """
-        try:
-            search_types = types or list(EntityType)
-            for et in search_types:
-                coll_name = self._get_collection_for_entity(et)
-                if not self.db.has_collection(coll_name):
-                    continue
-                try:
-                    aql = """
-                    FOR doc IN @@coll
-                        FILTER doc.name == @name
-                        LIMIT 1
-                        RETURN doc
-                    """
-                    cursor = self.db.aql.execute(aql, bind_vars={"@coll": coll_name, "name": name})
-                    docs = list(cursor)
-                    if docs:
-                        return self._parse_entity_from_doc(docs[0], et)
-                except Exception as sub_err:
-                    self.logger.debug(f"Name lookup failed in {coll_name}: {sub_err}")
-                    continue
-            return None
-        except Exception as e:
-            self.logger.error(f"find_entity_by_name error: {e}")
-            return None
-
-    def find_entity_id_by_name(
-        self, name: str, types: list[EntityType] | None = None
-    ) -> str | None:
-        ent = self.find_entity_by_name(name, types)
-        return ent.id if ent else None
-
-    def _parse_entity_from_doc(self, data: dict, entity_type: EntityType) -> LegalEntity:
-        """Parse ArangoDB document into LegalEntity object."""
-        from tenant_legal_guidance.utils.entity_helpers import normalize_entity_type
-
-        # Extract source metadata from stored data
-        stored_metadata = data.get("source_metadata", {})
-
-        # Validate and clean entity type
-        stored_type = data.get("type", "")
-        # Default to the collection's entity type
-        valid_entity_type = entity_type
-
-        # Try to validate the stored type
-        if stored_type:
-            try:
-                valid_entity_type = normalize_entity_type(stored_type)
-            except ValueError:
-                # If stored type is invalid, try to infer from entity ID prefix
-                entity_id = data.get("_key", "")
-                if ":" in entity_id:
-                    prefix = entity_id.split(":", 1)[0]
-                    # Handle legacy claim_type: prefix (should be legal_claim:)
-                    if prefix == "claim_type":
-                        self.logger.debug(
-                            f"Entity {entity_id} has legacy 'claim_type:' prefix, treating as LEGAL_CLAIM"
-                        )
-                        valid_entity_type = EntityType.LEGAL_CLAIM
-                    else:
-                        # Try to map prefix to entity type
-                        prefix_mapping = {
-                            "law": EntityType.LAW,
-                            "remedy": EntityType.LEGAL_OUTCOME,
-                            "legal_claim": EntityType.LEGAL_CLAIM,
-                            "evidence": EntityType.EVIDENCE,
-                            "legal_outcome": EntityType.LEGAL_OUTCOME,
-                            "damages": EntityType.LEGAL_OUTCOME,
-                            "jurisdiction": EntityType.JURISDICTION,
-                            "case_document": EntityType.CASE_DOCUMENT,
-                            "tenant": EntityType.TENANT,
-                            "landlord": EntityType.LANDLORD,
-                            "legal_service": EntityType.LEGAL_SERVICE,
-                            "government_entity": EntityType.GOVERNMENT_ENTITY,
-                            "document": EntityType.DOCUMENT,
-                            "legal_concept": EntityType.LEGAL_CONCEPT,
-                            "legal_procedure": EntityType.LEGAL_PROCEDURE,
-                            "tenant_group": EntityType.TENANT_GROUP,
-                            "campaign": EntityType.CAMPAIGN,
-                            "tactic": EntityType.TACTIC,
-                            "tenant_issue": EntityType.LEGAL_CLAIM,
-                            "event": EntityType.EVENT,
-                            "organizing_outcome": EntityType.ORGANIZING_OUTCOME,
-                        }
-                        if prefix in prefix_mapping:
-                            valid_entity_type = prefix_mapping[prefix]
-                            self.logger.debug(
-                                f"Inferred entity type '{valid_entity_type.value}' from prefix '{prefix}' for {entity_id}"
-                            )
-                        else:
-                            # Fallback to collection's entity type
-                            self.logger.warning(
-                                f"Invalid entity type '{stored_type}' for entity {entity_id}, using {entity_type.value}"
-                            )
-                            valid_entity_type = entity_type
-                else:
-                    # No prefix, use collection's entity type
-                    self.logger.warning(
-                        f"Invalid entity type '{stored_type}' for entity {entity_id}, using {entity_type.value}"
-                    )
-                    valid_entity_type = entity_type
-
-        # Map ArangoDB document to LegalEntity fields
-        # Fields to exclude from attributes (handled separately at top level)
-        excluded_fields = {
-            "_key",
-            "type",
-            "name",
-            "description",
-            "source_metadata",
-            "jurisdiction",
-            "provenance",
-            "mentions_count",
-            "best_quote",
-            "all_quotes",
-            "chunk_ids",
-            "source_ids",
-            "outcome",
-            "ruling_type",
-            "relief_granted",
-            "damages_awarded",
-            # Legal claim fields (stored as top-level, not in attributes)
-            "claim_description",
-            "claimant",
-            "respondent_party",
-            "claim_type",
-            "relief_sought",
-            "claim_status",
-            "proof_completeness",
-            "gaps",
-            # Evidence context fields (stored as top-level, not in attributes)
-            "evidence_context",
-            "evidence_source_type",
-            "evidence_source_reference",
-            "evidence_examples",
-            "is_critical",
-            "matches_required_id",
-            "linked_claim_id",
-            "linked_claim_type",
-            # Other top-level fields
-            "strength_score",  # Should be excluded or converted if kept
-            "_id",
-            "_rev",  # ArangoDB internal fields
-        }
-
-        # Build attributes dict, converting non-string values to strings
-        # (Pydantic requires attributes to be dict[str, str])
-        # Fields that should NEVER be in attributes (they're direct fields or excluded)
-        excluded_from_attributes = {
-            "relief_sought",  # Direct field (list[str]) - NEVER in attributes
-            "is_critical",  # Direct field on evidence (bool) - NEVER in attributes
-            "claim_description",
-            "claimant",
-            "respondent_party",
-            "claim_type",
-            "claim_status",
-            "proof_completeness",
-            "gaps",
-            "evidence_context",
-            "evidence_source_type",
-            "evidence_source_reference",
-            "evidence_examples",
-            "matches_required_id",
-            "linked_claim_id",
-            "linked_claim_type",
-            "strength_score",
-        }
-
-        # Get raw attributes, excluding both excluded_fields AND excluded_from_attributes
-        raw_attributes = {
-            k: v
-            for k, v in data.items()
-            if k not in excluded_fields and k not in excluded_from_attributes
-        }
-
-        # Also check if there's a nested attributes dict in old data
-        # OLD DATA FIX: Old entities have relief_sought/is_critical stored in attributes dict
-        old_attributes = data.get("attributes", {})
-        if isinstance(old_attributes, dict):
-            # Merge old attributes, but STRICTLY exclude problematic fields
-            for k, v in old_attributes.items():
-                # NEVER include these fields in attributes - they're direct fields
-                if k in excluded_from_attributes:
-                    continue
-                if k not in excluded_fields:
-                    raw_attributes[k] = v
-
-        # Convert all values to strings (Pydantic requirement)
-        attributes = {}
-        for k, v in raw_attributes.items():
-            # Handle old data: convert lists/booleans/floats to strings
-            if isinstance(v, (list, tuple)):
-                attributes[k] = ", ".join(str(item) for item in v)
-            elif isinstance(v, bool):
-                attributes[k] = str(v).lower()
-            elif isinstance(v, (int, float)):
-                attributes[k] = str(v)
-            elif v is None:
-                attributes[k] = ""
-            elif isinstance(v, dict):
-                # Convert dict to JSON string
-                try:
-                    import json
-                    attributes[k] = json.dumps(v)
-                except (TypeError, ValueError):
-                    attributes[k] = str(v)
-            else:
-                attributes[k] = str(v)
-
-        # Final safety check: remove any problematic fields that might have slipped through
-        for field in excluded_from_attributes:
-            attributes.pop(field, None)
-
-        entity_data = {
-            "id": data["_key"],  # Use _key as id
-            "entity_type": valid_entity_type,
-            "name": data.get("name", ""),
-            "description": data.get("description", ""),
-            "attributes": attributes,
-            "source_metadata": {
-                "source": stored_metadata.get(
-                    "source", data["_key"]
-                ),  # Use stored source or fallback
-                "source_type": stored_metadata.get("source_type", SourceType.INTERNAL),
-                "authority": stored_metadata.get("authority", SourceAuthority.INFORMATIONAL_ONLY),
-                "document_type": stored_metadata.get("document_type"),
-                "organization": stored_metadata.get("organization"),
-                "title": stored_metadata.get("title"),
-                "jurisdiction": stored_metadata.get("jurisdiction"),
-                "created_at": stored_metadata.get("created_at"),
-                "processed_at": stored_metadata.get("processed_at"),
-                "last_updated": stored_metadata.get("last_updated"),
-                "cites": stored_metadata.get("cites", []),
-                "attributes": stored_metadata.get("attributes", {}),
-            },
-        }
-        # Add provenance and mentions_count when present
-        if "provenance" in data:
-            entity_data["provenance"] = data.get("provenance") or []
-        if "mentions_count" in data:
-            try:
-                entity_data["mentions_count"] = int(data.get("mentions_count") or 0)
+                doc = self.db.collection(coll_name).get(entity_id)
+                if doc:
+                    return doc
             except Exception:
-                entity_data["mentions_count"] = 0
-
-        # Add quote support fields (NEW)
-        if "best_quote" in data:
-            entity_data["best_quote"] = data.get("best_quote")
-        if "all_quotes" in data:
-            entity_data["all_quotes"] = data.get("all_quotes")
-        if "chunk_ids" in data:
-            entity_data["chunk_ids"] = data.get("chunk_ids")
-        if "source_ids" in data:
-            entity_data["source_ids"] = data.get("source_ids")
-
-        # Add case outcome fields (NEW)
-        if "outcome" in data:
-            entity_data["outcome"] = data.get("outcome")
-        if "ruling_type" in data:
-            entity_data["ruling_type"] = data.get("ruling_type")
-        if "relief_granted" in data:
-            entity_data["relief_granted"] = data.get("relief_granted")
-        if "damages_awarded" in data:
-            entity_data["damages_awarded"] = data.get("damages_awarded")
-
-        # Add legal claim fields (NEW)
-        if "claim_description" in data:
-            entity_data["claim_description"] = data.get("claim_description")
-        if "claimant" in data:
-            entity_data["claimant"] = data.get("claimant")
-        if "respondent_party" in data:
-            entity_data["respondent_party"] = data.get("respondent_party")
-        if "claim_type" in data:
-            entity_data["claim_type"] = data.get("claim_type")
-        if "relief_sought" in data:
-            relief_sought = data.get("relief_sought")
-            # Handle old data: convert list to list[str] if needed
-            if isinstance(relief_sought, list):
-                entity_data["relief_sought"] = [str(item) for item in relief_sought]
-            elif isinstance(relief_sought, str):
-                # Try to parse if it's a JSON string
-                try:
-                    import json
-
-                    parsed = json.loads(relief_sought)
-                    if isinstance(parsed, list):
-                        entity_data["relief_sought"] = [str(item) for item in parsed]
-                    else:
-                        entity_data["relief_sought"] = [relief_sought]
-                except (json.JSONDecodeError, ValueError):
-                    entity_data["relief_sought"] = [relief_sought]
-            else:
-                entity_data["relief_sought"] = []
-        if "claim_status" in data:
-            entity_data["claim_status"] = data.get("claim_status")
-        if "proof_completeness" in data:
-            proof_completeness = data.get("proof_completeness")
-            if proof_completeness is not None:
-                try:
-                    entity_data["proof_completeness"] = float(proof_completeness)
-                except (ValueError, TypeError):
-                    pass
-        if "gaps" in data:
-            gaps = data.get("gaps")
-            if isinstance(gaps, list):
-                entity_data["gaps"] = [str(item) for item in gaps]
-            elif gaps is not None:
-                entity_data["gaps"] = [str(gaps)]
-
-        # Add evidence context fields if present
-        if "evidence_context" in data:
-            entity_data["evidence_context"] = data.get("evidence_context")
-        if "evidence_source_type" in data:
-            entity_data["evidence_source_type"] = data.get("evidence_source_type")
-        if "evidence_source_reference" in data:
-            entity_data["evidence_source_reference"] = data.get("evidence_source_reference")
-        if "evidence_examples" in data:
-            evidence_examples = data.get("evidence_examples")
-            if isinstance(evidence_examples, list):
-                entity_data["evidence_examples"] = [str(item) for item in evidence_examples]
-            elif evidence_examples is not None:
-                entity_data["evidence_examples"] = [str(evidence_examples)]
-        # Handle is_critical for evidence entities (if stored incorrectly in attributes)
-        if "is_critical" in data:
-            is_critical = data.get("is_critical")
-            if isinstance(is_critical, bool):
-                entity_data["is_critical"] = is_critical
-            elif isinstance(is_critical, str):
-                entity_data["is_critical"] = is_critical.lower() == "true"
-            # Don't set if not present (it's optional)
-        if "matches_required_id" in data:
-            entity_data["matches_required_id"] = data.get("matches_required_id")
-        if "linked_claim_id" in data:
-            entity_data["linked_claim_id"] = data.get("linked_claim_id")
-        if "linked_claim_type" in data:
-            entity_data["linked_claim_type"] = data.get("linked_claim_type")
-
-        try:
-            return LegalEntity(**entity_data)
-        except Exception as e:
-            # Handle old data with invalid attribute types
-            # Try to clean up attributes one more time
-            if "attributes" in str(e).lower() and (
-                "relief_sought" in str(e) or "is_critical" in str(e)
-            ):
-                self.logger.warning(
-                    f"Cleaning up old data for entity {entity_data.get('id', 'unknown')}: {e}"
-                )
-                # Remove problematic fields from attributes
-                cleaned_attributes = {
-                    k: v
-                    for k, v in entity_data.get("attributes", {}).items()
-                    if k not in ["relief_sought", "is_critical"]
-                }
-                entity_data["attributes"] = cleaned_attributes
-                try:
-                    return LegalEntity(**entity_data)
-                except Exception as e2:
-                    self.logger.error(
-                        f"Failed to parse entity {entity_data.get('id', 'unknown')} even after cleanup: {e2}"
-                    )
-                    raise
-            else:
-                raise
-
-    def add_entity(self, entity: LegalEntity, overwrite: bool = False) -> bool:
-        """Add a legal entity to consolidated 'entities' collection."""
-        collection = self.db.collection("entities")
-
-        # Convert source metadata to dict and handle datetime serialization
-        source_metadata = entity.source_metadata.model_dump()
-        for field in ["created_at", "processed_at", "last_updated"]:
-            if source_metadata.get(field):
-                if isinstance(source_metadata[field], datetime):
-                    source_metadata[field] = source_metadata[field].isoformat()
-                elif isinstance(source_metadata[field], str):
-                    # Already a string, keep as is
-                    pass
-                else:
-                    # Convert to string if it's not already
-                    source_metadata[field] = str(source_metadata[field])
-
-        # Ensure required fields are present
-        if "source" not in source_metadata or not source_metadata["source"]:
-            source_metadata["source"] = entity.id
-
-        # Validation: id prefix must match entity_type value
-        expected_prefix = entity.entity_type.value
-        if ":" in entity.id:
-            prefix = entity.id.split(":", 1)[0]
-            if prefix != expected_prefix:
-                self.logger.warning(
-                    f"Entity id prefix/type mismatch: id='{entity.id}' vs type='{expected_prefix}'."
-                )
-
-        # Promote jurisdiction to top-level field when available
-        top_level_jurisdiction: str | None = None
-        # Prefer explicit top-level in attributes if present
-        if isinstance(entity.attributes, dict) and "jurisdiction" in entity.attributes:
-            top_level_jurisdiction = str(entity.attributes.get("jurisdiction"))
-        elif source_metadata.get("jurisdiction"):
-            top_level_jurisdiction = str(source_metadata.get("jurisdiction"))
-
-        # Prepare document with required fields
-        doc = {
-            "_key": entity.id,
-            "type": entity.entity_type.value.lower(),
-            "name": entity.name,
-            "description": entity.description,
-            "source_metadata": source_metadata,
-            **entity.attributes,
-        }
-        if top_level_jurisdiction:
-            doc["jurisdiction"] = top_level_jurisdiction
-
-        # Add quote support fields (NEW)
-        if entity.best_quote:
-            doc["best_quote"] = entity.best_quote
-        if entity.all_quotes:
-            doc["all_quotes"] = entity.all_quotes
-        if entity.chunk_ids:
-            doc["chunk_ids"] = entity.chunk_ids
-        if entity.source_ids:
-            doc["source_ids"] = entity.source_ids
-        if entity.mentions_count is not None:
-            doc["mentions_count"] = entity.mentions_count
-
-        # Add case outcome fields (NEW)
-        if entity.outcome:
-            doc["outcome"] = entity.outcome
-        if entity.ruling_type:
-            doc["ruling_type"] = entity.ruling_type
-        if entity.relief_granted:
-            doc["relief_granted"] = entity.relief_granted
-        if entity.damages_awarded is not None:
-            doc["damages_awarded"] = entity.damages_awarded
-
-        # Add legal claim fields (for LEGAL_CLAIM entity type)
-        if entity.claim_description:
-            doc["claim_description"] = entity.claim_description
-        if entity.claimant:
-            doc["claimant"] = entity.claimant
-        if entity.respondent_party:
-            doc["respondent_party"] = entity.respondent_party
-        if entity.claim_type:
-            doc["claim_type"] = entity.claim_type
-        if entity.relief_sought:
-            doc["relief_sought"] = entity.relief_sought
-        if entity.claim_status:
-            doc["claim_status"] = entity.claim_status
-        if entity.proof_completeness is not None:
-            doc["proof_completeness"] = entity.proof_completeness
-        if entity.gaps:
-            doc["gaps"] = entity.gaps
-
-        # Add evidence context fields (for EVIDENCE entity type)
-        if entity.evidence_context:
-            doc["evidence_context"] = entity.evidence_context
-        if entity.evidence_source_type:
-            doc["evidence_source_type"] = entity.evidence_source_type
-        if entity.is_critical is not None:
-            doc["is_critical"] = entity.is_critical
-
-        # Add linked_claim_type for evidence (required evidence links to claim type string)
-        if entity.linked_claim_type:
-            doc["linked_claim_type"] = entity.linked_claim_type
-
-        # Auto-populate URL for evidence/document entities from source when available
-        try:
-            etype_value = (
-                entity.entity_type.value
-                if hasattr(entity.entity_type, "value")
-                else str(entity.entity_type).lower()
-            )
-            source_str = (
-                source_metadata.get("source") if isinstance(source_metadata, dict) else None
-            )
-            if isinstance(source_str, str) and source_str.startswith(("http://", "https://")):
-                if etype_value in ("evidence", "document") and not doc.get("url"):
-                    doc["url"] = source_str
-        except Exception:
-            # Non-fatal; continue without url
-            pass
-
-        if collection.has(entity.id):
-            if overwrite:
-                self.logger.debug(f"Updating existing entity with merged data: {entity.id}")
-                collection.update(doc)
-                return True
-            else:
-                self.logger.debug(f"Skipping duplicate entity: {entity.id}")
-                return False
-        else:
-            self.logger.info(f"Adding new entity: {entity.id} ({entity.entity_type.name})")
-            collection.insert(doc)
-            return True
-
-    def _select_canonical_source(self, existing_meta: dict, new_meta: dict) -> dict:
-        """Choose canonical source metadata comparing authority then recency."""
-        try:
-            # Map SourceAuthority order (higher is better)
-            order = {
-                SourceAuthority.BINDING_LEGAL_AUTHORITY.value: 6,
-                SourceAuthority.PERSUASIVE_AUTHORITY.value: 5,
-                SourceAuthority.OFFICIAL_INTERPRETIVE.value: 4,
-                SourceAuthority.REPUTABLE_SECONDARY.value: 3,
-                SourceAuthority.PRACTICAL_SELF_HELP.value: 2,
-                SourceAuthority.INFORMATIONAL_ONLY.value: 1,
-            }
-            ex = existing_meta or {}
-            ne = new_meta or {}
-            ex_auth = ex.get("authority")
-            ne_auth = ne.get("authority")
-            ex_score = order.get(
-                ex_auth if isinstance(ex_auth, str) else getattr(ex_auth, "value", None), 0
-            )
-            ne_score = order.get(
-                ne_auth if isinstance(ne_auth, str) else getattr(ne_auth, "value", None), 0
-            )
-            if ne_score > ex_score:
-                return ne
-            if ne_score < ex_score:
-                return ex
-
-            # Tie-breaker: most recent created_at/processed_at
-            def _parse(dt):
-                try:
-                    if isinstance(dt, str):
-                        return datetime.fromisoformat(dt.replace("Z", "+00:00"))
-                except Exception:
-                    return None
-                return dt
-
-            ne_ts = _parse(ne.get("created_at")) or _parse(ne.get("processed_at"))
-            ex_ts = _parse(ex.get("created_at")) or _parse(ex.get("processed_at"))
-            if ne_ts and (not ex_ts or ne_ts > ex_ts):
-                return ne
-            return ex or ne
-        except Exception:
-            return new_meta or existing_meta
-
-    def _normalize_source_meta_dict(self, meta: dict | None) -> dict:
-        """Ensure source metadata dict is JSON-serializable (enum values, ISO datetimes)."""
-        if not isinstance(meta, dict):
-            return {}
-        sm = dict(meta)
-        # Normalize enum-like fields to string values
-        auth = sm.get("authority")
-        if auth is not None and not isinstance(auth, str):
-            sm["authority"] = getattr(auth, "value", str(auth))
-        st = sm.get("source_type")
-        if st is not None and not isinstance(st, str):
-            sm["source_type"] = getattr(st, "value", str(st))
-        dt_keys = ("created_at", "processed_at", "last_updated")
-        for k in dt_keys:
-            v = sm.get(k)
-            if isinstance(v, datetime):
-                sm[k] = v.isoformat()
-        return sm
-
-    def upsert_entity_provenance(self, entity: LegalEntity, provenance_entry: dict) -> bool:
-        """Upsert an entity; if it exists, merge provenance, mentions_count, and possibly canonical source.
-        Returns True if inserted or updated.
-        """
-        try:
-            coll_name = self._get_collection_for_entity(entity.entity_type)
-            coll = self.db.collection(coll_name)
-            if coll.has(entity.id):
-                doc = coll.get(entity.id) or {"_key": entity.id}
-                # Merge description if missing or new has content and existing empty
-                if (not doc.get("description")) and entity.description:
-                    doc["description"] = entity.description
-                # Merge attributes (non-destructive)
-                if isinstance(entity.attributes, dict):
-                    for k, v in entity.attributes.items():
-                        if k not in doc:
-                            doc[k] = v
-                # Merge provenance list
-                prov_list = doc.get("provenance", []) or []
-
-                def _key(p):
-                    src = (p or {}).get("source", {})
-                    return f"{src.get('source')}::{(p or {}).get('quote', '')[:64]}"
-
-                seen = {_key(p) for p in prov_list}
-                if provenance_entry:
-                    # Normalize nested source metadata for JSON safety
-                    if isinstance(provenance_entry.get("source"), dict):
-                        provenance_entry["source"] = self._normalize_source_meta_dict(
-                            provenance_entry["source"]
-                        )
-                    if _key(provenance_entry) not in seen:
-                        prov_list.append(provenance_entry)
-                doc["provenance"] = prov_list
-                # Mentions count: unique sources
-                unique_sources = {
-                    (p.get("source", {}) or {}).get("source")
-                    for p in prov_list
-                    if isinstance(p, dict)
-                }
-                doc["mentions_count"] = len({s for s in unique_sources if s})
-                # Canonical source selection
-                existing_meta = doc.get("source_metadata") or {}
-                new_meta = (
-                    entity.source_metadata.model_dump()
-                    if hasattr(entity.source_metadata, "dict")
-                    else entity.source_metadata
-                )
-                new_meta = self._normalize_source_meta_dict(new_meta)
-                existing_meta = self._normalize_source_meta_dict(existing_meta)
-                doc["source_metadata"] = self._select_canonical_source(existing_meta, new_meta)
-                coll.update(doc)
-                return True
-            else:
-                # New insert with provenance
-                base_inserted = self.add_entity(entity, overwrite=False)
-                if base_inserted:
-                    prov = []
-                    if provenance_entry:
-                        if isinstance(provenance_entry.get("source"), dict):
-                            provenance_entry["source"] = self._normalize_source_meta_dict(
-                                provenance_entry["source"]
-                            )
-                        prov.append(provenance_entry)
-                    coll.update(
-                        {
-                            "_key": entity.id,
-                            "provenance": prov,
-                            "mentions_count": (
-                                len({(provenance_entry or {}).get("source", {}).get("source")})
-                                if provenance_entry
-                                else 0
-                            ),
-                        }
-                    )
-                    return True
-                return False
-        except Exception as e:
-            self.logger.error(f"upsert_entity_provenance failed for {entity.id}: {e}")
-            return False
-
-    def add_relationship(self, relationship: LegalRelationship) -> bool:
-        """Add a relationship between entities. Returns True if added, False otherwise."""
-        if not self.entity_exists(relationship.source_id):
-            self.logger.error(
-                f"Cannot add relationship: Source entity {relationship.source_id} not found"
-            )
-            return False
-        if not self.entity_exists(relationship.target_id):
-            self.logger.error(
-                f"Cannot add relationship: Target entity {relationship.target_id} not found"
-            )
-            return False
-
-        # Use consolidated collection
-        collection = self.db.collection("edges")
-        from_collection = "entities"
-        to_collection = "entities"
-
-        # Deduplicate: skip if identical edge exists
-        try:
-            aql = """
-            FOR e IN edges
-                FILTER e._from == CONCAT(@from_coll, '/', @from_id) AND e._to == CONCAT(@to_coll, '/', @to_id) AND e.type == @type
-                LIMIT 1
-                RETURN e
-            """
-            cur = self.db.aql.execute(
-                aql,
-                bind_vars={
-                    "from_coll": from_collection,
-                    "to_coll": to_collection,
-                    "from_id": relationship.source_id,
-                    "to_id": relationship.target_id,
-                    "type": relationship.relationship_type.name,
-                },
-            )
-            if list(cur):
-                self.logger.debug(
-                    f"[KG] Skipping duplicate relationship: {relationship.source_id} --{relationship.relationship_type.name}--> {relationship.target_id}"
-                )
-                return False
-        except Exception as e:
-            self.logger.debug(f"Edge dedup check failed (continuing): {e}")
-
-        # Create edge document
-        edge_doc = {
-            "_from": f"{from_collection}/{relationship.source_id}",
-            "_to": f"{to_collection}/{relationship.target_id}",
-            "type": relationship.relationship_type.name,
-            "weight": relationship.weight,
-            "conditions": relationship.conditions,
-            **relationship.attributes,
-        }
-
-        try:
-            collection.insert(edge_doc)
-            self.logger.info(
-                f"[KG] Added relationship: {relationship.source_id} --{relationship.relationship_type.name}--> {relationship.target_id}"
-            )
-            return True
-        except Exception as e:
-            self.logger.error(f"Error adding relationship: {e}", exc_info=True)
-            return False
-
-    # PyTorch Geometric conversion removed - use separate graph ML service if needed
-    # See: tenant_legal_guidance/services/graph_ml.py (to be created if required)
-
-    def find_relevant_laws(self, issue: str) -> list[str]:
-        """Find laws relevant to a legal issue using ArangoSearch (BM25/PHRASE)."""
-        query = """
-        FOR doc IN kg_entities_view
-            SEARCH ANALYZER(
-                (PHRASE(doc.name, @term) OR PHRASE(doc.description, @term)) AND doc.type == "law",
-                "text_en"
-            )
-            SORT BM25(doc) DESC, TFIDF(doc) DESC
-            LIMIT 50
-            RETURN DISTINCT doc.name
-        """
-        try:
-            cursor = self.db.aql.execute(query, bind_vars={"term": issue})
-            return list(cursor)
-        except Exception as e:
-            self.logger.error(f"Error executing law search: {e}")
-            return []
-
-    def get_all_entities(self) -> list[LegalEntity]:
-        """Get all entities from the knowledge graph."""
-        entities = []
-        try:
-            for entity_type in EntityType:
-                collection = self.db.collection(self._get_collection_for_entity(entity_type))
-                for doc in collection.all():
-                    try:
-                        entity = self._parse_entity_from_doc(doc, entity_type)
-                        entities.append(entity)
-                    except Exception as entity_error:
-                        self.logger.warning(
-                            f"Error parsing entity {doc.get('_key', 'unknown')}: {entity_error}"
-                        )
-                        continue  # Skip this entity and continue with others
-            return entities
-        except Exception as e:
-            self.logger.error(f"Error getting all entities: {e}")
-            return []
-
-    def get_all_relationships(self) -> list[LegalRelationship]:
-        """Get all relationships from the knowledge graph."""
-        relationships = []
-        try:
-            for rel_type in RelationshipType:
-                collection = self.db.collection(self._get_collection_for_relationship(rel_type))
-                for doc in collection.all():
-                    # Parse relationship from document
-                    relationship = LegalRelationship(
-                        source_id=doc["_from"].split("/")[-1],
-                        target_id=doc["_to"].split("/")[-1],
-                        relationship_type=rel_type,
-                        conditions=doc.get("conditions", []),
-                        weight=doc.get("weight", 1.0),
-                        attributes=doc.get("attributes", {}),
-                    )
-                    relationships.append(relationship)
-            return relationships
-        except Exception as e:
-            self.logger.error(f"Error getting all relationships: {e}")
-            return []
-
-    def _collection_for_entity_id(self, entity_id: str) -> str | None:
-        """Infer vertex collection name from id prefix.
-
-        NOTE: All entities are now stored in the unified 'entities' collection,
-        so this always returns 'entities' (not type-specific collections).
-        """
-        try:
-            # Check if entity exists in unified collection
-            if self.db.collection("entities").has(entity_id):
-                return "entities"
-
-            # Fallback: check old type-specific collections for backward compatibility
-            if ":" in entity_id:
-                prefix = entity_id.split(":", 1)[0]
-                mapping = {
-                    "law": EntityType.LAW,
-                    "remedy": EntityType.LEGAL_OUTCOME,
-                    "court_case": EntityType.CASE_DOCUMENT,
-                    "legal_procedure": EntityType.LEGAL_PROCEDURE,
-                    "damages": EntityType.LEGAL_OUTCOME,
-                    "legal_concept": EntityType.LEGAL_CONCEPT,
-                    "tenant_group": EntityType.TENANT_GROUP,
-                    "campaign": EntityType.CAMPAIGN,
-                    "tactic": EntityType.TACTIC,
-                    "tenant": EntityType.TENANT,
-                    "landlord": EntityType.LANDLORD,
-                    "legal_service": EntityType.LEGAL_SERVICE,
-                    "government_entity": EntityType.GOVERNMENT_ENTITY,
-                    "legal_outcome": EntityType.LEGAL_OUTCOME,
-                    "organizing_outcome": EntityType.ORGANIZING_OUTCOME,
-                    "tenant_issue": EntityType.LEGAL_CLAIM,
-                    "event": EntityType.EVENT,
-                    "document": EntityType.DOCUMENT,
-                    "evidence": EntityType.EVIDENCE,
-                    "jurisdiction": EntityType.JURISDICTION,
-                }
-                et = mapping.get(prefix)
-                if et is not None:
-                    return self._get_collection_for_entity(et)
-        except Exception:
-            pass
+                pass
         return None
 
-    def get_relationships_among(self, node_ids: list[str]) -> list[LegalRelationship]:
-        """Return relationships where both endpoints are within node_ids."""
-        try:
-            id_set = set(node_ids)
-            rels: list[LegalRelationship] = []
-
-            # Query the generic edges collection (where relationships are actually stored)
-            aql = """
-            FOR e IN edges
-                LET from_id = SPLIT(e._from, '/')[1]
-                LET to_id = SPLIT(e._to, '/')[1]
-                FILTER from_id IN @ids AND to_id IN @ids
-                RETURN { 
-                    from_id, 
-                    to_id, 
-                    type: e.type, 
-                    weight: e.weight, 
-                    conditions: e.conditions,
-                    attributes: e.attributes
-                }
-            """
-            cursor = self.db.aql.execute(aql, bind_vars={"ids": list(id_set)})
-            for row in cursor:
-                # Parse relationship type from string
-                try:
-                    rel_type = RelationshipType[row.get("type", "UNKNOWN")]
-                except (KeyError, ValueError):
-                    rel_type = (
-                        RelationshipType.UNKNOWN
-                        if hasattr(RelationshipType, "UNKNOWN")
-                        else next(iter(RelationshipType))
-                    )
-
-                rels.append(
-                    LegalRelationship(
-                        source_id=row["from_id"],
-                        target_id=row["to_id"],
-                        relationship_type=rel_type,
-                        conditions=row.get("conditions"),
-                        weight=row.get("weight", 1.0),
-                        attributes=row.get("attributes") or {},
-                    )
-                )
-            return rels
-        except Exception as e:
-            self.logger.error(f"get_relationships_among error: {e}")
-            return []
-
-    def get_relationships(
-        self,
-        source_id: str | None = None,
-        target_id: str | None = None,
-        relationship_type: str | RelationshipType | None = None,
-    ) -> list[dict]:
-        """
-        Query relationships by source, target, and/or type.
-
-        Args:
-            source_id: Filter by source entity ID
-            target_id: Filter by target entity ID
-            relationship_type: Filter by relationship type (string or enum)
-
-        Returns:
-            List of relationship dicts with source_id, target_id, type, etc.
-        """
-        try:
-            # Convert relationship_type to string if needed
-            if isinstance(relationship_type, RelationshipType):
-                rel_type_str = relationship_type.name
-            elif relationship_type:
-                rel_type_str = str(relationship_type)
-            else:
-                rel_type_str = None
-
-            # Build AQL query
-            filters = []
-            bind_vars = {}
-
-            if source_id:
-                coll_name = self._collection_for_entity_id(source_id)
-                if coll_name:
-                    filters.append("e._from == CONCAT(@source_coll, '/', @source_key)")
-                    bind_vars["source_coll"] = coll_name
-                    bind_vars["source_key"] = source_id
-
-            if target_id:
-                coll_name = self._collection_for_entity_id(target_id)
-                if coll_name:
-                    filters.append("e._to == CONCAT(@target_coll, '/', @target_key)")
-                    bind_vars["target_coll"] = coll_name
-                    bind_vars["target_key"] = target_id
-
-            if rel_type_str:
-                filters.append("e.type == @rel_type")
-                bind_vars["rel_type"] = rel_type_str
-
-            filter_clause = " AND ".join(filters) if filters else "true"
-
-            aql = f"""
-            FOR e IN edges
-                FILTER {filter_clause}
-                LET from_id = SPLIT(e._from, '/')[1]
-                LET to_id = SPLIT(e._to, '/')[1]
-                RETURN {{
-                    source_id: from_id,
-                    target_id: to_id,
-                    type: e.type,
-                    weight: e.weight,
-                    conditions: e.conditions,
-                    attributes: e.attributes
-                }}
-            """
-
-            cursor = self.db.aql.execute(aql, bind_vars=bind_vars)
-            return list(cursor)
-
-        except Exception as e:
-            self.logger.error(f"get_relationships error: {e}")
-            return []
-
-    def get_neighbors(
-        self, node_ids: list[str], per_node_limit: int = 50, direction: str = "both"
-    ) -> tuple[list[LegalEntity], list[LegalRelationship]]:
-        """Get 1-hop neighbors and connecting relationships for the given node ids.
-        direction: 'out', 'in', or 'both'
-        """
-        try:
-            neighbors: dict[str, LegalEntity] = {}
-            rels: list[LegalRelationship] = []
-            dir_filter_out = direction in ("out", "both")
-            dir_filter_in = direction in ("in", "both")
-
-            # Use generic edges collection (where relationships are actually stored)
-            edge_collection = "edges"
-
-            for nid in node_ids:
-                coll_name = self._collection_for_entity_id(nid)
-                if not coll_name:
-                    continue
-
-                # Outbound edges
-                if dir_filter_out:
-                    aql_out = """
-                    FOR e IN @@edge
-                        FILTER e._from == CONCAT(@coll, '/', @key)
-                        LIMIT @limit
-                        RETURN e
-                    """
-                    cursor_out = self.db.aql.execute(
-                        aql_out,
-                        bind_vars={
-                            "@edge": edge_collection,
-                            "coll": coll_name,
-                            "key": nid,
-                            "limit": per_node_limit,
-                        },
-                    )
-                    for e in cursor_out:
-                        to_id = e["_to"].split("/")[-1]
-                        # Parse relationship type from edge document
+    def delete_entity(self, entity_id: str) -> bool:
+        """Delete a node and all its incident edges. Returns True if found and deleted."""
+        for coll_name in VERTEX_COLLECTIONS.values():
+            try:
+                coll = self.db.collection(coll_name)
+                if coll.has(entity_id):
+                    full_id = f"{coll_name}/{entity_id}"
+                    # Remove incident edges
+                    for edge_coll_name in EDGE_COLLECTIONS.values():
                         try:
-                            rel_type_str = e.get("type", "")
-                            rel_type = RelationshipType[rel_type_str] if rel_type_str else None
-                            if not rel_type:
-                                continue
-                        except (KeyError, ValueError):
-                            continue
-
-                        rels.append(
-                            LegalRelationship(
-                                source_id=nid,
-                                target_id=to_id,
-                                relationship_type=rel_type,
-                                conditions=e.get("conditions"),
-                                weight=e.get("weight", 1.0),
-                                attributes=e.get("attributes", {}),
+                            self.db.aql.execute(
+                                "FOR e IN @@coll FILTER e._from == @id OR e._to == @id REMOVE e IN @@coll",
+                                bind_vars={"@coll": edge_coll_name, "id": full_id},
                             )
+                        except Exception:
+                            pass
+                    coll.delete(entity_id)
+                    return True
+            except Exception:
+                pass
+        return False
+
+    # ─── Taxonomy edge CRUD ─────────────────────────────────────────────────────
+
+    def add_requires_evidence_edge(
+        self, claim_type_id: str, evidence_id: str, critical: bool = True
+    ) -> bool:
+        _from = f"claim_types/{claim_type_id}"
+        _to = f"evidence_nodes/{evidence_id}"
+        return self._upsert_edge("requires_evidence", _from, _to, {"critical": critical})
+
+    def add_typically_uses_edge(self, claim_type_id: str, procedure_id: str) -> bool:
+        _from = f"claim_types/{claim_type_id}"
+        _to = f"procedures/{procedure_id}"
+        return self._upsert_edge("typically_uses", _from, _to, {})
+
+    def add_cites_edge(self, case_doc_id: str, law_id: str) -> bool:
+        return self._upsert_edge("cites", f"case_documents/{case_doc_id}", f"laws/{law_id}", {})
+
+    def add_tagged_as_edge(self, case_doc_id: str, claim_type_id: str) -> bool:
+        return self._upsert_edge("tagged_as", f"case_documents/{case_doc_id}", f"claim_types/{claim_type_id}", {})
+
+    def add_demonstrates_evidence_edge(self, case_doc_id: str, evidence_id: str) -> bool:
+        return self._upsert_edge("demonstrates_evidence", f"case_documents/{case_doc_id}", f"evidence_nodes/{evidence_id}", {})
+
+    def add_applied_procedure_edge(self, case_doc_id: str, procedure_id: str) -> bool:
+        return self._upsert_edge("applied_procedure", f"case_documents/{case_doc_id}", f"procedures/{procedure_id}", {})
+
+    def _upsert_edge(self, coll_name: str, _from: str, _to: str, extra: dict) -> bool:
+        try:
+            coll = self.db.collection(coll_name)
+            doc = {"_from": _from, "_to": _to, **extra}
+            # Unique index on (_from, _to) handles idempotency; ignore duplicate errors
+            try:
+                coll.insert(doc)
+            except Exception as insert_err:
+                if "unique" in str(insert_err).lower() or "1210" in str(insert_err):
+                    if extra:
+                        # Update attributes on existing edge
+                        self.db.aql.execute(
+                            "FOR e IN @@coll FILTER e._from == @f AND e._to == @t "
+                            "UPDATE e WITH @extra IN @@coll",
+                            bind_vars={"@coll": coll_name, "f": _from, "t": _to, "extra": extra},
                         )
-                        # Fetch neighbor doc from unified entities collection
-                        try:
-                            doc = self.db.collection("entities").get(to_id)
-                            # Get entity type from document's type field
-                            type_str = doc.get("type")
-                            if type_str:
-                                try:
-                                    et = EntityType(type_str)
-                                    neighbors[to_id] = self._parse_entity_from_doc(doc, et)
-                                except (ValueError, KeyError):
-                                    self.logger.debug(f"Unknown entity type: {type_str}")
-                        except Exception as fetch_err:
-                            self.logger.debug(f"Failed to fetch neighbor {to_id}: {fetch_err}")
-
-                # Inbound edges
-                if dir_filter_in:
-                    aql_in = """
-                    FOR e IN @@edge
-                        FILTER e._to == CONCAT(@coll, '/', @key)
-                        LIMIT @limit
-                        RETURN e
-                    """
-                    cursor_in = self.db.aql.execute(
-                        aql_in,
-                        bind_vars={
-                            "@edge": edge_collection,
-                            "coll": coll_name,
-                            "key": nid,
-                            "limit": per_node_limit,
-                        },
-                    )
-                    for e in cursor_in:
-                        from_id = e["_from"].split("/")[-1]
-                        # Parse relationship type from edge document
-                        try:
-                            rel_type_str = e.get("type", "")
-                            rel_type = RelationshipType[rel_type_str] if rel_type_str else None
-                            if not rel_type:
-                                continue
-                        except (KeyError, ValueError):
-                            continue
-
-                        rels.append(
-                            LegalRelationship(
-                                source_id=from_id,
-                                target_id=nid,
-                                relationship_type=rel_type,
-                                conditions=e.get("conditions"),
-                                weight=e.get("weight", 1.0),
-                                attributes=e.get("attributes", {}),
-                            )
-                        )
-                        # Fetch neighbor doc from unified entities collection
-                        try:
-                            doc = self.db.collection("entities").get(from_id)
-                            # Get entity type from document's type field
-                            type_str = doc.get("type")
-                            if type_str:
-                                try:
-                                    et = EntityType(type_str)
-                                    neighbors[from_id] = self._parse_entity_from_doc(doc, et)
-                                except (ValueError, KeyError):
-                                    self.logger.debug(f"Unknown entity type: {type_str}")
-                        except Exception as fetch_err:
-                            self.logger.debug(f"Failed to fetch neighbor {from_id}: {fetch_err}")
-
-            return list(neighbors.values()), rels
-        except Exception as e:
-            self.logger.error(f"get_neighbors error: {e}")
-            return [], []
-
-    # --- Consolidation helpers ---
-    def _norm_tokens(self, text: str | None) -> list[str]:
-        if not text:
-            return []
-        tokens = re.split(r"\W+", text.lower())
-        stop = {
-            "the",
-            "a",
-            "an",
-            "and",
-            "or",
-            "to",
-            "of",
-            "in",
-            "on",
-            "for",
-            "by",
-            "with",
-            "at",
-            "from",
-            "as",
-            "is",
-            "are",
-            "be",
-            "that",
-            "this",
-            "these",
-            "those",
-        }
-        return [t for t in tokens if t and t not in stop]
-
-    def _sim_score(self, name_a: str, desc_a: str | None, name_b: str, desc_b: str | None) -> float:
-        """Jaccard token similarity (legacy fallback)."""
-        if not name_a or not name_b:
-            return 0.0
-        a, b = name_a.strip().lower(), name_b.strip().lower()
-        if a == b:
-            return 1.0
-        if a in b or b in a:
-            return 0.95
-        sa, sb = set(self._norm_tokens(a)), set(self._norm_tokens(b))
-        name_sim = (len(sa & sb) / max(1, len(sa | sb))) if (sa or sb) else 0.0
-        da, db = set(self._norm_tokens(desc_a or "")), set(self._norm_tokens(desc_b or ""))
-        desc_sim = (len(da & db) / max(1, len(da | db))) if (da or db) else 0.0
-        return 0.8 * name_sim + 0.2 * desc_sim
-
-    def _get_embeddings_service(self):
-        """Lazy-load EmbeddingsService for consolidation."""
-        if not hasattr(self, "_embeddings") or self._embeddings is None:
-            from tenant_legal_guidance.services.embeddings import EmbeddingsService
-
-            self._embeddings = EmbeddingsService()
-        return self._embeddings
-
-    def _embedding_sim_score(
-        self, name_a: str, desc_a: str | None, name_b: str, desc_b: str | None
-    ) -> float:
-        """Cosine similarity on '{name}. {desc}' embeddings."""
-        if not name_a or not name_b:
-            return 0.0
-        a, b = name_a.strip().lower(), name_b.strip().lower()
-        if a == b:
-            return 1.0
-        text_a = f"{name_a.strip()}. {(desc_a or '').strip()}"
-        text_b = f"{name_b.strip()}. {(desc_b or '').strip()}"
-        emb = self._get_embeddings_service()
-        vectors = emb.embed([text_a, text_b])
-        # Embeddings are already L2-normalized, so dot product = cosine similarity
-        return float(vectors[0] @ vectors[1])
-
-    def _merge_two_docs(self, coll_name: str, keep_id: str, drop_id: str) -> None:
-        coll = self.db.collection(coll_name)
-        keep = coll.get(keep_id)
-        drop = coll.get(drop_id)
-        if not keep or not drop:
-            return
-        # Merge description (prefer longer)
-        kdesc, ddesc = keep.get("description"), drop.get("description")
-        if (not kdesc) or (ddesc and len(str(ddesc)) > len(str(kdesc))):
-            keep["description"] = ddesc
-        # Merge list fields (concatenate + deduplicate)
-        for list_field in ("chunk_ids", "all_quotes"):
-            keep_list = keep.get(list_field) or []
-            drop_list = drop.get(list_field) or []
-            if drop_list:
-                if list_field == "chunk_ids":
-                    # Deduplicate by value
-                    seen_vals = set(keep_list)
-                    for item in drop_list:
-                        if item not in seen_vals:
-                            keep_list.append(item)
-                            seen_vals.add(item)
                 else:
-                    # all_quotes: deduplicate by text content
-                    seen_texts = {
-                        (q.get("text", "") if isinstance(q, dict) else str(q))[:100]
-                        for q in keep_list
-                    }
-                    for q in drop_list:
-                        txt = (q.get("text", "") if isinstance(q, dict) else str(q))[:100]
-                        if txt not in seen_texts:
-                            keep_list.append(q)
-                            seen_texts.add(txt)
-                keep[list_field] = keep_list
-        # Merge remaining attributes (non-destructive)
-        for k, v in drop.items():
-            if k in [
-                "_key",
-                "_id",
-                "_rev",
-                "type",
-                "name",
-                "description",
-                "source_metadata",
-                "jurisdiction",
-                "provenance",
-                "mentions_count",
-                "chunk_ids",
-                "all_quotes",
-            ]:
-                continue
-            if k not in keep:
-                keep[k] = v
-        # Merge provenance lists
-        kprov = keep.get("provenance") or []
-        dprov = drop.get("provenance") or []
-
-        def keyp(p):
-            s = (p or {}).get("source", {})
-            return f"{s.get('source')}::{(p or {}).get('quote', '')[:64]}"
-
-        seen = {keyp(p) for p in kprov}
-        for p in dprov:
-            if keyp(p) not in seen:
-                kprov.append(p)
-        keep["provenance"] = kprov
-        # Mentions count recompute
-        uniq = {(p.get("source", {}) or {}).get("source") for p in kprov if isinstance(p, dict)}
-        keep["mentions_count"] = len({s for s in uniq if s})
-        # Canonical source selection
-        keep_meta = keep.get("source_metadata") or {}
-        drop_meta = drop.get("source_metadata") or {}
-        keep["source_metadata"] = self._select_canonical_source(keep_meta, drop_meta)
-        coll.update(keep)
-
-        # Rewire edges from drop to keep
-        for rel_type in RelationshipType:
-            edge_name = self._get_collection_for_relationship(rel_type)
-            self.db.collection(edge_name)
-            # Update outbound
-            aql_out = """
-            FOR e IN @@edge
-                FILTER e._from == CONCAT(@coll, '/', @drop)
-                UPDATE e WITH { _from: CONCAT(@coll, '/', @keep) } IN @@edge
-            """
-            self.db.aql.execute(
-                aql_out,
-                bind_vars={"@edge": edge_name, "coll": coll_name, "drop": drop_id, "keep": keep_id},
-            )
-            # Update inbound
-            aql_in = """
-            FOR e IN @@edge
-                FILTER e._to == CONCAT(@coll, '/', @drop)
-                UPDATE e WITH { _to: CONCAT(@coll, '/', @keep) } IN @@edge
-            """
-            self.db.aql.execute(
-                aql_in,
-                bind_vars={"@edge": edge_name, "coll": coll_name, "drop": drop_id, "keep": keep_id},
-            )
-        # Delete drop vertex
-        coll.delete(drop_id)
-
-    def consolidate_entities(self, node_ids: list[str], threshold: float = 0.95) -> dict[str, int]:
-        """Merge near-duplicate entities among the given ids (same-type only), using strict similarity.
-        Returns counts of merged and examined pairs.
-        """
-        merged = 0
-        examined = 0
-        try:
-            # Group node ids by collection/type
-            type_to_ids: dict[str, list[str]] = {}
-            for nid in node_ids:
-                coll = self._collection_for_entity_id(nid)
-                if not coll:
-                    continue
-                type_to_ids.setdefault(coll, []).append(nid)
-            for coll_name, ids in type_to_ids.items():
-                docs = []
-                coll = self.db.collection(coll_name)
-                for nid in ids:
-                    d = coll.get(nid)
-                    if d:
-                        docs.append(d)
-                # Compare all pairs within this collection
-                for i in range(len(docs)):
-                    for j in range(i + 1, len(docs)):
-                        a, b = docs[i], docs[j]
-                        examined += 1
-                        score = self._sim_score(
-                            a.get("name", ""),
-                            a.get("description"),
-                            b.get("name", ""),
-                            b.get("description"),
-                        )
-                        if score >= threshold:
-                            # Choose keep by authority then recency
-                            ka = a.get("source_metadata") or {}
-                            kb = b.get("source_metadata") or {}
-                            choose_a = self._select_canonical_source(kb, ka) == ka
-                            keep_id = a.get("_key") if choose_a else b.get("_key")
-                            drop_id = b.get("_key") if choose_a else a.get("_key")
-                            self._merge_two_docs(coll_name, keep_id, drop_id)
-                            merged += 1
-            return {"merged": merged, "examined": examined}
-        except Exception as e:
-            self.logger.error(f"consolidate_entities error: {e}")
-            return {"merged": merged, "examined": examined}
-
-    def consolidate_all_entities(
-        self,
-        threshold: float = AUTO_MERGE_THRESHOLD,
-        types: list[EntityType] | None = None,
-        judge_low: float = BORDERLINE_THRESHOLD,
-        judge_high: float = AUTO_MERGE_THRESHOLD,
-        dry_run: bool = False,
-    ) -> dict[str, object]:
-        """Scan the whole graph and consolidate near-duplicates per type using embedding similarity.
-
-        Batch-embeds all entities per collection upfront, then uses numpy dot product
-        for fast pairwise cosine similarity (embeddings are L2-normalized).
-
-        Auto-merge when score >= threshold (0.92). Borderline pairs in [judge_low, judge_high) for LLM judge.
-        Set dry_run=True to preview merges without executing them.
-        Returns { collections: map of collection -> {merged, examined}, borderline: [...], dry_run: bool }.
-        """
-        import numpy as np
-
-        results: dict[str, dict[str, int]] = {}
-        borderline: list[dict[str, object]] = []
-        merge_preview: list[dict[str, object]] = []
-        try:
-            target_types = types or list(EntityType)
-            self.logger.info(
-                f"[CONSOLIDATE-ALL] Starting consolidate-all threshold={threshold} "
-                f"judge=[{judge_low},{judge_high}) dry_run={dry_run} "
-                f"types={[t.value if hasattr(t, 'value') else str(t) for t in target_types]}"
-            )
-            emb = self._get_embeddings_service()
-
-            for et in target_types:
-                coll_name = self._get_collection_for_entity(et)
-                if not self.db.has_collection(coll_name):
-                    continue
-                coll = self.db.collection(coll_name)
-                docs = list(coll.all())
-                if len(docs) < 2:
-                    results[coll_name] = {"merged": 0, "examined": 0}
-                    continue
-
-                # Batch-embed all entities in this collection
-                texts = [
-                    f"{d.get('name', '').strip()}. {(d.get('description') or '').strip()}"
-                    for d in docs
-                ]
-                vectors = emb.embed(texts)
-                # Compute full pairwise cosine similarity matrix (vectors are L2-normalized)
-                sim_matrix = vectors @ vectors.T
-
-                merged = 0
-                examined = 0
-                # Collect merge pairs sorted by score descending to merge best matches first
-                merge_pairs: list[tuple[int, int, float]] = []
-                for i in range(len(docs)):
-                    for j in range(i + 1, len(docs)):
-                        examined += 1
-                        score = float(sim_matrix[i, j])
-                        if score >= threshold:
-                            merge_pairs.append((i, j, score))
-                        elif judge_low <= score < judge_high:
-                            borderline.append(
-                                {
-                                    "coll": coll_name,
-                                    "a_id": docs[i].get("_key"),
-                                    "b_id": docs[j].get("_key"),
-                                    "a_name": docs[i].get("name", ""),
-                                    "b_name": docs[j].get("name", ""),
-                                    "a_desc": docs[i].get("description", ""),
-                                    "b_desc": docs[j].get("description", ""),
-                                    "score": score,
-                                }
-                            )
-
-                # Process merges: highest score first, skip already-merged indices
-                merge_pairs.sort(key=lambda x: x[2], reverse=True)
-                dropped: set[int] = set()
-                for i, j, score in merge_pairs:
-                    if i in dropped or j in dropped:
-                        continue
-                    a, b = docs[i], docs[j]
-                    ka = a.get("source_metadata") or {}
-                    kb = b.get("source_metadata") or {}
-                    choose_a = self._select_canonical_source(kb, ka) == ka
-                    keep_id = a.get("_key") if choose_a else b.get("_key")
-                    drop_id = b.get("_key") if choose_a else a.get("_key")
-                    self.logger.info(
-                        f"[CONSOLIDATE-ALL] {'(dry-run) ' if dry_run else ''}merge {coll_name}: "
-                        f"'{a.get('name', '')}' <-> '{b.get('name', '')}' "
-                        f"score={score:.3f} keep={keep_id} drop={drop_id}"
-                    )
-                    if dry_run:
-                        merge_preview.append(
-                            {
-                                "coll": coll_name,
-                                "keep_id": keep_id,
-                                "drop_id": drop_id,
-                                "keep_name": a.get("name", "") if choose_a else b.get("name", ""),
-                                "drop_name": b.get("name", "") if choose_a else a.get("name", ""),
-                                "score": float(score),
-                            }
-                        )
-                    else:
-                        self._merge_two_docs(coll_name, keep_id, drop_id)
-                        merged += 1
-                    dropped.add(j if choose_a else i)
-
-                results[coll_name] = {"merged": merged, "examined": examined}
-                self.logger.info(
-                    f"[CONSOLIDATE-ALL] collection={coll_name} merged={merged} examined={examined}"
-                )
-            total_merged = sum(v.get("merged", 0) for v in results.values())
-            total_examined = sum(v.get("examined", 0) for v in results.values())
-            self.logger.info(
-                f"[CONSOLIDATE-ALL] Completed merged_total={total_merged} examined_total={total_examined}"
-            )
-            result = {"collections": results, "borderline": borderline, "dry_run": dry_run}
-            if dry_run:
-                result["merge_preview"] = merge_preview
-            return result
-        except Exception as e:
-            self.logger.error(f"consolidate_all_entities error: {e}")
-            return {"collections": results, "borderline": borderline, "dry_run": dry_run}
-
-    def merge_pair_auto(self, id_a: str, id_b: str) -> bool:
-        """Merge two entities (same collection/type). Chooses canonical by authority/recency and rewires edges.
-        Returns True if merged, False otherwise.
-        """
-        try:
-            coll_a = self._collection_for_entity_id(id_a)
-            coll_b = self._collection_for_entity_id(id_b)
-            if not coll_a or coll_a != coll_b:
-                return False
-            coll = self.db.collection(coll_a)
-            a = coll.get(id_a)
-            b = coll.get(id_b)
-            if not a or not b:
-                return False
-            ka = a.get("source_metadata") or {}
-            kb = b.get("source_metadata") or {}
-            choose_a = self._select_canonical_source(kb, ka) == ka
-            keep_id = id_a if choose_a else id_b
-            drop_id = id_b if choose_a else id_a
-            self._merge_two_docs(coll_a, keep_id, drop_id)
+                    raise
             return True
         except Exception as e:
-            self.logger.error(f"merge_pair_auto error: {e}")
+            self.logger.error(f"_upsert_edge failed ({coll_name} {_from}->{_to}): {e}")
             return False
 
-    def _fallback_text_search(
-        self,
-        search_term: str,
-        types: list[EntityType] | None,
-        jurisdiction: str | None,
-        limit: int,
-    ) -> list[LegalEntity]:
-        """Fallback search using AQL LIKE across all collections when ArangoSearch is unavailable."""
+    # ─── Taxonomy traversals ────────────────────────────────────────────────────
+
+    def get_required_evidence_for_claim_type(self, claim_type_id: str) -> list[dict]:
+        """Graph traversal: ClaimType → requires_evidence → Evidence."""
         try:
-            results: list[LegalEntity] = []
-            term = f"%{search_term}%"
-            type_filter = None
-            types_values: list[str] | None = None
-            if types:
-                types_values = [t.value for t in types]
-                type_filter = True
-
-            j_filter = jurisdiction is not None
-
-            # Iterate collections and query top-K per collection
-            for entity_type in EntityType:
-                coll_name = self._get_collection_for_entity(entity_type)
-                if not self.db.has_collection(coll_name):
-                    continue
-
-                aql = """
-                FOR doc IN @@coll
-                    FILTER (
-                        LIKE(LOWER(doc.name), LOWER(@term), true) OR 
-                        LIKE(LOWER(doc.description), LOWER(@term), true)
-                    )
-                    """
-                if type_filter:
-                    aql += "\n    FILTER doc.type IN @types"
-                if j_filter:
-                    aql += "\n    FILTER doc.jurisdiction == @jurisdiction"
-                aql += "\n    LIMIT @limit\n    RETURN doc"
-
-                bind_vars: dict[str, object] = {
-                    "@coll": coll_name,
-                    "term": term,
-                    "limit": limit,
-                }
-                if type_filter:
-                    bind_vars["types"] = types_values
-                if j_filter:
-                    bind_vars["jurisdiction"] = jurisdiction
-
-                try:
-                    cursor = self.db.aql.execute(aql, bind_vars=bind_vars)
-                    for doc in cursor:
-                        # Build entity
-                        et = entity_type
-                        results.append(self._parse_entity_from_doc(doc, et))
-                except Exception as sub_err:
-                    self.logger.warning(f"Fallback search failed on {coll_name}: {sub_err}")
-
-                if len(results) >= limit:
-                    break
-
-            return results[:limit]
+            aql = """
+            FOR v, e IN 1..1 OUTBOUND @start_id requires_evidence
+                RETURN MERGE(v, {critical: e.critical})
+            """
+            cursor = self.db.aql.execute(
+                aql, bind_vars={"start_id": f"claim_types/{claim_type_id}"}
+            )
+            return list(cursor)
         except Exception as e:
-            self.logger.error(f"Fallback text search error: {e}")
+            self.logger.error(f"get_required_evidence_for_claim_type failed for {claim_type_id}: {e}")
             return []
+
+    def get_required_procedures_for_claim_type(self, claim_type_id: str) -> list[dict]:
+        """Graph traversal: ClaimType → typically_uses → Procedure."""
+        try:
+            aql = """
+            FOR v IN 1..1 OUTBOUND @start_id typically_uses
+                RETURN v
+            """
+            cursor = self.db.aql.execute(
+                aql, bind_vars={"start_id": f"claim_types/{claim_type_id}"}
+            )
+            return list(cursor)
+        except Exception as e:
+            self.logger.error(f"get_required_procedures_for_claim_type failed for {claim_type_id}: {e}")
+            return []
+
+    def get_laws_for_claim_type(self, claim_type_id: str) -> list[dict]:
+        """Return laws cited by cases that are tagged with this claim type, ranked by frequency."""
+        try:
+            aql = """
+            FOR doc IN case_documents
+                FILTER @cid IN doc.claim_types
+                FOR law IN 1..1 OUTBOUND doc cites
+                    COLLECT law_key = law._key, law_name = law.name, law_citation = law.citation
+                    WITH COUNT INTO n
+                    SORT n DESC
+                    LIMIT 10
+                    RETURN {id: law_key, name: law_name, citation: law_citation, case_count: n}
+            """
+            cursor = self.db.aql.execute(aql, bind_vars={"cid": claim_type_id})
+            return list(cursor)
+        except Exception as e:
+            self.logger.error(f"get_laws_for_claim_type failed for {claim_type_id}: {e}")
+            return []
+
+    def get_cases_tagged_with(
+        self,
+        claim_type_ids: list[str],
+        jurisdiction: str | None = None,
+        limit: int = 10,
+    ) -> list[dict]:
+        """Return case documents tagged with any of the given claim_type_ids, ranked by overlap."""
+        bind_vars: dict = {"ids": claim_type_ids, "limit": limit}
+        jur_filter = ""
+        if jurisdiction:
+            jur_filter = "FILTER doc.jurisdiction == @jurisdiction"
+            bind_vars["jurisdiction"] = jurisdiction
+        aql = f"""
+        FOR doc IN case_documents
+            {jur_filter}
+            FILTER LENGTH(INTERSECTION(doc.claim_types, @ids)) > 0
+            SORT LENGTH(INTERSECTION(doc.claim_types, @ids)) DESC
+            LIMIT @limit
+            RETURN doc
+        """
+        try:
+            return list(self.db.aql.execute(aql, bind_vars=bind_vars))
+        except Exception as e:
+            self.logger.error(f"get_cases_tagged_with failed: {e}")
+            return []
+
+    def get_all_claim_type_nodes(self) -> list[dict]:
+        """Return all canonical claim type nodes."""
+        return self.get_taxonomy_nodes("claim_types", include_proposed=False)
+
+    def get_taxonomy_by_jurisdiction(
+        self, jurisdiction: str, kind: str, include_proposed: bool = True
+    ) -> list[dict]:
+        return self.get_taxonomy_nodes(kind, jurisdiction=jurisdiction, include_proposed=include_proposed)
+
+    # ─── Text search ────────────────────────────────────────────────────────────
 
     def search_entities_by_text(
         self,
-        search_term: str,
-        types: list[EntityType] | None = None,
+        query: str,
+        entity_types: list[str] | None = None,
         jurisdiction: str | None = None,
-        limit: int = 50,
-    ) -> list[LegalEntity]:
-        """Search for entities by text in name or description using ArangoSearch."""
-        try:
-            post_filters = []
-            bind_vars: dict[str, object] = {"term": search_term, "limit": limit}
-            if types:
-                # Convert to string values for matching doc.type
-                type_values = [t.value if hasattr(t, "value") else t for t in types]
-                bind_vars["types"] = type_values
-                post_filters.append("FILTER doc.type IN @types")
-            if jurisdiction:
-                bind_vars["jurisdiction"] = jurisdiction
-                post_filters.append("FILTER doc.jurisdiction == @jurisdiction")
-            post_filter_clause = "\n                ".join(post_filters)
-
-            # Use TOKENS for multi-word queries (matches any token) instead of PHRASE (exact match)
-            # Type/jurisdiction filters go AFTER SEARCH (they are exact-match, not text-analyzed)
-            aql = f"""
-            FOR doc IN kg_entities_view
-                SEARCH ANALYZER(
-                    TOKENS(@term, "text_en") ANY IN doc.name OR TOKENS(@term, "text_en") ANY IN doc.description
-                    , "text_en"
-                )
-                {post_filter_clause}
-                SORT BM25(doc) DESC, TFIDF(doc) DESC
-                LIMIT @limit
-                RETURN doc
-            """
-            try:
-                cursor = self.db.aql.execute(aql, bind_vars=bind_vars)
-            except Exception as e:
-                # If view missing, ensure and retry; else fallback
-                msg = str(e)
-                self.logger.warning(
-                    f"ArangoSearch view issue detected: {msg}. Ensuring view and retrying/falling back..."
-                )
-                try:
-                    self._ensure_search_view()
-                    cursor = self.db.aql.execute(aql, bind_vars=bind_vars)
-                except Exception as retry_err:
-                    self.logger.warning(
-                        f"Retry with view failed: {retry_err}. Using fallback LIKE search."
-                    )
-                    return self._fallback_text_search(search_term, types, jurisdiction, limit)
-
-            results: list[LegalEntity] = []
-            for doc in cursor:
-                # Infer entity type from stored doc.type or from id prefix
-                et_value = doc.get("type")
-                et: EntityType | None = None
-                if et_value:
-                    try:
-                        et = EntityType(et_value)
-                    except Exception:
-                        et = None
-                if et is None:
-                    key = doc.get("_key", "")
-                    if ":" in key:
-                        prefix = key.split(":", 1)[0]
-                        try:
-                            et = EntityType(prefix)
-                        except Exception:
-                            et = None
-                # Default to LAW if unknown (rare)
-                et = et or EntityType.LAW
-                results.append(self._parse_entity_from_doc(doc, et))
-            return results
-        except Exception as e:
-            self.logger.error(f"Error searching entities by text: {e}")
-            return []
-
-    def search_similar_entities(
-        self, name: str, entity_type: str, limit: int = 3
-    ) -> list[dict[str, object]]:
-        """Search for existing entities using BM25 fulltext search.
-
-        Used by entity resolution to find potential duplicates before creating new entities.
-
-        Args:
-            name: Entity name to search for
-            entity_type: Entity type (e.g., 'law', 'remedy')
-            limit: Maximum number of results to return
-
-        Returns:
-            List of matching entities with their BM25 scores, sorted by relevance
-        """
-        try:
-            # Use ArangoSearch view for BM25 scoring
-            query = """
-            FOR doc IN kg_entities_view
-                SEARCH ANALYZER(TOKENS(@name, "text_en") ALL IN doc.name, "text_en")
-                FILTER doc.type == @entity_type
-                SORT BM25(doc) DESC
-                LIMIT @limit
-                RETURN {
-                    _key: doc._key,
-                    name: doc.name,
-                    entity_type: doc.type,
-                    description: doc.description,
-                    score: BM25(doc)
-                }
-            """
-
-            bind_vars = {
-                "name": name,
-                "entity_type": entity_type,
-                "limit": limit,
-            }
-
-            try:
-                cursor = self.db.aql.execute(query, bind_vars=bind_vars)
-                results = list(cursor)
-                self.logger.debug(
-                    f"BM25 search for '{name}' (type={entity_type}): found {len(results)} candidates"
-                )
-                return results
-            except Exception as e:
-                # If view missing, ensure and retry
-                msg = str(e)
-                if "view" in msg.lower() or "search" in msg.lower():
-                    self.logger.warning(
-                        f"ArangoSearch view issue in search_similar_entities: {msg}. Ensuring view and retrying..."
-                    )
-                    self._ensure_search_view()
-                    cursor = self.db.aql.execute(query, bind_vars=bind_vars)
-                    results = list(cursor)
-                    return results
-                raise
-
-        except Exception as e:
-            self.logger.error(f"Error in search_similar_entities for '{name}': {e}")
-            # Return empty list on failure (graceful degradation)
-            return []
-
-    def compute_next_steps(self, issues: list[str], jurisdiction: str | None = None) -> list[dict]:
-        """Compute deterministic next steps from issues through applicable laws, remedies, procedures, and evidence.
-        This is a heuristic placeholder; refine with AQL/graph traversal later.
-        """
-        steps: list[dict] = []
-        try:
-            # Gather candidate laws by simple name match
-            laws_coll = self.db.collection(self._get_collection_for_entity(EntityType.LAW))
-            remedies_coll = self.db.collection(self._get_collection_for_entity(EntityType.LEGAL_OUTCOME))
-            procedures_coll = self.db.collection(
-                self._get_collection_for_entity(EntityType.LEGAL_PROCEDURE)
-            )
-            evidence_coll = self.db.collection(self._get_collection_for_entity(EntityType.EVIDENCE))
-
-            # Simple scan; replace with AQL + relationships when populated
-            candidate_laws = []
-            for doc in laws_coll.all():
-                name = doc.get("name", "").lower()
-                if any(term.lower() in name for term in issues):
-                    candidate_laws.append(doc)
-
-            # Build steps
-            for law in candidate_laws:
-                step = {
-                    "issue_match": law.get("name", ""),
-                    "law": law.get("name", ""),
-                    "remedies": [],
-                    "procedures": [],
-                    "evidence": [],
-                }
-                # Heuristic associations by keywords
-                (law.get("name", "") + " " + law.get("description", "")).lower()
-
-                # Remedies
-                for r in remedies_coll.all():
-                    r_text = (r.get("name", "") + " " + r.get("description", "")).lower()
-                    if any(
-                        k in r_text
-                        for k in [
-                            "hp action",
-                            "overcharge",
-                            "abatement",
-                            "complaint",
-                            "311",
-                            "dhcr",
-                        ]
-                    ):
-                        step["remedies"].append(r.get("name", ""))
-
-                # Procedures
-                for p in procedures_coll.all():
-                    p_text = (p.get("name", "") + " " + p.get("description", "")).lower()
-                    if any(
-                        k in p_text
-                        for k in ["file", "petition", "action", "hearing", "notice", "court"]
-                    ):
-                        step["procedures"].append(p.get("name", ""))
-
-                # Evidence
-                for e in evidence_coll.all():
-                    e_text = (e.get("name", "") + " " + e.get("description", "")).lower()
-                    if any(
-                        k in e_text
-                        for k in ["receipt", "photo", "violation", "history", "letter", "record"]
-                    ):
-                        step["evidence"].append(e.get("name", ""))
-
-                steps.append(step)
-        except Exception as e:
-            self.logger.warning(f"compute_next_steps fallback used due to error: {e}")
-        return steps
-
-    def build_legal_chains(
-        self, issues: list[str], jurisdiction: str | None = None, limit: int = 25
+        limit: int = 20,
     ) -> list[dict]:
-        """Build explicit chains (issue -> law -> remedy -> procedure -> evidence) with citations via AQL traversal.
-        Returns a list of chains with nodes, edges, and source_metadata for citations.
+        """Full-text search over taxonomy nodes via ArangoSearch view."""
+        kind_map = {
+            "claim_type": "claim_types",
+            "evidence": "evidence_nodes",
+            "procedure": "procedures",
+            "law": "laws",
+            "case_document": "case_documents",
+        }
+        if entity_types:
+            coll_filter = f"FILTER doc.entity_type IN {entity_types!r}"
+        else:
+            coll_filter = ""
+
+        jur_filter = ""
+        bind_vars: dict = {"query": query, "limit": limit}
+        if jurisdiction:
+            jur_filter = "FILTER doc.jurisdiction == @jurisdiction"
+            bind_vars["jurisdiction"] = jurisdiction
+
+        aql = f"""
+        FOR doc IN kg_entities_view
+            SEARCH ANALYZER(
+                PHRASE(doc.name, @query, "text_en") OR
+                PHRASE(doc.description, @query, "text_en") OR
+                PHRASE(doc.aliases, @query, "text_en"),
+                "text_en"
+            )
+            {coll_filter}
+            {jur_filter}
+            SORT BM25(doc) DESC
+            LIMIT @limit
+            RETURN doc
         """
         try:
-            bind_vars: dict[str, object] = {
-                "issues": issues or [],
-                "jurisdiction": jurisdiction,
-                "limit": limit,
-            }
-            aql = """
-            LET terms = @issues
-            LET j = @jurisdiction
-            FOR issue IN tenant_issues
-              FILTER LENGTH(terms) == 0 OR (
-                LIKE(LOWER(issue.name), LOWER(CONCAT('%', terms[0], '%')), true) OR
-                (LENGTH(terms) > 1 AND LIKE(LOWER(issue.name), LOWER(CONCAT('%', terms[1], '%')), true)) OR
-                (LENGTH(terms) > 2 AND LIKE(LOWER(issue.name), LOWER(CONCAT('%', terms[2], '%')), true))
-              )
-              FOR law IN INBOUND issue applies_to
-                FILTER !j OR law.jurisdiction == j
-                FOR remedy IN OUTBOUND law enables
-                  FOR proc IN OUTBOUND remedy available_via
-                  FOR ev IN OUTBOUND law requires
-                    LIMIT @limit
-                    RETURN {
-                      chain: [
-                        {type: "tenant_issue", id: issue._key, name: issue.name, cite: issue.source_metadata},
-                        {rel: "APPLIES_TO"},
-                        {type: "law", id: law._key, name: law.name, cite: law.source_metadata},
-                        {rel: "ENABLES"},
-                        {type: "remedy", id: remedy._key, name: remedy.name, cite: remedy.source_metadata},
-                        {rel: "AVAILABLE_VIA"},
-                        {type: "legal_procedure", id: proc._key, name: proc.name, cite: proc.source_metadata},
-                        {rel: "REQUIRES"},
-                        {type: "evidence", id: ev._key, name: ev.name, cite: ev.source_metadata}
-                      ],
-                      score: 1.0
-                    }
-            """
-            cursor = self.db.aql.execute(aql, bind_vars=bind_vars)
-            return list(cursor)
+            return list(self.db.aql.execute(aql, bind_vars=bind_vars))
         except Exception as e:
-            self.logger.error(f"Error building legal chains: {e}")
+            self.logger.error(f"search_entities_by_text failed: {e}")
             return []
+
+    # ─── Stats / admin ──────────────────────────────────────────────────────────
 
     def get_database_stats(self) -> dict[str, int]:
-        """Get statistics about the database collections.
-
-        Returns:
-            Dict mapping collection names to document counts
-        """
         try:
             stats = {}
-
-            # Get all collection names
-            collections = self.db.collections()
-
-            for collection_info in collections:
-                collection_name = collection_info["name"]
-
-                # Skip system collections
-                if collection_name.startswith("_"):
+            for info in self.db.collections():
+                name = info["name"]
+                if name.startswith("_"):
                     continue
-
                 try:
-                    collection = self.db.collection(collection_name)
-                    stats[collection_name] = collection.count()
-                except Exception as e:
-                    self.logger.warning(
-                        f"Could not get count for collection {collection_name}: {e}"
-                    )
-                    stats[collection_name] = -1
-
+                    stats[name] = self.db.collection(name).count()
+                except Exception:
+                    stats[name] = -1
             return stats
         except Exception as e:
             self.logger.error(f"Error getting database stats: {e}")
             return {}
 
     def reset_database(self, confirm: bool = False) -> dict[str, int]:
-        """Truncate all collections in the database (keeps schema, removes data).
-
-        This is safer than dropping the database as it preserves collection structure
-        and indexes.
-
-        Args:
-            confirm: Must be True to actually perform the operation (safety check)
-
-        Returns:
-            Dict with counts of documents deleted per collection
-        """
         if not confirm:
-            raise ValueError(
-                "reset_database requires confirm=True. This operation will delete all data!"
-            )
-
+            raise ValueError("reset_database requires confirm=True.")
         try:
-            deleted_counts = {}
-
-            # Get all collection names
-            collections = self.db.collections()
-
-            for collection_info in collections:
-                collection_name = collection_info["name"]
-
-                # Skip system collections
-                if collection_name.startswith("_"):
+            deleted = {}
+            for info in self.db.collections():
+                name = info["name"]
+                if name.startswith("_"):
                     continue
-
                 try:
-                    collection = self.db.collection(collection_name)
-                    count_before = collection.count()
-                    collection.truncate()
-                    deleted_counts[collection_name] = count_before
-                    self.logger.info(
-                        f"Truncated collection {collection_name}: {count_before} documents removed"
-                    )
+                    coll = self.db.collection(name)
+                    n = coll.count()
+                    coll.truncate()
+                    deleted[name] = n
+                    self.logger.info(f"Truncated {name}: {n} docs removed")
                 except Exception as e:
-                    self.logger.error(f"Error truncating collection {collection_name}: {e}")
-                    deleted_counts[collection_name] = -1
-
-            return deleted_counts
+                    self.logger.error(f"Error truncating {name}: {e}")
+                    deleted[name] = -1
+            return deleted
         except Exception as e:
             self.logger.error(f"Error resetting database: {e}")
             raise
 
     def drop_database(self, confirm: bool = False) -> bool:
-        """Drop the entire database (DESTRUCTIVE - cannot be undone).
-
-        This completely removes the database including all collections, indexes,
-        and data. The database will need to be re-initialized after this operation.
-
-        Args:
-            confirm: Must be True to actually perform the operation (safety check)
-
-        Returns:
-            True if successful, False otherwise
-        """
         if not confirm:
-            raise ValueError(
-                "drop_database requires confirm=True. This operation will permanently delete the entire database!"
-            )
-
+            raise ValueError("drop_database requires confirm=True.")
         try:
-            # Connect to _system database to drop our database
             sys_db = self.client.db("_system", username=self.username, password=self.password)
-
             if sys_db.has_database(self.db_name):
                 self.logger.warning(f"Dropping database {self.db_name}...")
                 sys_db.delete_database(self.db_name)
-                self.logger.info(f"Database {self.db_name} dropped successfully")
                 return True
-            else:
-                self.logger.warning(f"Database {self.db_name} does not exist")
-                return False
+            return False
         except Exception as e:
             self.logger.error(f"Error dropping database: {e}")
             raise
-
-    # --- Required Evidence Methods ---
-
-    def get_required_evidence_for_claim_type(self, claim_type: str) -> list[dict]:
-        """
-        Get required evidence for a claim type string.
-
-        Args:
-            claim_type: The claim type string (e.g., "DEREGULATION_CHALLENGE")
-
-        Returns:
-            List of evidence entities with context="required" and linked_claim_type=claim_type
-        """
-        try:
-            aql = """
-            FOR ev IN entities
-                FILTER ev.type == "evidence"
-                FILTER ev.evidence_context == "required"
-                FILTER ev.linked_claim_type == @claim_type
-                RETURN ev
-            """
-            cursor = self.db.aql.execute(aql, bind_vars={"claim_type": claim_type})
-            return list(cursor)
-        except Exception as e:
-            self.logger.error(f"Failed to get required evidence for {claim_type}: {e}")
-            return []
-
-    def get_required_procedures_for_claim_type(self, claim_type: str) -> list[dict]:
-        """
-        Get required procedures for a claim type string.
-
-        Args:
-            claim_type: The claim type string (e.g., "DEREGULATION_CHALLENGE")
-
-        Returns:
-            List of legal_procedure entities with linked_claim_type=claim_type
-        """
-        try:
-            aql = """
-            FOR proc IN entities
-                FILTER proc.type == "legal_procedure"
-                FILTER proc.linked_claim_type == @claim_type
-                RETURN proc
-            """
-            cursor = self.db.aql.execute(aql, bind_vars={"claim_type": claim_type})
-            return list(cursor)
-        except Exception as e:
-            self.logger.error(f"Failed to get required procedures for {claim_type}: {e}")
-            return []
-
-    def get_all_claim_types(self) -> list[str]:
-        """
-        Get all unique claim type strings from stored claims.
-
-        Returns:
-            List of claim type strings (e.g., ["DEREGULATION_CHALLENGE", "RENT_OVERCHARGE"])
-        """
-        try:
-            aql = """
-            FOR claim IN entities
-                FILTER claim.type == "legal_claim"
-                FILTER claim.claim_type != null
-                COLLECT claim_type = claim.claim_type INTO groups
-                RETURN claim_type
-            """
-            cursor = self.db.aql.execute(aql)
-            return [row for row in cursor]
-        except Exception as e:
-            self.logger.error(f"Failed to get claim types: {e}")
-            return []
-
-    def get_claims_by_type(self, claim_type: str, limit: int = 10) -> list[str]:
-        """
-        Get claim entity IDs for a specific claim type.
-
-        Args:
-            claim_type: The claim type string (e.g., "DEREGULATION_CHALLENGE")
-            limit: Maximum number of claim IDs to return
-
-        Returns:
-            List of claim entity IDs (e.g., ["legal_claim:doc:...", ...])
-        """
-        try:
-            aql = """
-            FOR claim IN entities
-                FILTER claim.type == "legal_claim"
-                FILTER claim.claim_type == @claim_type
-                LIMIT @limit
-                RETURN claim._key
-            """
-            cursor = self.db.aql.execute(aql, bind_vars={"claim_type": claim_type, "limit": limit})
-            return [row for row in cursor]
-        except Exception as e:
-            self.logger.error(f"Failed to get claims by type {claim_type}: {e}")
-            return []
-
-    def get_laws_for_claim_type(self, claim_type: str, limit: int = 8) -> list[dict]:
-        """
-        Get LAW entities connected to claims of a given type, ranked by citation count.
-
-        The graph uses multiple edge types for law-claim connections:
-        ENABLES (most common), ADDRESSES, and CITES. This queries all via
-        the unified `edges` collection.
-
-        Returns top `limit` laws ranked by how many claims of this type cite them.
-        """
-        try:
-            aql = """
-            FOR claim IN entities
-                FILTER claim.type == "legal_claim"
-                FILTER claim.claim_type == @claim_type
-                FOR edge IN edges
-                    FILTER edge._to == claim._id OR edge._from == claim._id
-                    LET other_id = edge._to == claim._id ? edge._from : edge._to
-                    LET other = DOCUMENT(other_id)
-                    FILTER other != null AND other.type == "law"
-                    COLLECT law_key = other._key,
-                            law_name = other.name,
-                            law_citation = (other.citation OR other.name),
-                            law_desc = (other.description OR ""),
-                            law_source_url = other.source_metadata.source,
-                            law_source_title = other.source_metadata.title
-                    WITH COUNT INTO citation_count
-                    SORT citation_count DESC
-                    LIMIT @limit
-                    RETURN {
-                        name: law_name,
-                        citation: law_citation,
-                        description: law_desc,
-                        source_url: law_source_url,
-                        source_title: law_source_title,
-                        citation_count: citation_count
-                    }
-            """
-            cursor = self.db.aql.execute(
-                aql, bind_vars={"claim_type": claim_type, "limit": limit}
-            )
-            return list(cursor)
-
-        except Exception as e:
-            self.logger.error(f"Failed to get laws for claim type {claim_type}: {e}")
-            return []
-
-    @staticmethod
-    def _clean_remedy_name(name: str) -> str:
-        """Strip dollar amounts and percentages from remedy names."""
-        import re as _re
-
-        # Remove dollar amounts like "$10,000", "$1.5 million", "$500"
-        cleaned = _re.sub(r"\$[\d,]+(?:\.\d+)?(?:\s*(?:million|billion|thousand))?", "", name)
-        # Remove standalone percentages like "25%", "33.3%"
-        cleaned = _re.sub(r"\b\d+(?:\.\d+)?%", "", cleaned)
-        # Clean up leftover artifacts (double spaces, leading/trailing punctuation)
-        cleaned = _re.sub(r"\s{2,}", " ", cleaned).strip(" ,-–—()")
-        return cleaned or name
-
-    def get_remedies_for_claim_type(self, claim_type: str, limit: int = 6) -> list[dict]:
-        """
-        Get REMEDY entities and LEGAL_OUTCOME entities connected to claims of a given type,
-        ranked by citation count with cleaned remedy names.
-
-        Checks direct edges from claims to outcomes/remedies via RESULTS_IN, ENABLES, etc.
-        Also traverses through laws: CLAIM <-ENABLES- LAW -AUTHORIZES-> OUTCOME.
-
-        Returns top `limit` remedies ranked by citation count.
-        """
-        try:
-            # Direct: outcomes/remedies connected to claims of this type
-            aql = """
-            FOR claim IN entities
-                FILTER claim.type == "legal_claim"
-                FILTER claim.claim_type == @claim_type
-                FOR edge IN edges
-                    FILTER edge._from == claim._id
-                    FILTER edge.type IN ["RESULTS_IN", "ENABLES"]
-                    LET tgt = DOCUMENT(edge._to)
-                    FILTER tgt != null AND tgt.type IN ["legal_outcome", "remedy"]
-                    RETURN {
-                        name: tgt.name,
-                        description: tgt.description OR "",
-                        source_url: tgt.source_metadata.source
-                    }
-            """
-            cursor = self.db.aql.execute(aql, bind_vars={"claim_type": claim_type})
-            results = list(cursor)
-
-            # Also get remedies reachable via laws: LAW -ENABLES-> CLAIM, LAW -AUTHORIZES-> OUTCOME
-            aql2 = """
-            FOR claim IN entities
-                FILTER claim.type == "legal_claim"
-                FILTER claim.claim_type == @claim_type
-                FOR law_edge IN edges
-                    FILTER law_edge._to == claim._id
-                    FILTER law_edge.type IN ["ENABLES", "ADDRESSES", "CITES"]
-                    LET law = DOCUMENT(law_edge._from)
-                    FILTER law != null AND law.type == "law"
-                    FOR auth_edge IN edges
-                        FILTER auth_edge._from == law._id
-                        FILTER auth_edge.type IN ["AUTHORIZES", "ENABLES"]
-                        LET outcome = DOCUMENT(auth_edge._to)
-                        FILTER outcome != null AND outcome.type IN ["legal_outcome", "remedy"]
-                        RETURN {
-                            name: outcome.name,
-                            description: outcome.description OR "",
-                            source_url: outcome.source_metadata.source
-                        }
-            """
-            cursor2 = self.db.aql.execute(aql2, bind_vars={"claim_type": claim_type})
-            results2 = list(cursor2)
-
-            # Deduplicate by cleaned name and count citations
-            name_counts: dict[str, int] = {}
-            name_to_entry: dict[str, dict] = {}
-            for r in results + results2:
-                cleaned = self._clean_remedy_name(r["name"])
-                name_counts[cleaned] = name_counts.get(cleaned, 0) + 1
-                if cleaned not in name_to_entry:
-                    name_to_entry[cleaned] = {
-                        "name": cleaned,
-                        "description": r["description"],
-                        "source_url": r.get("source_url"),
-                    }
-
-            # Sort by citation count descending, cap at limit
-            ranked = sorted(name_to_entry.keys(), key=lambda n: name_counts[n], reverse=True)
-            return [
-                {**name_to_entry[n], "citation_count": name_counts[n]} for n in ranked[:limit]
-            ]
-
-        except Exception as e:
-            self.logger.error(f"Failed to get remedies for claim type {claim_type}: {e}")
-            return []
-
-    def get_case_document_for_claim(self, claim_key: str) -> dict | None:
-        """
-        Get the CASE_DOCUMENT that ADDRESSES a given legal claim.
-
-        Returns dict with name, url, or None if no case document found.
-        """
-        try:
-            aql = """
-            FOR e IN edges
-                FILTER e._to == CONCAT("entities/", @claim_key)
-                FILTER e.type == "ADDRESSES"
-                LET src = DOCUMENT(e._from)
-                FILTER src != null AND src.type == "case_document"
-                LIMIT 1
-                RETURN {
-                    name: src.name,
-                    url: src.source_metadata.source
-                }
-            """
-            cursor = self.db.aql.execute(aql, bind_vars={"claim_key": claim_key})
-            results = list(cursor)
-            return results[0] if results else None
-        except Exception as e:
-            self.logger.error(f"Failed to get case document for claim {claim_key}: {e}")
-            return None
-
-    # Canonical entity types where name-based dedup applies across documents
-    _CANONICAL_ENTITY_TYPES = frozenset({"law", "evidence", "legal_procedure"})
-
-    def upsert_canonical_entity(self, entity_type: str, name: str) -> str | None:
-        """
-        For canonical entity types, return the _key of an existing node with the same
-        name (case-insensitive), or None if no match found.
-
-        Algorithm:
-        1. Exact name match (case-insensitive) → return existing _key
-        2. BM25 candidates + cosine similarity >= 0.90 → return best match _key
-        3. Below threshold → return None (caller proceeds with its generated ID)
-
-        Only applies to _CANONICAL_ENTITY_TYPES. Returns None immediately for others.
-        """
-        if entity_type not in self._CANONICAL_ENTITY_TYPES:
-            return None
-        name = name.strip()
-        if not name:
-            return None
-
-        # Step 1: exact name match (case-insensitive)
-        try:
-            cursor = self.db.aql.execute(
-                """FOR doc IN entities
-                   FILTER doc.type == @t AND LOWER(doc.name) == LOWER(@name)
-                   LIMIT 1 RETURN doc._key""",
-                bind_vars={"t": entity_type, "name": name},
-            )
-            results = list(cursor)
-            if results:
-                self.logger.info(
-                    f"[dedup] '{name}' ({entity_type}) → existing {results[0]} (exact name match)"
-                )
-                return results[0]
-        except Exception as e:
-            self.logger.warning(f"Exact {entity_type} name lookup failed: {e}")
-
-        # Step 2: BM25 candidates + cosine similarity
-        try:
-            cursor = self.db.aql.execute(
-                """FOR doc IN kg_entities_view
-                   SEARCH ANALYZER(TOKENS(@name, "text_en") ANY IN doc.name, "text_en")
-                   FILTER doc.type == @t
-                   SORT BM25(doc) DESC LIMIT 5
-                   RETURN {key: doc._key, name: doc.name}""",
-                bind_vars={"t": entity_type, "name": name},
-            )
-            candidates = list(cursor)
-        except Exception:
-            candidates = []
-
-        if candidates:
-            try:
-                from tenant_legal_guidance.services.embeddings import EmbeddingsService
-                import numpy as np
-
-                emb_svc = EmbeddingsService()
-                query_vec = emb_svc.embed([name])[0]
-                best_key, best_score = None, 0.0
-                for cand in candidates:
-                    cand_vec = emb_svc.embed([cand["name"]])[0]
-                    score = float(np.dot(query_vec, cand_vec)) / max(
-                        float(np.linalg.norm(query_vec) * np.linalg.norm(cand_vec)), 1e-9
-                    )
-                    if score > best_score:
-                        best_score, best_key = score, cand["key"]
-                if best_score >= 0.90 and best_key:
-                    self.logger.info(
-                        f"[dedup] '{name}' ({entity_type}) → existing {best_key} (cosine={best_score:.3f})"
-                    )
-                    return best_key
-            except Exception as emb_err:
-                self.logger.warning(f"Embedding dedup for {entity_type} failed: {emb_err}")
-
-        return None
-
-    def get_cases_for_claim_type(self, claim_type_name: str, limit: int = 10) -> list[dict]:
-        """
-        Traverse CLAIM_TYPE ← ADDRESSES ← CASE_DOCUMENT to get cases that addressed
-        this claim type (M4c edges written during ingestion Step 5.7b).
-
-        Args:
-            claim_type_name: UPPERCASE_SNAKE_CASE claim type name (e.g. "SUCCESSION_RIGHTS")
-            limit: Max cases to return, sorted by decision_date DESC
-
-        Returns:
-            List of {id, name, url, outcome, decision_date, court}
-        """
-        try:
-            aql = """
-            FOR ct IN entities
-                FILTER ct.type == "claim_type"
-                FILTER ct.name == @claim_type_name
-                FOR e IN edges
-                    FILTER e._to == ct._id
-                    FILTER e.type == "ADDRESSES"
-                    LET doc = DOCUMENT(e._from)
-                    FILTER doc != null AND doc.type == "case_document"
-                    SORT doc.decision_date DESC
-                    LIMIT @limit
-                    RETURN DISTINCT {
-                        id: doc._key,
-                        name: doc.name,
-                        url: doc.source_metadata.source,
-                        outcome: doc.outcome,
-                        decision_date: doc.decision_date,
-                        court: doc.court
-                    }
-            """
-            cursor = self.db.aql.execute(
-                aql, bind_vars={"claim_type_name": claim_type_name, "limit": limit}
-            )
-            results = list(cursor)
-            self.logger.info(
-                f"get_cases_for_claim_type('{claim_type_name}'): {len(results)} cases via ADDRESSES edges"
-            )
-            return results
-        except Exception as e:
-            self.logger.error(f"get_cases_for_claim_type failed for '{claim_type_name}': {e}")
-            return []
-
-    # -------------------------------------------------------------------------
-    # M4c — Query-informed extraction methods
-    # -------------------------------------------------------------------------
-
-    def get_all_claim_type_names(self) -> list[str]:
-        """Return names of all claim_type nodes in the graph."""
-        try:
-            aql = """
-            FOR doc IN entities
-                FILTER doc.type == "claim_type"
-                RETURN doc.name
-            """
-            cursor = self.db.aql.execute(aql)
-            return list(cursor)
-        except Exception as e:
-            self.logger.error(f"Failed to get claim type names: {e}")
-            return []
-
-    def get_all_claim_type_nodes(self) -> list[dict]:
-        """Return all claim_type nodes (for ClaimMatcher and API listing)."""
-        try:
-            aql = """
-            FOR doc IN entities
-                FILTER doc.type == "claim_type"
-                RETURN doc
-            """
-            cursor = self.db.aql.execute(aql)
-            return list(cursor)
-        except Exception as e:
-            self.logger.error(f"Failed to get claim type nodes: {e}")
-            return []
-
-    def get_extraction_context(self, claim_type_names: list[str]) -> dict:
-        """
-        Query existing graph entities for the given claim type names.
-
-        Returns a structured dict for injection into extraction prompts so the
-        LLM can reuse existing entity IDs rather than creating duplicates.
-
-        Structure:
-        {
-          "claim_types": [{"id": "...", "name": "SUCCESSION_RIGHTS"}],
-          "evidence": [{"id": "...", "name": "...", "description": "..."}],
-          "laws": [{"id": "...", "name": "...", "citation": "..."}],
-          "procedures": [{"id": "...", "name": "...", "description": "..."}],
-        }
-        """
-        if not claim_type_names:
-            return {"claim_types": [], "evidence": [], "laws": [], "procedures": []}
-
-        try:
-            # Claim type nodes
-            aql_ct = """
-            FOR doc IN entities
-                FILTER doc.type == "claim_type"
-                FILTER doc.name IN @names
-                RETURN {id: doc._key, name: doc.name}
-            """
-            claim_types = list(
-                self.db.aql.execute(aql_ct, bind_vars={"names": claim_type_names})
-            )
-
-            # Canonical evidence required for these claim types
-            aql_ev = """
-            FOR doc IN entities
-                FILTER doc.type == "evidence"
-                FILTER doc.evidence_context == "required"
-                FILTER doc.linked_claim_type IN @names
-                RETURN {id: doc._key, name: doc.name, description: doc.description}
-            """
-            evidence = list(
-                self.db.aql.execute(aql_ev, bind_vars={"names": claim_type_names})
-            )
-
-            # Laws linked to these claim types (via ADDRESSES edge or linked_claim_type attr)
-            aql_law = """
-            FOR doc IN entities
-                FILTER doc.type == "law"
-                FILTER doc.linked_claim_type IN @names
-                RETURN {id: doc._key, name: doc.name, citation: (doc.citation OR doc.name)}
-            """
-            laws = list(
-                self.db.aql.execute(aql_law, bind_vars={"names": claim_type_names})
-            )
-
-            # Procedures linked to these claim types
-            aql_proc = """
-            FOR doc IN entities
-                FILTER doc.type == "legal_procedure"
-                FILTER doc.linked_claim_type IN @names
-                RETURN {id: doc._key, name: doc.name, description: doc.description}
-            """
-            procedures = list(
-                self.db.aql.execute(aql_proc, bind_vars={"names": claim_type_names})
-            )
-
-            return {
-                "claim_types": claim_types,
-                "evidence": evidence,
-                "laws": laws,
-                "procedures": procedures,
-            }
-        except Exception as e:
-            self.logger.error(f"Failed to get extraction context: {e}")
-            return {"claim_types": [], "evidence": [], "laws": [], "procedures": []}
-
-    def upsert_claim_type_node(self, claim_type_str: str) -> str:
-        """
-        Return the entity ID for the given claim type string, creating a node if needed.
-
-        Algorithm:
-        1. Normalize to UPPERCASE_SNAKE_CASE
-        2. Exact name match → return existing ID
-        3. BM25 search → cosine similarity dedup (AUTO_MERGE >= 0.92)
-        4. Below threshold → create new claim_type node
-
-        Returns the entity _key of the canonical claim_type node.
-        """
-        import hashlib
-
-        normalized = claim_type_str.upper().replace(" ", "_").replace("-", "_")
-
-        # Step 1: exact match
-        try:
-            aql_exact = """
-            FOR doc IN entities
-                FILTER doc.type == "claim_type"
-                FILTER doc.name == @name
-                LIMIT 1
-                RETURN doc._key
-            """
-            cursor = self.db.aql.execute(aql_exact, bind_vars={"name": normalized})
-            results = list(cursor)
-            if results:
-                return results[0]
-        except Exception as e:
-            self.logger.warning(f"Exact claim type lookup failed: {e}")
-
-        # Step 2: BM25 candidates + cosine dedup
-        try:
-            aql_candidates = """
-            FOR doc IN kg_entities_view
-                SEARCH ANALYZER(
-                    TOKENS(@name, "text_en") ANY IN doc.name, "text_en"
-                )
-                FILTER doc.type == "claim_type"
-                SORT BM25(doc) DESC
-                LIMIT 10
-                RETURN {key: doc._key, name: doc.name, description: doc.description}
-            """
-            cursor = self.db.aql.execute(aql_candidates, bind_vars={"name": normalized})
-            candidates = list(cursor)
-        except Exception:
-            candidates = []
-
-        if candidates:
-            try:
-                from tenant_legal_guidance.services.embeddings import EmbeddingsService
-                import numpy as np
-
-                emb_svc = EmbeddingsService()
-                query_vec = emb_svc.embed([normalized])[0]
-
-                best_key = None
-                best_score = 0.0
-                for cand in candidates:
-                    cand_text = f"{cand['name']}. {cand.get('description') or ''}"
-                    cand_vec = emb_svc.embed([cand_text])[0]
-                    score = float(np.dot(query_vec, cand_vec)) / max(
-                        float(np.linalg.norm(query_vec) * np.linalg.norm(cand_vec)), 1e-9
-                    )
-                    if score > best_score:
-                        best_score = score
-                        best_key = cand["key"]
-
-                AUTO_MERGE_THRESHOLD = 0.92
-                if best_score >= AUTO_MERGE_THRESHOLD and best_key:
-                    self.logger.info(
-                        f"Claim type '{normalized}' merged into '{best_key}' (score={best_score:.3f})"
-                    )
-                    return best_key
-            except Exception as emb_err:
-                self.logger.warning(f"Embedding dedup for claim type failed: {emb_err}")
-
-        # Step 3: create new claim_type node
-        node_key = f"claim_type:{hashlib.sha256(normalized.encode()).hexdigest()[:8]}"
-        try:
-            collection = self.db.collection("entities")
-            if not collection.has(node_key):
-                collection.insert({
-                    "_key": node_key,
-                    "type": "claim_type",
-                    "name": normalized,
-                    "description": f"Claim type: {normalized.replace('_', ' ').title()}",
-                    "source_metadata": {"source": "auto_created", "source_type": "system"},
-                })
-                self.logger.info(f"Created new claim_type node: {node_key} ({normalized})")
-        except Exception as e:
-            self.logger.error(f"Failed to create claim_type node for '{normalized}': {e}")
-
-        return node_key
-
-    def enrich_existing_node(
-        self,
-        existing_key: str,
-        new_chunk_ids: list[str] | None = None,
-        new_source_id: str | None = None,
-        new_description_fragment: str | None = None,
-    ) -> bool:
-        """
-        Enrich an existing canonical node with additional evidence from a new source.
-
-        - Appends to chunk_ids (deduped)
-        - Appends to source_ids (deduped)
-        - Appends description fragment with separator
-
-        Used when the LLM identifies an existing entity via existing_entity_id.
-        """
-        try:
-            updates: dict = {}
-            if new_chunk_ids:
-                updates["chunk_ids"] = new_chunk_ids
-            if new_source_id:
-                updates["source_ids"] = [new_source_id]
-            if new_description_fragment:
-                updates["_description_append"] = new_description_fragment
-
-            if not updates:
-                return True
-
-            # Build AQL that merges arrays and appends description
-            set_clauses = []
-            bind_vars: dict = {"key": existing_key}
-
-            if new_chunk_ids:
-                bind_vars["new_chunks"] = new_chunk_ids
-                set_clauses.append(
-                    "chunk_ids: APPEND(doc.chunk_ids OR [], @new_chunks, true)"
-                )
-            if new_source_id:
-                bind_vars["new_source"] = new_source_id
-                set_clauses.append(
-                    "source_ids: APPEND(doc.source_ids OR [], [@new_source], true)"
-                )
-            if new_description_fragment:
-                bind_vars["desc_frag"] = new_description_fragment
-                set_clauses.append(
-                    'description: CONCAT(doc.description OR "", "\\n---\\n", @desc_frag)'
-                )
-
-            aql = f"""
-            LET doc = DOCUMENT(CONCAT("entities/", @key))
-            UPDATE @key WITH {{
-                {", ".join(set_clauses)}
-            }} IN entities
-            """
-            self.db.aql.execute(aql, bind_vars=bind_vars)
-            return True
-        except Exception as e:
-            self.logger.error(f"Failed to enrich node '{existing_key}': {e}")
-            return False

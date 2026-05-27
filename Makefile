@@ -1,4 +1,4 @@
-.PHONY: install test lint format clean db-stats db-reset db-drop db-cleanup build-manifest ingest-manifest reingest-all vector-status run app dev services-up services-down services-status evaluate evaluate-quotes evaluate-retrieval evaluate-linkage kg-clean kg-judge kg-audit eval-build-ground-truth eval-case-outcomes prod-ingest-manifest prod-ingest-all prod-reingest-all prod-db-stats prod-db-reset prod-kg-clean prod-kg-judge prod-kg-audit
+.PHONY: install test lint format clean db-stats db-reset db-drop db-cleanup build-manifest ingest-manifest reingest-all vector-status run app dev services-up services-down services-status evaluate evaluate-quotes evaluate-retrieval evaluate-linkage seed-taxonomy kg-audit eval-build-ground-truth eval-case-outcomes prod-ingest-manifest prod-ingest-all prod-reingest-all prod-db-stats prod-db-reset prod-seed-taxonomy prod-kg-audit
 
 install:
 	uv pip install -e ".[dev]"
@@ -145,7 +145,9 @@ reingest-all:
 	rm -f data/ingestion_checkpoint.json data/ingestion_report.json
 	rm -rf data/archive/*.txt
 	@sleep 2
-	@echo "4. Starting fresh ingestion of all manifests..."
+	@echo "4. Seeding taxonomy (must happen before ingestion)..."
+	$(MAKE) seed-taxonomy
+	@echo "5. Starting fresh ingestion of all manifests..."
 	@echo "Note: Using ingest-all-manifests (skip-existing disabled for fresh start)"
 	mkdir -p data/archive
 	uv run python -m tenant_legal_guidance.scripts.ingest_all_manifests \
@@ -172,15 +174,12 @@ evaluate-linkage:
 	@echo "Running chunk linkage evaluation..."
 	uv run python -m tenant_legal_guidance.scripts.run_evaluation --output-dir data/evaluation --categories chunk_linkage
 
+# Taxonomy seeding
+seed-taxonomy:
+	@echo "Seeding taxonomy into ArangoDB..."
+	uv run python -m tenant_legal_guidance.scripts.seed_taxonomy $(if $(DRY_RUN),--dry-run,) $(if $(DIFF),--diff,) $(if $(PRUNE),--prune,)
+
 # Knowledge graph maintenance
-kg-clean:
-	@echo "Running KG consolidation + audit..."
-	uv run python -m tenant_legal_guidance.scripts.kg_maintain --consolidate $(if $(DRY_RUN),--dry-run,)
-
-kg-judge:
-	@echo "Running LLM judge on borderline pairs..."
-	uv run python -m tenant_legal_guidance.scripts.kg_maintain --judge $(if $(DRY_RUN),--dry-run,)
-
 kg-audit:
 	@echo "Running KG audit..."
 	uv run python -m tenant_legal_guidance.scripts.kg_maintain --audit
@@ -250,13 +249,9 @@ prod-reingest-all:
 	@echo ""
 	@echo "✓ Production re-ingestion complete"
 
-prod-kg-clean:
-	@echo "Running KG consolidation on production..."
-	$(DOCKER_RUN) -m tenant_legal_guidance.scripts.kg_maintain --consolidate $(if $(DRY_RUN),--dry-run,)
-
-prod-kg-judge:
-	@echo "Running LLM judge on production..."
-	$(DOCKER_RUN) -m tenant_legal_guidance.scripts.kg_maintain --judge $(if $(DRY_RUN),--dry-run,)
+prod-seed-taxonomy:
+	@echo "Seeding taxonomy on production..."
+	$(DOCKER_RUN) -m tenant_legal_guidance.scripts.seed_taxonomy $(if $(DRY_RUN),--dry-run,)
 
 prod-kg-audit:
 	@echo "Running KG audit on production..."

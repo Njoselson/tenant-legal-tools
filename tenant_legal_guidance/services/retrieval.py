@@ -124,7 +124,7 @@ class HybridRetriever:
                 results["entities"] = []
             else:
                 entity_hits = self.kg.search_entities_by_text(
-                    entity_query, types=search_types, limit=top_k_entities
+                    entity_query, entity_types=search_types, limit=top_k_entities
                 )
                 results["entities"] = entity_hits
                 self.logger.info(
@@ -138,10 +138,12 @@ class HybridRetriever:
             for ev_keyword in evidence_keywords:
                 try:
                     ev_entities = self.kg.search_entities_by_text(
-                        ev_keyword, types=["evidence"], limit=3
+                        ev_keyword, entity_types=["evidence"], limit=3
                     )
+                    existing_ids = {e.get("id") if isinstance(e, dict) else e.id for e in results["entities"]}
                     for ev in ev_entities:
-                        if ev.id not in [e.id for e in results["entities"]]:
+                        eid = ev.get("id") if isinstance(ev, dict) else ev.id
+                        if eid not in existing_ids:
                             results["entities"].append(ev)
                 except Exception:
                     pass
@@ -157,11 +159,17 @@ class HybridRetriever:
 
                 # Add linked entities (highest priority - from query)
                 if results["linked_entities"]:
-                    expansion_ids.extend([e.id for e in results["linked_entities"]])
+                    expansion_ids.extend([
+                        e.get("id") if isinstance(e, dict) else e.id
+                        for e in results["linked_entities"]
+                    ])
 
                 # Add top text-matched entities
                 if results["entities"]:
-                    expansion_ids.extend([e.id for e in results["entities"][:20]])
+                    expansion_ids.extend([
+                        e.get("id") if isinstance(e, dict) else e.id
+                        for e in results["entities"][:20]
+                    ])
 
                 # Get neighbors for all expansion seeds
                 if expansion_ids:
@@ -182,17 +190,20 @@ class HybridRetriever:
 
         # Add linked entities first (highest priority)
         for e in results.get("linked_entities", []):
-            all_entities[e.id] = e
+            eid = e.get("id") if isinstance(e, dict) else e.id
+            all_entities[eid] = e
 
         # Add text-matched entities
         for e in results.get("entities", []):
-            if e.id not in all_entities:
-                all_entities[e.id] = e
+            eid = e.get("id") if isinstance(e, dict) else e.id
+            if eid not in all_entities:
+                all_entities[eid] = e
 
         # Add neighbors
         for e in results.get("neighbors", []):
-            if e.id not in all_entities:
-                all_entities[e.id] = e
+            eid = e.get("id") if isinstance(e, dict) else e.id
+            if eid not in all_entities:
+                all_entities[eid] = e
 
         results["entities"] = list(all_entities.values())
 

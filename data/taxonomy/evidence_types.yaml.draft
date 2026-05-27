@@ -1,0 +1,1600 @@
+# Bootstrap draft — evidence_types
+# 133 novel proposals not yet in canonical YAML
+# Review: promote (copy to canonical YAML), merge as alias, or delete
+# After first-pass curation: 131 entries
+# After third-pass curation: 88 entries
+
+- id: apartment_improvement_records
+  name: Apartment Improvement Records
+  description: Records of renovations or capital improvements claimed by the landlord
+    to justify rent increases, often challenged for accuracy.
+  jurisdiction: NYS
+  status: proposed
+  aliases: &id001 []
+  _bootstrap:
+    sources:
+    - https://www.courtlistener.com/opinion/10131664/matter-of-aidekman-v-state-of-ny-div-of-hous-community-renewal/
+    sample_quotes:
+    - The landlord's records of individual apartment improvements were scrutinized
+      for compliance with regulatory requirements.
+    suggested_aliases: *id001
+- id: bedbug_inspection_report
+  name: Bedbug Inspection Report
+  description: A professional report documenting the presence or absence of bedbugs
+    in the premises, often used to support habitability claims.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id002 []
+  _bootstrap:
+    sources:
+    - https://www.courtlistener.com/opinion/6314797/46-downing-street-llc-v-thompson/
+    sample_quotes:
+    - An inspection report confirmed the presence of bedbugs in the apartment.
+    suggested_aliases: *id002
+- id: building_ownership_records
+  name: Building Ownership Records
+  description: Information from WhoOwnsWhat or similar sources to identify building
+    ownership and coverage status.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id003 []
+  _bootstrap:
+    sources:
+    - https://www.metcouncilonhousing.org/help-answers/about-rent-stabilization/
+    sample_quotes:
+    - You can start by going to https://whoownswhat.justfix.nyc/ and searching your
+      building
+    suggested_aliases: *id003
+- id: certified_mail_letter
+  name: Certified Mail Letter to Landlord
+  description: A written request for repairs sent to the landlord via certified mail,
+    serving as proof of notice before filing an HP action.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id004 []
+  _bootstrap:
+    sources:
+    - https://www.metcouncilonhousing.org/help-answers/rent-control/
+    - https://housingcourtanswers.org/answers/for-tenants/hp-actions-tenants/
+    sample_quotes:
+    - Write a letter to the landlord List the repairs and services you need Send by
+      certified mail
+    - the tenant must write a letter to the landlord, mailed by certified mail, describing
+      the problem
+    suggested_aliases: *id004
+- id: certified_mail_notices
+  name: Certified Mail Notices
+  description: Proof of sending complaints or notices to the landlord via certified
+    mail, often required to establish notice of defects.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id005 []
+  _bootstrap:
+    sources:
+    - https://www.courtlistener.com/opinion/10582208/304-306-e-83-realty-llc-v-mason/
+    sample_quotes:
+    - Tenant sent a certified letter to the landlord detailing the mold issue, which
+      was entered as evidence.
+    suggested_aliases: *id005
+- id: certified_mail_receipt
+  name: Certified Mail Receipt
+  description: Proof of mailing via certified mail, return receipt requested, for
+    notice of surrender of possession.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id006 []
+  _bootstrap:
+    sources:
+    - https://www.metcouncilonhousing.org/help-answers/if-you-want-to-break-your-lease/
+    sample_quotes:
+    - Send notice by certified mail, return receipt requested, and keep the proof
+      of mailing for your records.
+    suggested_aliases: *id006
+- id: commitment_letters
+  name: Commitment Letters
+  description: Letters from agencies or organizations committing to provide assistance,
+    used as evidence in tenant cases.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id007 []
+  _bootstrap:
+    sources:
+    - https://housingcourtanswers.org/answers/for-tenants/housing-court-tenants/tenant-nonpayment-cases/
+    - https://housingcourtanswers.org/answers/for-tenants/stop-an-eviction/
+    sample_quotes:
+    - What is good evidence? documents money orders applications receipts commitment
+      letters breakdown from public assistance
+    - documents money orders applications receipts commitment letters breakdown from
+      public assistance
+    suggested_aliases: *id007
+- id: complaint_correspondence
+  name: Complaint Correspondence
+  description: Written communications (letters, emails, or texts) from the tenant
+    to the landlord or housing authorities documenting complaints about conditions
+    or harassment.
+  jurisdiction: NYS
+  status: proposed
+  aliases: &id008
+  - Communication Records
+  - Complaint Letters
+  - Complaint to Landlord
+  - Correspondence Between Parties
+  - Correspondence and Complaints
+  - Correspondence with Landlord
+  - Repair Requests
+  - Repair Requests and Correspondence
+  - Tenant Complaint Letters
+  - Tenant Correspondence and Complaints
+  - Written Complaints to Landlord
+  - Written Notices to Landlord
+  _bootstrap:
+    sources:
+    - https://www.courtlistener.com/opinion/4281716/in-re-vsdh-vaquero-venture-ltd-and-douglas-m-hickok/
+    - https://www.courtlistener.com/opinion/3159177/foster-v-britton/
+    - https://www.courtlistener.com/opinion/9424522/ferreira-v-charland/
+    - https://www.courtlistener.com/opinion/4489054/city-of-bridgeport-v-grace-bldg-llc/
+    - https://www.courtlistener.com/opinion/10653966/alekna-v-207-217-w-110-portfolio-owner-llc/
+    - https://www.courtlistener.com/opinion/10304904/burcica-v-ludy/
+    - https://www.courtlistener.com/opinion/7310141/ibrahim-v-department-of-homeland-security/
+    - https://www.courtlistener.com/opinion/10644358/batiz-v-csa-preserv-partners-llc/
+    - https://www.courtlistener.com/opinion/4414807/m-c-v-texas-department-of-family-and-protective-services/
+    - https://www.courtlistener.com/opinion/889797/fick-v-brown/
+    - https://www.courtlistener.com/opinion/9367604/tammie-guilford-v-weidner-investment-services-inc-weidner-investment/
+    - https://www.courtlistener.com/opinion/6239065/guttman-v-chiazor/
+    - https://www.courtlistener.com/opinion/4429944/phoenician-mediterranean-villa-llc-v-swope-in-re-j-s-properties-llc/
+    - https://www.courtlistener.com/opinion/10801062/james-v-hanley/
+    - https://www.courtlistener.com/opinion/4348784/scott-v-kaiuum/
+    - https://law.justia.com/cases/new-york/other-courts/2025/2025-ny-slip-op-33306-u.html
+    - https://www.courtlistener.com/opinion/5988893/gordon-v-305-riverside-corp/
+    - https://www.courtlistener.com/opinion/6065353/downing-v-first-lenox-terrace-associates/
+    - https://www.courtlistener.com/opinion/2326384/haslam-james-v-lawrence/
+    - https://www.courtlistener.com/opinion/5297675/lund-co-v-clark/
+    - https://www.courtlistener.com/opinion/9478117/tuyen-dinh-v-matthew-raines-and-melissa-clayton/
+    - https://www.courtlistener.com/opinion/8716929/charron-v-pinnacle-group-ny-llc/
+    - https://www.courtlistener.com/opinion/2772083/mosser-companies-v-san-francisco-rent-stabilization-arbitration-board/
+    - https://www.courtlistener.com/opinion/10642469/lavrich-v-snyderburn/
+    - https://www.courtlistener.com/opinion/7428196/scott-v-kaiuum/
+    - https://www.courtlistener.com/opinion/4519506/germadnik-v-auld/
+    - https://www.courtlistener.com/opinion/4592423/suarez-v-four-thirty-realty-llc/
+    - https://www.courtlistener.com/opinion/9481741/keating-smith-v-mustafa/
+    - https://www.courtlistener.com/opinion/10811074/woodley-jr-v-woodberry-village-apartment/
+    - https://www.courtlistener.com/opinion/4548492/meyer-v-224-lafayette-st-corp/
+    - https://www.courtlistener.com/opinion/4431959/guttman-v-chiazor/
+    - https://www.courtlistener.com/opinion/8286581/ellis-v-doe/
+    - https://www.courtlistener.com/opinion/9433963/duncan-v-kihagi/
+    - https://www.courtlistener.com/opinion/10332912/gomes-v-vermyck-llc/
+    - https://law.justia.com/cases/new-york/other-courts/2025/2025-ny-slip-op-25279.html
+    - https://www.courtlistener.com/opinion/6065355/downing-v-first-lenox-terrace-associates/
+    - https://www.courtlistener.com/opinion/6315365/north-driggs-holdings-llc-v-burstiner/
+    - https://www.courtlistener.com/opinion/6476304/woods-v-sharkin/
+    - https://www.courtlistener.com/opinion/4885245/elsayed-v-miamisburg-by-the-mall/
+    - https://www.courtlistener.com/opinion/4756984/corcoran-v-narrows-bayview-co-llc/
+    - https://www.courtlistener.com/opinion/10038596/pmc-squared-llc-v-rita-gallo/
+    sample_quotes:
+    - The tenant submitted correspondence with the landlord requesting repairs to
+      the heating system.
+    - Correspondence between the parties was used to establish notice of the defects.
+    - Tenants submitted copies of their written complaints to the landlord regarding
+      the mold issue.
+    suggested_aliases: *id008
+- id: complaint_to_government_agency
+  name: Complaint to Government Agency
+  description: A written or recorded complaint made by the tenant to a government
+    agency, such as HPD or DHCR, regarding housing code violations or rent issues.
+  jurisdiction: NYS
+  status: proposed
+  aliases: &id010 []
+  _bootstrap:
+    sources:
+    - https://www.courtlistener.com/opinion/4630465/rodriguez-v-kalata/
+    sample_quotes:
+    - The tenant had filed a complaint with HPD about the lack of heat and hot water.
+    suggested_aliases: *id010
+- id: complaint_to_nycch
+  name: Complaint to NYC Commission on Human Rights
+  description: A formal complaint filed with the NYC Commission on Human Rights regarding
+    discrimination or failure to provide reasonable accommodation.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id011 []
+  _bootstrap:
+    sources:
+    - https://www.metcouncilonhousing.org/help-answers/housing-discrimination/
+    sample_quotes:
+    - Complaints about discrimination of any kind or landlord’s failure to provide
+      reasonable accomodation to tenants with disabilities (see below) can be made
+      to the New York City Commission on Human Rights.
+    suggested_aliases: *id011
+- id: court_decision
+  name: Court Decision
+  description: A judicial ruling, such as from the Appellate Division or Court of
+    Appeals, that establishes or clarifies legal rights in a housing case.
+  jurisdiction: NYS
+  status: proposed
+  aliases: &id015 []
+  _bootstrap:
+    sources:
+    - https://hcr.ny.gov/rent-stabilization-and-emergency-tenant-protection-act
+    sample_quotes:
+    - On June 18, 2025, the New York State (NYS) Court of Appeals issued its decision
+      in the Emergency Tenant Protection Act (ETPA) case
+    suggested_aliases: *id015
+- id: court_order_of_protection
+  name: Court Order of Protection
+  description: A legal order from a court protecting a tenant, used to support a domestic
+    violence lease termination.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id018 []
+  _bootstrap:
+    sources:
+    - https://www.metcouncilonhousing.org/help-answers/if-you-want-to-break-your-lease/
+    sample_quotes:
+    - If you have a court order of protection and your safety is jeopardized by remaining
+      in the apartment, you may be able to break the lease with ten days’ notice to
+      your landlord.
+    suggested_aliases: *id018
+- id: court_papers_or_demand_letter
+  name: Court Papers or Demand Letter
+  description: Any court papers or a demand letter from the landlord showing the rent
+    owed.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id019 []
+  _bootstrap:
+    sources:
+    - https://housingcourtanswers.org/answers/for-tenants/housing-court-tenants/rent-arrears-tenants/
+    sample_quotes:
+    - Any court papers or demand letter from your landlord
+    suggested_aliases: *id019
+- id: dhcr_deregulation_orders
+  name: DHCR Deregulation Orders
+  description: Orders from the DHCR authorizing deregulation based on rent or income
+    thresholds.
+  jurisdiction: NYS
+  status: proposed
+  aliases: &id021 []
+  _bootstrap:
+    sources:
+    - https://hcr.ny.gov/fact-sheet-36
+    sample_quotes: []
+    suggested_aliases: *id021
+- id: dhcr_determination_order
+  name: DHCR Determination Order
+  description: A written decision by DHCR on a rent overcharge or service complaint,
+    including findings and calculations.
+  jurisdiction: NYS
+  status: proposed
+  aliases: &id022 []
+  _bootstrap:
+    sources:
+    - https://www.courtlistener.com/opinion/10364727/matter-of-5511-777-st-marks-ave-bk-llc-v-state-of-new-york-div-of-hous/
+    sample_quotes:
+    - the DHCR's determination denying the petition for administrative review
+    suggested_aliases: *id022
+- id: documents_money_orders_applications
+  name: Documents, Money Orders, Applications
+  description: General evidence such as documents, money orders, applications, receipts,
+    commitment letters, or breakdowns from public assistance to support an order to
+    show cause.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id026 []
+  _bootstrap:
+    sources:
+    - https://housingcourtanswers.org/answers/for-tenants/stop-an-eviction/
+    sample_quotes:
+    - What is good evidence? documents money orders applications receipts commitment
+      letters breakdown from public assistance
+    suggested_aliases: *id026
+- id: dwelling_condition_report
+  name: Dwelling Condition Report
+  description: A report by two qualified employees following a personal inspection
+    finding that a dwelling endangers life, health, or safety.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id027 []
+  _bootstrap:
+    sources:
+    - https://nycadmincode.readthedocs.io/t26/c02/index.html
+    sample_quotes:
+    - upon submission of a report by two qualified employees of the agency following
+      a personal inspection, setting forth a finding that any such dwelling is in
+      condition which endangers the life, health or safety of the occupants
+    suggested_aliases: *id027
+- id: eviction_notices
+  name: Eviction Notices
+  description: Written notices served by the landlord to the tenant, such as a rent
+    demand or notice to quit, which may be evidence in an unlawful eviction claim.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id028
+  - Eviction Notice
+  - Notice of Eviction
+  _bootstrap:
+    sources:
+    - https://www.courtlistener.com/opinion/4740501/turpin-v-district-of-columbia/
+    - https://www.courtlistener.com/opinion/2675136/hapugalle-v-chastleton-cooperative-association/
+    - https://www.courtlistener.com/opinion/10160713/eddy-v-anderson/
+    - https://www.courtlistener.com/opinion/10679704/walker-v-us-department-of-agriculture-rural-development/
+    - https://www.courtlistener.com/opinion/10304904/burcica-v-ludy/
+    - https://www.courtlistener.com/opinion/4272286/regina-sophus-v-houston-police-department-homicide-division-and-new-hope/
+    - https://www.courtlistener.com/opinion/9470445/steven-m-selz-v-lauren-mckagen-and-stephen-hursey/
+    - https://www.courtlistener.com/opinion/4348784/scott-v-kaiuum/
+    - https://www.courtlistener.com/opinion/9383662/shaffer-v-dixon/
+    - https://www.courtlistener.com/opinion/9401538/william-angel-patricia-belk-dorothy-brown-robert-brown-anthony-buggs/
+    - https://www.courtlistener.com/opinion/9440172/kiemle-hagood-company-v-mariam-p-daniels-aka-phoebe-daniels/
+    - https://www.courtlistener.com/opinion/4854807/12636-research-ltd-hsu-realty-company-inc-and-chi-kao-hsu-indian/
+    - https://www.courtlistener.com/opinion/9478117/tuyen-dinh-v-matthew-raines-and-melissa-clayton/
+    - https://www.courtlistener.com/opinion/2772083/mosser-companies-v-san-francisco-rent-stabilization-arbitration-board/
+    - https://www.courtlistener.com/opinion/8695796/middaugh-v-city-of-three-rivers/
+    - https://www.courtlistener.com/opinion/10642469/lavrich-v-snyderburn/
+    - https://www.courtlistener.com/opinion/8716132/smith-v-housing-authority/
+    - https://www.courtlistener.com/opinion/2677838/erlach-v-sierra-asset-servicing-llc/
+    - https://www.courtlistener.com/opinion/7428196/scott-v-kaiuum/
+    - https://www.courtlistener.com/opinion/6242476/kohner-props-inc-v-johnson/
+    - https://www.courtlistener.com/opinion/4513050/stewart-v-hargan/
+    - https://www.courtlistener.com/opinion/4878933/pickens-vs-la-villa-vegas-inc/
+    - https://www.courtlistener.com/opinion/6472229/woods-v-sharkin/
+    - https://www.courtlistener.com/opinion/7860639/myers-v-district-of-columbia-housing-authority/
+    - https://www.courtlistener.com/opinion/4431959/guttman-v-chiazor/
+    - https://www.courtlistener.com/opinion/4274214/linda-s-nowlin-v-lori-keaton/
+    - https://www.courtlistener.com/opinion/9367604/tammie-guilford-v-weidner-investment-services-inc-weidner-investment/
+    sample_quotes:
+    - The landlord served a 30-day notice to quit.
+    - The eviction notice served on Guilford was part of the record.
+    - The eviction notice cited nonpayment of rent as the reason for termination.
+    suggested_aliases: *id028
+- id: fraud_evidence
+  name: Evidence of Fraud
+  description: Documents or testimony showing that the landlord made false statements
+    or engaged in deceptive practices to deregulate a unit.
+  jurisdiction: NYS
+  status: proposed
+  aliases: &id029 []
+  _bootstrap:
+    sources:
+    - https://www.courtlistener.com/opinion/4678184/matter-of-gray-v-new-york-state-div-of-hous-community-renewal/
+    sample_quotes:
+    - Petitioner argues that the landlord's claim of a vacancy increase was fraudulent
+      because the prior tenant had not vacated.
+    suggested_aliases: *id029
+- id: evidence_of_harassing_conduct
+  name: Evidence of Harassing Conduct
+  description: Records of threats, repeated service interruptions, or other actions
+    intended to disturb the tenant's quiet enjoyment, such as emails, letters, or
+    witness statements.
+  jurisdiction: NYS
+  status: proposed
+  aliases: &id030 []
+  _bootstrap:
+    sources:
+    - https://www.nysenate.gov/legislation/laws/PEN/241.05
+    sample_quotes: []
+    suggested_aliases: *id030
+- id: expert_inspection_report
+  name: Expert Inspection Report
+  description: A report from a qualified inspector or engineer documenting the presence
+    of mold, structural issues, or other defects.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id031 []
+  _bootstrap:
+    sources:
+    - https://www.courtlistener.com/opinion/10266532/1719-gates-llc-v-torres/
+    sample_quotes:
+    - An expert inspection report confirmed the presence of toxic mold in the ventilation
+      system.
+    suggested_aliases: *id031
+- id: explanation_of_rent_arrears_cause
+  name: Explanation of Rent Arrears Cause
+  description: A statement explaining why the tenant fell behind on rent, such as
+    job loss, reduced hours, or medical crisis.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id033 []
+  _bootstrap:
+    sources:
+    - https://housingcourtanswers.org/answers/for-tenants/housing-court-tenants/rent-arrears-tenants/
+    sample_quotes:
+    - Be able to explain how you fell behind. You must explain why you fell behind.
+    suggested_aliases: *id033
+- id: first_lease_rent_stabilized
+  name: First Lease for Rent Stabilized Tenants
+  description: The initial lease governing a rent-stabilized tenancy, which may contain
+    rules about air conditioning installation and fees.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id035 []
+  _bootstrap:
+    sources:
+    - https://www.justfix.org/en/learn/air-conditioning-laws
+    sample_quotes:
+    - For rent stabilized tenants, your first lease will always govern your tenancy,
+      even after you renew. Check that first lease for any rules or regulations surrounding
+      cooling systems.
+    suggested_aliases: *id035
+- id: government_agency_complaints
+  name: Government Agency Complaints
+  description: Records of complaints filed with government agencies such as HPD or
+    HCR.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id038 []
+  _bootstrap:
+    sources:
+    - https://legalaidnyc.org/get-help/housing-problems/what-you-need-to-know-about-tenant-harassment/
+    sample_quotes:
+    - Records of complaints to government agencies
+    suggested_aliases: *id038
+- id: hpd_complaint_record
+  name: HPD Complaint Record
+  description: A record of a complaint made to the NYC Department of Housing Preservation
+    and Development (HPD) via 311, documenting repair issues.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id039 []
+  _bootstrap:
+    sources:
+    - https://housingcourtanswers.org/answers/for-tenants/hp-actions-tenants/
+    sample_quotes:
+    - Call 311 to make a complaint to HPD
+    suggested_aliases: *id039
+- id: hpd_violation_records
+  name: HPD Violation Records
+  description: Official records from the NYC Department of Housing Preservation and
+    Development documenting building code violations, which can support claims of
+    habitability breaches or harassment.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id040
+  - HPD Violation Record
+  - HPD Violations
+  _bootstrap:
+    sources:
+    - https://www.courtlistener.com/opinion/10641436/rodriguez-v-hub-bk-llc/
+    - https://www.courtlistener.com/opinion/9424522/ferreira-v-charland/
+    - https://www.courtlistener.com/opinion/7310141/ibrahim-v-department-of-homeland-security/
+    - https://www.courtlistener.com/opinion/6316425/1515-macombs-llc-v-jackson/
+    - https://www.courtlistener.com/opinion/10360824/independent-435-cpw-tenants-assn-v-park-front-apts-llc/
+    - https://www.courtlistener.com/opinion/10644358/batiz-v-csa-preserv-partners-llc/
+    - https://www.courtlistener.com/opinion/10600972/emerald-lofts-llc-v-echevarria/
+    - https://www.courtlistener.com/opinion/4637746/354-atl-ave-llc-v-noronha/
+    - https://www.courtlistener.com/opinion/889797/fick-v-brown/
+    - https://www.courtlistener.com/opinion/6239065/guttman-v-chiazor/
+    - https://www.courtlistener.com/opinion/4429944/phoenician-mediterranean-villa-llc-v-swope-in-re-j-s-properties-llc/
+    - https://www.courtlistener.com/opinion/9383662/shaffer-v-dixon/
+    - https://www.courtlistener.com/opinion/4607870/shore-towers-inc-v-abt/
+    - https://nycadmincode.readthedocs.io/t26/c04/
+    - https://www.courtlistener.com/opinion/4597229/matter-of-south-lexington-assoc-llc-v-new-york-state-div-of-hous/
+    - https://www.courtlistener.com/opinion/9492811/gourin-v-72a-realty-assoc-lp/
+    - https://www.courtlistener.com/opinion/9487360/black-rock-gardens-llc-v-berry/
+    - https://www.courtlistener.com/opinion/8716132/smith-v-housing-authority/
+    - https://www.courtlistener.com/opinion/10596743/emerald-lofts-llc-v-echevarria/
+    - https://www.courtlistener.com/opinion/4630465/rodriguez-v-kalata/
+    - https://www.courtlistener.com/opinion/6472229/woods-v-sharkin/
+    - https://www.courtlistener.com/opinion/4633016/217-williams-llc-v-worthen/
+    - https://www.courtlistener.com/opinion/9433963/duncan-v-kihagi/
+    - https://www.courtlistener.com/opinion/6319087/west-v-bcre-90-west-street-llc/
+    - https://law.justia.com/cases/new-york/other-courts/2025/2025-ny-slip-op-25279.html
+    - https://www.courtlistener.com/opinion/9402717/north-hudson-realty-corp-v-ecalp-corp/
+    - https://www.courtlistener.com/opinion/6315365/north-driggs-holdings-llc-v-burstiner/
+    - https://www.courtlistener.com/opinion/4380722/danger-panda-llc-v-launiu/
+    - https://www.courtlistener.com/opinion/4268259/harry-bizios-v-town-of-lakewood-village-texas/
+    - https://www.courtlistener.com/opinion/4695223/crockett-v-351-st-nicholas-ave-llc/
+    - https://www.courtlistener.com/opinion/2675136/hapugalle-v-chastleton-cooperative-association/
+    - https://www.courtlistener.com/opinion/3159177/foster-v-britton/
+    - https://www.courtlistener.com/opinion/10653966/alekna-v-207-217-w-110-portfolio-owner-llc/
+    - https://www.courtlistener.com/opinion/4322931/contreras-v-dowling/
+    - https://law.justia.com/codes/new-york/rpp/article-7/235-b/
+    - https://www.courtlistener.com/opinion/4414807/m-c-v-texas-department-of-family-and-protective-services/
+    - https://www.courtlistener.com/opinion/9401538/william-angel-patricia-belk-dorothy-brown-robert-brown-anthony-buggs/
+    - https://www.courtlistener.com/opinion/7173629/altman-v-285-w-fourth-llc/
+    - https://www.courtlistener.com/opinion/4992210/duhon-v-briley/
+    - https://www.courtlistener.com/opinion/6065353/downing-v-first-lenox-terrace-associates/
+    - https://www.courtlistener.com/opinion/5297675/lund-co-v-clark/
+    - https://www.courtlistener.com/opinion/6316243/150-west-end-owners-corp-v-chestnut-holdings-of-ny-inc/
+    - https://www.courtlistener.com/opinion/8716929/charron-v-pinnacle-group-ny-llc/
+    - https://www.courtlistener.com/opinion/2772083/mosser-companies-v-san-francisco-rent-stabilization-arbitration-board/
+    - https://www.courtlistener.com/opinion/7428196/scott-v-kaiuum/
+    - https://www.courtlistener.com/opinion/10688572/liggett-v-lew-realty-llc/
+    - https://www.courtlistener.com/opinion/4504802/bldg-mgt-co-inc-v-orelli/
+    - https://www.courtlistener.com/opinion/10582208/304-306-e-83-realty-llc-v-mason/
+    - https://www.courtlistener.com/opinion/5326578/sengul-v-cms-franklin-inc/
+    - https://www.courtlistener.com/opinion/10811074/woodley-jr-v-woodberry-village-apartment/
+    - https://www.courtlistener.com/opinion/4548492/meyer-v-224-lafayette-st-corp/
+    - https://www.courtlistener.com/opinion/8286581/ellis-v-doe/
+    - https://www.courtlistener.com/opinion/4471881/528-w-123rd-st-llc-v-baptiste/
+    - https://www.courtlistener.com/opinion/6476304/woods-v-sharkin/
+    - https://www.courtlistener.com/opinion/4756984/corcoran-v-narrows-bayview-co-llc/
+    - https://www.courtlistener.com/opinion/10038596/pmc-squared-llc-v-rita-gallo/
+    - https://www.courtlistener.com/opinion/10598390/matter-of-901-bklyn-realty-llc-v-manigat/
+    - https://law.justia.com/codes/new-york/mdw/article-3/title-3/78/
+    - https://www.courtlistener.com/opinion/4603692/ruggerino-v-prince-holdings-2012-llc/
+    - https://www.courtlistener.com/opinion/4890369/gridley-v-turnbury-vil-llc/
+    - https://www.courtlistener.com/opinion/9470445/steven-m-selz-v-lauren-mckagen-and-stephen-hursey/
+    - https://www.courtlistener.com/opinion/9500925/south-brooklyn-ry-co-v-heung-man-lau/
+    - https://www.courtlistener.com/opinion/6311547/72a-realty-associates-v-lucas/
+    - https://www.courtlistener.com/opinion/6312340/72a-realty-associates-v-lucas/
+    - https://www.courtlistener.com/opinion/10801062/james-v-hanley/
+    - https://law.justia.com/cases/new-york/other-courts/2025/2025-ny-slip-op-33306-u.html
+    - https://up.codes/viewer/new_york_city/nyc-housing-maintenance-code/chapter/5/legal-remedies-and-enforcement
+    - https://www.courtlistener.com/opinion/5287967/paulonis-v-287-assoc-lp/
+    - https://www.courtlistener.com/opinion/4865090/people-v-dr-226-holdings-llc/
+    - https://www.courtlistener.com/opinion/4460229/kuzmich-v-50-murray-st-acquisition-llc/
+    - https://www.courtlistener.com/opinion/4878933/pickens-vs-la-villa-vegas-inc/
+    - https://www.courtlistener.com/opinion/10266532/1719-gates-llc-v-torres/
+    - https://www.courtlistener.com/opinion/8288834/cent-hous-assocs-lp-v-olson/
+    - https://www.courtlistener.com/opinion/4592423/suarez-v-four-thirty-realty-llc/
+    - https://www.courtlistener.com/opinion/9481741/keating-smith-v-mustafa/
+    - https://www.courtlistener.com/opinion/6294937/cooper-v-back-on-track-group-inc/
+    - https://www.courtlistener.com/opinion/4606514/tres-realty-llc-v-ta-wei-yu/
+    - https://www.courtlistener.com/opinion/6314797/46-downing-street-llc-v-thompson/
+    - https://www.courtlistener.com/opinion/4865098/nyctl-1998-2-trust-v-dr-226-holdings-llc/
+    - https://www.courtlistener.com/opinion/4798469/goldfeder-v-cenpark-realty-llc/
+    - https://www.courtlistener.com/opinion/10304904/burcica-v-ludy/
+    - https://www.courtlistener.com/opinion/10442824/304-306-e-83-realty-llc-v-mason/
+    - https://www.courtlistener.com/opinion/9500911/south-brooklyn-ry-co-v-heung-man-lau/
+    - https://www.courtlistener.com/opinion/4348784/scott-v-kaiuum/
+    - https://www.courtlistener.com/opinion/8720199/davis-v-city-of-new-york/
+    - https://www.courtlistener.com/opinion/6447805/nieborak-v-w54-7-llc/
+    - https://www.courtlistener.com/opinion/4581590/reich-v-belnord-partners-llc/
+    - https://www.courtlistener.com/opinion/6317338/pena-v-lockenwitz/
+    - https://www.courtlistener.com/opinion/5988893/gordon-v-305-riverside-corp/
+    - https://www.courtlistener.com/opinion/6314716/nycha-coney-island-houses-v-ramos/
+    - https://www.courtlistener.com/opinion/9478117/tuyen-dinh-v-matthew-raines-and-melissa-clayton/
+    - https://www.justfix.org/en/learn/mold-in-apartment
+    - https://www.courtlistener.com/opinion/10642469/lavrich-v-snyderburn/
+    - https://www.courtlistener.com/opinion/6242476/kohner-props-inc-v-johnson/
+    - https://www.courtlistener.com/opinion/4513050/stewart-v-hargan/
+    - https://www.courtlistener.com/opinion/6316250/aimco-322-east-61st-street-llc-v-brosius/
+    - https://legalaidnyc.org/get-help/housing-problems/what-you-need-to-know-about-tenant-harassment/
+    - https://www.courtlistener.com/opinion/4431959/guttman-v-chiazor/
+    - https://www.courtlistener.com/opinion/10332912/gomes-v-vermyck-llc/
+    - https://www.courtlistener.com/opinion/6065355/downing-v-first-lenox-terrace-associates/
+    sample_quotes:
+    - Plaintiffs submitted HPD violation reports showing numerous code violations
+      in the building.
+    - The tenant introduced HPD violation records showing multiple Class C violations
+      for lead paint and inadequate heat.
+    - HPD violations
+    suggested_aliases: *id040
+- id: harassment_logs
+  name: Harassment Logs
+  description: Personal records or logs documenting incidents of harassment by the
+    landlord.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id042 []
+  _bootstrap:
+    sources:
+    - https://legalaidnyc.org/get-help/housing-problems/what-you-need-to-know-about-tenant-harassment/
+    sample_quotes:
+    - Records or logs you’ve kept of the harassment
+    suggested_aliases: *id042
+- id: heating_system_device_evidence
+  name: Heating System Device Evidence
+  description: Photographs, videos, or inspection reports showing a device that disables
+    or limits the heating system.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id043 []
+  _bootstrap:
+    sources:
+    - https://nycadmincode.readthedocs.io/t27/c02/sch02/art08/
+    sample_quotes:
+    - any device which shall cause or which is capable of causing an otherwise operable
+      central heating system to become incapable of providing the minimum requirements
+      of heat or hot water
+    suggested_aliases: *id043
+- id: hot_water_temp_measurements
+  name: Hot Water Temperature Measurements
+  description: Records of hot water temperature at fixtures, showing failure to maintain
+    120°F (or 110°F with certain valves).
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id044 []
+  _bootstrap:
+    sources:
+    - https://nycadmincode.readthedocs.io/t27/c02/sch02/art08/
+    sample_quotes:
+    - hot water at a constant minimum temperature of one hundred twenty degrees Fahrenheit
+    suggested_aliases: *id044
+- id: housing_court_filings
+  name: Housing Court Filings
+  description: Court documents from prior or related housing court proceedings, such
+    as HP actions or eviction cases.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id046 []
+  _bootstrap:
+    sources:
+    - https://www.courtlistener.com/opinion/9424522/ferreira-v-charland/
+    sample_quotes:
+    - The tenant referenced a prior HP action filed in 2022 for lack of heat.
+    suggested_aliases: *id046
+- id: income_threshold_records
+  name: Income Threshold Records
+  description: Documentation of tenant or household income to determine if high-income
+    decontrol applied.
+  jurisdiction: NYS
+  status: proposed
+  aliases: &id047 []
+  _bootstrap:
+    sources:
+    - https://hcr.ny.gov/fact-sheet-36
+    sample_quotes: []
+    suggested_aliases: *id047
+- id: inspection_reports
+  name: Inspection Reports
+  description: Reports from official inspections (e.g., by HPD or a court-appointed
+    expert) documenting the physical condition of the premises.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id048
+  - Inspection Reports (e.g., HPD, DOB)
+  _bootstrap:
+    sources:
+    - https://www.courtlistener.com/opinion/4414807/m-c-v-texas-department-of-family-and-protective-services/
+    - https://www.courtlistener.com/opinion/9433963/duncan-v-kihagi/
+    - https://www.courtlistener.com/opinion/4603692/ruggerino-v-prince-holdings-2012-llc/
+    sample_quotes:
+    - An inspection report confirmed the presence of mold and lead paint hazards.
+    - An inspection report from the Department of Buildings confirmed the presence
+      of mold and water damage.
+    suggested_aliases: *id048
+- id: landlord_letters_emails
+  name: Landlord Letters or Emails
+  description: Written correspondence from the landlord that may evidence harassment.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id049 []
+  _bootstrap:
+    sources:
+    - https://legalaidnyc.org/get-help/housing-problems/what-you-need-to-know-about-tenant-harassment/
+    sample_quotes:
+    - Letters or emails from or to the landlord
+    suggested_aliases: *id049
+- id: landlord_name_and_address
+  name: Landlord Name and Address
+  description: The legal name and address of the landlord, required to file an HP
+    action, obtainable from HPD or ACRIS.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id050 []
+  _bootstrap:
+    sources:
+    - https://housingcourtanswers.org/answers/for-tenants/hp-actions-tenants/
+    sample_quotes:
+    - You need to know your landlord’s name and address. You cannot use a P.O. box,
+      so...
+    suggested_aliases: *id050
+- id: lease_agreements
+  name: Lease Agreements
+  description: Copies of all leases, including initial and renewal leases, to prove
+    rent history and stabilization status.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id051 []
+  _bootstrap:
+    sources:
+    - https://www.justfix.org/en/learn/rent-history-101
+    sample_quotes:
+    - Provide a copy of all your leases (first and any renewals)
+    suggested_aliases: *id051
+- id: lease_and_vacancy_documents
+  name: Lease and Vacancy Documents
+  description: Leases, vacancy notices, or rent ledgers that document the rent at
+    vacancy and whether it exceeded the high rent deregulation threshold.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id052 []
+  _bootstrap:
+    sources:
+    - https://law.justia.com/codes/new-york/2006/new-york-city-administrative-code-new/adc026-504.2_26-504.2.html
+    sample_quotes: []
+    suggested_aliases: *id052
+- id: lease_or_written_contract
+  name: Lease or Written Contract
+  description: A lease or other written contract that may modify owner responsibilities
+    for one- or two-family dwellings.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id053 []
+  _bootstrap:
+    sources:
+    - https://nycadmincode.readthedocs.io/t27/c02/sch02/art01/
+    sample_quotes:
+    - except to the extent otherwise agreed between such owner and any tenant of such
+      dwelling by lease or other contract in writing
+    suggested_aliases: *id053
+- id: letter_of_complaint
+  name: Letter of Complaint
+  description: A formal written notice to the landlord detailing repair issues and
+    potential legal consequences, used to demonstrate notice.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id054 []
+  _bootstrap:
+    sources:
+    - https://www.justfix.org/en/learn/guide-to-hp-actions
+    sample_quotes:
+    - JustFix’s Letter of Complaint tool generates a free certified letter describing
+      your complaints and the potential legal consequences your landlord could face
+      for failing to make repairs.
+    suggested_aliases: *id054
+- id: mci_cost_documentation
+  name: MCI Cost Documentation
+  description: Records of major capital improvement costs and allocation, used to
+    challenge improper rent increases.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id055 []
+  _bootstrap:
+    sources:
+    - https://www.metcouncilonhousing.org/help-answers/about-rent-stabilization/
+    sample_quotes:
+    - The cost is divided between all of the apartments in the building (calculated
+      by room) and 1/144 or 1/150 of the total amount can be added to the monthly
+      rent.
+    suggested_aliases: *id055
+- id: medical_letter_disability
+  name: Medical Letter for Disability Accommodation
+  description: A letter from a medical clinician stating that a tenant has a disability
+    requiring an air conditioning unit, used to support a reasonable accommodation
+    request.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id056 []
+  _bootstrap:
+    sources:
+    - https://www.justfix.org/en/learn/air-conditioning-laws
+    sample_quotes:
+    - A tenant needs a letter from a medical clinician (a doctor or any medical provider
+      treating the disability) stating that the tenant has a disability requiring
+      an air conditioning unit in their apartment.
+    suggested_aliases: *id056
+- id: money_orders
+  name: Money Orders
+  description: Money order receipts or copies as proof of rent payment.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id057 []
+  _bootstrap:
+    sources:
+    - https://housingcourtanswers.org/answers/for-tenants/housing-court-tenants/tenant-nonpayment-cases/
+    sample_quotes:
+    - documents money orders applications receipts commitment letters breakdown from
+      public assistance
+    suggested_aliases: *id057
+- id: most_recent_lease_market
+  name: Most Recent Lease for Market Tenants
+  description: The most recent lease (even if expired) for non-stabilized tenants,
+    which governs rules about air conditioning.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id058 []
+  _bootstrap:
+    sources:
+    - https://www.justfix.org/en/learn/air-conditioning-laws
+    sample_quotes:
+    - For non-stabilized tenants (also called “market tenants”), your most recent
+      lease (even if expired) will govern your tenancy so review that lease for any
+      rules related to air conditioning.
+    suggested_aliases: *id058
+- id: notice_of_defects_to_landlord
+  name: Notice of Defects to Landlord
+  description: Written or documented communication from the tenant to the landlord
+    informing them of specific conditions that violate the warranty of habitability.
+  jurisdiction: NYS
+  status: proposed
+  aliases: &id059 []
+  _bootstrap:
+    sources:
+    - https://law.justia.com/codes/new-york/rpp/article-7/235-b/
+    sample_quotes: []
+    suggested_aliases: *id059
+- id: outside_temp_records
+  name: Outside Temperature Records
+  description: Official weather data showing outside temperature fell below the trigger
+    thresholds (55°F daytime, 40°F nighttime).
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id061 []
+  _bootstrap:
+    sources:
+    - https://nycadmincode.readthedocs.io/t27/c02/sch02/art08/
+    sample_quotes:
+    - whenever the outside temperature falls below fifty-five degrees... whenever
+      the outside temperature falls below forty degrees
+    suggested_aliases: *id061
+- id: overcharge_calculation
+  name: Overcharge Calculation
+  description: A computation showing the difference between the rent paid and the
+    legal regulated rent, used to prove an overcharge.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id062 []
+  _bootstrap:
+    sources:
+    - https://law.justia.com/codes/new-york/2006/new-york-city-administrative-code-new/adc026-516_26-516.html
+    sample_quotes: []
+    suggested_aliases: *id062
+- id: pay_stubs
+  name: Pay Stubs
+  description: Recent pay stubs (6 weeks) for every member of the household to prove
+    income.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id063 []
+  _bootstrap:
+    sources:
+    - https://housingcourtanswers.org/answers/for-tenants/housing-court-tenants/rent-arrears-tenants/
+    sample_quotes:
+    - Recent pay stubs (6 weeks) for every member of the...
+    suggested_aliases: *id063
+- id: photographs_of_conditions
+  name: Photographs of Conditions
+  description: Visual documentation of the physical condition of the premises, such
+    as mold, leaks, or structural damage, used to support habitability claims.
+  jurisdiction: NYS
+  status: proposed
+  aliases: &id064
+  - Apartment Photos
+  - Photographs and Videos
+  - Photographs or Video of Conditions
+  - Photographs or Videos
+  _bootstrap:
+    sources:
+    - https://www.courtlistener.com/opinion/3159177/foster-v-britton/
+    - https://www.courtlistener.com/opinion/4489054/city-of-bridgeport-v-grace-bldg-llc/
+    - https://www.courtlistener.com/opinion/7310141/ibrahim-v-department-of-homeland-security/
+    - https://www.courtlistener.com/opinion/10442824/304-306-e-83-realty-llc-v-mason/
+    - https://www.courtlistener.com/opinion/9500925/south-brooklyn-ry-co-v-heung-man-lau/
+    - https://www.courtlistener.com/opinion/10644358/batiz-v-csa-preserv-partners-llc/
+    - https://www.courtlistener.com/opinion/4414807/m-c-v-texas-department-of-family-and-protective-services/
+    - https://www.courtlistener.com/opinion/6239065/guttman-v-chiazor/
+    - https://www.courtlistener.com/opinion/8720199/davis-v-city-of-new-york/
+    - https://law.justia.com/cases/new-york/other-courts/2025/2025-ny-slip-op-33306-u.html
+    - https://www.courtlistener.com/opinion/6317338/pena-v-lockenwitz/
+    - https://www.courtlistener.com/opinion/4992210/duhon-v-briley/
+    - https://www.courtlistener.com/opinion/9478117/tuyen-dinh-v-matthew-raines-and-melissa-clayton/
+    - https://www.courtlistener.com/opinion/8716929/charron-v-pinnacle-group-ny-llc/
+    - https://www.courtlistener.com/opinion/2772083/mosser-companies-v-san-francisco-rent-stabilization-arbitration-board/
+    - https://www.courtlistener.com/opinion/9487360/black-rock-gardens-llc-v-berry/
+    - https://www.courtlistener.com/opinion/10266532/1719-gates-llc-v-torres/
+    - https://www.courtlistener.com/opinion/10582208/304-306-e-83-realty-llc-v-mason/
+    - https://www.courtlistener.com/opinion/5326578/sengul-v-cms-franklin-inc/
+    - https://www.courtlistener.com/opinion/9481741/keating-smith-v-mustafa/
+    - https://www.courtlistener.com/opinion/10811074/woodley-jr-v-woodberry-village-apartment/
+    - https://www.courtlistener.com/opinion/8286581/ellis-v-doe/
+    - https://law.justia.com/cases/new-york/other-courts/2025/2025-ny-slip-op-25279.html
+    - https://www.courtlistener.com/opinion/6476304/woods-v-sharkin/
+    - https://www.courtlistener.com/opinion/4885245/elsayed-v-miamisburg-by-the-mall/
+    - https://www.courtlistener.com/opinion/10038596/pmc-squared-llc-v-rita-gallo/
+    sample_quotes:
+    - Photographs showing the dilapidated state of the apartment were attached to
+      the complaint.
+    - Tenant submitted photographs showing extensive water damage and mold in the
+      bathroom.
+    - Tenant submitted photographs of water damage and mold growth in the bathroom.
+    suggested_aliases: *id064
+- id: photos_and_text_messages
+  name: Photos and Text Messages
+  description: Visual or written evidence of the conditions, such as photos of defects
+    or text messages with the landlord.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id066 []
+  _bootstrap:
+    sources:
+    - https://www.justfix.org/en/learn/guide-to-hp-actions
+    sample_quotes:
+    - Any evidence you have, such as photos, text messages, notes of temperature readings,
+      etc.
+    suggested_aliases: *id066
+- id: photos_videos_harassment
+  name: Photos or Videos of Harassment
+  description: Visual evidence capturing acts of harassment by the landlord.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id067 []
+  _bootstrap:
+    sources:
+    - https://legalaidnyc.org/get-help/housing-problems/what-you-need-to-know-about-tenant-harassment/
+    sample_quotes:
+    - Pictures or videos of harassment
+    suggested_aliases: *id067
+- id: previous_tenant_rent_info
+  name: Previous Tenant Rent Information
+  description: Information about the rent paid by the prior tenant, which can help
+    determine if a rent increase was legal (e.g., 20% vacancy increase plus renovation
+    allowances).
+  jurisdiction: NYS
+  status: proposed
+  aliases: &id069 []
+  _bootstrap:
+    sources:
+    - https://www.metcouncilonhousing.org/help-answers/how-can-i-find-out-if-i-am-rent-stabilized/
+    sample_quotes:
+    - If the previous tenant was paying much less than you are, it may be worth a
+      closer look – for example, if the last tenant was paying $600, and your first
+      rent was $1,100.
+    suggested_aliases: *id069
+- id: prior_lease_agreements
+  name: Prior Lease Agreements
+  description: Lease documents from before the alleged deregulation or overcharge
+    period, used to establish the legal regulated rent.
+  jurisdiction: NYS
+  status: proposed
+  aliases: &id070 []
+  _bootstrap:
+    sources:
+    - https://www.courtlistener.com/opinion/4678184/matter-of-gray-v-new-york-state-div-of-hous-community-renewal/
+    sample_quotes:
+    - Petitioner submitted a copy of a lease from 2007 showing a rent of $1,500 per
+      month.
+    suggested_aliases: *id070
+- id: proof_of_30_day_residence
+  name: Proof of 30-Day Residence
+  description: Evidence that the roommate has lived in the unit for at least 30 days,
+    such as mail, utility bills, or witness statements.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id071 []
+  _bootstrap:
+    sources:
+    - https://housingcourtanswers.org/answers/for-tenants/roommate-issues/
+    sample_quotes:
+    - If you have been living in the room for at least 30 days or have a signed rental
+      agreement, you have tenancy rights.
+    suggested_aliases: *id071
+- id: proof_of_future_rent_ability
+  name: Proof of Ability to Pay Future Rent
+  description: Evidence showing sufficient income to pay future rent, such as a job,
+    third-party support, or public benefits.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id072 []
+  _bootstrap:
+    sources:
+    - https://housingcourtanswers.org/answers/for-tenants/housing-court-tenants/rent-arrears-tenants/
+    sample_quotes:
+    - Be able to prove that you can pay future rent. You must show that you have enough
+      income to pay the future rent.
+    suggested_aliases: *id072
+- id: proof_of_disability_or_elderly_status
+  name: Proof of Disability or Elderly Status
+  description: Documentation showing a tenant is disabled or elderly, which can be
+    sent to the marshal to delay eviction.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id073 []
+  _bootstrap:
+    sources:
+    - https://housingcourtanswers.org/answers/for-tenants/stop-an-eviction/
+    sample_quotes:
+    - Someone who lives in my home is disabled or elderly. Send proof to the marshal’s
+      office.
+    suggested_aliases: *id073
+- id: proof_of_senior_status
+  name: Proof of Senior Status
+  description: Documentation such as age verification or physician certification to
+    support a senior lease termination.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id074 []
+  _bootstrap:
+    sources:
+    - https://www.metcouncilonhousing.org/help-answers/if-you-want-to-break-your-lease/
+    sample_quotes:
+    - You must give your landlord 30 days notice (the 30 days must include a full
+      rent payment period) and your notice must be in writing and include proof.
+    suggested_aliases: *id074
+- id: property_records_acris
+  name: Property Records from ACRIS
+  description: Property ownership records from the NYC Department of Finance's Automated
+    City Register Information System (ACRIS), used to identify the landlord.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id075 []
+  _bootstrap:
+    sources:
+    - https://housingcourtanswers.org/answers/for-tenants/hp-actions-tenants/
+    sample_quotes:
+    - The Department of Finance’s ACRIS website also has property records.
+    suggested_aliases: *id075
+- id: public_assistance_breakdown
+  name: Public Assistance Breakdown
+  description: A detailed statement from public assistance showing benefits or payments,
+    used as evidence.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id077 []
+  _bootstrap:
+    sources:
+    - https://housingcourtanswers.org/answers/for-tenants/stop-an-eviction/
+    sample_quotes:
+    - What is good evidence? documents money orders applications receipts commitment
+      letters breakdown from public assistance
+    suggested_aliases: *id077
+- id: public_assistance_case_documents
+  name: Public Assistance Case Documents
+  description: Documents showing an open public assistance case with full cash assistance
+    for FHEPS eligibility.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id078 []
+  _bootstrap:
+    sources:
+    - https://housingcourtanswers.org/answers/for-tenants/housing-court-tenants/rent-arrears-tenants/
+    sample_quotes:
+    - You must have an open public assistance case with full cash assistance and children
+      under 18 years old living in the apartment.
+    suggested_aliases: *id078
+- id: public_assistance_docs
+  name: Public Assistance Documents
+  description: Papers from public assistance, Section 8, or other rental assistance
+    programs that help pay rent, used as evidence.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id079 []
+  _bootstrap:
+    sources:
+    - https://housingcourtanswers.org/answers/for-tenants/housing-court-tenants/tenant-nonpayment-cases/
+    sample_quotes:
+    - Find papers from public assistance, Section 8 or other program that is helping
+      you pay...
+    suggested_aliases: *id079
+- id: ra_89c_form
+  name: RA-89C Form
+  description: A form used by rent-controlled tenants to file an overcharge complaint
+    with DHCR.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id080 []
+  _bootstrap:
+    sources:
+    - https://www.metcouncilonhousing.org/help-answers/rent-control/
+    sample_quotes:
+    - rent controlled tenants can file and overcharge complaint with DHCR using the
+      form RA-89C
+    suggested_aliases: *id080
+- id: ra_94_form
+  name: RA-94 Form
+  description: A form filed by a rent-controlled tenant to challenge a rent increase,
+    serving as evidence of the challenge.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id081 []
+  _bootstrap:
+    sources:
+    - https://www.metcouncilonhousing.org/help-answers/rent-control/
+    sample_quotes:
+    - To challenge the increase, you must file an RA-94 within 35 days of receiving
+      the RN-26
+    suggested_aliases: *id081
+- id: rn_26_notice
+  name: RN-26 Notice
+  description: A notice from the landlord to the tenant regarding a rent increase
+    application, used as evidence to challenge the increase.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id082 []
+  _bootstrap:
+    sources:
+    - https://www.metcouncilonhousing.org/help-answers/rent-control/
+    sample_quotes:
+    - To challenge the increase, you must file an RA-94 within 35 days of receiving
+      the RN-26
+    suggested_aliases: *id082
+- id: receipts
+  name: Receipts
+  description: Receipts as evidence of payments or transactions, useful in tenant
+    defenses.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id083 []
+  _bootstrap:
+    sources:
+    - https://housingcourtanswers.org/answers/for-tenants/stop-an-eviction/
+    sample_quotes:
+    - What is good evidence? documents money orders applications receipts commitment
+      letters breakdown from public assistance
+    suggested_aliases: *id083
+- id: record_of_willful_act_or_negligence
+  name: Record of Willful Act or Negligence
+  description: Evidence of a tenant's willful act, gross negligence, neglect, or abuse
+    causing a violation.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id084 []
+  _bootstrap:
+    sources:
+    - https://nycadmincode.readthedocs.io/t27/c02/sch02/art01/
+    sample_quotes:
+    - caused by his or her own wilful act... or the result of such tenant's gross
+      negligence, neglect or abuse
+    suggested_aliases: *id084
+- id: relocation_payment_schedule
+  name: Relocation Payment Schedule
+  description: The official schedule of payments for relocation, including maximum
+    or minimum amounts, approved by the mayor.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id086 []
+  _bootstrap:
+    sources:
+    - https://nycadmincode.readthedocs.io/t26/c02/index.html
+    sample_quotes:
+    - to fix and promulgate and from time to time amend a schedule of payments to
+      be made to or for the benefit of and to aid in the relocation of tenants
+    suggested_aliases: *id086
+- id: rent_breakdown_from_landlord
+  name: Rent Breakdown from Landlord
+  description: A breakdown from the landlord showing the months and amount of rent
+    you owe.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id089 []
+  _bootstrap:
+    sources:
+    - https://housingcourtanswers.org/answers/for-tenants/housing-court-tenants/rent-arrears-tenants/
+    sample_quotes:
+    - Breakdown from the landlord showing the months and amount of rent you owe
+    suggested_aliases: *id089
+- id: rgb_guidelines
+  name: Rent Guidelines Board Increases
+  description: Official RGB annual adjustment rates for rent-stabilized lease renewals,
+    used to verify lawful increases.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id090 []
+  _bootstrap:
+    sources:
+    - https://www.metcouncilonhousing.org/help-answers/about-rent-stabilization/
+    sample_quotes:
+    - for a one-year renewal there is a 3% increase, or for a two-year renewal there
+      is a 4.5% increase
+    suggested_aliases: *id090
+- id: rent_history
+  name: Rent History
+  description: A record of a tenant's rent history, which can be used to verify rent
+    stabilization status and support claims.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id091 []
+  _bootstrap:
+    sources:
+    - https://www.justfix.org/en/learn/air-conditioning-laws
+    sample_quotes:
+    - Get your apartment's Rent History
+    suggested_aliases: *id091
+- id: rent_receipts_and_ledgers
+  name: Rent Receipts and Ledgers
+  description: Documents showing rent payments made by the tenant, including receipts,
+    canceled checks, or landlord ledger entries, used to prove rent overcharge or
+    payment history.
+  jurisdiction: NYS
+  status: proposed
+  aliases: &id093
+  - Rent Receipts
+  - Rent Receipts and Cancelled Checks
+  - Rent Receipts and Payment Records
+  - Rent Receipts or Canceled Checks
+  - Rent Receipts or Cancelled Checks
+  - Rent Receipts or Ledger
+  - Rent Receipts or Ledgers
+  - Rent Receipts or Payment Proof
+  - Rent Receipts or Payment Records
+  _bootstrap:
+    sources:
+    - https://www.courtlistener.com/opinion/10641436/rodriguez-v-hub-bk-llc/
+    - https://www.courtlistener.com/opinion/9424522/ferreira-v-charland/
+    - https://www.courtlistener.com/opinion/7310141/ibrahim-v-department-of-homeland-security/
+    - https://www.courtlistener.com/opinion/6316425/1515-macombs-llc-v-jackson/
+    - https://www.courtlistener.com/opinion/10360824/independent-435-cpw-tenants-assn-v-park-front-apts-llc/
+    - https://www.courtlistener.com/opinion/10644358/batiz-v-csa-preserv-partners-llc/
+    - https://www.courtlistener.com/opinion/10600972/emerald-lofts-llc-v-echevarria/
+    - https://www.courtlistener.com/opinion/4637746/354-atl-ave-llc-v-noronha/
+    - https://www.courtlistener.com/opinion/889797/fick-v-brown/
+    - https://www.courtlistener.com/opinion/6239065/guttman-v-chiazor/
+    - https://www.courtlistener.com/opinion/4429944/phoenician-mediterranean-villa-llc-v-swope-in-re-j-s-properties-llc/
+    - https://www.courtlistener.com/opinion/9383662/shaffer-v-dixon/
+    - https://www.courtlistener.com/opinion/4607870/shore-towers-inc-v-abt/
+    - https://www.courtlistener.com/opinion/4255902/kohner-properties-inc-plaintiffrespondent-v-latasha-johnson/
+    - https://nycadmincode.readthedocs.io/t26/c04/
+    - https://www.courtlistener.com/opinion/10131664/matter-of-aidekman-v-state-of-ny-div-of-hous-community-renewal/
+    - https://www.courtlistener.com/opinion/9440172/kiemle-hagood-company-v-mariam-p-daniels-aka-phoebe-daniels/
+    - https://www.courtlistener.com/opinion/5313644/wheeling-v-selene-finance/
+    - https://www.courtlistener.com/opinion/4597229/matter-of-south-lexington-assoc-llc-v-new-york-state-div-of-hous/
+    - https://www.nysenate.gov/legislation/laws/ETP/5
+    - https://www.courtlistener.com/opinion/9492811/gourin-v-72a-realty-assoc-lp/
+    - https://www.courtlistener.com/opinion/9487360/black-rock-gardens-llc-v-berry/
+    - https://www.courtlistener.com/opinion/8716132/smith-v-housing-authority/
+    - https://www.courtlistener.com/opinion/10596743/emerald-lofts-llc-v-echevarria/
+    - https://www.courtlistener.com/opinion/4630465/rodriguez-v-kalata/
+    - https://www.courtlistener.com/opinion/4519506/germadnik-v-auld/
+    - https://www.courtlistener.com/opinion/6472229/woods-v-sharkin/
+    - https://housingcourtanswers.org/answers/for-tenants/housing-court-tenants/tenant-nonpayment-cases/
+    - https://www.courtlistener.com/opinion/4633016/217-williams-llc-v-worthen/
+    - https://www.courtlistener.com/opinion/9433963/duncan-v-kihagi/
+    - https://www.courtlistener.com/opinion/10364727/matter-of-5511-777-st-marks-ave-bk-llc-v-state-of-new-york-div-of-hous/
+    - https://www.courtlistener.com/opinion/6319087/west-v-bcre-90-west-street-llc/
+    - https://law.justia.com/cases/new-york/other-courts/2025/2025-ny-slip-op-25279.html
+    - https://www.courtlistener.com/opinion/9402717/north-hudson-realty-corp-v-ecalp-corp/
+    - https://www.courtlistener.com/opinion/6315365/north-driggs-holdings-llc-v-burstiner/
+    - https://www.courtlistener.com/opinion/4380722/danger-panda-llc-v-launiu/
+    - https://www.courtlistener.com/opinion/4268259/harry-bizios-v-town-of-lakewood-village-texas/
+    - https://www.courtlistener.com/opinion/5630708/brookford-llc-v-penraat/
+    - https://www.courtlistener.com/opinion/4695223/crockett-v-351-st-nicholas-ave-llc/
+    - https://www.courtlistener.com/opinion/2675136/hapugalle-v-chastleton-cooperative-association/
+    - https://www.courtlistener.com/opinion/10160713/eddy-v-anderson/
+    - https://www.courtlistener.com/opinion/3159177/foster-v-britton/
+    - https://www.courtlistener.com/opinion/10653966/alekna-v-207-217-w-110-portfolio-owner-llc/
+    - https://www.courtlistener.com/opinion/4322931/contreras-v-dowling/
+    - https://www.courtlistener.com/opinion/4393779/trust-for-the-benefit-of-goldstein-v-lipetz/
+    - https://law.justia.com/codes/new-york/rpp/article-7/235-b/
+    - https://www.courtlistener.com/opinion/4272286/regina-sophus-v-houston-police-department-homicide-division-and-new-hope/
+    - https://www.courtlistener.com/opinion/4414807/m-c-v-texas-department-of-family-and-protective-services/
+    - https://www.courtlistener.com/opinion/4389766/south-boston-elderly-residences-inc-v-moynahan/
+    - https://www.courtlistener.com/opinion/9401538/william-angel-patricia-belk-dorothy-brown-robert-brown-anthony-buggs/
+    - https://www.courtlistener.com/opinion/7173629/altman-v-285-w-fourth-llc/
+    - https://www.courtlistener.com/opinion/4807583/matter-of-kostic-v-new-york-state-div-of-hous-community-renewal/
+    - https://www.courtlistener.com/opinion/5933592/ginezra-associates-llc-v-ifantopoulos/
+    - https://www.courtlistener.com/opinion/3161152/boston-redevelopment-authority-v-pham/
+    - https://www.courtlistener.com/opinion/4992210/duhon-v-briley/
+    - https://www.courtlistener.com/opinion/4680212/matter-of-bedeau-realty-corp-v-state-of-new-york-div-of-hous/
+    - https://www.courtlistener.com/opinion/6065353/downing-v-first-lenox-terrace-associates/
+    - https://www.courtlistener.com/opinion/5297675/lund-co-v-clark/
+    - https://www.courtlistener.com/opinion/5997157/73-warren-street-llc-v-state-of-new-york-division-of-housing-community/
+    - https://www.courtlistener.com/opinion/6316243/150-west-end-owners-corp-v-chestnut-holdings-of-ny-inc/
+    - https://www.courtlistener.com/opinion/8716929/charron-v-pinnacle-group-ny-llc/
+    - https://www.courtlistener.com/opinion/4843311/landings-at-beckett-ridge-v-holmes/
+    - https://www.courtlistener.com/opinion/2772083/mosser-companies-v-san-francisco-rent-stabilization-arbitration-board/
+    - https://law.justia.com/codes/new-york/2006/new-york-city-administrative-code-new/adc026-504_26-504.html
+    - https://www.courtlistener.com/opinion/7428196/scott-v-kaiuum/
+    - https://www.courtlistener.com/opinion/10688572/liggett-v-lew-realty-llc/
+    - https://www.courtlistener.com/opinion/3192367/affordable-autos-inc-v-irvin-a-dietert/
+    - https://www.courtlistener.com/opinion/4832002/matter-of-kostic-v-new-york-state-div-of-hous-community-renewal/
+    - https://www.courtlistener.com/opinion/4504802/bldg-mgt-co-inc-v-orelli/
+    - https://www.courtlistener.com/opinion/10582208/304-306-e-83-realty-llc-v-mason/
+    - https://www.courtlistener.com/opinion/5326578/sengul-v-cms-franklin-inc/
+    - https://www.courtlistener.com/opinion/4847455/matter-of-bergen-realty-mgt-llc-v-new-york-state-div-of-hous/
+    - https://www.courtlistener.com/opinion/10811074/woodley-jr-v-woodberry-village-apartment/
+    - https://www.courtlistener.com/opinion/4548492/meyer-v-224-lafayette-st-corp/
+    - https://www.courtlistener.com/opinion/8286581/ellis-v-doe/
+    - https://www.courtlistener.com/opinion/4274214/linda-s-nowlin-v-lori-keaton/
+    - https://www.courtlistener.com/opinion/4471881/528-w-123rd-st-llc-v-baptiste/
+    - https://www.courtlistener.com/opinion/4629294/foundation-of-love-usa-inc-v-pena/
+    - https://www.courtlistener.com/opinion/6476304/woods-v-sharkin/
+    - https://www.courtlistener.com/opinion/9367604/tammie-guilford-v-weidner-investment-services-inc-weidner-investment/
+    - https://www.courtlistener.com/opinion/4756984/corcoran-v-narrows-bayview-co-llc/
+    - https://www.courtlistener.com/opinion/10038596/pmc-squared-llc-v-rita-gallo/
+    - https://www.courtlistener.com/opinion/4740501/turpin-v-district-of-columbia/
+    - https://www.courtlistener.com/opinion/10598390/matter-of-901-bklyn-realty-llc-v-manigat/
+    - https://www.courtlistener.com/opinion/4603692/ruggerino-v-prince-holdings-2012-llc/
+    - https://www.courtlistener.com/opinion/4890369/gridley-v-turnbury-vil-llc/
+    - https://www.courtlistener.com/opinion/9470445/steven-m-selz-v-lauren-mckagen-and-stephen-hursey/
+    - https://www.courtlistener.com/opinion/9500925/south-brooklyn-ry-co-v-heung-man-lau/
+    - https://www.courtlistener.com/opinion/6311547/72a-realty-associates-v-lucas/
+    - https://www.courtlistener.com/opinion/6312340/72a-realty-associates-v-lucas/
+    - https://www.courtlistener.com/opinion/10801062/james-v-hanley/
+    - https://law.justia.com/cases/new-york/other-courts/2025/2025-ny-slip-op-33306-u.html
+    - https://www.courtlistener.com/opinion/5287967/paulonis-v-287-assoc-lp/
+    - https://www.courtlistener.com/opinion/4460229/kuzmich-v-50-murray-st-acquisition-llc/
+    - https://www.courtlistener.com/opinion/2677838/erlach-v-sierra-asset-servicing-llc/
+    - https://hcr.ny.gov/rent-stabilization-and-emergency-tenant-protection-act
+    - https://www.courtlistener.com/opinion/4878933/pickens-vs-la-villa-vegas-inc/
+    - https://www.courtlistener.com/opinion/10266532/1719-gates-llc-v-torres/
+    - https://www.courtlistener.com/opinion/8288834/cent-hous-assocs-lp-v-olson/
+    - https://www.courtlistener.com/opinion/4592423/suarez-v-four-thirty-realty-llc/
+    - https://www.courtlistener.com/opinion/9481741/keating-smith-v-mustafa/
+    - https://www.courtlistener.com/opinion/6294937/cooper-v-back-on-track-group-inc/
+    - https://www.courtlistener.com/opinion/4606514/tres-realty-llc-v-ta-wei-yu/
+    - https://www.courtlistener.com/opinion/6314797/46-downing-street-llc-v-thompson/
+    - https://www.courtlistener.com/opinion/4865098/nyctl-1998-2-trust-v-dr-226-holdings-llc/
+    - https://www.courtlistener.com/opinion/4798469/goldfeder-v-cenpark-realty-llc/
+    - https://www.courtlistener.com/opinion/10304904/burcica-v-ludy/
+    - https://www.courtlistener.com/opinion/10442824/304-306-e-83-realty-llc-v-mason/
+    - https://hcr.ny.gov/fact-sheet-16
+    - https://www.courtlistener.com/opinion/9500911/south-brooklyn-ry-co-v-heung-man-lau/
+    - https://www.courtlistener.com/opinion/4348784/scott-v-kaiuum/
+    - https://www.courtlistener.com/opinion/10689655/shalimar-leasing-lp-v-medina/
+    - https://www.courtlistener.com/opinion/8720199/davis-v-city-of-new-york/
+    - https://www.courtlistener.com/opinion/6447805/nieborak-v-w54-7-llc/
+    - https://www.courtlistener.com/opinion/4854807/12636-research-ltd-hsu-realty-company-inc-and-chi-kao-hsu-indian/
+    - https://www.courtlistener.com/opinion/6317338/pena-v-lockenwitz/
+    - https://www.courtlistener.com/opinion/5988893/gordon-v-305-riverside-corp/
+    - https://www.courtlistener.com/opinion/2326384/haslam-james-v-lawrence/
+    - https://www.courtlistener.com/opinion/6314716/nycha-coney-island-houses-v-ramos/
+    - https://www.courtlistener.com/opinion/9478117/tuyen-dinh-v-matthew-raines-and-melissa-clayton/
+    - https://www.courtlistener.com/opinion/7323114/federal-deposit-insurance-corp-v-dee/
+    - https://www.courtlistener.com/opinion/10642469/lavrich-v-snyderburn/
+    - https://www.courtlistener.com/opinion/6242476/kohner-props-inc-v-johnson/
+    - https://www.courtlistener.com/opinion/10634373/matter-of-57-elmhurst-llc-v-new-york-state-div-of-hous-community/
+    - https://www.courtlistener.com/opinion/4513050/stewart-v-hargan/
+    - https://www.courtlistener.com/opinion/6316250/aimco-322-east-61st-street-llc-v-brosius/
+    - https://www.courtlistener.com/opinion/7860639/myers-v-district-of-columbia-housing-authority/
+    - https://www.courtlistener.com/opinion/4431959/guttman-v-chiazor/
+    - https://www.courtlistener.com/opinion/10332912/gomes-v-vermyck-llc/
+    - https://www.courtlistener.com/opinion/10472015/matter-of-140-25-ash-assoc-llc-v-state-of-new-york-div-of-hous/
+    - https://www.courtlistener.com/opinion/6065355/downing-v-first-lenox-terrace-associates/
+    - https://www.courtlistener.com/opinion/4750158/kahawaiolaa-v-hawaiian-sun-investments-inc/
+    - https://www.courtlistener.com/opinion/2759844/corsini-v-morgan/
+    - https://www.courtlistener.com/opinion/4885245/elsayed-v-miamisburg-by-the-mall/
+    sample_quotes:
+    - Rent receipts and canceled checks were provided to demonstrate the amount paid
+      each month.
+    - The tenant provided cancelled checks and bank statements to prove the amount
+      of rent actually paid.
+    - rent receipts
+    suggested_aliases: *id093
+- id: rent_regulated_lease
+  name: Rent Regulated Lease
+  description: A lease showing the legal regulated rent for a rent-stabilized unit,
+    relevant to determining if the rent threshold for decontrol is met.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id094 []
+  _bootstrap:
+    sources:
+    - https://law.justia.com/codes/new-york/2006/new-york-city-administrative-code-new/adc026-504.3_26-504.3.html
+    sample_quotes: []
+    suggested_aliases: *id094
+- id: rent_stabilization_application
+  name: Rent Stabilization Application
+  description: The official application or registration form filed with the DHCR or
+    city agency that documents a unit's rent stabilization status.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id095 []
+  _bootstrap:
+    sources:
+    - https://law.justia.com/codes/new-york/2006/new-york-city-administrative-code-new/adc026-504_26-504.html
+    sample_quotes:
+    - NYC Admin Code § 26-504 — Rent Stabilization Application
+    suggested_aliases: *id095
+- id: rent_threshold_records
+  name: Rent Threshold Records
+  description: Documentation showing the legal regulated rent at vacancy or over time
+    to determine if high-rent vacancy deregulation applied.
+  jurisdiction: NYS
+  status: proposed
+  aliases: &id096 []
+  _bootstrap:
+    sources:
+    - https://hcr.ny.gov/fact-sheet-36
+    sample_quotes: []
+    suggested_aliases: *id096
+- id: repair_request_logs
+  name: Repair Request Logs
+  description: Written or electronic records of tenant requests for repairs, including
+    dates and responses (or lack thereof).
+  jurisdiction: NYS
+  status: proposed
+  aliases: &id097
+  - Repair Request Log
+  _bootstrap:
+    sources:
+    - https://law.justia.com/codes/new-york/mdw/article-3/title-3/78/
+    - https://up.codes/viewer/new_york_city/nyc-housing-maintenance-code/chapter/5/legal-remedies-and-enforcement
+    sample_quotes: []
+    suggested_aliases: *id097
+- id: signed_rental_agreement
+  name: Signed Rental Agreement
+  description: A written agreement between the roommate and the prime tenant that
+    establishes tenancy rights.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id101 []
+  _bootstrap:
+    sources:
+    - https://housingcourtanswers.org/answers/for-tenants/roommate-issues/
+    sample_quotes:
+    - If you have been living in the room for at least 30 days or have a signed rental
+      agreement, you have tenancy rights.
+    suggested_aliases: *id101
+- id: state_issued_id
+  name: State-Issued Photo Identification
+  description: A government-issued ID required for in-person requests for rent history
+    at DHCR borough offices.
+  jurisdiction: NYS
+  status: proposed
+  aliases: &id102 []
+  _bootstrap:
+    sources:
+    - https://www.metcouncilonhousing.org/help-answers/about-rent-stabilization/
+    sample_quotes:
+    - To obtain your rent-history in person, you must bring a state-issued photo identification
+      and a copy of your lease.
+    suggested_aliases: *id102
+- id: surrender_letter
+  name: Surrender Letter
+  description: A written notice to the landlord stating the tenant has vacated and
+    surrendered possession of the apartment.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id103 []
+  _bootstrap:
+    sources:
+    - https://www.metcouncilonhousing.org/help-answers/if-you-want-to-break-your-lease/
+    sample_quotes:
+    - 'Dear [Landlord]: The undersigned tenant of [Apartment Number] at [Address],
+      New York, N.Y (“the apartment”) hereby surrenders possession of and has permanently
+      vacated the apartment, effective immediately.'
+    suggested_aliases: *id103
+- id: tax_abatement_records
+  name: Tax Abatement Records
+  description: Government records showing J-51 or 421-a tax benefits for a building,
+    indicating rent stabilization eligibility.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id104 []
+  _bootstrap:
+    sources:
+    - https://www.justfix.org/en/learn/rent-history-101
+    sample_quotes:
+    - government websites showing that your building has (or had when you moved in)
+      J-51 or 421-a benefits
+    suggested_aliases: *id104
+- id: tax_return_income_proof
+  name: Tax Return Income Proof
+  description: Tax returns or other income documentation used to establish a tenant's
+    household income for high income decontrol purposes.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id105 []
+  _bootstrap:
+    sources:
+    - https://law.justia.com/codes/new-york/2006/new-york-city-administrative-code-new/adc026-504.3_26-504.3.html
+    sample_quotes: []
+    suggested_aliases: *id105
+- id: temperature_logs
+  name: Temperature Logs
+  description: Records of indoor temperature readings taken at various times and locations
+    within the dwelling unit.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id106 []
+  _bootstrap:
+    sources:
+    - https://nycadmincode.readthedocs.io/t27/c02/sch02/art08/
+    sample_quotes:
+    - a temperature of at least sixty-eight degrees Fahrenheit... a temperature of
+      at least fifty-five degrees Fahrenheit
+    suggested_aliases: *id106
+- id: temperature_readings
+  name: Temperature Readings
+  description: Records of indoor temperature measurements, relevant to heat or habitability
+    claims.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id107 []
+  _bootstrap:
+    sources:
+    - https://www.justfix.org/en/learn/guide-to-hp-actions
+    sample_quotes:
+    - Any evidence you have, such as photos, text messages, notes of temperature readings,
+      etc.
+    suggested_aliases: *id107
+- id: tenant_complaint_records
+  name: Tenant Complaint Records
+  description: Copies of complaints made to the landlord or authorities regarding
+    the harassing behavior.
+  jurisdiction: NYS
+  status: proposed
+  aliases: &id108
+  - Complaints to Landlord
+  - Harassment Complaint or Record
+  _bootstrap:
+    sources:
+    - https://www.nysenate.gov/legislation/laws/PEN/241.05
+    - https://legalaidnyc.org/get-help/housing-problems/what-you-need-to-know-about-tenant-harassment/
+    - https://nycadmincode.readthedocs.io/t27/c02/sch02/art01/
+    sample_quotes:
+    - The owner of a dwelling shall not harass any tenants or persons lawfully entitled
+      to occupancy
+    - Records of complaints to the landlord
+    suggested_aliases: *id108
+- id: tenant_witness_testimony
+  name: Tenant and Witness Testimony
+  description: Oral or written statements from tenants or witnesses about harassment
+    incidents.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id109 []
+  _bootstrap:
+    sources:
+    - https://legalaidnyc.org/get-help/housing-problems/what-you-need-to-know-about-tenant-harassment/
+    sample_quotes:
+    - Tenant and witness testimony
+    suggested_aliases: *id109
+- id: utility_bills
+  name: Utility Bills
+  description: Bills for utilities such as electricity, gas, or water, which may show
+    whether services were interrupted or improperly charged.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id110 []
+  _bootstrap:
+    sources:
+    - https://www.courtlistener.com/opinion/4633016/217-williams-llc-v-worthen/
+    - https://www.courtlistener.com/opinion/6315365/north-driggs-holdings-llc-v-burstiner/
+    - https://www.courtlistener.com/opinion/6316243/150-west-end-owners-corp-v-chestnut-holdings-of-ny-inc/
+    sample_quotes:
+    - Utility bills were submitted to demonstrate that the landlord shut off heat
+      and hot water.
+    - Utility bills were used to corroborate claims of service interruptions.
+    - The tenant submitted utility bills showing she paid for heat that the landlord
+      was required to provide.
+    suggested_aliases: *id110
+- id: vacancy_decontrol_records
+  name: Vacancy Decontrol Records
+  description: Records showing whether the unit was subject to vacancy decontrol or
+    luxury deregulation.
+  jurisdiction: NYS
+  status: proposed
+  aliases: &id112 []
+  _bootstrap:
+    sources:
+    - https://www.nysenate.gov/legislation/laws/ETP/5
+    sample_quotes:
+    - Housing accommodations which are not subject to this act shall include... accommodations
+      which are not subject to rent stabilization.
+    suggested_aliases: *id112
+- id: who_owns_what_data
+  name: Who Owns What Data
+  description: Data from JustFix's Who Owns What tool showing registered rent-stabilized
+    units and changes over time.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id115 []
+  _bootstrap:
+    sources:
+    - https://www.justfix.org/en/learn/rent-history-101
+    sample_quotes:
+    - Who Owns What can tell you how many units your landlord registered as rent stabilized
+    suggested_aliases: *id115
+- id: witness_testimony
+  name: Witness Testimony
+  description: Oral statements from tenants, neighbors, or others with personal knowledge
+    of the conditions or events, given under oath.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id117 []
+  _bootstrap:
+    sources:
+    - https://www.courtlistener.com/opinion/8720199/davis-v-city-of-new-york/
+    sample_quotes:
+    - The tenant's testimony about the lack of heat was corroborated by a neighbor.
+    suggested_aliases: *id117
+- id: written_agreement_to_end_lease
+  name: Written Agreement to End Lease
+  description: A signed, notarized document from the landlord agreeing to terminate
+    the lease early.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id118 []
+  _bootstrap:
+    sources:
+    - https://www.metcouncilonhousing.org/help-answers/if-you-want-to-break-your-lease/
+    sample_quotes:
+    - If your landlord agrees to let you end the lease early, get the agreement in
+      writing, signed by both you and your landlord (preferably in front of a notary)
+      and keep the signed document for your records.
+    suggested_aliases: *id118
+- id: written_lease_agreement
+  name: Written Lease Agreement
+  description: A written agreement with the landlord for at least one year, required
+    for unregulated apartments to get FHEPS.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id119 []
+  _bootstrap:
+    sources:
+    - https://housingcourtanswers.org/answers/for-tenants/housing-court-tenants/rent-arrears-tenants/
+    sample_quotes:
+    - If your apartment is not rent regulated, you must be the tenant of record and
+      have a written agreement with your landlord for at least one year.
+    suggested_aliases: *id119

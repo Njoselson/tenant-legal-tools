@@ -48,16 +48,18 @@ M7 Web ingestion UI — independent, can slot in anytime (mostly done)
 
 ---
 
-## 🔄 Active (2026-05-10)
+## 🔄 Active (2026-05-26)
 
-**Ingestion revamp ✅ done:** 22 manifests → 16, 220 entries, 0 failed URLs, timeout hang fixed (blocking `requests` now runs in thread pool so the 360s `asyncio.wait_for` ceiling fires correctly).
+**Taxonomy refactor ✅ done (2026-05-25):** YAML-driven taxonomy, new ClaimMatcher, taxonomy-first ingestion pipeline.
 
-Two workstreams remaining before Phase 1 exit criterion:
+**Eval baseline established (2026-05-26):**
+- Claim F1: 55.6% (P=51.6%, R=64.3%)
+- Outcome accuracy: 33.3% (7/21 cases)
+- Remedy recall: 50%
 
-1. **Graph architecture** — fix cross-type linking (CASE_DOCUMENT→CITES→LAW, →RESULTS_IN→LEGAL_OUTCOME), verify LLM is reusing existing entity IDs from prompt context, migrate deprecated node types. **This is the blocker for eval and UI.**
-2. **Dead code** — remove `context_expander.py`, `legal_element_extractor.py`, deprecated entity types, stale scripts. Do as warmup, not a standalone session.
+**Blocker for 80% outcome accuracy:** Only 11 court cases in DB have known outcomes. 62/75 CourtListener cases have no API text (paywalled). Need ~40+ diverse court cases with outcomes. Best path: source from nycourts.gov/reporter (free, worked in M2/M3 sessions).
 
-> ⚠️ Exit criterion for Phase 1: CASE_DOCUMENT→RESULTS_IN→LEGAL_OUTCOME exists for ≥80% of case documents AND eval outcome accuracy improves from 71% to ≥80%. Without this gate, don't start Phase 3 UI work.
+> ⚠️ Exit criterion for Phase 1: eval outcome accuracy ≥ 80%. Current: 33.3%. Next action: ingest more court opinions from nycourts.gov/reporter to build a richer outcome corpus.
 
 ---
 

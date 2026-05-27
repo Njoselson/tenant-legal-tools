@@ -1,0 +1,1126 @@
+# Bootstrap draft — laws
+# 99 novel proposals not yet in canonical YAML
+# Review: promote (copy to canonical YAML), merge as alias, or delete
+# After first-pass curation: 55 entries
+# After second-pass curation: 55 entries
+
+- id: 421a_tax_abatement
+  name: 421-a Tax Abatement
+  description: A state tax incentive for new construction that requires rent-stabilization
+    protections for tenants during the abatement period.
+  jurisdiction: NYS
+  status: proposed
+  aliases: &id001 []
+  _bootstrap:
+    sources:
+    - https://www.metcouncilonhousing.org/help-answers/about-rent-stabilization/
+    sample_quotes:
+    - 421-a tax abatements (for new construction) and a J-51 tax abatements (for upgrades
+      to existing buildings) give rent-stabilization protections to tenants otherwise
+      not covered
+    suggested_aliases: *id001
+  citation: NY RPTL § 421-a
+- id: 421a_tax_exemption_law
+  name: 421-a Tax Exemption Law
+  description: A state tax exemption program that requires rent stabilization for
+    units in buildings receiving the benefit.
+  jurisdiction: NYS
+  status: proposed
+  aliases: &id002 []
+  _bootstrap:
+    sources:
+    - https://www.justfix.org/en/learn/rent-history-101
+    sample_quotes:
+    - Because of a tax abatement like J-51 or 421-a
+    suggested_aliases: *id002
+  citation: NY Real Property Tax Law § 421-a
+- id: dhcr_regulation_on_fraud
+  name: DHCR Regulation on Fraud
+  description: A regulation allowing the DHCR to examine the rental history of an
+    apartment for up to four years prior to a complaint if the landlord is found to
+    have committed fraud.
+  jurisdiction: NYS
+  status: proposed
+  aliases: &id003 []
+  _bootstrap:
+    sources:
+    - https://www.courtlistener.com/opinion/2759844/corsini-v-morgan/
+    sample_quotes:
+    - The regulation permits the DHCR to look back beyond the four-year statute of
+      limitations in cases of fraud.
+    suggested_aliases: *id003
+  citation: 9 NYCRR § 2526.1(a)
+- id: dhcr_regulations
+  name: DHCR Rent Regulations
+  description: State regulations governing rent stabilization and rent control, including
+    procedures for overcharge complaints and service reductions.
+  jurisdiction: NYS
+  status: proposed
+  aliases: &id004 []
+  _bootstrap:
+    sources:
+    - https://www.courtlistener.com/opinion/4680212/matter-of-bedeau-realty-corp-v-state-of-new-york-div-of-hous/
+    - https://www.courtlistener.com/opinion/5997156/73-warren-street-llc-v-state-of-new-york-division-of-housing-community/
+    - https://www.courtlistener.com/opinion/10364727/matter-of-5511-777-st-marks-ave-bk-llc-v-state-of-new-york-div-of-hous/
+    - https://www.courtlistener.com/opinion/4678184/matter-of-gray-v-new-york-state-div-of-hous-community-renewal/
+    sample_quotes:
+    - The DHCR regulations require landlords to register apartments annually.
+    - the DHCR's regulations governing rent overcharge complaints
+    - The DHCR regulations set forth the procedures for rent overcharge complaints.
+    suggested_aliases: *id004
+  citation: 9 NYCRR Parts 2100-2530
+- id: etpa_section_5
+  name: Emergency Tenant Protection Act § 5
+  description: Sets forth the applicability of rent stabilization to housing accommodations,
+    including exemptions and deregulation provisions.
+  jurisdiction: NYS
+  status: proposed
+  aliases: &id005 []
+  _bootstrap:
+    sources:
+    - https://www.nysenate.gov/legislation/laws/ETP/5
+    sample_quotes:
+    - Housing accommodations which are not subject to this act shall include... accommodations
+      which are not subject to rent stabilization.
+    suggested_aliases: *id005
+  citation: N.Y. Unconsol. Laws § 8625 (McKinney)
+- id: fair_housing_act_title_viii
+  name: Fair Housing Act (Title VIII of the Civil Rights Act of 1968)
+  description: Federal law prohibiting discrimination in the sale, rental, financing,
+    and other housing-related transactions based on race, color, national origin,
+    religion, sex, familial status, and disability.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id006
+  - Fair Housing Act (42 U.S.C. § 3601 et seq.)
+  - Fair Housing Act (Federal)
+  - Federal Fair Housing Act
+  _bootstrap:
+    sources:
+    - https://www.justfix.org/en/learn/air-conditioning-laws
+    - https://www.courtlistener.com/opinion/8716132/smith-v-housing-authority/
+    - https://www.courtlistener.com/opinion/10679704/walker-v-us-department-of-agriculture-rural-development/
+    - https://www.metcouncilonhousing.org/help-answers/housing-discrimination/
+    sample_quotes:
+    - The Fair Housing Act was referenced in the discrimination claim.
+    - City, State, and Federal Fair Housing laws require landlords to make reasonable
+      accommodations, including potentially upgrading electric systems to allow for
+      air conditioning installations.
+    - Title VIII of the Civil Rights Act of 1968 (Fair Housing Act), as amended, prohibits
+      discrimination in the sale, rental, and financing of dwellings, and in other
+      housing-related transactions, based on race, color, national origin, religion,
+      sex, familial status (including children under the age of 18 living with parents
+      or legal custodians, pregnant women, and people securing custody of children
+      under the age of 18), and diability.
+    suggested_aliases: *id006
+  citation: 42 U.S.C. § 3601 et seq.
+- id: fheps_regulation
+  name: Family Homelessness and Eviction Prevention Supplement (FHEPS)
+  description: A rent supplement program for families on public assistance with children
+    under 18, paying a higher monthly shelter allowance and up to $7,000 in arrears.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id007 []
+  _bootstrap:
+    sources:
+    - https://housingcourtanswers.org/answers/for-tenants/housing-court-tenants/rent-arrears-tenants/
+    sample_quotes:
+    - The Family Homelessness and Eviction Prevention Supplement (FHEPS) is ongoing
+      assistance for families with minor children on public assistance.
+    suggested_aliases: *id007
+  citation: NYC Admin Code or NY Social Services Law (implied)
+- id: fuel_pass_along_prohibition
+  name: Fuel Pass Along Prohibition
+  description: A law prohibiting landlords from adding fuel and labor pass along charges
+    to rent-controlled tenants as of June 14, 2019.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id008 []
+  _bootstrap:
+    sources:
+    - https://www.metcouncilonhousing.org/help-answers/rent-control/
+    sample_quotes:
+    - As of June 14, 2019 – Landlords are no longer allowed to add fuel and labor
+      pass along to rent controlled tenants
+    suggested_aliases: *id008
+  citation: NYC Admin Code § 26-405 (as amended 2019)
+- id: hpd_mold_violation_classes
+  name: HPD Mold Violation Classes
+  description: NYC law classifying mold violations into Class A, B, and C based on
+    size, with specific cure periods (90, 60, or 24 hours).
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id009 []
+  _bootstrap:
+    sources:
+    - https://www.justfix.org/en/learn/mold-in-apartment
+    sample_quotes:
+    - 'Class A: Mold of less than 10 square feet... Class B: Mold of more than 10
+      square feet but less than 30 square feet... Class C: Mold spanning 30 or more
+      square feet...'
+    suggested_aliases: *id009
+  citation: NYC Housing Maintenance Code § 27-2017.2
+- id: high_rent_deregulation_law
+  name: High Rent Deregulation Law
+  description: Former law allowing deregulation of apartments with high rents or high
+    tenant income, abolished for leases after June 14, 2019.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id010 []
+  _bootstrap:
+    sources:
+    - https://www.metcouncilonhousing.org/help-answers/about-rent-stabilization/
+    sample_quotes:
+    - an individual apartment in the building was deregulated due to high-rent vacancy
+      decontrol, or high-income/high-rent decontrol prior to June 14, 2019.
+    suggested_aliases: *id010
+  citation: NYC Admin Code § 26-504.1 (repealed 2019)
+- id: high_rent_high_income_decontrol
+  name: High-Rent/High-Income Decontrol
+  description: A provision that allowed deregulation of rent-stabilized apartments
+    when the rent exceeded a threshold and the tenant's income was high, applicable
+    before June 2019.
+  jurisdiction: NYS
+  status: proposed
+  aliases: &id011
+  - High-Rent Vacancy Decontrol
+  - Vacancy Decontrol
+  _bootstrap:
+    sources:
+    - https://www.metcouncilonhousing.org/help-answers/rent-control/
+    - https://www.metcouncilonhousing.org/help-answers/how-can-i-find-out-if-i-am-rent-stabilized/
+    sample_quotes:
+    - The system is now under vacancy decontrol – once the tenant moves out, the apartment
+      is decontrolled–it either becomes rent
+    - If before June 2019 – your apartment was deregulated due to high-rent vacancy
+      decontrol, or high-rent/high-income decontrol.
+    - If before June 2019 – your apartment was deregulated due to high-rent vacancy
+      decontrol, or high-rent/high-income decontrol.
+    suggested_aliases: *id011
+  citation: NYS Rent Stabilization Law (pre-2019 amendments)
+- id: hpd_code_27-2009
+  name: Housing Maintenance Code § 27-2009
+  description: Requires landlords to keep premises in good repair and fit for human
+    habitation.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id012 []
+  _bootstrap:
+    sources:
+    - https://www.courtlistener.com/opinion/10596743/emerald-lofts-llc-v-echevarria/
+    sample_quotes:
+    - Housing Maintenance Code § 27-2009 mandates repairs
+    suggested_aliases: *id012
+  citation: NYC Admin Code § 27-2009
+- id: hstpa_2019_duty_to_mitigate
+  name: Housing Stability and Tenant Protection Act of 2019 - Duty to Mitigate Damages
+  description: A New York State law requiring landlords to make reasonable efforts
+    to re-rent an apartment after a tenant vacates mid-lease, limiting the tenant's
+    liability for remaining rent.
+  jurisdiction: NYS
+  status: proposed
+  aliases: &id013
+  - Housing Stability and Tenant Protection Act of 2019
+  - Housing Stability and Tenant Protection Act of 2019 (Article 6)
+  _bootstrap:
+    sources:
+    - https://www.courtlistener.com/opinion/10598390/matter-of-901-bklyn-realty-llc-v-manigat/
+    - https://www.courtlistener.com/opinion/4695223/crockett-v-351-st-nicholas-ave-llc/
+    - https://hcr.ny.gov/fact-sheet-36
+    - https://law.justia.com/codes/new-york/2006/new-york-city-administrative-code-new/adc026-504.3_26-504.3.html
+    - https://www.courtlistener.com/opinion/10641436/rodriguez-v-hub-bk-llc/
+    - https://www.metcouncilonhousing.org/help-answers/if-you-want-to-break-your-lease/
+    sample_quotes:
+    - The court applied the HSTPA's provisions regarding the base date for rent overcharge
+      calculations.
+    - While fully vacating and surrendering the apartment does not mean your lease
+      is terminated, it does trigger the landlord’s “duty to mitigate damages”, as
+      outlined in the Housing Stability and Tenant Protection Act (HSTPA) of 2019.
+    - the Housing Stability and Tenant Protection Act of 2019 was applied to the overcharge
+      claims
+    suggested_aliases: *id013
+  citation: Housing Stability and Tenant Protection Act (HSTPA) of 2019
+- id: iai_cap_law
+  name: Individual Apartment Improvement (IAI) Cap Law
+  description: 'A law capping the amount landlords can increase rent for renovations,
+    with two tiers: $30,000 for most apartments and $50,000 for certain vacant or
+    long-term tenancies, amortized over 15 years.'
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id014 []
+  _bootstrap:
+    sources:
+    - https://www.metcouncilonhousing.org/help-answers/rent-stabilization-overcharges/
+    sample_quotes:
+    - 'Two Tiers of IAI Caps: Tier 1: $30,000 for all apartments, amortized over 15
+      years, an increase of up to $179 a month Tier 2: apartments must have been vacant
+      for 2022, 2023, and 2024, and apartments where the prior tenant has lived in
+      the unit for 25 years or more. $50,000 amortized over 15 years, an increase
+      of up to $347 a month'
+    suggested_aliases: *id014
+  citation: NYC Admin Code § 26-511(c)(6)
+- id: j51_tax_abatement
+  name: J-51 Tax Abatement
+  description: A city tax incentive for building upgrades that requires rent-stabilization
+    protections for tenants during the abatement period.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id015
+  - J-51 Tax Abatement Law
+  _bootstrap:
+    sources:
+    - https://www.justfix.org/en/learn/rent-history-101
+    - https://www.metcouncilonhousing.org/help-answers/about-rent-stabilization/
+    sample_quotes:
+    - Because of a tax abatement like J-51 or 421-a
+    - J-51 tax abatements (for upgrades to existing buildings) give rent-stabilization
+      protections to tenants otherwise not covered
+    suggested_aliases: *id015
+  citation: NY RPTL § 489
+- id: mci_regulations
+  name: Major Capital Improvement Regulations
+  description: State regulations allowing landlords to pass MCI costs to tenants as
+    long-term rent increases, capped at 2% per year.
+  jurisdiction: NYS
+  status: proposed
+  aliases: &id016 []
+  _bootstrap:
+    sources:
+    - https://www.metcouncilonhousing.org/help-answers/about-rent-stabilization/
+    sample_quotes:
+    - MCI increases for rent-stabilized tenants are capped at 2% per year and this
+      amount is added to the base rent before the RGB adj
+    suggested_aliases: *id016
+  citation: NYCRR Title 9, § 2522.4
+- id: maximum_base_rent_system
+  name: Maximum Base Rent (MBR) System
+  description: A system for determining allowable rent increases for rent-controlled
+    apartments, now based on an average of the last 5 RGB 1-year increases or 7.5%,
+    whichever is less.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id017 []
+  _bootstrap:
+    sources:
+    - https://www.metcouncilonhousing.org/help-answers/rent-control/
+    sample_quotes:
+    - As of June 2019, the rent increase will now be an average of the last 5 Rent
+      Guidelines Board 1-year rent increases or 7.5%, whichever is less
+    suggested_aliases: *id017
+  citation: NYC Admin Code § 26-405
+- id: mdr_law_78
+  name: Multiple Dwelling Law § 78
+  description: Requires owners of multiple dwellings to keep the building and its
+    parts in good repair and fit for human habitation.
+  jurisdiction: NYS
+  status: proposed
+  aliases: &id018 []
+  _bootstrap:
+    sources:
+    - https://law.justia.com/codes/new-york/mdw/article-3/title-3/78/
+    sample_quotes:
+    - Every multiple dwelling... shall be kept in good repair by the owner... and
+      shall be kept in a condition fit for human habitation.
+    suggested_aliases: *id018
+  citation: N.Y. Multiple Dwelling Law § 78
+- id: nyc_admin_code_ch4_rent_stabilization
+  name: NYC Admin Code Chapter 4 - Rent Stabilization
+  description: The chapter of the NYC Administrative Code governing rent stabilization,
+    including sections 26-501 through 26-520.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id019 []
+  _bootstrap:
+    sources:
+    - https://nycadmincode.readthedocs.io/t26/c04/
+    sample_quotes:
+    - Chapter 4 - RENT STABILIZATION
+    suggested_aliases: *id019
+  citation: NYC Admin Code Title 26, Chapter 4
+- id: nyc_admin_code_title_26_ch2
+  name: NYC Admin Code Title 26 Chapter 2
+  description: Chapter governing relocation services for tenants in New York City,
+    including payments and procedures.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id020 []
+  _bootstrap:
+    sources:
+    - https://nycadmincode.readthedocs.io/t26/c02/index.html
+    sample_quotes:
+    - Chapter 2 - RELOCATION SERVICES — NYC Administrative Code
+    suggested_aliases: *id020
+  citation: NYC Admin Code Title 26, Chapter 2
+- id: nyc_admin_code_26_301
+  name: NYC Admin Code § 26-301
+  description: Establishes the commissioner's duty to provide relocation services
+    and payments for displaced tenants in various circumstances.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id021 []
+  _bootstrap:
+    sources:
+    - https://nycadmincode.readthedocs.io/t26/c02/index.html
+    sample_quotes:
+    - '§ 26-301 Relocation of tenants. 1. The commissioner of housing preservation
+      and development shall have the power and it shall be his or her duty: (a) To
+      provide and maintain tenant relocation services'
+    suggested_aliases: *id021
+  citation: NYC Admin Code § 26-301
+- id: nyc_admin_code_26_504_2
+  name: NYC Admin Code § 26-504.2
+  description: Excludes from rent stabilization certain high-rent accommodations where
+    the legal regulated rent at vacancy exceeds a statutory threshold, subject to
+    vacancy decontrol rules.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id022 []
+  _bootstrap:
+    sources:
+    - https://law.justia.com/codes/new-york/2006/new-york-city-administrative-code-new/adc026-504.2_26-504.2.html
+    sample_quotes:
+    - Exclusion of High Rent Accommodations
+    suggested_aliases: *id022
+  citation: NYC Admin Code § 26-504.2
+- id: nyc_admin_code_26_504_3
+  name: NYC Admin Code § 26-504.3
+  description: The former New York City law that allowed high income rent decontrol
+    for rent-stabilized apartments, repealed by the Housing Stability and Tenant Protection
+    Act of 2019 (HSTPA).
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id023 []
+  _bootstrap:
+    sources:
+    - https://law.justia.com/codes/new-york/2006/new-york-city-administrative-code-new/adc026-504.3_26-504.3.html
+    sample_quotes:
+    - NYC Admin Code § 26-504.3 — High Income Rent Decontrol (Repealed by HSTPA 2019)
+    suggested_aliases: *id023
+  citation: NYC Admin Code § 26-504.3
+- id: nyc_admin_code_26_516
+  name: NYC Admin Code § 26-516
+  description: The primary statute governing enforcement, procedures, and penalties
+    for rent overcharges in rent-stabilized units in New York City.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id024 []
+  _bootstrap:
+    sources:
+    - https://law.justia.com/codes/new-york/2006/new-york-city-administrative-code-new/adc026-516_26-516.html
+    sample_quotes:
+    - NYC Admin Code § 26-516 — Enforcement, Procedures, and Overcharge Penalties
+    suggested_aliases: *id024
+  citation: NYC Admin Code § 26-516
+- id: nyc_admin_code_27_2004
+  name: NYC Admin Code § 27-2004
+  description: Contains definitions and provisions, including harassment definition
+    referenced in § 27-2005.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id025 []
+  _bootstrap:
+    sources:
+    - https://nycadmincode.readthedocs.io/t27/c02/sch02/art01/
+    sample_quotes:
+    - as set forth in paragraph 48 of subdivision a of section 27-2004 of this chapter.
+    suggested_aliases: *id025
+  citation: NYC Admin Code § 27-2004
+- id: nyc_admin_code_27_2006
+  name: NYC Admin Code § 27-2006
+  description: Defines duties of tenants regarding code violations and clarifies that
+    owner obligations are not relieved.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id026 []
+  _bootstrap:
+    sources:
+    - https://nycadmincode.readthedocs.io/t27/c02/sch02/art01/
+    sample_quotes:
+    - § 27-2006 Duties of tenant. a. A tenant shall... be responsible for violations
+      of this code to the extent that he or she has the power to prevent the occurrence
+      of a violation.
+    suggested_aliases: *id026
+  citation: NYC Admin Code § 27-2006
+- id: nyc_admin_code_27_2007
+  name: NYC Admin Code § 27-2007
+  description: Lists specific prohibited acts by tenants, such as removing self-closing
+    doors or obstructing fire escapes.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id027 []
+  _bootstrap:
+    sources:
+    - https://nycadmincode.readthedocs.io/t27/c02/sch02/art01/
+    sample_quotes:
+    - '§ 27-2007 Certain specific duties of tenants and others. In addition to other
+      duties imposed upon him or her by this code, no tenant... shall: a. Remove or
+      render inoperative any self-closing device...'
+    suggested_aliases: *id027
+  citation: NYC Admin Code § 27-2007
+- id: nyc_admin_code_27_2028
+  name: NYC Admin Code § 27-2028
+  description: Requires central heating or approved alternative heating systems in
+    multiple dwellings and tenant-occupied one- or two-family dwellings.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id028 []
+  _bootstrap:
+    sources:
+    - https://nycadmincode.readthedocs.io/t27/c02/sch02/art08/
+    sample_quotes:
+    - every multiple dwelling and every tenant-occupied one or two-family dwelling
+      shall be provided with heat from a central heating system
+    suggested_aliases: *id028
+  citation: NYC Admin Code § 27-2028
+- id: nyc_admin_code_27_2029
+  name: NYC Admin Code § 27-2029
+  description: Sets minimum temperature requirements for heating season (Oct 1 - May
+    31) and prohibits devices that disable heating systems.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id029 []
+  _bootstrap:
+    sources:
+    - https://nycadmincode.readthedocs.io/t27/c02/sch02/art08/
+    sample_quotes:
+    - During the period from October first through May thirty-first, centrally-supplied
+      heat... shall be furnished so as to maintain... a temperature of at least sixty-eight
+      degrees Fahrenheit
+    suggested_aliases: *id029
+  citation: NYC Admin Code § 27-2029
+- id: nyc_admin_code_27_2031
+  name: NYC Admin Code § 27-2031
+  description: Requires hot water supply at minimum 120°F (or 110°F with certain valves)
+    from 6 a.m. to midnight in multiple dwellings and tenant-occupied one- or two-family
+    dwellings.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id030 []
+  _bootstrap:
+    sources:
+    - https://nycadmincode.readthedocs.io/t27/c02/sch02/art08/
+    sample_quotes:
+    - every bath, shower, washbasin and sink in any dwelling unit... shall be supplied
+      at all times between the hours of six a. m. and midnight with hot water at a
+      constant minimum temperature of one hundred twenty degrees Fahrenheit
+    suggested_aliases: *id030
+  citation: NYC Admin Code § 27-2031
+- id: nyc_admin_code_27_2032
+  name: NYC Admin Code § 27-2032
+  description: Regulates gas-fueled or electric space or water heaters as alternatives
+    to central systems.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id031 []
+  _bootstrap:
+    sources:
+    - https://nycadmincode.readthedocs.io/t27/c02/sch02/art08/
+    sample_quotes:
+    - Gas-fueled or electric space or water heaters, where
+    suggested_aliases: *id031
+  citation: NYC Admin Code § 27-2032
+- id: nyc_admin_code_27-2013
+  name: NYC Administrative Code § 27-2013
+  description: Provision of the NYC Housing Maintenance Code addressing bedbug infestations
+    and landlord obligations to remediate.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id032 []
+  _bootstrap:
+    sources:
+    - https://www.courtlistener.com/opinion/6314797/46-downing-street-llc-v-thompson/
+    sample_quotes:
+    - The court referenced NYC Admin Code § 27-2013 in relation to bedbug treatment
+      requirements.
+    suggested_aliases: *id032
+  citation: NYC Admin Code § 27-2013
+- id: nyc_housing_code_harassment
+  name: NYC Housing Code Harassment Violation
+  description: Tenant harassment is a housing code violation in New York City, allowing
+    tenants to sue in Housing Court.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id033 []
+  _bootstrap:
+    sources:
+    - https://legalaidnyc.org/get-help/housing-problems/what-you-need-to-know-about-tenant-harassment/
+    sample_quotes:
+    - In New York City, tenant harassment is also a housing code violation, and tenants
+      can sue their landlord in Housing Court if they are being harassed.
+    suggested_aliases: *id033
+  citation: NYC Admin Code (likely § 27-2005)
+- id: hpd_code_violations
+  name: NYC Housing Maintenance Code (HMC)
+  description: NYC code that sets minimum housing standards and requires landlords
+    to maintain buildings in a safe, clean, and habitable condition, enforced by HPD.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id034
+  - Housing Maintenance Code (HMC)
+  _bootstrap:
+    sources:
+    - https://www.courtlistener.com/opinion/6476304/woods-v-sharkin/
+    - https://www.courtlistener.com/opinion/4633016/217-williams-llc-v-worthen/
+    - https://www.courtlistener.com/opinion/4865090/people-v-dr-226-holdings-llc/
+    sample_quotes:
+    - The HPD violations were issued under the Housing Maintenance Code for failure
+      to provide heat and hot water.
+    - The Housing Maintenance Code was cited in connection with the tenant's habitability
+      claims.
+    suggested_aliases: *id034
+  citation: NYC Admin Code Title 27, Chapter 2
+- id: nyc_hmc_subchapter_5
+  name: NYC Housing Maintenance Code Subchapter 5
+  description: Statutory provisions governing legal remedies and enforcement of housing
+    maintenance standards in New York City.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id035 []
+  _bootstrap:
+    sources:
+    - https://up.codes/viewer/new_york_city/nyc-housing-maintenance-code/chapter/5/legal-remedies-and-enforcement
+    sample_quotes:
+    - 'Subchapter 5 Legal Remedies and Enforcement: New York City Housing Maintenance
+      Code'
+    suggested_aliases: *id035
+  citation: NYC Admin Code § 27-2005 et seq.
+- id: nyc_rent_and_rehabilitation_law
+  name: NYC Rent and Rehabilitation Law
+  description: Prior local laws that extended rent regulation to certain housing accommodations
+    not previously covered.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id036 []
+  _bootstrap:
+    sources:
+    - https://nycadmincode.readthedocs.io/t26/c04/
+    sample_quotes:
+    - prior to the adoption of local laws sixteen and fifty-one of nineteen hundred
+      sixty-nine
+    suggested_aliases: *id036
+  citation: Local Laws 16 and 51 of 1969
+- id: nys_penal_law_harassment
+  name: NYS Penal Law Harassment
+  description: Tenant harassment can be a felony or misdemeanor under New York State
+    law.
+  jurisdiction: NYS
+  status: proposed
+  aliases: &id037 []
+  _bootstrap:
+    sources:
+    - https://legalaidnyc.org/get-help/housing-problems/what-you-need-to-know-about-tenant-harassment/
+    sample_quotes:
+    - In New York State, tenant harassment can be a felony or misdemeanor.
+    suggested_aliases: *id037
+  citation: NYS Penal Law (likely § 240.25 or similar)
+- id: nyc_human_rights_law
+  name: New York City Human Rights Law
+  description: A city law providing robust protections against discrimination, including
+    requiring landlords to make reasonable accommodations for tenants with disabilities,
+    such as for air conditioning.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id038
+  - NYC Human Rights Law
+  _bootstrap:
+    sources:
+    - https://www.justfix.org/en/learn/air-conditioning-laws
+    - https://www.metcouncilonhousing.org/help-answers/housing-discrimination/
+    sample_quotes:
+    - The New York City Human Rights Law applies to almost all apartments in New York
+      City and provides especially robust protections for tenants with disabilities.
+    - The City Human Rights Law protects residents of most types of housin g in New
+      York City against discrimination.
+    suggested_aliases: *id038
+  citation: NYC Admin. Code § 8-101 et seq.
+- id: no_harassment_pilot_program
+  name: No Harassment Pilot Program
+  description: A program requiring landlords found to have harassed tenants to obtain
+    special work permits before doing substantial work in the building.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id039 []
+  _bootstrap:
+    sources:
+    - https://legalaidnyc.org/get-help/housing-problems/what-you-need-to-know-about-tenant-harassment/
+    sample_quotes:
+    - the building will be enrolled in the No Harassment Pilot Program which requires
+      the landlord to apply for special work permits before it can do substantial
+      work in the building.
+    suggested_aliases: *id039
+  citation: NYC Admin Code (likely § 27-2115 or similar)
+- id: penal_law_241_05
+  name: Penal Law § 241.05
+  description: Makes it a crime to intentionally harass a rent regulated tenant by
+    engaging in conduct that interferes with quiet enjoyment, with intent to induce
+    vacatur.
+  jurisdiction: NYS
+  status: proposed
+  aliases: &id040 []
+  _bootstrap:
+    sources:
+    - https://www.nysenate.gov/legislation/laws/PEN/241.05
+    sample_quotes:
+    - A person is guilty of harassment of a rent regulated tenant when he or she,
+      with intent to induce a tenant to vacate a rent regulated dwelling unit... engages
+      in a course of conduct which interferes with or disturbs the tenant's quiet
+      enjoyment...
+    suggested_aliases: *id040
+  citation: N.Y. Penal Law § 241.05
+- id: rpapl_article_7a
+  name: Real Property Actions and Proceedings Law Article 7A
+  description: New York law allowing tenants to seek court appointment of a receiver
+    or order repairs when a landlord fails to maintain the premises.
+  jurisdiction: NYS
+  status: proposed
+  aliases: &id041 []
+  _bootstrap:
+    sources:
+    - https://www.courtlistener.com/opinion/10689655/shalimar-leasing-lp-v-medina/
+    sample_quotes:
+    - The court referenced RPAPL Article 7A in the context of tenant remedies.
+    suggested_aliases: *id041
+  citation: RPAPL § 769-782
+- id: rpa_753
+  name: Real Property Actions and Proceedings Law § 753
+  description: A New York law that allows a court to stay an eviction proceeding if
+    the tenant can show the landlord failed to maintain the premises, often used in
+    conjunction with warranty of habitability claims.
+  jurisdiction: NYS
+  status: proposed
+  aliases: &id042
+  - NY Real Property Actions and Proceedings Law § 711
+  - NYC Administrative Code § 27-2013
+  - NYC Retaliation Law
+  - New York Real Property Actions and Proceedings Law Article 7
+  - New York Real Property Actions and Proceedings Law § 711
+  - New York Real Property Law § 227-b
+  - RPAPL Article 7
+  - RPAPL Article 7 (Summary Proceedings)
+  - RPAPL § 711
+  - RPAPL § 711(2) - Nonpayment Grounds
+  - Real Property Actions and Proceedings Law § 223-b
+  - Real Property Actions and Proceedings Law § 711
+  - Real Property Actions and Proceedings Law § 711 (Grounds for Eviction)
+  - Real Property Actions and Proceedings Law § 711(2)
+  - Real Property Actions and Proceedings Law § 711(2) (Retaliatory Eviction Defense)
+  - Real Property Actions and Proceedings Law § 711(2) (Retaliatory Eviction)
+  - Real Property Actions and Proceedings Law § 713
+  - Real Property Actions and Proceedings Law § 741 (Retaliatory Eviction Defense)
+  - Real Property Actions and Proceedings Law § 753 (Retaliatory Eviction Defense)
+  - Real Property Actions and Proceedings Law § 768
+  - Real Property Law § 223-b
+  - Real Property Law § 223-b (Retaliatory Eviction)
+  - Real Property Law § 226
+  - Real Property Law § 226 (Retaliation)
+  - Real Property Law § 226-c (Retaliation)
+  - Real Property Law § 227-b
+  - Real Property Law § 227-b (Retaliation)
+  - Real Property Law § 227-b (Retaliatory Eviction)
+  - Real Property Law § 227-e
+  - Retaliatory Eviction Protection (Real Property Law § 223-b)
+  _bootstrap:
+    sources:
+    - https://www.courtlistener.com/opinion/10598390/matter-of-901-bklyn-realty-llc-v-manigat/
+    - https://www.courtlistener.com/opinion/2675136/hapugalle-v-chastleton-cooperative-association/
+    - https://www.courtlistener.com/opinion/10160713/eddy-v-anderson/
+    - https://www.courtlistener.com/opinion/9424522/ferreira-v-charland/
+    - https://www.courtlistener.com/opinion/3159177/foster-v-britton/
+    - https://www.courtlistener.com/opinion/10653966/alekna-v-207-217-w-110-portfolio-owner-llc/
+    - https://www.courtlistener.com/opinion/10304904/burcica-v-ludy/
+    - https://www.courtlistener.com/opinion/7310141/ibrahim-v-department-of-homeland-security/
+    - https://www.courtlistener.com/opinion/4272286/regina-sophus-v-houston-police-department-homicide-division-and-new-hope/
+    - https://www.courtlistener.com/opinion/10442824/304-306-e-83-realty-llc-v-mason/
+    - https://www.courtlistener.com/opinion/9470445/steven-m-selz-v-lauren-mckagen-and-stephen-hursey/
+    - https://www.courtlistener.com/opinion/9500925/south-brooklyn-ry-co-v-heung-man-lau/
+    - https://www.courtlistener.com/opinion/4414807/m-c-v-texas-department-of-family-and-protective-services/
+    - https://www.courtlistener.com/opinion/4637746/354-atl-ave-llc-v-noronha/
+    - https://www.courtlistener.com/opinion/9500911/south-brooklyn-ry-co-v-heung-man-lau/
+    - https://www.courtlistener.com/opinion/889797/fick-v-brown/
+    - https://www.courtlistener.com/opinion/9367604/tammie-guilford-v-weidner-investment-services-inc-weidner-investment/
+    - https://www.courtlistener.com/opinion/6239065/guttman-v-chiazor/
+    - https://www.courtlistener.com/opinion/4429944/phoenician-mediterranean-villa-llc-v-swope-in-re-j-s-properties-llc/
+    - https://www.courtlistener.com/opinion/10801062/james-v-hanley/
+    - https://www.courtlistener.com/opinion/8720199/davis-v-city-of-new-york/
+    - https://www.courtlistener.com/opinion/4348784/scott-v-kaiuum/
+    - https://law.justia.com/cases/new-york/other-courts/2025/2025-ny-slip-op-33306-u.html
+    - https://www.courtlistener.com/opinion/9383662/shaffer-v-dixon/
+    - https://www.courtlistener.com/opinion/9401538/william-angel-patricia-belk-dorothy-brown-robert-brown-anthony-buggs/
+    - https://www.courtlistener.com/opinion/9440172/kiemle-hagood-company-v-mariam-p-daniels-aka-phoebe-daniels/
+    - https://www.courtlistener.com/opinion/5313644/wheeling-v-selene-finance/
+    - https://www.courtlistener.com/opinion/4854807/12636-research-ltd-hsu-realty-company-inc-and-chi-kao-hsu-indian/
+    - https://www.courtlistener.com/opinion/4597229/matter-of-south-lexington-assoc-llc-v-new-york-state-div-of-hous/
+    - https://www.courtlistener.com/opinion/6317338/pena-v-lockenwitz/
+    - https://www.courtlistener.com/opinion/4992210/duhon-v-briley/
+    - https://www.courtlistener.com/opinion/6065353/downing-v-first-lenox-terrace-associates/
+    - https://www.courtlistener.com/opinion/5297675/lund-co-v-clark/
+    - https://www.courtlistener.com/opinion/9478117/tuyen-dinh-v-matthew-raines-and-melissa-clayton/
+    - https://www.courtlistener.com/opinion/8716929/charron-v-pinnacle-group-ny-llc/
+    - https://www.courtlistener.com/opinion/2772083/mosser-companies-v-san-francisco-rent-stabilization-arbitration-board/
+    - https://www.justfix.org/en/learn/mold-in-apartment
+    - https://www.courtlistener.com/opinion/9492811/gourin-v-72a-realty-assoc-lp/
+    - https://www.courtlistener.com/opinion/9487360/black-rock-gardens-llc-v-berry/
+    - https://www.courtlistener.com/opinion/7323114/federal-deposit-insurance-corp-v-dee/
+    - https://www.courtlistener.com/opinion/10642469/lavrich-v-snyderburn/
+    - https://www.courtlistener.com/opinion/8716132/smith-v-housing-authority/
+    - https://www.courtlistener.com/opinion/2677838/erlach-v-sierra-asset-servicing-llc/
+    - https://www.courtlistener.com/opinion/3192367/affordable-autos-inc-v-irvin-a-dietert/
+    - https://www.courtlistener.com/opinion/7428196/scott-v-kaiuum/
+    - https://www.courtlistener.com/opinion/6242476/kohner-props-inc-v-johnson/
+    - https://www.courtlistener.com/opinion/4630465/rodriguez-v-kalata/
+    - https://www.courtlistener.com/opinion/4513050/stewart-v-hargan/
+    - https://www.courtlistener.com/opinion/4878933/pickens-vs-la-villa-vegas-inc/
+    - https://www.courtlistener.com/opinion/4519506/germadnik-v-auld/
+    - https://www.courtlistener.com/opinion/10266532/1719-gates-llc-v-torres/
+    - https://www.courtlistener.com/opinion/6472229/woods-v-sharkin/
+    - https://housingcourtanswers.org/answers/for-tenants/housing-court-tenants/tenant-nonpayment-cases/
+    - https://www.courtlistener.com/opinion/8288834/cent-hous-assocs-lp-v-olson/
+    - https://www.courtlistener.com/opinion/9481741/keating-smith-v-mustafa/
+    - https://www.courtlistener.com/opinion/5326578/sengul-v-cms-franklin-inc/
+    - https://www.courtlistener.com/opinion/10811074/woodley-jr-v-woodberry-village-apartment/
+    - https://www.courtlistener.com/opinion/4633016/217-williams-llc-v-worthen/
+    - https://www.courtlistener.com/opinion/7860639/myers-v-district-of-columbia-housing-authority/
+    - https://www.courtlistener.com/opinion/4431959/guttman-v-chiazor/
+    - https://www.courtlistener.com/opinion/8286581/ellis-v-doe/
+    - https://www.courtlistener.com/opinion/9433963/duncan-v-kihagi/
+    - https://www.courtlistener.com/opinion/10332912/gomes-v-vermyck-llc/
+    - https://www.courtlistener.com/opinion/4274214/linda-s-nowlin-v-lori-keaton/
+    - https://www.courtlistener.com/opinion/4756984/corcoran-v-narrows-bayview-co-llc/
+    - https://law.justia.com/cases/new-york/other-courts/2025/2025-ny-slip-op-25279.html
+    - https://www.courtlistener.com/opinion/6065355/downing-v-first-lenox-terrace-associates/
+    - https://www.courtlistener.com/opinion/6476304/woods-v-sharkin/
+    - https://www.courtlistener.com/opinion/4885245/elsayed-v-miamisburg-by-the-mall/
+    - https://www.courtlistener.com/opinion/4268259/harry-bizios-v-town-of-lakewood-village-texas/
+    - https://www.courtlistener.com/opinion/10038596/pmc-squared-llc-v-rita-gallo/
+    sample_quotes:
+    - The retaliatory eviction claim is based on Real Property Law § 227-b.
+    - Real Property Law § 223-b protects tenants from retaliation
+    - Real Property Law § 227-b defines harassment as a course of conduct that interferes
+      with a tenant's quiet enjoyment.
+    suggested_aliases: *id042
+  citation: NY RPAPL § 753
+- id: rpa_768
+  name: Real Property Actions and Proceedings Law § 768
+  description: A statute providing a cause of action for tenants who have been illegally
+    locked out of their premises.
+  jurisdiction: NYS
+  status: proposed
+  aliases: &id043 []
+  _bootstrap:
+    sources:
+    - https://law.justia.com/cases/new-york/other-courts/2025/2025-ny-slip-op-25279.html
+    sample_quotes: []
+    suggested_aliases: *id043
+  citation: NY RPAPL § 768
+- id: rpl_226-c
+  name: Real Property Law § 226-c
+  description: Allows tenants to withhold rent or repair and deduct costs if a landlord
+    fails to make necessary repairs after notice.
+  jurisdiction: NYS
+  status: proposed
+  aliases: &id044 []
+  _bootstrap:
+    sources:
+    - https://law.justia.com/cases/new-york/other-courts/2025/2025-ny-slip-op-33306-u.html
+    sample_quotes: []
+    suggested_aliases: *id044
+  citation: NY Real Prop. Law § 226-c
+- id: rent_control_law_nyc
+  name: Rent Control Law (NYC)
+  description: The older rent regulation system in NYC covering buildings built before
+    February 1, 1947, with continuous tenancy since July 1, 1971 (or April 1, 1953
+    for smaller buildings).
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id045
+  - Rent Control Law
+  _bootstrap:
+    sources:
+    - https://www.metcouncilonhousing.org/help-answers/rent-control/
+    - https://www.courtlistener.com/opinion/2772083/mosser-companies-v-san-francisco-rent-stabilization-arbitration-board/
+    sample_quotes:
+    - Rent control is the older of the two rent regulation systems in place in New
+      York City. Today it covers only those tenants who live in buildings built before
+      February 1, 1947 and who have lived in their apartments since July 1, 1971
+    suggested_aliases: *id045
+  citation: NYC Admin Code § 26-401 et seq.
+- id: rent_guidelines_board
+  name: Rent Guidelines Board
+  description: A board appointed by the mayor that sets annual rent increase percentages
+    for rent-stabilized apartments in New York City.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id046 []
+  _bootstrap:
+    sources:
+    - https://www.metcouncilonhousing.org/help-answers/how-can-i-find-out-if-i-am-rent-stabilized/
+    sample_quotes:
+    - Rent stabilization means your rent increases are determined by the Rent Guidelines
+      Board (Appointed by the Mayor)
+    suggested_aliases: *id046
+  citation: NYC Rent Guidelines Board (RGB)
+- id: rgb_guidelines
+  name: Rent Guidelines Board Determinations
+  description: Annual RGB orders setting maximum rent increases for rent-stabilized
+    lease renewals.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id047 []
+  _bootstrap:
+    sources:
+    - https://www.metcouncilonhousing.org/help-answers/about-rent-stabilization/
+    sample_quotes:
+    - The NYC Rent Guidelines Board (RGB) meets every spring to determine the renewal
+      increase amounts for all of New York City’s rent-stabilized apartments.
+    suggested_aliases: *id047
+  citation: NYC Admin Code § 26-510
+- id: rent_regulation_reform_act_1997
+  name: Rent Regulation Reform Act of 1997
+  description: State law that established high-rent vacancy and high-income decontrol
+    provisions for rent-stabilized apartments.
+  jurisdiction: NYS
+  status: proposed
+  aliases: &id048 []
+  _bootstrap:
+    sources:
+    - https://hcr.ny.gov/fact-sheet-36
+    sample_quotes: []
+    suggested_aliases: *id048
+  citation: L. 1997, ch. 116
+- id: rent_stabilization_code
+  name: Rent Stabilization Code (RSC)
+  description: State regulations implementing the Rent Stabilization Law, detailing
+    rules on rent registration, overcharge calculations, and tenant protections.
+  jurisdiction: NYS
+  status: proposed
+  aliases: &id049
+  - Rent Stabilization Code (RSC) Rent Overcharge Provisions
+  _bootstrap:
+    sources:
+    - https://www.courtlistener.com/opinion/4633016/217-williams-llc-v-worthen/
+    - https://www.courtlistener.com/opinion/4322931/contreras-v-dowling/
+    - https://www.courtlistener.com/opinion/4471881/528-w-123rd-st-llc-v-baptiste/
+    - https://www.courtlistener.com/opinion/9402717/north-hudson-realty-corp-v-ecalp-corp/
+    - https://www.courtlistener.com/opinion/4629294/foundation-of-love-usa-inc-v-pena/
+    sample_quotes:
+    - The DHCR applied the Rent Stabilization Code to calculate the lawful rent and
+      the overcharge amount.
+    - The tenant's harassment claim was based on provisions of the Rent Stabilization
+      Code.
+    - The court applied the Rent Stabilization Code to determine whether the apartment
+      was properly deregulated.
+    suggested_aliases: *id049
+  citation: 9 NYCRR § 2520 et seq.
+- id: rsc_9_nycrr_2520
+  name: Rent Stabilization Code § 2520
+  description: The New York State Rent Stabilization Code, which governs rent stabilization
+    for certain residential units, including rent limits, eviction protections, and
+    registration requirements.
+  jurisdiction: NYS
+  status: proposed
+  aliases: &id050
+  - NYC Admin Code § 26-501
+  - NYC Admin Code § 26-502
+  - NYC Admin Code § 26-504
+  - Rent Stabilization Code
+  - Rent Stabilization Code (9 NYCRR Part 2520 et seq.)
+  - Rent Stabilization Code (9 NYCRR Part 2520)
+  - Rent Stabilization Code (9 NYCRR § 2520)
+  - Rent Stabilization Code § 2520 et seq.
+  - Rent Stabilization Code § 2520.1 (et seq.)
+  - Rent Stabilization Code § 2520.11
+  - Rent Stabilization Code § 2520.6
+  _bootstrap:
+    sources:
+    - https://www.courtlistener.com/opinion/10598390/matter-of-901-bklyn-realty-llc-v-manigat/
+    - https://www.courtlistener.com/opinion/4695223/crockett-v-351-st-nicholas-ave-llc/
+    - https://www.courtlistener.com/opinion/10641436/rodriguez-v-hub-bk-llc/
+    - https://www.courtlistener.com/opinion/10653966/alekna-v-207-217-w-110-portfolio-owner-llc/
+    - https://www.courtlistener.com/opinion/10644358/batiz-v-csa-preserv-partners-llc/
+    - https://www.courtlistener.com/opinion/10600972/emerald-lofts-llc-v-echevarria/
+    - https://www.courtlistener.com/opinion/4414807/m-c-v-texas-department-of-family-and-protective-services/
+    - https://www.courtlistener.com/opinion/4637746/354-atl-ave-llc-v-noronha/
+    - https://www.courtlistener.com/opinion/6239065/guttman-v-chiazor/
+    - https://www.courtlistener.com/opinion/7173629/altman-v-285-w-fourth-llc/
+    - https://nycadmincode.readthedocs.io/t26/c04/
+    - https://www.courtlistener.com/opinion/10131664/matter-of-aidekman-v-state-of-ny-div-of-hous-community-renewal/
+    - https://www.nysenate.gov/legislation/laws/ETP/5
+    - https://www.courtlistener.com/opinion/6316243/150-west-end-owners-corp-v-chestnut-holdings-of-ny-inc/
+    - https://www.courtlistener.com/opinion/2772083/mosser-companies-v-san-francisco-rent-stabilization-arbitration-board/
+    - https://www.courtlistener.com/opinion/9492811/gourin-v-72a-realty-assoc-lp/
+    - https://www.courtlistener.com/opinion/9487360/black-rock-gardens-llc-v-berry/
+    - https://law.justia.com/codes/new-york/2006/new-york-city-administrative-code-new/adc026-504_26-504.html
+    - https://www.courtlistener.com/opinion/10688572/liggett-v-lew-realty-llc/
+    - https://www.courtlistener.com/opinion/10596743/emerald-lofts-llc-v-echevarria/
+    - https://www.courtlistener.com/opinion/4598085/bpp-st-owner-llc-v-nichols/
+    - https://www.courtlistener.com/opinion/8288834/cent-hous-assocs-lp-v-olson/
+    - https://www.courtlistener.com/opinion/9481741/keating-smith-v-mustafa/
+    - https://www.courtlistener.com/opinion/4606514/tres-realty-llc-v-ta-wei-yu/
+    - https://www.courtlistener.com/opinion/2759844/corsini-v-morgan/
+    sample_quotes:
+    - The court applied the Rent Stabilization Code, specifically 9 NYCRR § 2525.1,
+      regarding rent overcharge calculations.
+    - The court referenced the Rent Stabilization Code, 9 NYCRR § 2520, in analyzing
+      the overcharge claim.
+    - The Rent Stabilization Code § 2520.11 governs the determination of rent overcharges.
+    suggested_aliases: *id050
+  citation: 9 NYCRR § 2520 et seq.
+- id: rsc_2524-3
+  name: Rent Stabilization Code § 2524.3
+  description: Prohibition against landlord harassment of rent-stabilized tenants,
+    including threats, service interruptions, and frivolous litigation.
+  jurisdiction: NYS
+  status: proposed
+  aliases: &id051 []
+  _bootstrap:
+    sources:
+    - https://www.courtlistener.com/opinion/4637746/354-atl-ave-llc-v-noronha/
+    - https://www.courtlistener.com/opinion/10131664/matter-of-aidekman-v-state-of-ny-div-of-hous-community-renewal/
+    sample_quotes:
+    - The tenant's harassment claim was evaluated under Rent Stabilization Code §
+      2524.3.
+    - Rent Stabilization Code § 2524.3 prohibits harassment of tenants.
+    suggested_aliases: *id051
+  citation: 9 NYCRR § 2524.3
+- id: rsc_section_2525_3
+  name: Rent Stabilization Code § 2525.3
+  description: Governs the documentation and approval process for individual apartment
+    improvements (IAIs) used to increase rent.
+  jurisdiction: NYS
+  status: proposed
+  aliases: &id052 []
+  _bootstrap:
+    sources:
+    - https://www.courtlistener.com/opinion/10131664/matter-of-aidekman-v-state-of-ny-div-of-hous-community-renewal/
+    sample_quotes:
+    - The landlord relied on individual apartment improvements under Rent Stabilization
+      Code § 2525.3 to justify the rent increase.
+    suggested_aliases: *id052
+  citation: 9 NYCRR § 2525.3
+- id: rent_stabilization_law
+  name: Rent Stabilization Law
+  description: A New York State housing law that regulates rent increases and provides
+    lease renewal protections for tenants in certain buildings, primarily those built
+    before 1974 with six or more units.
+  jurisdiction: NYS
+  status: proposed
+  aliases: &id053
+  - NYC Rent Stabilization Law
+  - Rent Stabilization Law (RSL)
+  _bootstrap:
+    sources:
+    - https://www.courtlistener.com/opinion/9424522/ferreira-v-charland/
+    - https://www.courtlistener.com/opinion/7310141/ibrahim-v-department-of-homeland-security/
+    - https://www.courtlistener.com/opinion/4632516/john-kuzmich-v-50-murray-street-acquisition-llc-william-t-west-v/
+    - https://www.metcouncilonhousing.org/help-answers/about-rent-stabilization/
+    - https://www.courtlistener.com/opinion/10360824/independent-435-cpw-tenants-assn-v-park-front-apts-llc/
+    - https://www.courtlistener.com/opinion/10644358/batiz-v-csa-preserv-partners-llc/
+    - https://www.courtlistener.com/opinion/4429944/phoenician-mediterranean-villa-llc-v-swope-in-re-j-s-properties-llc/
+    - https://www.courtlistener.com/opinion/4607870/shore-towers-inc-v-abt/
+    - https://www.courtlistener.com/opinion/4597229/matter-of-south-lexington-assoc-llc-v-new-york-state-div-of-hous/
+    - https://www.courtlistener.com/opinion/9492811/gourin-v-72a-realty-assoc-lp/
+    - https://www.courtlistener.com/opinion/4630465/rodriguez-v-kalata/
+    - https://www.courtlistener.com/opinion/5311304/matter-of-one-ninety-sixth-st-llc-v-new-york-state-div-of-hous/
+    - https://www.courtlistener.com/opinion/4598085/bpp-st-owner-llc-v-nichols/
+    - https://www.courtlistener.com/opinion/9433963/duncan-v-kihagi/
+    - https://www.courtlistener.com/opinion/10364727/matter-of-5511-777-st-marks-ave-bk-llc-v-state-of-new-york-div-of-hous/
+    - https://www.courtlistener.com/opinion/6319087/west-v-bcre-90-west-street-llc/
+    - https://law.justia.com/cases/new-york/other-courts/2025/2025-ny-slip-op-25279.html
+    - https://www.courtlistener.com/opinion/9402717/north-hudson-realty-corp-v-ecalp-corp/
+    - https://www.courtlistener.com/opinion/6315365/north-driggs-holdings-llc-v-burstiner/
+    - https://www.courtlistener.com/opinion/4380722/danger-panda-llc-v-launiu/
+    - https://www.courtlistener.com/opinion/5630708/brookford-llc-v-penraat/
+    - https://www.courtlistener.com/opinion/3159177/foster-v-britton/
+    - https://www.courtlistener.com/opinion/4393779/trust-for-the-benefit-of-goldstein-v-lipetz/
+    - https://www.metcouncilonhousing.org/help-answers/how-can-i-find-out-if-i-am-rent-stabilized/
+    - https://www.courtlistener.com/opinion/4807583/matter-of-kostic-v-new-york-state-div-of-hous-community-renewal/
+    - https://www.courtlistener.com/opinion/5933592/ginezra-associates-llc-v-ifantopoulos/
+    - https://www.courtlistener.com/opinion/4680212/matter-of-bedeau-realty-corp-v-state-of-new-york-div-of-hous/
+    - https://www.courtlistener.com/opinion/6065353/downing-v-first-lenox-terrace-associates/
+    - https://www.courtlistener.com/opinion/5297675/lund-co-v-clark/
+    - https://www.courtlistener.com/opinion/5997157/73-warren-street-llc-v-state-of-new-york-division-of-housing-community/
+    - https://www.courtlistener.com/opinion/2772083/mosser-companies-v-san-francisco-rent-stabilization-arbitration-board/
+    - https://www.courtlistener.com/opinion/7428196/scott-v-kaiuum/
+    - https://www.courtlistener.com/opinion/4832002/matter-of-kostic-v-new-york-state-div-of-hous-community-renewal/
+    - https://www.courtlistener.com/opinion/4504802/bldg-mgt-co-inc-v-orelli/
+    - https://www.courtlistener.com/opinion/5997156/73-warren-street-llc-v-state-of-new-york-division-of-housing-community/
+    - https://www.courtlistener.com/opinion/4847455/matter-of-bergen-realty-mgt-llc-v-new-york-state-div-of-hous/
+    - https://www.courtlistener.com/opinion/10811074/woodley-jr-v-woodberry-village-apartment/
+    - https://www.courtlistener.com/opinion/4548492/meyer-v-224-lafayette-st-corp/
+    - https://www.courtlistener.com/opinion/8286581/ellis-v-doe/
+    - https://www.courtlistener.com/opinion/4629294/foundation-of-love-usa-inc-v-pena/
+    - https://www.courtlistener.com/opinion/6476304/woods-v-sharkin/
+    - https://www.courtlistener.com/opinion/4756984/corcoran-v-narrows-bayview-co-llc/
+    - https://www.courtlistener.com/opinion/10038596/pmc-squared-llc-v-rita-gallo/
+    - https://www.courtlistener.com/opinion/4603692/ruggerino-v-prince-holdings-2012-llc/
+    - https://www.courtlistener.com/opinion/4890369/gridley-v-turnbury-vil-llc/
+    - https://www.metcouncilonhousing.org/help-answers/rent-stabilization-overcharges/
+    - https://www.courtlistener.com/opinion/4858343/united-states-v-skelos/
+    - https://www.courtlistener.com/opinion/9500925/south-brooklyn-ry-co-v-heung-man-lau/
+    - https://www.courtlistener.com/opinion/6311547/72a-realty-associates-v-lucas/
+    - https://www.courtlistener.com/opinion/6312340/72a-realty-associates-v-lucas/
+    - https://www.courtlistener.com/opinion/10801062/james-v-hanley/
+    - https://law.justia.com/cases/new-york/other-courts/2025/2025-ny-slip-op-33306-u.html
+    - https://hcr.ny.gov/fact-sheet-36
+    - https://www.courtlistener.com/opinion/4678184/matter-of-gray-v-new-york-state-div-of-hous-community-renewal/
+    - https://www.courtlistener.com/opinion/5287967/paulonis-v-287-assoc-lp/
+    - https://www.courtlistener.com/opinion/4865090/people-v-dr-226-holdings-llc/
+    - https://www.courtlistener.com/opinion/4460229/kuzmich-v-50-murray-st-acquisition-llc/
+    - https://hcr.ny.gov/rent-stabilization-and-emergency-tenant-protection-act
+    - https://www.courtlistener.com/opinion/4592423/suarez-v-four-thirty-realty-llc/
+    - https://www.courtlistener.com/opinion/4865098/nyctl-1998-2-trust-v-dr-226-holdings-llc/
+    - https://www.courtlistener.com/opinion/4798469/goldfeder-v-cenpark-realty-llc/
+    - https://www.courtlistener.com/opinion/10304904/burcica-v-ludy/
+    - https://hcr.ny.gov/fact-sheet-16
+    - https://www.courtlistener.com/opinion/9500911/south-brooklyn-ry-co-v-heung-man-lau/
+    - https://www.justfix.org/en/learn/air-conditioning-laws
+    - https://www.courtlistener.com/opinion/10689655/shalimar-leasing-lp-v-medina/
+    - https://www.courtlistener.com/opinion/8720199/davis-v-city-of-new-york/
+    - https://www.courtlistener.com/opinion/6447805/nieborak-v-w54-7-llc/
+    - https://www.justfix.org/en/learn/rent-history-101
+    - https://www.courtlistener.com/opinion/4581590/reich-v-belnord-partners-llc/
+    - https://www.courtlistener.com/opinion/5988893/gordon-v-305-riverside-corp/
+    - https://www.courtlistener.com/opinion/9478117/tuyen-dinh-v-matthew-raines-and-melissa-clayton/
+    - https://www.courtlistener.com/opinion/10634373/matter-of-57-elmhurst-llc-v-new-york-state-div-of-hous-community/
+    - https://www.courtlistener.com/opinion/6316250/aimco-322-east-61st-street-llc-v-brosius/
+    - https://www.courtlistener.com/opinion/4431959/guttman-v-chiazor/
+    - https://www.courtlistener.com/opinion/10472015/matter-of-140-25-ash-assoc-llc-v-state-of-new-york-div-of-hous/
+    - https://www.courtlistener.com/opinion/6065355/downing-v-first-lenox-terrace-associates/
+    - https://www.courtlistener.com/opinion/2759844/corsini-v-morgan/
+    sample_quotes:
+    - The apartment is subject to the Rent Stabilization Law, limiting rent increases.
+    - The apartment was subject to the Rent Stabilization Law, which limits annual
+      rent increases and requires lease renewals.
+    - Rent Stabilization Law
+    suggested_aliases: *id053
+  citation: NYS Rent Stabilization Law (RSL)
+- id: state_enabling_authority_1962
+  name: State Enabling Authority (Chapter 21 of Laws of 1962)
+  description: State law authorizing the City of New York to administer rent regulation
+    locally.
+  jurisdiction: NYS
+  status: proposed
+  aliases: &id054 []
+  _bootstrap:
+    sources:
+    - https://nycadmincode.readthedocs.io/t26/c04/
+    sample_quotes:
+    - pursuant to the authority conferred by chapter twenty-one of the laws of nineteen
+      hundred sixty-two
+    suggested_aliases: *id054
+  citation: Chapter 21 of the Laws of 1962
+- id: vacancy_increase_law
+  name: Vacancy Increase Law
+  description: A law allowing landlords to raise rent by up to 20% when a new tenant
+    moves into a rent-stabilized apartment, prior to June 2019.
+  jurisdiction: NYC
+  status: proposed
+  aliases: &id055 []
+  _bootstrap:
+    sources:
+    - https://www.metcouncilonhousing.org/help-answers/rent-stabilization-overcharges/
+    sample_quotes:
+    - Prior to June of 2019, landlords automatically get to raise rents 20% when a
+      new tenant moves in.
+    suggested_aliases: *id055
+  citation: NYC Admin Code § 26-511(c)(5)

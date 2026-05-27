@@ -666,43 +666,84 @@
             claimsContainer.innerHTML = '';
             nextStepsContainer.innerHTML = '';
 
-            // Summary card
-            if (data.summary) {
-                summaryContainer.innerHTML = renderSummary(data.summary);
-            }
+            var claims = data.matched_claim_types || [];
+            var gaps = data.gaps_per_claim_type || {};
+            var procedures = data.suggested_procedures || [];
+            var cases = data.similar_cases || [];
 
-            // Extracted evidence
-            if (data.extracted_evidence && data.extracted_evidence.length > 0) {
-                var items = data.extracted_evidence.map(function(ev) {
-                    return '<li>' + escapeHtml(ev) + '</li>';
-                }).join('');
-                extractedContainer.innerHTML =
-                    '<div class="extracted-section">' +
-                    '<h3>Auto-Detected Evidence from Your Description</h3>' +
-                    '<ul class="extracted-list">' + items + '</ul>' +
-                    '</div>';
-            }
+            // Summary
+            var claimCount = claims.length;
+            summaryContainer.innerHTML =
+                '<div class="summary-card">' +
+                '<div class="summary-text">' + claimCount + ' claim' + (claimCount !== 1 ? 's' : '') + ' identified.</div>' +
+                (claimCount > 0 ? '<div class="summary-detail">Strongest: ' + escapeHtml(claims[0].name || '') + '</div>' : '') +
+                '</div>';
 
             // Claim cards
-            var claims = data.possible_claims || [];
             if (claims.length === 0) {
                 claimsContainer.innerHTML = '<p style="color:#7f8c8d;">No claims identified. Try providing more detail about your situation.</p>';
             } else {
-                claimsContainer.innerHTML = claims.map(function(claim, index) {
-                    return renderClaimCard(claim, index);
+                claimsContainer.innerHTML = claims.map(function(ct, index) {
+                    var claimGaps = gaps[ct.id] || gaps[ct._key] || [];
+                    var criticalGaps = claimGaps.filter(function(g) { return g.critical; });
+                    var otherGaps = claimGaps.filter(function(g) { return !g.critical; });
+                    var pct = claimGaps.length === 0 ? 100 : Math.round(((claimGaps.length - criticalGaps.length) / claimGaps.length) * 50);
+
+                    var gapsHtml = '';
+                    if (claimGaps.length > 0) {
+                        var gapItems = claimGaps.map(function(g) {
+                            var hint = g.how_to_get_hint ? ' <span style="color:#7f8c8d;font-size:0.82rem;">— ' + escapeHtml(g.how_to_get_hint) + '</span>' : '';
+                            var critical = g.critical ? ' <span style="color:#e74c3c;font-size:0.75rem;font-weight:bold;">CRITICAL</span>' : '';
+                            return '<li>' + escapeHtml(g.evidence_name || g.evidence_id) + critical + hint + '</li>';
+                        }).join('');
+                        gapsHtml = '<div style="margin-top:10px;"><strong style="font-size:0.85rem;">Evidence needed:</strong><ul style="margin:6px 0 0 18px;font-size:0.85rem;">' + gapItems + '</ul></div>';
+                    }
+
+                    var isCollapsed = index > 0;
+                    return '<div class="claim-card' + (isCollapsed ? ' collapsed' : '') + '" id="claim-card-' + index + '">' +
+                        '<div class="claim-card-header" onclick="toggleCard(' + index + ')">' +
+                        '<div class="claim-header">' +
+                        '<span class="claim-name"><span class="chevron">&#9660;</span>' + escapeHtml(ct.name || ct.id) + '</span>' +
+                        '<span class="strength-badge strength-moderate">Identified</span>' +
+                        '</div>' +
+                        '<div class="progress-container">' +
+                        '<div class="progress-label">Evidence completeness: ' + pct + '%</div>' +
+                        '<div class="progress-bar"><div class="progress-fill fill-moderate" style="width:' + pct + '%"></div></div>' +
+                        '</div>' +
+                        '</div>' +
+                        '<div class="claim-card-body">' +
+                        (ct.description ? '<p style="font-size:0.9rem;color:#666;margin-bottom:12px;">' + escapeHtml(ct.description) + '</p>' : '') +
+                        gapsHtml +
+                        '</div>' +
+                        '</div>';
                 }).join('');
             }
 
-            // Next steps
-            var steps = data.next_steps || [];
-            if (steps.length > 0) {
-                var stepItems = steps.map(function(s) {
-                    return '<li>' + escapeHtml(s) + '</li>';
+            // Procedures as next steps
+            if (procedures.length > 0) {
+                var stepItems = procedures.map(function(p) {
+                    var desc = p.description ? ' — ' + escapeHtml(p.description) : '';
+                    return '<li><strong>' + escapeHtml(p.name || p.id) + '</strong>' + desc + '</li>';
                 }).join('');
                 nextStepsContainer.innerHTML =
                     '<div class="next-steps">' +
-                    '<h3>Recommended Next Steps</h3>' +
+                    '<h3>Recommended Procedures</h3>' +
                     '<ol>' + stepItems + '</ol>' +
+                    '</div>';
+            }
+
+            // Similar cases
+            if (cases.length > 0) {
+                var caseItems = cases.map(function(c) {
+                    var name = c.name || c.case_name || c._key || 'Unknown Case';
+                    var court = c.court ? ' (' + escapeHtml(c.court) + ')' : '';
+                    var outcome = c.outcome ? ' <span style="color:#27ae60;font-size:0.8rem;">' + escapeHtml(c.outcome) + '</span>' : '';
+                    return '<li>' + escapeHtml(name) + court + outcome + '</li>';
+                }).join('');
+                extractedContainer.innerHTML =
+                    '<div class="extracted-section">' +
+                    '<h3>Similar Cases</h3>' +
+                    '<ul class="extracted-list">' + caseItems + '</ul>' +
                     '</div>';
             }
 

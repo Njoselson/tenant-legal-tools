@@ -1,0 +1,354 @@
+# NYC Tenant Procedural Paths — curated taxonomy
+# filing_body: the agency, court, or body where the proceeding is initiated
+# typical_duration: rough timeline for tenant planning
+
+- id: hp_action
+  name: HP Action (Housing Part)
+  description: Housing court proceeding initiated by tenant to compel landlord to make repairs and correct violations.
+  jurisdiction: NYC
+  status: canonical
+  aliases:
+    - HP proceeding
+    - housing part action
+    - order to correct
+  filing_body: NYC Housing Court — Housing Part
+  typical_duration: 1–6 months
+
+- id: dhcr_overcharge_complaint
+  name: DHCR Overcharge Complaint
+  description: Tenant files a rent overcharge complaint with DHCR seeking refund of overcharged amounts and penalties.
+  jurisdiction: NYC
+  status: canonical
+  aliases:
+    - overcharge complaint
+    - DHCR overcharge
+  filing_body: NYS Division of Housing and Community Renewal (DHCR)
+  typical_duration: 1–3 years
+
+- id: dhcr_harassment_complaint
+  name: DHCR Harassment Complaint
+  description: Tenant files a harassment complaint with DHCR based on landlord conduct intended to force out a rent-stabilized tenant.
+  jurisdiction: NYC
+  status: canonical
+  aliases:
+    - harassment complaint DHCR
+  filing_body: NYS Division of Housing and Community Renewal (DHCR)
+  typical_duration: 6–24 months
+
+- id: housing_court_nonpayment
+  name: Housing Court — Non-Payment Proceeding
+  description: Landlord-initiated proceeding to collect unpaid rent; tenant may assert affirmative defenses (warranty of habitability, overcharge, etc.).
+  jurisdiction: NYC
+  status: canonical
+  aliases:
+    - non-payment proceeding
+    - non-pay
+  filing_body: NYC Housing Court
+  typical_duration: 2–6 months
+
+- id: housing_court_holdover
+  name: Housing Court — Holdover Proceeding
+  description: Landlord-initiated proceeding to recover possession of the apartment (lease expiration, non-primary residence, etc.).
+  jurisdiction: NYC
+  status: canonical
+  aliases:
+    - holdover proceeding
+    - holdover eviction
+  filing_body: NYC Housing Court
+  typical_duration: 3–12 months
+
+- id: dhcr_lease_renewal_complaint
+  name: DHCR Lease Renewal Complaint
+  description: Tenant files with DHCR when landlord refuses to offer or improperly conditions a rent-stabilized lease renewal.
+  jurisdiction: NYC
+  status: canonical
+  aliases:
+    - renewal complaint
+  filing_body: NYS Division of Housing and Community Renewal (DHCR)
+  typical_duration: 6–18 months
+
+- id: hpd_complaint
+  name: HPD Complaint (311)
+  description: Administrative complaint filed with HPD via 311 to trigger an inspection of housing conditions.
+  jurisdiction: NYC
+  status: canonical
+  aliases:
+    - 311 complaint
+    - HPD complaint
+  filing_body: NYC HPD via 311
+  typical_duration: Days to weeks (inspection scheduling)
+
+- id: article_78_proceeding
+  name: Article 78 Proceeding
+  description: Special proceeding in NY Supreme Court to challenge a final administrative determination (e.g., adverse DHCR order).
+  jurisdiction: NYS
+  status: canonical
+  aliases:
+    - Article 78
+    - CPLR 78
+  filing_body: NY Supreme Court
+  typical_duration: 6–18 months
+
+- id: nyc_commission_human_rights
+  name: CCHR Discrimination Complaint
+  description: Complaint filed with the NYC Commission on Human Rights for housing discrimination.
+  jurisdiction: NYC
+  status: canonical
+  aliases:
+    - human rights complaint
+    - CCHR complaint
+  filing_body: NYC Commission on Human Rights
+  typical_duration: 6–24 months
+
+- id: small_claims_court
+  name: Small Claims Court
+  description: Tenant files in small claims court for monetary damages (e.g., security deposit, overcharge) up to $10,000.
+  jurisdiction: NYS
+  status: canonical
+  aliases:
+    - small claims
+  filing_body: NYC Civil Court — Small Claims Part
+  typical_duration: 2–4 months
+
+- id: emergency_order_to_show_cause
+  name: Emergency Order to Show Cause (OSC)
+  description: Tenant or attorney seeks emergency relief from housing court judge, typically to stop an eviction or compel emergency repairs.
+  jurisdiction: NYC
+  status: canonical
+  aliases:
+    - OSC
+    - emergency motion
+  filing_body: NYC Housing Court
+  typical_duration: Days
+
+- id: succession_proceeding
+  name: Succession Proceeding / Claim
+  description: Proceeding (or defense in holdover) asserting right to succeed to a rent-stabilized lease.
+  jurisdiction: NYC
+  status: canonical
+  aliases:
+    - succession claim
+    - succession defense
+  filing_body: NYC Housing Court (typically as holdover defense) or DHCR
+  typical_duration: 6–18 months
+
+- id: dhcr_mci_challenge
+  name: DHCR MCI Challenge
+  description: Tenant challenge to a Major Capital Improvement rent increase application or order before DHCR.
+  jurisdiction: NYC
+  status: canonical
+  aliases:
+    - MCI challenge
+    - MCI objection
+  filing_body: NYS Division of Housing and Community Renewal (DHCR)
+  typical_duration: 1–3 years
+
+- id: dob_complaint
+  name: DOB Complaint
+  description: Complaint filed with NYC Department of Buildings for illegal construction, unsafe conditions, or illegal conversion.
+  jurisdiction: NYC
+  status: canonical
+  aliases:
+    - DOB complaint
+    - buildings complaint
+  filing_body: NYC Department of Buildings
+  typical_duration: Days to weeks (inspection scheduling)
+
+- id: attorney_general_complaint
+  name: Attorney General Complaint (Condo/Co-op Conversion)
+  description: Complaint filed with the NY Attorney General's office regarding a condo/co-op conversion plan.
+  jurisdiction: NYS
+  status: canonical
+  aliases:
+    - AG complaint
+    - conversion plan challenge
+  filing_body: NYS Office of the Attorney General
+  typical_duration: 6–24 months
+
+# --- bootstrap proposals (status: proposed) ---
+- id: 311_complaint_for_heat_hot_water
+  name: 311 Complaint for Heat/Hot Water
+  description: A procedure to call 311 to report lack of heat or hot water, leading
+    to an HPD inspection and violation record.
+  jurisdiction: NYC
+  status: proposed
+  aliases: []
+- id: challenge_mbr_increase
+  name: Challenge MBR Increase
+  description: A procedure for rent-controlled tenants to challenge a Maximum Base
+    Rent increase by filing an RA-94 within 35 days of receiving the RN-26.
+  jurisdiction: NYC
+  status: proposed
+  aliases: []
+- id: charity_rent_assistance_application
+  name: Charity Rent Assistance Application
+  description: Application to private nonprofit organizations for emergency back rent
+    payments, requiring a housing court case or rent demand.
+  jurisdiction: NYC
+  status: proposed
+  aliases: []
+- id: criminal_complaint_for_harassment
+  name: Criminal Complaint for Harassment
+  description: Filing a criminal complaint with law enforcement or the district attorney's
+    office under Penal Law § 241.05.
+  jurisdiction: NYS
+  status: proposed
+  aliases: []
+- id: dhcr_administrative_appeal
+  name: DHCR Administrative Appeal
+  description: An appeal to the DHCR's Deputy Commissioner or Commissioner from a
+    determination by a Rent Administrator in a rent overcharge or other rent regulation
+    proceeding.
+  jurisdiction: NYS
+  status: proposed
+  aliases:
+  - Administrative Appeal
+  - Administrative Appeal to DHCR
+- id: dhcr_administrative_determination
+  name: DHCR Administrative Determination
+  description: A procedure to file a letter with DHCR requesting an official determination
+    that an apartment is rent stabilized.
+  jurisdiction: NYC
+  status: proposed
+  aliases: []
+- id: dhcr_complaint_cooling
+  name: DHCR Complaint for Cooling System Failure
+  description: An administrative complaint filed with the Division of Homes and Community
+    Renewal (DHCR) to address a landlord's failure to maintain a cooling system, potentially
+    leading to rent reduction or freeze.
+  jurisdiction: NYS
+  status: proposed
+  aliases: []
+- id: dhcr_par_proceeding
+  name: DHCR Petition for Administrative Review (PAR)
+  description: An administrative appeal to DHCR challenging a rent administrator's
+    determination on a rent overcharge or service complaint.
+  jurisdiction: NYS
+  status: proposed
+  aliases: []
+- id: dhcr_rent_decrease_filing
+  name: DHCR Rent Decrease Filing
+  description: An administrative proceeding to request a rent reduction due to landlord's
+    failure to provide services or repairs.
+  jurisdiction: NYS
+  status: proposed
+  aliases: []
+- id: dhcr_rent_history_request
+  name: DHCR Rent History Request
+  description: An administrative procedure to obtain the rent history of an apartment
+    from the New York State Division of Housing and Community Renewal, often by texting
+    a specific number.
+  jurisdiction: NYS
+  status: proposed
+  aliases: []
+- id: drie_application
+  name: DRIE Application
+  description: An application process for tenants with disabilities to obtain exemption
+    from rent increases.
+  jurisdiction: NYC
+  status: proposed
+  aliases: []
+- id: department_of_health_complaint
+  name: Department of Health Complaint
+  description: Filing a complaint with the NYC Department of Health regarding mold
+    as a health hazard.
+  jurisdiction: NYC
+  status: proposed
+  aliases: []
+- id: fheps_application
+  name: FHEPS Application
+  description: Ongoing assistance for families on public assistance with minor children
+    to pay higher monthly shelter allowance and arrears up to $7,000.
+  jurisdiction: NYC
+  status: proposed
+  aliases: []
+- id: fair_market_rent_appeal_filing
+  name: Fair Market Rent Appeal Filing
+  description: An administrative process with DHCR to challenge the initial rent at
+    the start of rent stabilization and seek a refund.
+  jurisdiction: NYS
+  status: proposed
+  aliases: []
+- id: heap_application
+  name: HEAP Application for Cooling Assistance
+  description: An application to the Home Energy Assistance Program (HEAP) for financial
+    assistance with the purchase, installation, and electrical costs of cooling an
+    apartment.
+  jurisdiction: NYS
+  status: proposed
+  aliases: []
+- id: hpd_attorney_involvement
+  name: HPD Attorney Involvement
+  description: The role of the HPD attorney in court, who represents the city and
+    seeks enforcement of building and apartment standards, and to whom tenants present
+    evidence.
+  jurisdiction: NYC
+  status: proposed
+  aliases: []
+- id: hpd_emergency_repairs_program
+  name: HPD Emergency Repairs Program
+  description: A program where HPD makes emergency repairs and bills the landlord,
+    used in extreme cases of mold or related hazards.
+  jurisdiction: NYC
+  status: proposed
+  aliases: []
+- id: homebase_program
+  name: HomeBase Program
+  description: A program that may help tenants with rent arrears, mentioned as a potential
+    source of assistance.
+  jurisdiction: NYC
+  status: proposed
+  aliases: []
+- id: letter_of_complaint
+  name: Letter of Complaint to Landlord
+  description: A formal written request to the landlord to fix a cooling system issue,
+    often a prerequisite before filing an official complaint.
+  jurisdiction: NYC
+  status: proposed
+  aliases: []
+- id: one_shot_deal_application
+  name: One Shot Deal Application
+  description: A one-time payment from HRA to pay back rent to avoid eviction, applied
+    for via Access HRA or at an HRA center.
+  jurisdiction: NYC
+  status: proposed
+  aliases: []
+- id: reasonable_accommodation_request
+  name: Reasonable Accommodation Request for Air Conditioning
+  description: A process by which a tenant with a disability requests that the landlord
+    allow or facilitate air conditioning installation, including electrical upgrades,
+    under fair housing laws.
+  jurisdiction: NYC
+  status: proposed
+  aliases: []
+- id: rent_impoundment
+  name: Rent Impoundment
+  description: A court order allowing the tenant to pay rent into an escrow account
+    until the landlord makes necessary repairs, often granted in an HP action.
+  jurisdiction: NYC
+  status: proposed
+  aliases:
+  - Rent Impoundment (Rent Abatement)
+- id: scrie_application
+  name: SCRIE Application
+  description: An application process for senior citizens to obtain exemption from
+    rent increases.
+  jurisdiction: NYC
+  status: proposed
+  aliases: []
+- id: small_claims_action
+  name: Small Claims Action for Security Deposit
+  description: A lawsuit in small claims court to recover a wrongfully withheld security
+    deposit, up to the jurisdictional limit.
+  jurisdiction: NYS
+  status: proposed
+  aliases: []
+- id: supreme_court_declaratory_judgment
+  name: Supreme Court Declaratory Judgment Action
+  description: A civil action in New York State Supreme Court seeking a judicial declaration
+    of the parties' rights, often used in complex landlord-tenant disputes involving
+    regulatory status.
+  jurisdiction: NYS
+  status: proposed
+  aliases:
+  - Declaratory Judgment Action

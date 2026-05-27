@@ -1,0 +1,150 @@
+# Curated procedure associations per claim type.
+# These are the typical procedural paths used to pursue each claim type.
+# Multiple procedures may apply; order is not significant.
+
+- claim_type_id: rent_overcharge
+  procedure_id: dhcr_overcharge_complaint
+
+- claim_type_id: rent_overcharge
+  procedure_id: housing_court_nonpayment
+
+- claim_type_id: rent_overcharge
+  procedure_id: small_claims_court
+
+- claim_type_id: rent_stabilization_violation
+  procedure_id: dhcr_overcharge_complaint
+
+- claim_type_id: rent_stabilization_violation
+  procedure_id: dhcr_lease_renewal_complaint
+
+- claim_type_id: deregulation_challenge
+  procedure_id: dhcr_overcharge_complaint
+
+- claim_type_id: deregulation_challenge
+  procedure_id: housing_court_holdover
+
+- claim_type_id: deregulation_challenge
+  procedure_id: article_78_proceeding
+
+- claim_type_id: high_rent_vacancy_challenge
+  procedure_id: dhcr_overcharge_complaint
+
+- claim_type_id: high_rent_vacancy_challenge
+  procedure_id: housing_court_holdover
+
+- claim_type_id: habitability_violation
+  procedure_id: hpd_complaint
+
+- claim_type_id: habitability_violation
+  procedure_id: hp_action
+
+- claim_type_id: habitability_violation
+  procedure_id: housing_court_nonpayment
+
+- claim_type_id: hp_action_repairs
+  procedure_id: hp_action
+
+- claim_type_id: hp_action_repairs
+  procedure_id: hpd_complaint
+
+- claim_type_id: hp_action_repairs
+  procedure_id: emergency_order_to_show_cause
+
+- claim_type_id: breach_warranty_habitability
+  procedure_id: housing_court_nonpayment
+
+- claim_type_id: breach_warranty_habitability
+  procedure_id: hp_action
+
+- claim_type_id: harassment
+  procedure_id: dhcr_harassment_complaint
+
+- claim_type_id: harassment
+  procedure_id: housing_court_holdover
+
+- claim_type_id: harassment
+  procedure_id: emergency_order_to_show_cause
+
+- claim_type_id: illegal_lockout
+  procedure_id: emergency_order_to_show_cause
+
+- claim_type_id: illegal_lockout
+  procedure_id: housing_court_holdover
+
+- claim_type_id: retaliatory_eviction
+  procedure_id: housing_court_holdover
+
+- claim_type_id: retaliatory_eviction
+  procedure_id: housing_court_nonpayment
+
+- claim_type_id: security_deposit_return
+  procedure_id: small_claims_court
+
+- claim_type_id: security_deposit_violation
+  procedure_id: small_claims_court
+
+- claim_type_id: constructive_eviction
+  procedure_id: housing_court_holdover
+
+- claim_type_id: constructive_eviction
+  procedure_id: hp_action
+
+- claim_type_id: housing_discrimination
+  procedure_id: nyc_commission_human_rights
+
+- claim_type_id: housing_discrimination
+  procedure_id: housing_court_holdover
+
+- claim_type_id: improper_service
+  procedure_id: housing_court_holdover
+
+- claim_type_id: improper_service
+  procedure_id: housing_court_nonpayment
+
+- claim_type_id: procedural_defect
+  procedure_id: housing_court_holdover
+
+- claim_type_id: procedural_defect
+  procedure_id: housing_court_nonpayment
+
+- claim_type_id: succession_rights
+  procedure_id: succession_proceeding
+
+- claim_type_id: succession_rights
+  procedure_id: housing_court_holdover
+
+- claim_type_id: owner_use_eviction
+  procedure_id: housing_court_holdover
+
+- claim_type_id: mci_challenge
+  procedure_id: dhcr_mci_challenge
+
+- claim_type_id: mci_challenge
+  procedure_id: article_78_proceeding
+
+- claim_type_id: iae_challenge
+  procedure_id: dhcr_overcharge_complaint
+
+- claim_type_id: lead_paint_violation
+  procedure_id: hpd_complaint
+
+- claim_type_id: lead_paint_violation
+  procedure_id: hp_action
+
+- claim_type_id: preferential_rent_dispute
+  procedure_id: dhcr_overcharge_complaint
+
+- claim_type_id: preferential_rent_dispute
+  procedure_id: housing_court_nonpayment
+
+- claim_type_id: primary_residence_challenge
+  procedure_id: housing_court_holdover
+
+- claim_type_id: condo_coop_conversion
+  procedure_id: attorney_general_complaint
+
+- claim_type_id: illegal_apartment
+  procedure_id: dob_complaint
+
+- claim_type_id: illegal_apartment
+  procedure_id: hpd_complaint

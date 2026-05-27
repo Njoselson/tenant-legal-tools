@@ -20,13 +20,13 @@ import asyncio
 import json
 import logging
 import sys
+from collections import Counter
 from pathlib import Path
 
 from tenant_legal_guidance.config import get_settings
 from tenant_legal_guidance.graph.arango_graph import ArangoDBGraph
 from tenant_legal_guidance.services.claim_matcher import ClaimMatcher
 from tenant_legal_guidance.services.deepseek import DeepSeekClient
-from tenant_legal_guidance.services.outcome_predictor import OutcomePredictor
 
 logging.basicConfig(level=logging.WARNING, format="%(message)s", stream=sys.stdout)
 logger = logging.getLogger(__name__)
@@ -203,52 +203,33 @@ def remedy_overlap(predicted_remedies: list[str], actual_remedies: list[str]) ->
 async def evaluate_single_case(
     case: dict,
     claim_matcher: ClaimMatcher,
-    outcome_predictor: OutcomePredictor,
     verbose: bool = False,
 ) -> dict:
     """Evaluate a single case against ground truth."""
     situation = case["tenant_situation"]
 
     # Run the pipeline (same as the /analyze-my-case route)
-    matches, extracted_evidence = await claim_matcher.match_situation_to_claim_types(
-        situation=situation,
-        evidence_i_have=[],
-        auto_extract_evidence=True,
-    )
+    result_data = await claim_matcher.analyze(situation, jurisdiction="NYC")
 
-    # Get predicted claim types and run outcome prediction per claim
-    # (mirrors what routes.py does: find_similar_cases + predict_outcomes per match)
-    predicted_claims = set()
-    predicted_remedies = []
-    outcome_predictions = []  # collect all predictions, pick best
+    matched_claim_types: list[dict] = result_data.get("matched_claim_types", [])
+    similar_cases: list[dict] = result_data.get("similar_cases", [])
 
-    for match in matches:
-        predicted_claims.add(match.canonical_name)
-        if match.remedies:
-            predicted_remedies.extend(match.remedies)
+    predicted_claims = {ct.get("id", ct.get("_key", "")) for ct in matched_claim_types}
 
-        # Run outcome prediction for this claim type (like routes.py does)
-        try:
-            similar = await outcome_predictor.find_similar_cases(
-                claim_type=match.canonical_name,
-                situation=situation,
-            )
-            pred = await outcome_predictor.predict_outcomes(
-                claim_type=match.canonical_name,
-                evidence_strength=match.evidence_strength,
-                similar_cases=similar,
-            )
-            if pred and pred.outcome_type:
-                outcome_predictions.append(pred)
-        except Exception as e:
-            logger.debug(f"Outcome prediction failed for {match.canonical_name}: {e}")
+    # Derive predicted outcome: majority vote over similar cases that have known outcomes
+    known_outcomes = [
+        c.get("outcome")
+        for c in similar_cases
+        if c.get("outcome") not in (None, "", "unknown")
+    ]
+    predicted_outcome: str | None = None
+    if known_outcomes:
+        predicted_outcome = Counter(known_outcomes).most_common(1)[0][0]
 
-    # Pick the best outcome prediction: prefer the one with highest probability
-    # and most similar cases (more evidence = more trustworthy)
-    predicted_outcome = None
-    if outcome_predictions:
-        best = max(outcome_predictions, key=lambda p: (len(p.similar_cases), p.probability))
-        predicted_outcome = best.outcome_type
+    # Collect predicted remedies from similar cases
+    predicted_remedies: list[str] = []
+    for c in similar_cases:
+        predicted_remedies.extend(c.get("remedies_awarded", []))
 
     # Score
     actual_claims = set(case.get("claim_types", []))
@@ -273,7 +254,7 @@ async def evaluate_single_case(
         "claims_matched": sorted(claim_score["matched"]),
         "claims_missed": sorted(claim_score["missed"]),
         "claims_extra": sorted(claim_score["extra"]),
-        "num_matches": len(matches),
+        "num_matches": len(matched_claim_types),
     }
 
     if verbose:
@@ -313,14 +294,13 @@ async def main():
     kg = ArangoDBGraph()
     deepseek = DeepSeekClient(api_key=settings.deepseek_api_key)
     claim_matcher = ClaimMatcher(knowledge_graph=kg, llm_client=deepseek)
-    outcome_predictor = OutcomePredictor(knowledge_graph=kg, llm_client=deepseek)
 
     results = []
     for i, case in enumerate(ground_truth):
         print(f"  [{i+1}/{len(ground_truth)}] {case['case_name'][:50]}...", end="" if not args.verbose else "\n", flush=True)
         try:
             result = await evaluate_single_case(
-                case, claim_matcher, outcome_predictor, verbose=args.verbose
+                case, claim_matcher, verbose=args.verbose
             )
             results.append(result)
             if not args.verbose:

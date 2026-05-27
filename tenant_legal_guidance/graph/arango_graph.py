@@ -118,6 +118,12 @@ class ArangoDBGraph:
                     self.db.create_collection(name, edge=True)
                     self.logger.info(f"Created edge collection: {name}")
 
+            # Tagging edge collections (case_documents → taxonomy nodes)
+            for tagging_coll in ("tagged_as", "demonstrates_evidence", "applied_procedure"):
+                if not self.db.has_collection(tagging_coll):
+                    self.db.create_collection(tagging_coll, edge=True)
+                    self.logger.info(f"Created edge collection: {tagging_coll}")
+
             # Named graph for traversal queries
             graph_name = "legal_knowledge_graph"
             if not self.db.has_graph(graph_name):
@@ -138,6 +144,21 @@ class ArangoDBGraph:
                             "edge_collection": "cites",
                             "from_vertex_collections": ["case_documents"],
                             "to_vertex_collections": ["laws"],
+                        },
+                        {
+                            "edge_collection": "tagged_as",
+                            "from_vertex_collections": ["case_documents"],
+                            "to_vertex_collections": ["claim_types"],
+                        },
+                        {
+                            "edge_collection": "demonstrates_evidence",
+                            "from_vertex_collections": ["case_documents"],
+                            "to_vertex_collections": ["evidence_nodes"],
+                        },
+                        {
+                            "edge_collection": "applied_procedure",
+                            "from_vertex_collections": ["case_documents"],
+                            "to_vertex_collections": ["procedures"],
                         },
                     ],
                 )
@@ -372,7 +393,7 @@ class ArangoDBGraph:
 
             canon = canonicalize_text(full_text)
             content_hash = sha256(canon)
-            source_id = generate_uuid_from_text(full_text)
+            source_id = generate_uuid_from_text(locator or full_text)
             self.upsert_source(
                 locator=locator,
                 kind=kind,
@@ -534,6 +555,13 @@ class ArangoDBGraph:
             # Write cites edges to referenced law IDs
             for law_id in doc.citations:
                 self.add_cites_edge(doc.id, law_id)
+            # Materialize tagging arrays as graph edges
+            for ct_id in doc.claim_types:
+                self.add_tagged_as_edge(doc.id, ct_id)
+            for ev_id in doc.evidence_presented:
+                self.add_demonstrates_evidence_edge(doc.id, ev_id)
+            for pr_id in doc.procedures_used:
+                self.add_applied_procedure_edge(doc.id, pr_id)
             return True
         except Exception as e:
             self.logger.error(f"upsert_case_document failed for {doc.id}: {e}")
@@ -692,9 +720,16 @@ class ArangoDBGraph:
         return self._upsert_edge("typically_uses", _from, _to, {})
 
     def add_cites_edge(self, case_doc_id: str, law_id: str) -> bool:
-        _from = f"case_documents/{case_doc_id}"
-        _to = f"laws/{law_id}"
-        return self._upsert_edge("cites", _from, _to, {})
+        return self._upsert_edge("cites", f"case_documents/{case_doc_id}", f"laws/{law_id}", {})
+
+    def add_tagged_as_edge(self, case_doc_id: str, claim_type_id: str) -> bool:
+        return self._upsert_edge("tagged_as", f"case_documents/{case_doc_id}", f"claim_types/{claim_type_id}", {})
+
+    def add_demonstrates_evidence_edge(self, case_doc_id: str, evidence_id: str) -> bool:
+        return self._upsert_edge("demonstrates_evidence", f"case_documents/{case_doc_id}", f"evidence_nodes/{evidence_id}", {})
+
+    def add_applied_procedure_edge(self, case_doc_id: str, procedure_id: str) -> bool:
+        return self._upsert_edge("applied_procedure", f"case_documents/{case_doc_id}", f"procedures/{procedure_id}", {})
 
     def _upsert_edge(self, coll_name: str, _from: str, _to: str, extra: dict) -> bool:
         try:
@@ -795,6 +830,10 @@ class ArangoDBGraph:
         except Exception as e:
             self.logger.error(f"get_cases_tagged_with failed: {e}")
             return []
+
+    def get_all_claim_type_nodes(self) -> list[dict]:
+        """Return all canonical claim type nodes."""
+        return self.get_taxonomy_nodes("claim_types", include_proposed=False)
 
     def get_taxonomy_by_jurisdiction(
         self, jurisdiction: str, kind: str, include_proposed: bool = True

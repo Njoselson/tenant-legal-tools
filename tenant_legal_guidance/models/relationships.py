@@ -1,4 +1,5 @@
 from enum import Enum
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -26,3 +27,7 @@ class CitesEdge(BaseModel):
     source_id: str = Field(..., description="CaseDocumentNode ID")
     target_id: str = Field(..., description="LawNode ID")
     relationship_type: RelationshipType = RelationshipType.CITES
+
+
+# Phase-4 shim — old services reference LegalRelationship; remove when those are rewritten
+LegalRelationship = dict[str, Any]

@@ -1,12 +1,11 @@
 """
 Integration tests for "Analyze My Case" feature.
 
-Tests the full flow of:
+Tests the taxonomy-first flow:
 1. User describes their situation
-2. System matches to claim types
-3. System assesses evidence strength
-4. System predicts outcomes
-5. System generates next steps
+2. System extracts matching claim type IDs + evidence IDs (LLM)
+3. System computes evidence gaps (graph traversal)
+4. System finds similar cases (graph lookup)
 """
 
 import json
@@ -15,11 +14,9 @@ from unittest.mock import AsyncMock, MagicMock, Mock
 
 import pytest
 
-from tenant_legal_guidance.config import get_settings
 from tenant_legal_guidance.graph.arango_graph import ArangoDBGraph
-from tenant_legal_guidance.services.claim_matcher import ClaimMatcher, ClaimTypeMatch, EvidenceMatch
+from tenant_legal_guidance.services.claim_matcher import ClaimMatcher
 from tenant_legal_guidance.services.deepseek import DeepSeekClient
-from tenant_legal_guidance.services.outcome_predictor import OutcomePredictor
 
 # ============================================================================
 # Fixtures
@@ -39,54 +36,58 @@ def scenario_fixture():
 def mock_knowledge_graph():
     """Mock ArangoDB graph for fast unit tests."""
     kg = MagicMock(spec=ArangoDBGraph)
-    kg.get_all_claim_types = Mock(return_value=[
-        {"canonical_name": "DEREGULATION_CHALLENGE", "name": "Deregulation Challenge"},
-        {"canonical_name": "RENT_OVERCHARGE", "name": "Rent Overcharge"},
+    kg.get_taxonomy_snapshot = Mock(return_value={
+        "claim_types": [
+            {"id": "deregulation_challenge", "name": "Deregulation Challenge", "description": ""},
+            {"id": "rent_overcharge", "name": "Rent Overcharge", "description": ""},
+        ],
+        "evidence": [
+            {"id": "lease_agreement", "name": "Lease Agreement", "description": ""},
+            {"id": "dhcr_registration", "name": "DHCR Registration", "description": ""},
+        ],
+        "procedures": [
+            {"id": "dhcr_complaint", "name": "DHCR Complaint", "description": ""},
+        ],
+        "laws": [],
+    })
+    kg.get_required_evidence_for_claim_type = Mock(return_value=[
+        {"id": "lease_agreement", "name": "Lease Agreement", "critical": True, "how_to_obtain": None},
+        {"id": "dhcr_registration", "name": "DHCR Registration", "critical": True, "how_to_obtain": "Request from DHCR"},
     ])
-    kg.search_entities_by_text = Mock(return_value=[])
+    kg.get_required_procedures_for_claim_type = Mock(return_value=[
+        {"id": "dhcr_complaint", "name": "DHCR Complaint", "description": "File with DHCR"},
+    ])
+    kg.get_cases_tagged_with = Mock(return_value=[])
     return kg
 
 
 @pytest.fixture
-def mock_llm_client():
-    """Mock DeepSeek client for fast unit tests."""
+def mock_llm_client_with_tags():
+    """Mock DeepSeek client that returns valid taxonomy tags."""
     client = MagicMock(spec=DeepSeekClient)
-    client.chat_completion = AsyncMock()
+    client.chat_completion = AsyncMock(return_value=json.dumps({
+        "claim_types": ["deregulation_challenge"],
+        "evidence_i_have": ["lease_agreement"],
+    }))
     return client
-
-
-# Note: deepseek_client fixture is now in tests/conftest.py and returns a mock by default
-# Use deepseek_client_real for tests that need real LLM calls
-
-
-@pytest.fixture
-def knowledge_graph():
-    """Create a real ArangoDB graph connection (slow)."""
-    return ArangoDBGraph()
 
 
 @pytest.fixture
 def claim_matcher(mock_knowledge_graph, deepseek_client):
-    """Create a ClaimMatcher service with mocked dependencies (fast by default)."""
+    """ClaimMatcher with mocked dependencies (fast by default)."""
     return ClaimMatcher(mock_knowledge_graph, deepseek_client)
 
 
 @pytest.fixture
-def claim_matcher_real(knowledge_graph, deepseek_client_real):
-    """Create a ClaimMatcher service with real dependencies (slow)."""
-    return ClaimMatcher(knowledge_graph, deepseek_client_real)
+def claim_matcher_with_tags(mock_knowledge_graph, mock_llm_client_with_tags):
+    """ClaimMatcher whose LLM mock returns real taxonomy tag output."""
+    return ClaimMatcher(mock_knowledge_graph, mock_llm_client_with_tags)
 
 
 @pytest.fixture
-def outcome_predictor(mock_knowledge_graph, deepseek_client):
-    """Create an OutcomePredictor service with mocked dependencies (fast by default)."""
-    return OutcomePredictor(mock_knowledge_graph, deepseek_client)
-
-
-@pytest.fixture
-def outcome_predictor_real(knowledge_graph, deepseek_client_real):
-    """Create an OutcomePredictor service with real dependencies (slow)."""
-    return OutcomePredictor(knowledge_graph, deepseek_client_real)
+def claim_matcher_real(deepseek_client_real):
+    """ClaimMatcher with real ArangoDB + real LLM (slow)."""
+    return ClaimMatcher(ArangoDBGraph(), deepseek_client_real)
 
 
 # ============================================================================
@@ -99,267 +100,81 @@ class TestAnalyzeMyCaseFlow:
     """Test the complete "Analyze My Case" flow."""
 
     @pytest.mark.asyncio
-    @pytest.mark.slow
-    async def test_match_situation_to_claim_types(
+    async def test_analyze_returns_dict_shape(
         self,
-        claim_matcher: ClaimMatcher,
-        scenario_fixture: dict,
+        claim_matcher_with_tags: ClaimMatcher,
     ):
-        """Test that situation matches to expected claim types."""
-        user_input = scenario_fixture["user_input"]
-        expected = scenario_fixture["expected_output"]
-
-        matches, extracted_evidence = await claim_matcher.match_situation_to_claim_types(
-            situation=user_input["situation"],
-            evidence_i_have=user_input.get("evidence_i_have", []),
-            jurisdiction=user_input.get("jurisdiction", "NYC"),
+        """analyze() returns the expected top-level keys."""
+        result = await claim_matcher_with_tags.analyze(
+            narrative="My landlord removed my apartment from rent stabilization illegally.",
+            jurisdiction="NYC",
         )
 
-        # Should find at least one match
-        assert len(matches) > 0, "Should match at least one claim type"
-
-        # Check that expected claim types are matched
-        matched_canonicals = {m.canonical_name.upper() for m in matches}
-        expected_canonicals = {
-            claim["claim_type"].upper()
-            for claim in expected["possible_claims"]
-            if claim.get("should_match", True)
-        }
-
-        # At least one expected claim type should be matched
-        assert len(matched_canonicals & expected_canonicals) > 0, (
-            f"Should match at least one expected claim type. Got: {matched_canonicals}, Expected: {expected_canonicals}"
-        )
-
-        # Check match scores meet minimum thresholds
-        for expected_claim in expected["possible_claims"]:
-            if not expected_claim.get("should_match", True):
-                continue
-
-            canonical = expected_claim["claim_type"].upper()
-            match = next((m for m in matches if m.canonical_name.upper() == canonical), None)
-
-            if match:
-                min_score = expected_claim.get("min_match_score", 0.5)
-                assert match.match_score >= min_score, (
-                    f"Match score for {canonical} should be >= {min_score}, got {match.match_score}"
-                )
+        assert isinstance(result, dict)
+        assert "matched_claim_types" in result
+        assert "gaps_per_claim_type" in result
+        assert "similar_cases" in result
+        assert "suggested_procedures" in result
 
     @pytest.mark.asyncio
-    @pytest.mark.slow
-    async def test_evidence_extraction(
+    async def test_matched_claim_types_populated(
         self,
-        claim_matcher: ClaimMatcher,
-        scenario_fixture: dict,
+        claim_matcher_with_tags: ClaimMatcher,
     ):
-        """Test that evidence is properly extracted from situation."""
-        user_input = scenario_fixture["user_input"]
-
-        matches, extracted_evidence = await claim_matcher.match_situation_to_claim_types(
-            situation=user_input["situation"],
-            evidence_i_have=user_input.get("evidence_i_have", []),
-            jurisdiction=user_input.get("jurisdiction", "NYC"),
+        """When LLM returns valid IDs, matched_claim_types is populated."""
+        result = await claim_matcher_with_tags.analyze(
+            narrative="My landlord removed my apartment from rent stabilization illegally.",
+            jurisdiction="NYC",
         )
 
-        # Should extract some evidence
-        assert len(extracted_evidence) > 0, "Should extract at least some evidence from situation"
-
-        # Check that key evidence items are mentioned
-        situation_lower = user_input["situation"].lower()
-        evidence_text = " ".join(extracted_evidence).lower()
-
-        # Should detect mentions of key documents
-        key_terms = ["lease", "dhcr", "rent", "landlord"]
-        detected_terms = [term for term in key_terms if term in evidence_text]
-        assert len(detected_terms) >= 2, (
-            f"Should detect at least 2 key evidence terms. Detected: {detected_terms}"
-        )
+        assert len(result["matched_claim_types"]) > 0
+        ct = result["matched_claim_types"][0]
+        assert ct["id"] == "deregulation_challenge"
+        assert "name" in ct
 
     @pytest.mark.asyncio
-    @pytest.mark.slow
-    @pytest.mark.skip(reason="TODO: Convert to use mocks instead of real LLM calls")
-    async def test_evidence_assessment(
+    async def test_gaps_computed_correctly(
         self,
-        claim_matcher: ClaimMatcher,
-        scenario_fixture: dict,
+        claim_matcher_with_tags: ClaimMatcher,
     ):
-        """Test that evidence strength is properly assessed."""
-        user_input = scenario_fixture["user_input"]
-        expected = scenario_fixture["expected_output"]
-
-        matches, _ = await claim_matcher.match_situation_to_claim_types(
-            situation=user_input["situation"],
-            evidence_i_have=user_input.get("evidence_i_have", []),
-            jurisdiction=user_input.get("jurisdiction", "NYC"),
+        """Gaps omit evidence the tenant has (lease_agreement) and include what's missing."""
+        result = await claim_matcher_with_tags.analyze(
+            narrative="My landlord removed my apartment from rent stabilization illegally.",
+            jurisdiction="NYC",
         )
 
-        # Find the deregulation challenge match
-        dereg_match = next((m for m in matches if "DEREGULATION" in m.canonical_name.upper()), None)
+        gaps = result["gaps_per_claim_type"]
+        assert "deregulation_challenge" in gaps
 
-        if dereg_match:
-            # Should have evidence matches
-            assert len(dereg_match.evidence_matches) > 0, (
-                "Should assess evidence for matched claim type"
-            )
-
-            # Should identify some matched evidence
-            matched_evidence = [em for em in dereg_match.evidence_matches if em.status == "matched"]
-            assert len(matched_evidence) > 0, "Should identify at least some matched evidence"
-
-            # Should identify some gaps
-            gaps = dereg_match.evidence_gaps
-            assert len(gaps) > 0, "Should identify at least some evidence gaps"
-
-            # Check that critical gaps are identified
-            critical_gaps = [g for g in gaps if g.get("is_critical", False)]
-            assert len(critical_gaps) > 0, "Should identify at least some critical evidence gaps"
+        gap_ids = {g["evidence_id"] for g in gaps["deregulation_challenge"]}
+        # tenant has lease_agreement → should NOT be a gap
+        assert "lease_agreement" not in gap_ids
+        # tenant does NOT have dhcr_registration → should be a gap
+        assert "dhcr_registration" in gap_ids
 
     @pytest.mark.asyncio
-    @pytest.mark.slow
-    @pytest.mark.skip(reason="TODO: Convert to use mocks instead of real LLM calls")
-    async def test_evidence_gaps_with_advice(
+    async def test_suggested_procedures_populated(
         self,
-        claim_matcher: ClaimMatcher,
-        scenario_fixture: dict,
+        claim_matcher_with_tags: ClaimMatcher,
     ):
-        """Test that evidence gaps include actionable advice."""
-        user_input = scenario_fixture["user_input"]
-
-        matches, _ = await claim_matcher.match_situation_to_claim_types(
-            situation=user_input["situation"],
-            evidence_i_have=user_input.get("evidence_i_have", []),
-            jurisdiction=user_input.get("jurisdiction", "NYC"),
+        """suggested_procedures returns procedures linked to matched claim types."""
+        result = await claim_matcher_with_tags.analyze(
+            narrative="My landlord removed my apartment from rent stabilization illegally.",
+            jurisdiction="NYC",
         )
 
-        # Get the top match
-        if matches:
-            top_match = matches[0]
-            gaps = top_match.evidence_gaps
-
-            # Should have at least some gaps identified
-            assert len(gaps) > 0, "Should identify at least some evidence gaps"
-
-            # If gaps have advice, it should be non-empty
-            gaps_with_advice = [g for g in gaps if g.get("how_to_get")]
-            if gaps_with_advice:
-                for gap in gaps_with_advice:
-                    assert gap["how_to_get"].strip(), (
-                        f"Gap advice should not be empty for: {gap.get('evidence_name')}"
-                    )
-            # Note: It's acceptable if not all gaps have advice yet (feature may be in progress)
+        procs = result["suggested_procedures"]
+        assert isinstance(procs, list)
+        if procs:
+            assert "id" in procs[0] or "_key" in procs[0]
 
     @pytest.mark.asyncio
-    @pytest.mark.slow
-    @pytest.mark.skip(reason="TODO: Convert to use mocks instead of real LLM calls")
-    async def test_next_steps_generation(
-        self,
-        claim_matcher: ClaimMatcher,
-        scenario_fixture: dict,
-    ):
-        """Test that next steps are generated."""
-        user_input = scenario_fixture["user_input"]
-        expected = scenario_fixture["expected_output"]
-
-        matches, _ = await claim_matcher.match_situation_to_claim_types(
-            situation=user_input["situation"],
-            evidence_i_have=user_input.get("evidence_i_have", []),
-            jurisdiction=user_input.get("jurisdiction", "NYC"),
-        )
-
-        if matches:
-            # Generate next steps
-            next_steps = await claim_matcher.generate_next_steps(
-                claim_matches=matches,
-                situation=user_input["situation"],
-            )
-
-            # Should generate some next steps
-            assert len(next_steps) > 0, "Should generate at least some next steps"
-
-            # Next steps should be actionable (non-empty)
-            for step in next_steps:
-                assert step.strip(), "Next steps should not be empty"
-
-            # Should include some expected actions
-            next_steps_text = " ".join(next_steps).lower()
-            expected_keywords = ["file", "request", "assert", "demand"]
-            found_keywords = [kw for kw in expected_keywords if kw in next_steps_text]
-            assert len(found_keywords) > 0, (
-                f"Should include actionable keywords. Found: {found_keywords}"
-            )
-
-    @pytest.mark.asyncio
-    @pytest.mark.slow
-    @pytest.mark.skip(reason="TODO: Convert to use mocks instead of real LLM calls")
-    async def test_outcome_prediction(
-        self,
-        claim_matcher: ClaimMatcher,
-        outcome_predictor: OutcomePredictor,
-        scenario_fixture: dict,
-    ):
-        """Test that outcomes are predicted based on similar cases."""
-        user_input = scenario_fixture["user_input"]
-
-        matches, _ = await claim_matcher.match_situation_to_claim_types(
-            situation=user_input["situation"],
-            evidence_i_have=user_input.get("evidence_i_have", []),
-            jurisdiction=user_input.get("jurisdiction", "NYC"),
-        )
-
-        if matches:
-            # Find similar cases
-            top_match = matches[0]
-            similar_cases = await outcome_predictor.find_similar_cases(
-                claim_type=top_match.canonical_name,
-                situation=user_input["situation"],
-                limit=5,
-            )
-
-            # Should find some similar cases (if knowledge graph has cases)
-            # This might be empty if no cases are ingested yet, which is OK
-            if similar_cases:
-                # Predict outcomes
-                predictions = await outcome_predictor.predict_outcomes(
-                    claim_type=top_match.canonical_name,
-                    evidence_strength=top_match.evidence_strength,
-                    similar_cases=similar_cases,
-                )
-
-                # Should generate some predictions
-                assert len(predictions) > 0, (
-                    "Should generate outcome predictions when similar cases exist"
-                )
-
-    @pytest.mark.asyncio
-    async def test_completeness_score_calculation(
-        self,
-        claim_matcher: ClaimMatcher,
-        scenario_fixture: dict,
-    ):
-        """Test that completeness scores are calculated correctly."""
-        user_input = scenario_fixture["user_input"]
-
-        matches, _ = await claim_matcher.match_situation_to_claim_types(
-            situation=user_input["situation"],
-            evidence_i_have=user_input.get("evidence_i_have", []),
-            jurisdiction=user_input.get("jurisdiction", "NYC"),
-        )
-
-        if matches:
-            for match in matches:
-                # Completeness should be between 0 and 1
-                assert 0 <= match.completeness_score <= 1, (
-                    f"Completeness score should be between 0 and 1, got {match.completeness_score}"
-                )
-
-                # Should have evidence strength assessment
-                assert match.evidence_strength in [
-                    "strong",
-                    "moderate",
-                    "weak",
-                ], (
-                    f"Evidence strength should be one of: strong, moderate, weak. Got: {match.evidence_strength}"
-                )
+    async def test_empty_narrative_handled(self, claim_matcher: ClaimMatcher):
+        """Empty narrative returns empty results gracefully (no crash)."""
+        result = await claim_matcher.analyze(narrative="", jurisdiction="NYC")
+        assert isinstance(result, dict)
+        assert isinstance(result["matched_claim_types"], list)
+        assert isinstance(result["gaps_per_claim_type"], dict)
 
 
 # ============================================================================
@@ -369,62 +184,39 @@ class TestAnalyzeMyCaseFlow:
 
 @pytest.mark.integration
 class TestAnalyzeMyCaseEdgeCases:
-    """Test edge cases for "Analyze My Case"."""
 
     @pytest.mark.asyncio
-    async def test_empty_situation(
-        self,
-        claim_matcher: ClaimMatcher,
-    ):
-        """Test handling of empty situation."""
-        matches, extracted_evidence = await claim_matcher.match_situation_to_claim_types(
-            situation="",
-            evidence_i_have=[],
-            jurisdiction="NYC",
-        )
+    async def test_llm_returns_bad_json(self, mock_knowledge_graph):
+        """Bad LLM output falls back to empty tags gracefully."""
+        bad_client = MagicMock(spec=DeepSeekClient)
+        bad_client.chat_completion = AsyncMock(return_value="not valid json {{")
+        matcher = ClaimMatcher(mock_knowledge_graph, bad_client)
 
-        # Should handle gracefully (either return empty or minimal matches)
-        # The exact behavior depends on implementation, but shouldn't crash
-        assert isinstance(matches, list), "Should return a list of matches"
-        assert isinstance(extracted_evidence, list), "Should return a list of extracted evidence"
+        result = await matcher.analyze(narrative="My landlord is harassing me.", jurisdiction="NYC")
+        assert result["matched_claim_types"] == []
+        assert result["gaps_per_claim_type"] == {}
 
     @pytest.mark.asyncio
-    async def test_no_evidence_provided(
-        self,
-        claim_matcher: ClaimMatcher,
-    ):
-        """Test that system can work with no explicit evidence."""
-        matches, extracted_evidence = await claim_matcher.match_situation_to_claim_types(
-            situation="My landlord is trying to evict me for non-payment, but I think the rent is too high.",
-            evidence_i_have=[],
-            jurisdiction="NYC",
-        )
-
-        # Should still extract evidence from situation (if LLM extracts it)
-        # Note: LLM may not always extract evidence, so this is optional
-        # We'll just verify the function completed without error
-        
-        # Should still match claim types (if good matches exist)
-        # Note: LLM may return 0 matches if no good matches found
-        # This is acceptable - the test verifies the system handles the case gracefully
+    async def test_very_long_narrative(self, claim_matcher: ClaimMatcher):
+        """Long narrative doesn't crash."""
+        long_narrative = "My landlord is trying to evict me. " * 100
+        result = await claim_matcher.analyze(narrative=long_narrative, jurisdiction="NYC")
+        assert isinstance(result, dict)
 
     @pytest.mark.asyncio
-    async def test_very_long_situation(
-        self,
-        claim_matcher: ClaimMatcher,
-    ):
-        """Test handling of very long situation descriptions."""
-        long_situation = "My landlord is trying to evict me. " * 100  # ~3000 chars
+    async def test_unknown_claim_type_ids_filtered(self, mock_knowledge_graph):
+        """Claim type IDs not in snapshot are silently dropped."""
+        client = MagicMock(spec=DeepSeekClient)
+        client.chat_completion = AsyncMock(return_value=json.dumps({
+            "claim_types": ["nonexistent_claim_type", "deregulation_challenge"],
+            "evidence_i_have": [],
+        }))
+        matcher = ClaimMatcher(mock_knowledge_graph, client)
 
-        matches, extracted_evidence = await claim_matcher.match_situation_to_claim_types(
-            situation=long_situation,
-            evidence_i_have=[],
-            jurisdiction="NYC",
-        )
-
-        # Should handle without crashing
-        assert isinstance(matches, list), "Should return a list of matches"
-        assert isinstance(extracted_evidence, list), "Should return a list of extracted evidence"
+        result = await matcher.analyze(narrative="some narrative", jurisdiction="NYC")
+        ids = [ct["id"] for ct in result["matched_claim_types"]]
+        assert "nonexistent_claim_type" not in ids
+        assert "deregulation_challenge" in ids
 
 
 # ============================================================================
@@ -434,32 +226,21 @@ class TestAnalyzeMyCaseEdgeCases:
 
 @pytest.mark.integration
 class TestAnalyzeMyCasePerformance:
-    """Test performance characteristics of "Analyze My Case"."""
 
     @pytest.mark.asyncio
-    async def test_megaprompt_performance(
+    async def test_analyze_completes_in_reasonable_time(
         self,
-        claim_matcher: ClaimMatcher,
-        scenario_fixture: dict,
+        claim_matcher_with_tags: ClaimMatcher,
     ):
-        """Test that megaprompt completes in reasonable time."""
+        """analyze() completes within 60 seconds (allows for slow mocks/network)."""
         import time
 
-        user_input = scenario_fixture["user_input"]
-
         start = time.time()
-        matches, extracted_evidence = await claim_matcher.match_situation_to_claim_types(
-            situation=user_input["situation"],
-            evidence_i_have=user_input.get("evidence_i_have", []),
-            jurisdiction=user_input.get("jurisdiction", "NYC"),
+        result = await claim_matcher_with_tags.analyze(
+            narrative="My landlord has not provided heat and is trying to evict me.",
+            jurisdiction="NYC",
         )
         elapsed = time.time() - start
 
-        # Should complete in reasonable time (< 60 seconds for integration test)
-        assert elapsed < 60, f"Analysis should complete in < 60 seconds, took {elapsed:.1f}s"
-
-        # Should produce results (allow for LLM variability - may return empty if no good matches)
-        # This is a performance test, so we mainly care about timing, not strict match requirements
-        # If no matches, that's acceptable - the test verifies performance, not match quality
-
-        print(f"✅ Megaprompt completed in {elapsed:.1f}s, found {len(matches)} matches")
+        assert elapsed < 60, f"Should complete in < 60s, took {elapsed:.1f}s"
+        assert isinstance(result, dict)

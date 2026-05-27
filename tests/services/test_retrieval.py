@@ -199,7 +199,7 @@ class TestHybridRetriever:
         results = retriever.retrieve("test", expand_neighbors=True)
 
         # Should deduplicate
-        entity_ids = [e.id for e in results["entities"]]
+        entity_ids = [e.get("id") if isinstance(e, dict) else e.id for e in results["entities"]]
         assert entity_ids.count("entity_1") == 1  # Only one instance
 
 
@@ -286,8 +286,8 @@ class TestIntegrationScenarios:
                     ),
                 ),
                 LegalEntity(
-                    id="legal_outcome:eviction_defense",
-                    entity_type=EntityType.LEGAL_OUTCOME,
+                    id="procedure:eviction_defense",
+                    entity_type=EntityType.PROCEDURE,
                     name="Eviction Defense",
                     description="Challenge improper eviction",
                     source_metadata=SourceMetadata(
@@ -309,5 +309,5 @@ class TestIntegrationScenarios:
         assert "eviction" in results["chunks"][0]["text"].lower()
 
         assert len(results["entities"]) >= 2
-        entity_names = [e.name for e in results["entities"]]
+        entity_names = [e.get("name") if isinstance(e, dict) else e.name for e in results["entities"]]
         assert any("Eviction" in name for name in entity_names)

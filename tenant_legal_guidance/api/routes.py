@@ -14,22 +14,12 @@ from tenant_legal_guidance.api.schemas import (
     AnalyzeMyCaseResponse,
     BulkIngestRequest,
     BulkIngestResponse,
-    CaseAnalysisRequest,
-    ChainsRequest,
-    ClaimExtractionRequest,
-    ClaimTypeMatchSchema,
     ClaimTypeSchema,
     ClaimTypesResponse,
-    ConsolidateAllRequest,
-    ConsolidateRequest,
     ConsultationRequest,
     CurationSearchRequest,
     CurationSearchResponse,
     DeleteEntitiesRequest,
-    EnhancedCaseAnalysisRequest,
-    EvidenceGapSchema,
-    EvidenceMatchSchema,
-    ProcedureGapSchema,
     ExpandRequest,
     GenerateAnalysisRequest,
     HybridSearchRequest,
@@ -39,18 +29,13 @@ from tenant_legal_guidance.api.schemas import (
     ManifestAddRequest,
     ManifestAddResponse,
     ManifestUploadResponse,
-    NextStepsRequest,
-    ProofChainEvidenceSchema,
-    ProofChainSchema,
     QdrantSearchRequest,
     QdrantSearchResponse,
     RequiredEvidenceResponse,
     RetrieveEntitiesRequest,
 )
-from tenant_legal_guidance.models.claim_types import ClaimType
 from tenant_legal_guidance.models.entities import SourceMetadata, SourceType
 from tenant_legal_guidance.services.case_analyzer import CaseAnalyzer
-from tenant_legal_guidance.services.entity_consolidation import EntityConsolidationService
 from tenant_legal_guidance.services.anonymization import anonymize_pii
 from tenant_legal_guidance.services.security import (
     detect_prompt_injection,
@@ -82,8 +67,23 @@ def get_templates(request: Request) -> Jinja2Templates:
     return request.app.state.templates
 
 
-def get_consolidator(system: TenantLegalSystem = Depends(get_system)) -> EntityConsolidationService:
-    return EntityConsolidationService(system.knowledge_graph, system.deepseek)
+_ENTITY_TYPE_MAP = {
+    "claim_type": "CLAIM_TYPE",
+    "evidence": "EVIDENCE",
+    "evidence_node": "EVIDENCE",
+    "procedure": "LEGAL_PROCEDURE",
+    "law": "LAW",
+    "case_document": "CASE",
+}
+
+
+def _node_type(doc: dict) -> str:
+    """Return the FE-compatible type string for a graph node doc."""
+    t = doc.get("type") or ""
+    if t:
+        return t
+    return _ENTITY_TYPE_MAP.get(doc.get("entity_type", ""), "")
+
 
 
 @router.get("/", response_class=HTMLResponse)
@@ -267,16 +267,19 @@ async def get_graph_data(
 
         nodes = []
         node_ids: list[str] = []
+        seen_node_ids: set[str] = set()
         for doc in raw_nodes:
-            nid = doc.get("_key")
-            if not nid:
+            # Use _id (collection/key) as the unique node ID to avoid cross-collection key collisions
+            nid = doc.get("_id")
+            if not nid or nid in seen_node_ids:
                 continue
+            seen_node_ids.add(nid)
             node_ids.append(nid)
             nodes.append(
                 {
                     "id": nid,
                     "label": doc.get("name", ""),
-                    "type": doc.get("type", ""),
+                    "type": _node_type(doc),
                     "description": doc.get("description", ""),
                     "jurisdiction": doc.get("jurisdiction", ""),
                     "source_metadata": doc.get("source_metadata", {}),
@@ -316,20 +319,29 @@ async def get_graph_data(
                 # This ensures we see all connections to/from visible nodes
                 id_set = set(node_ids)
                 
-                # Query relationships where source or target matches loaded nodes
+                # Query all active edge collections using full _id paths
                 aql = """
-                FOR e IN edges
-                    LET from_id = SPLIT(e._from, '/')[1]
-                    LET to_id = SPLIT(e._to, '/')[1]
-                    FILTER from_id IN @ids OR to_id IN @ids
-                    RETURN { 
-                        from_id, 
-                        to_id, 
-                        type: e.type, 
-                        weight: e.weight, 
-                        conditions: e.conditions,
-                        attributes: e.attributes
-                    }
+                FOR e IN UNION(
+                    (FOR e IN requires_evidence
+                        FILTER e._from IN @ids OR e._to IN @ids
+                        RETURN {from_id: e._from, to_id: e._to, type: "REQUIRES_EVIDENCE", weight: 1.0, conditions: null, attributes: {}}),
+                    (FOR e IN typically_uses
+                        FILTER e._from IN @ids OR e._to IN @ids
+                        RETURN {from_id: e._from, to_id: e._to, type: "TYPICALLY_USES", weight: 1.0, conditions: null, attributes: {}}),
+                    (FOR e IN cites
+                        FILTER e._from IN @ids OR e._to IN @ids
+                        RETURN {from_id: e._from, to_id: e._to, type: "CITES", weight: 1.0, conditions: null, attributes: {}}),
+                    (FOR e IN tagged_as
+                        FILTER e._from IN @ids OR e._to IN @ids
+                        RETURN {from_id: e._from, to_id: e._to, type: "TAGGED_AS", weight: 1.0, conditions: null, attributes: {}}),
+                    (FOR e IN demonstrates_evidence
+                        FILTER e._from IN @ids OR e._to IN @ids
+                        RETURN {from_id: e._from, to_id: e._to, type: "DEMONSTRATES_EVIDENCE", weight: 1.0, conditions: null, attributes: {}}),
+                    (FOR e IN applied_procedure
+                        FILTER e._from IN @ids OR e._to IN @ids
+                        RETURN {from_id: e._from, to_id: e._to, type: "APPLIED_PROCEDURE", weight: 1.0, conditions: null, attributes: {}})
+                )
+                    RETURN e
                 """
                 cursor = kg.db.aql.execute(aql, bind_vars={"ids": list(id_set)})
                 
@@ -631,229 +643,11 @@ async def generate_analysis(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/api/analyze-case")
-async def analyze_case(
-    request: CaseAnalysisRequest, case_analyzer: CaseAnalyzer = Depends(get_analyzer)
-) -> dict:
-    """Analyze a tenant case using RAG on the knowledge graph (legacy endpoint)."""
-    try:
-        # Security: Validate and sanitize input
-        if detect_prompt_injection(request.case_text):
-            logger.warning("Potential prompt injection detected in analyze-case request")
-            raise HTTPException(
-                status_code=400,
-                detail="Invalid input detected. Please provide a valid case description.",
-            )
-
-        # Sanitize input
-        sanitized_case_text = sanitize_for_llm(request.case_text)
-
-        # Anonymize PII before processing and storage
-        from tenant_legal_guidance.config import get_settings
-        settings = get_settings()
-        if settings.anonymize_pii_enabled:
-            anonymized_case_text = anonymize_pii(
-                sanitized_case_text,
-                anonymize_names=settings.anonymize_names,
-                anonymize_emails=settings.anonymize_emails,
-                anonymize_phones=settings.anonymize_phones,
-                anonymize_addresses=settings.anonymize_addresses,
-                anonymize_ssn=settings.anonymize_ssn,
-                anonymize_dates=settings.anonymize_dates,
-                anonymize_financial=settings.anonymize_financial,
-            )
-        else:
-            anonymized_case_text = sanitized_case_text
-
-        logger.info(f"Analyzing case: {anonymized_case_text[:100]}...")
-        # Check cache if example_id is present
-        if request.example_id and not request.force_refresh:
-            cached = get_cached_analysis(request.example_id)
-            if cached:
-                logger.info(f"Returning cached analysis for example_id={request.example_id}")
-                return cached
-        guidance = await case_analyzer.analyze_case(anonymized_case_text)
-
-        # Convert markdown to HTML for better display
-        result = {
-            "case_summary": guidance.case_summary,
-            "case_summary_html": case_analyzer.convert_to_html(guidance.case_summary),
-            "legal_issues": guidance.legal_issues,
-            "legal_issues_html": case_analyzer.convert_list_to_html(guidance.legal_issues),
-            "relevant_laws": guidance.relevant_laws,
-            "relevant_laws_html": case_analyzer.convert_list_to_html(guidance.relevant_laws),
-            "recommended_actions": guidance.recommended_actions,
-            "recommended_actions_html": case_analyzer.convert_list_to_html(
-                guidance.recommended_actions
-            ),
-            "evidence_needed": guidance.evidence_needed,
-            "evidence_needed_html": case_analyzer.convert_list_to_html(guidance.evidence_needed),
-            "legal_resources": guidance.legal_resources,
-            "legal_resources_html": case_analyzer.convert_list_to_html(guidance.legal_resources),
-            "risk_assessment": guidance.risk_assessment,
-            "risk_assessment_html": case_analyzer.convert_to_html(guidance.risk_assessment),
-            "next_steps": guidance.next_steps,
-            "next_steps_html": case_analyzer.convert_list_to_html(guidance.next_steps),
-        }
-        if guidance.sections:
-            result["sections"] = guidance.sections
-        if guidance.citations:
-            result["citations"] = guidance.citations
-        if request.example_id and not request.force_refresh:
-            set_cached_analysis(request.example_id, result)
-        return result
-    except Exception as e:
-        logger.error(f"Error analyzing case: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+## Removed: /api/analyze-case (legacy endpoint, superseded by /api/v1/analyze-my-case)
 
 
-@router.post("/api/analyze-case-enhanced")
-async def analyze_case_enhanced(
-    request: EnhancedCaseAnalysisRequest, case_analyzer: CaseAnalyzer = Depends(get_analyzer)
-) -> dict:
-    """Enhanced case analysis with proof chains, evidence gaps, and remedy ranking."""
-    try:
-        # Security: Validate and sanitize input
-        if detect_prompt_injection(request.case_text):
-            logger.warning("Potential prompt injection detected in analyze-case-enhanced request")
-            raise HTTPException(
-                status_code=400,
-                detail="Invalid input detected. Please provide a valid case description.",
-            )
-
-        # Sanitize input
-        sanitized_case_text = sanitize_for_llm(request.case_text)
-
-        # Anonymize PII before processing and storage
-        from tenant_legal_guidance.config import get_settings
-        settings = get_settings()
-        if settings.anonymize_pii_enabled:
-            anonymized_case_text = anonymize_pii(
-                sanitized_case_text,
-                anonymize_names=settings.anonymize_names,
-                anonymize_emails=settings.anonymize_emails,
-                anonymize_phones=settings.anonymize_phones,
-                anonymize_addresses=settings.anonymize_addresses,
-                anonymize_ssn=settings.anonymize_ssn,
-                anonymize_dates=settings.anonymize_dates,
-                anonymize_financial=settings.anonymize_financial,
-            )
-        else:
-            anonymized_case_text = sanitized_case_text
-
-        logger.info(f"Enhanced analysis for case: {anonymized_case_text[:100]}...")
-
-        # Check cache if example_id is present
-        cache_key = f"enhanced_{request.example_id}" if request.example_id else None
-        if cache_key and not request.force_refresh:
-            cached = get_cached_analysis(cache_key)
-            if cached:
-                logger.info(
-                    f"Returning cached enhanced analysis for example_id={request.example_id}"
-                )
-                return cached
-
-        # Run enhanced analysis
-        guidance = await case_analyzer.analyze_case_enhanced(
-            anonymized_case_text, request.jurisdiction
-        )
-
-        # Convert dataclasses to dicts for JSON serialization
-        def convert_proof_chain(pc):
-            return {
-                "issue": pc.issue,
-                "applicable_laws": pc.applicable_laws,
-                "evidence_present": pc.evidence_present,
-                "evidence_needed": pc.evidence_needed,
-                "strength_score": pc.strength_score,
-                "strength_assessment": pc.strength_assessment,
-                "remedies": [
-                    {
-                        "name": r.name,
-                        "legal_basis": r.legal_basis,
-                        "requirements": r.requirements,
-                        "estimated_probability": r.estimated_probability,
-                        "potential_outcome": r.potential_outcome,
-                        "authority_level": r.authority_level,
-                        "jurisdiction_match": r.jurisdiction_match,
-                        "sources": r.sources,
-                        "reasoning": r.reasoning,
-                    }
-                    for r in pc.remedies
-                ],
-                "next_steps": pc.next_steps,
-                "reasoning": pc.reasoning,
-            }
-
-        # Serialize retrieved entities and relationships for API response
-        logger.info(f"API: Serializing {len(guidance.retrieved_entities)} entities, {len(guidance.retrieved_relationships)} relationships, {len(guidance.retrieved_chunks)} chunks")
-        entities_response = [entity.to_api_dict() for entity in guidance.retrieved_entities]
-        relationships_response = [rel.to_api_dict() for rel in guidance.retrieved_relationships]
-        
-        logger.info(f"API: After serialization - {len(entities_response)} entities, {len(relationships_response)} relationships")
-        if len(guidance.retrieved_chunks) == 0:
-            logger.warning("⚠️ API: NO CHUNKS in guidance.retrieved_chunks!")
-        if len(guidance.retrieved_entities) == 0:
-            logger.warning("⚠️ API: NO ENTITIES in guidance.retrieved_entities!")
-        if len(guidance.retrieved_relationships) == 0:
-            logger.warning("⚠️ API: NO RELATIONSHIPS in guidance.retrieved_relationships!")
-        
-        result = {
-            "case_summary": guidance.case_summary,
-            "proof_chains": [convert_proof_chain(pc) for pc in guidance.proof_chains],
-            "overall_strength": guidance.overall_strength,
-            "priority_actions": guidance.priority_actions,
-            "risk_assessment": guidance.risk_assessment,
-            "citations": guidance.citations,
-            # Rich interpretation fields (NEW)
-            "rich_interpretation": guidance.rich_interpretation,
-            "graph_insights": guidance.graph_insights,
-            "data_richness": guidance.data_richness,
-            "confidence_scores": {
-                "overall": guidance.graph_insights.get("confidence_score", 0.0),
-                "indicators": guidance.rich_interpretation.get("confidence_indicators", {}),
-            },
-            # Retrieved data for UI display (NEW)
-            "chunks": guidance.retrieved_chunks,
-            "entities": entities_response,
-            "relationships": relationships_response,
-            "retrieval_stats": {
-                "total_chunks": len(guidance.retrieved_chunks),
-                "total_entities": len(guidance.retrieved_entities),
-                "total_relationships": len(guidance.retrieved_relationships),
-            },
-            # Backward compatibility
-            "legal_issues": guidance.legal_issues,
-            "relevant_laws": guidance.relevant_laws,
-            "recommended_actions": guidance.recommended_actions,
-            "evidence_needed": guidance.evidence_needed,
-            "legal_resources": guidance.legal_resources,
-            "next_steps": guidance.next_steps,
-        }
-
-        # Add HTML versions for display
-        result["case_summary_html"] = case_analyzer.convert_to_html(guidance.case_summary)
-        result["risk_assessment_html"] = case_analyzer.convert_to_html(guidance.risk_assessment)
-
-        if cache_key:
-            set_cached_analysis(cache_key, result)
-
-        return result
-    except Exception as e:
-        logger.error(f"Error in enhanced case analysis: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/api/chains")
-async def build_chains(req: ChainsRequest, system: TenantLegalSystem = Depends(get_system)) -> dict:
-    try:
-        chains = system.knowledge_graph.build_legal_chains(
-            req.issues or [], req.jurisdiction, req.limit or 25
-        )
-        return {"chains": chains, "total": len(chains)}
-    except Exception as e:
-        logger.error(f"Chains build failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+## Removed: /api/analyze-case-enhanced (superseded by /api/v1/analyze-my-case)
+## Removed: /api/chains (old proof-chain system)
 
 
 @router.get("/api/kg/all-entities")
@@ -1083,18 +877,7 @@ async def health_search(system: TenantLegalSystem = Depends(get_system)) -> dict
         return {"status": "error", "message": str(e)}
 
 
-@router.post("/api/next-steps")
-async def next_steps(
-    req: NextStepsRequest, system: TenantLegalSystem = Depends(get_system)
-) -> dict:
-    try:
-        steps = system.knowledge_graph.compute_next_steps(req.issues, req.jurisdiction)
-        return {"steps": steps, "total": len(steps)}
-    except Exception as e:
-        logger.error(f"Next steps failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
+## Removed: /api/next-steps (old proof-chain system)
 ## Removed legacy seeding endpoint: /api/seed/ny-habitability (unused)
 
 
@@ -1117,45 +900,6 @@ async def kg_expand(req: ExpandRequest, system: TenantLegalSystem = Depends(get_
         logger.error(f"KG expand failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
-
-@router.post("/api/kg/consolidate")
-async def kg_consolidate(
-    req: ConsolidateRequest, system: TenantLegalSystem = Depends(get_system)
-) -> dict:
-    try:
-        if not req.node_ids:
-            raise HTTPException(status_code=400, detail="node_ids is required")
-        result = system.knowledge_graph.consolidate_entities(req.node_ids, threshold=req.threshold)
-        return {"status": "ok", **result}
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"KG consolidate failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/api/kg/consolidate-all")
-async def kg_consolidate_all(
-    req: ConsolidateAllRequest, consolidator: EntityConsolidationService = Depends(get_consolidator)
-) -> dict:
-    try:
-        from tenant_legal_guidance.utils.entity_helpers import normalize_entity_type
-
-        type_filter = None
-        if req.types:
-            type_filter = []
-            for t in req.types:
-                try:
-                    entity_type = normalize_entity_type(t)
-                    type_filter.append(entity_type.value)
-                except (ValueError, KeyError):
-                    continue
-        # Delegate the full consolidate-all flow to the service
-        threshold = req.threshold or 0.95
-        return await consolidator.consolidate_all(threshold=threshold, types=type_filter)
-    except Exception as e:
-        logger.error(f"KG consolidate-all failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/api/chunks/search")
@@ -1685,99 +1429,7 @@ async def get_entity_quote(entity_id: str, system: TenantLegalSystem = Depends(g
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# ============================================================================
-# Legal Claim Proving System Endpoints
-# ============================================================================
-
-
-@router.post("/api/v1/claims/extract", response_model=list[ProofChainSchema])
-async def extract_claims(
-    request: ClaimExtractionRequest, system: TenantLegalSystem = Depends(get_system)
-) -> list[ProofChainSchema]:
-    """
-    Extract proof chains from a document.
-
-    This endpoint uses the unified ProofChainService for extraction.
-    Extracts proof chains and stores entities in both ArangoDB and Qdrant with dual storage.
-
-    Returns list of ProofChain objects directly (unified format).
-    """
-    try:
-        from tenant_legal_guidance.services.proof_chain import ProofChainService
-
-        logger.info(f"Extracting proof chains from document ({len(request.text)} chars)")
-
-        # Create proof chain service with system dependencies
-        proof_chain_service = ProofChainService(
-            knowledge_graph=system.knowledge_graph,
-            vector_store=system.vector_store,
-            llm_client=system.deepseek,
-        )
-
-        # Extract proof chains (this stores entities in both DBs)
-        proof_chains = await proof_chain_service.extract_proof_chains(
-            text=request.text,
-            metadata=request.metadata,
-        )
-
-        # Convert ProofChain objects to ProofChainSchema
-        return [
-            ProofChainSchema(
-                claim_id=chain.claim_id,
-                claim_description=chain.claim_description,
-                claim_type=chain.claim_type,
-                claimant=chain.claimant,
-                required_evidence=[
-                    ProofChainEvidenceSchema(
-                        evidence_id=ev.evidence_id,
-                        evidence_type=ev.evidence_type,
-                        description=ev.description,
-                        is_critical=ev.is_critical,
-                        context=ev.context,
-                        source_reference=ev.source_reference,
-                        satisfied_by=ev.satisfied_by,
-                        satisfies=ev.satisfies,
-                    )
-                    for ev in (chain.required_evidence or [])
-                ],
-                presented_evidence=[
-                    ProofChainEvidenceSchema(
-                        evidence_id=ev.evidence_id,
-                        evidence_type=ev.evidence_type,
-                        description=ev.description,
-                        is_critical=ev.is_critical,
-                        context=ev.context,
-                        source_reference=ev.source_reference,
-                        satisfied_by=ev.satisfied_by,
-                        satisfies=ev.satisfies,
-                    )
-                    for ev in (chain.presented_evidence or [])
-                ],
-                missing_evidence=[
-                    ProofChainEvidenceSchema(
-                        evidence_id=ev.evidence_id,
-                        evidence_type=ev.evidence_type,
-                        description=ev.description,
-                        is_critical=ev.is_critical,
-                        context=ev.context,
-                        source_reference=ev.source_reference,
-                        satisfied_by=ev.satisfied_by,
-                        satisfies=ev.satisfies,
-                    )
-                    for ev in (chain.missing_evidence or [])
-                ],
-                outcome=chain.outcome,
-                damages=chain.damages,
-                completeness_score=chain.completeness_score,
-                satisfied_count=chain.satisfied_count,
-                missing_count=chain.missing_count,
-                critical_gaps=chain.critical_gaps or [],
-            )
-            for chain in proof_chains
-        ]
-    except Exception as e:
-        logger.error(f"Proof chain extraction failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+## Removed: /api/v1/claims/extract (old proof-chain extraction pipeline)
 
 
 @router.get("/api/v1/claim-types", response_model=ClaimTypesResponse)
@@ -1800,10 +1452,6 @@ async def get_claim_types(
 
         # Get claim_type nodes from graph (M4c: dynamic nodes, not hardcoded enum)
         ct_nodes = kg.get_all_claim_type_nodes()
-
-        # Fallback to enum values if no dynamic nodes exist yet
-        if not ct_nodes:
-            ct_nodes = [{"name": ct.value, "description": ct.description} for ct in ClaimType]
 
         return ClaimTypesResponse(
             claim_types=[
@@ -1853,26 +1501,16 @@ async def get_required_evidence(
 async def analyze_my_case(
     request: AnalyzeMyCaseRequest, system: TenantLegalSystem = Depends(get_system)
 ) -> dict:
-    """
-    Analyze a user's legal situation and provide guidance.
-
-    This is the core "Analyze My Case" endpoint that:
-    1. Matches user's situation to relevant claim types
-    2. Assesses evidence strength
-    3. Predicts outcomes based on similar cases
-    4. Identifies evidence gaps with actionable advice
-    5. Generates next steps
-    """
+    """Analyze a tenant's situation: match claim types, compute evidence gaps, find similar cases."""
     try:
         from tenant_legal_guidance.services.claim_matcher import ClaimMatcher
-        from tenant_legal_guidance.services.outcome_predictor import OutcomePredictor
-
-        # Anonymize PII before processing
         from tenant_legal_guidance.config import get_settings
+
         settings = get_settings()
+        narrative = request.situation
         if settings.anonymize_pii_enabled:
-            anonymized_situation = anonymize_pii(
-                request.situation,
+            narrative = anonymize_pii(
+                narrative,
                 anonymize_names=settings.anonymize_names,
                 anonymize_emails=settings.anonymize_emails,
                 anonymize_phones=settings.anonymize_phones,
@@ -1881,361 +1519,23 @@ async def analyze_my_case(
                 anonymize_dates=settings.anonymize_dates,
                 anonymize_financial=settings.anonymize_financial,
             )
-            # Anonymize evidence list if provided
-            anonymized_evidence = None
-            if request.evidence_i_have:
-                anonymized_evidence = [
-                    anonymize_pii(
-                        ev,
-                        anonymize_names=settings.anonymize_names,
-                        anonymize_emails=settings.anonymize_emails,
-                        anonymize_phones=settings.anonymize_phones,
-                        anonymize_addresses=settings.anonymize_addresses,
-                        anonymize_ssn=settings.anonymize_ssn,
-                        anonymize_dates=settings.anonymize_dates,
-                        anonymize_financial=settings.anonymize_financial,
-                    )
-                    for ev in request.evidence_i_have
-                ]
-        else:
-            anonymized_situation = request.situation
-            anonymized_evidence = request.evidence_i_have
 
-        logger.info(
-            f"Analyzing case: {len(anonymized_situation)} chars, {len(anonymized_evidence) if anonymized_evidence else 0} evidence items (auto-extract: {not anonymized_evidence or len(anonymized_evidence) == 0})"
-        )
+        logger.info(f"Analyzing case: {len(narrative)} chars, jurisdiction={request.jurisdiction}")
 
-        # Create matcher and predictor
         matcher = ClaimMatcher(
             knowledge_graph=system.knowledge_graph,
             llm_client=system.deepseek,
         )
-        predictor = OutcomePredictor(
-            knowledge_graph=system.knowledge_graph,
-            llm_client=system.deepseek,
-        )
-
-        # Match situation to claim types (auto-extract evidence if not provided)
-        claim_matches, extracted_evidence = await matcher.match_situation_to_claim_types(
-            situation=anonymized_situation,
-            evidence_i_have=anonymized_evidence or [],
-            auto_extract_evidence=True,  # Auto-extract from situation if evidence not provided
-            jurisdiction=request.jurisdiction,
-        )
-
-        # Predict outcomes for each claim and attach similar cases
-        for match in claim_matches:
-            # Find similar cases
-            similar_cases = await predictor.find_similar_cases(
-                claim_type=match.canonical_name,
-                situation=anonymized_situation,
-                evidence_profile=[
-                    {"status": em.status, "name": em.evidence_name}
-                    for em in (match.evidence_matches or [])
-                ],
-            )
-
-            # Attach similar cases to the match, resolving to case documents with URLs
-            resolved_cases = []
-            for c in similar_cases[:3]:
-                claim_key = c.get("claim_id", "")
-                claim_data = c.get("claim", {})
-                outcome_data = c.get("outcome")
-
-                # M4c Strategy 3 cases already carry URL + name directly
-                if c.get("_m4c_url"):
-                    case_name = c.get("case_name", "Unknown Case")
-                    case_url = c["_m4c_url"]
-                else:
-                    # Strategies 1 & 2: resolve via claim → case_document traversal
-                    case_doc = system.knowledge_graph.get_case_document_for_claim(claim_key)
-                    case_name = (case_doc or {}).get("name") or claim_data.get("name", "Unknown Case")
-                    case_url = (case_doc or {}).get("url", "")
-                outcome = outcome_data.get("disposition", "unknown") if outcome_data else (c.get("claim_outcome") or "unknown")
-                outcome_detail = outcome_data.get("name", "") if outcome_data else ""
-
-                resolved_cases.append({
-                    "case_name": case_name,
-                    "outcome": outcome,
-                    "outcome_detail": outcome_detail,
-                    "relevance_score": c.get("similarity_score", 0.5),
-                    "url": case_url,
-                    "procedures": c.get("procedures") or [],
-                })
-            match.similar_cases = resolved_cases
-
-            # Predict outcome
-            outcome_prediction = await predictor.predict_outcomes(
-                claim_type=match.canonical_name,
-                evidence_strength=match.evidence_strength,
-                similar_cases=similar_cases,
-            )
-
-            # Attach prediction to match
-            proc_counts: dict[str, int] = {}
-            for sc in similar_cases:
-                for p in (sc.get("procedures") or []):
-                    proc_counts[p] = proc_counts.get(p, 0) + 1
-            top_procs = [p for p, _ in sorted(proc_counts.items(), key=lambda x: x[1], reverse=True)[:3]]
-
-            match.predicted_outcome = {
-                "outcome_type": outcome_prediction.outcome_type,
-                "disposition": outcome_prediction.disposition,
-                "probability": outcome_prediction.probability,
-                "reasoning": outcome_prediction.reasoning,
-                "similar_cases_count": len(similar_cases),
-                "procedures_used": top_procs,
-            }
-
-        # Generate next steps
-        next_steps = await matcher.generate_next_steps(
-            claim_matches=claim_matches,
-            situation=anonymized_situation,
-        )
-
-        # Build top-level summary
-        summary = {
-            "claim_count": len(claim_matches),
-            "strongest_claim": claim_matches[0].claim_type_name if claim_matches else None,
-            "overall_strength": claim_matches[0].evidence_strength if claim_matches else "none",
-        }
-
-        # Build response
-        response_obj = AnalyzeMyCaseResponse(
-            possible_claims=[
-                ClaimTypeMatchSchema(
-                    claim_type_id=match.claim_type_id,
-                    claim_type_name=match.claim_type_name,
-                    canonical_name=match.canonical_name,
-                    match_score=match.match_score,
-                    evidence_matches=[
-                        EvidenceMatchSchema(
-                            evidence_id=em.evidence_id,
-                            evidence_name=em.evidence_name,
-                            match_score=em.match_score,
-                            user_evidence_description=em.user_evidence_description,
-                            is_critical=em.is_critical,
-                            status=em.status,
-                        )
-                        for em in match.evidence_matches
-                    ],
-                    evidence_strength=match.evidence_strength,
-                    evidence_gaps=[
-                        EvidenceGapSchema(
-                            evidence_name=gap["evidence_name"],
-                            is_critical=gap["is_critical"],
-                            status=gap["status"],
-                            how_to_get=gap["how_to_get"],
-                        )
-                        for gap in match.evidence_gaps
-                    ],
-                    procedure_gaps=[
-                        ProcedureGapSchema(
-                            name=pg.get("name", pg) if isinstance(pg, dict) else str(pg),
-                            description=pg.get("description", "") if isinstance(pg, dict) else "",
-                        )
-                        for pg in (match.procedure_gaps or [])
-                    ],
-                    completeness_score=match.completeness_score,
-                    predicted_outcome=match.predicted_outcome,
-                    claim_description=match.claim_description or "",
-                    legal_basis=match.legal_basis or [],
-                    similar_cases=match.similar_cases or [],
-                    remedies=match.remedies or [],
-                )
-                for match in claim_matches
-            ],
-            next_steps=next_steps,
-            extracted_evidence=extracted_evidence if extracted_evidence else None,
-            summary=summary,
-        )
-
-        return response_obj.model_dump()
+        result = await matcher.analyze(narrative=narrative, jurisdiction=request.jurisdiction)
+        return AnalyzeMyCaseResponse(**result).model_dump()
 
     except Exception as e:
         logger.error(f"Analyze my case failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/api/v1/claims/{claim_id}/proof-chain", response_model=ProofChainSchema)
-async def get_proof_chain(claim_id: str, system: TenantLegalSystem = Depends(get_system)):
-    """
-    Get the proof chain for a specific legal claim.
-
-    Returns the complete proof chain including:
-    - Required evidence (from statutes/guides)
-    - Presented evidence (from case)
-    - Missing evidence (gaps)
-    - Outcome and damages
-    - Completeness score
-    """
-    try:
-        from tenant_legal_guidance.services.proof_chain import ProofChainService
-
-        proof_chain_service = ProofChainService(system.knowledge_graph)
-        proof_chain = await proof_chain_service.build_proof_chain(claim_id)
-
-        if not proof_chain:
-            raise HTTPException(status_code=404, detail=f"Claim not found: {claim_id}")
-
-        # Convert to schema
-        return ProofChainSchema(
-            claim_id=proof_chain.claim_id,
-            claim_description=proof_chain.claim_description,
-            claim_type=proof_chain.claim_type,
-            claimant=proof_chain.claimant,
-            required_evidence=[
-                ProofChainEvidenceSchema(
-                    evidence_id=ev.evidence_id,
-                    evidence_type=ev.evidence_type,
-                    description=ev.description,
-                    is_critical=ev.is_critical,
-                    context=ev.context,
-                    source_reference=ev.source_reference,
-                    satisfied_by=ev.satisfied_by,
-                    satisfies=ev.satisfies,
-                )
-                for ev in proof_chain.required_evidence
-            ],
-            presented_evidence=[
-                ProofChainEvidenceSchema(
-                    evidence_id=ev.evidence_id,
-                    evidence_type=ev.evidence_type,
-                    description=ev.description,
-                    is_critical=ev.is_critical,
-                    context=ev.context,
-                    source_reference=ev.source_reference,
-                    satisfied_by=ev.satisfied_by,
-                    satisfies=ev.satisfies,
-                )
-                for ev in proof_chain.presented_evidence
-            ],
-            missing_evidence=[
-                ProofChainEvidenceSchema(
-                    evidence_id=ev.evidence_id,
-                    evidence_type=ev.evidence_type,
-                    description=ev.description,
-                    is_critical=ev.is_critical,
-                    context=ev.context,
-                    source_reference=ev.source_reference,
-                    satisfied_by=ev.satisfied_by,
-                    satisfies=ev.satisfies,
-                )
-                for ev in proof_chain.missing_evidence
-            ],
-            outcome=proof_chain.outcome,
-            damages=proof_chain.damages,
-            completeness_score=proof_chain.completeness_score,
-            satisfied_count=proof_chain.satisfied_count,
-            missing_count=proof_chain.missing_count,
-            critical_gaps=proof_chain.critical_gaps,
-        )
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Get proof chain failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.get("/api/v1/documents/{document_id}/proof-chains", response_model=list[ProofChainSchema])
-async def get_document_proof_chains(
-    document_id: str, system: TenantLegalSystem = Depends(get_system)
-):
-    """
-    Get all proof chains for claims extracted from a document.
-
-    Returns a list of proof chains, one for each claim in the document.
-    """
-    try:
-        from tenant_legal_guidance.services.proof_chain import ProofChainService
-
-        # Use unified ProofChainService with all dependencies
-        proof_chain_service = ProofChainService(
-            knowledge_graph=system.knowledge_graph,
-            vector_store=system.vector_store,
-            llm_client=system.deepseek,
-        )
-
-        # Find all claims from this document
-        # Claims have a source_document_id or similar field
-        # For now, we'll query by document_id prefix in claim_id
-        # (claims are stored as legal_claim:doc:{doc_id}:{index})
-        all_claims = system.knowledge_graph.get_all_entities(entity_type="LEGAL_CLAIM")
-
-        # Filter claims from this document
-        document_claims = [
-            claim
-            for claim in all_claims
-            if claim.get("_key", "").startswith(f"legal_claim:doc:{document_id}:")
-        ]
-
-        # Build proof chains for each claim
-        proof_chains = []
-        for claim in document_claims:
-            claim_id = claim.get("_key")
-            proof_chain = await proof_chain_service.build_proof_chain(claim_id)
-            if proof_chain:
-                # Convert to schema
-                proof_chains.append(
-                    ProofChainSchema(
-                        claim_id=proof_chain.claim_id,
-                        claim_description=proof_chain.claim_description,
-                        claim_type=proof_chain.claim_type,
-                        claimant=proof_chain.claimant,
-                        required_evidence=[
-                            ProofChainEvidenceSchema(
-                                evidence_id=ev.evidence_id,
-                                evidence_type=ev.evidence_type,
-                                description=ev.description,
-                                is_critical=ev.is_critical,
-                                context=ev.context,
-                                source_reference=ev.source_reference,
-                                satisfied_by=ev.satisfied_by,
-                                satisfies=ev.satisfies,
-                            )
-                            for ev in proof_chain.required_evidence
-                        ],
-                        presented_evidence=[
-                            ProofChainEvidenceSchema(
-                                evidence_id=ev.evidence_id,
-                                evidence_type=ev.evidence_type,
-                                description=ev.description,
-                                is_critical=ev.is_critical,
-                                context=ev.context,
-                                source_reference=ev.source_reference,
-                                satisfied_by=ev.satisfied_by,
-                                satisfies=ev.satisfies,
-                            )
-                            for ev in proof_chain.presented_evidence
-                        ],
-                        missing_evidence=[
-                            ProofChainEvidenceSchema(
-                                evidence_id=ev.evidence_id,
-                                evidence_type=ev.evidence_type,
-                                description=ev.description,
-                                is_critical=ev.is_critical,
-                                context=ev.context,
-                                source_reference=ev.source_reference,
-                                satisfied_by=ev.satisfied_by,
-                                satisfies=ev.satisfies,
-                            )
-                            for ev in proof_chain.missing_evidence
-                        ],
-                        outcome=proof_chain.outcome,
-                        damages=proof_chain.damages,
-                        completeness_score=proof_chain.completeness_score,
-                        satisfied_count=proof_chain.satisfied_count,
-                        missing_count=proof_chain.missing_count,
-                        critical_gaps=proof_chain.critical_gaps,
-                    )
-                )
-
-        return proof_chains
-
-    except Exception as e:
-        logger.error(f"Get document proof chains failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+## Removed: /api/v1/claims/{claim_id}/proof-chain (old proof-chain system)
+## Removed: /api/v1/documents/{document_id}/proof-chains (old proof-chain system)
 
 
 @router.post("/api/kg/chat")

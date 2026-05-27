@@ -1,6 +1,6 @@
 from datetime import datetime
 from enum import Enum
-from typing import Annotated, Literal, Union
+from typing import Annotated, Any, Literal, Union
 
 from pydantic import BaseModel, Field
 
@@ -28,6 +28,8 @@ class Jurisdiction(str, Enum):
 class SourceType(str, Enum):
     URL = "url"
     FILE = "file"
+    LOCAL_FILE = "local_file"
+    PASTED_TEXT = "pasted_text"
     INTERNAL = "internal"
     MANUAL = "manual"
 
@@ -130,6 +132,28 @@ class CaseDocumentNode(BaseModel):
     holdings: list[str] = Field(default_factory=list)
     remedies_awarded: list[str] = Field(default_factory=list)
 
+
+class SourceMetadata(BaseModel):
+    """Provenance for an ingested document. Passed through the ingestion pipeline."""
+
+    source: str = Field(..., description="URL or file path")
+    source_type: SourceType = SourceType.URL
+    authority: SourceAuthority | None = None
+    document_type: LegalDocumentType | None = None
+    organization: str | None = None
+    title: str | None = None
+    jurisdiction: str | None = None
+    processed_at: datetime | None = None
+    attributes: dict = Field(default_factory=dict)
+
+
+# Phase-4 shim — old services reference LegalEntity; remove when those are rewritten
+LegalEntity = dict[str, Any]
+
+
+def get_claim_retrieval_types() -> list["EntityType"]:
+    """Return entity types relevant for claim retrieval (Phase-4 shim)."""
+    return [EntityType.CLAIM_TYPE, EntityType.EVIDENCE, EntityType.PROCEDURE, EntityType.LAW]
 
 # Discriminated union — use this for deserialization from ArangoDB/API
 LegalNode = Annotated[

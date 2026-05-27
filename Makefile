@@ -145,7 +145,9 @@ reingest-all:
 	rm -f data/ingestion_checkpoint.json data/ingestion_report.json
 	rm -rf data/archive/*.txt
 	@sleep 2
-	@echo "4. Starting fresh ingestion of all manifests..."
+	@echo "4. Seeding taxonomy (must happen before ingestion)..."
+	$(MAKE) seed-taxonomy
+	@echo "5. Starting fresh ingestion of all manifests..."
 	@echo "Note: Using ingest-all-manifests (skip-existing disabled for fresh start)"
 	mkdir -p data/archive
 	uv run python -m tenant_legal_guidance.scripts.ingest_all_manifests \

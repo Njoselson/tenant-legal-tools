@@ -1,11 +1,11 @@
 {
   "summary": {
     "cases_evaluated": 21,
-    "claim_type_f1": 0.494,
-    "claim_type_precision": 0.492,
-    "claim_type_recall": 0.532,
-    "outcome_accuracy": 0.667,
-    "remedy_recall": 0.698
+    "claim_type_f1": 0.556,
+    "claim_type_precision": 0.516,
+    "claim_type_recall": 0.643,
+    "outcome_accuracy": 0.333,
+    "remedy_recall": 0.5
   },
   "per_case": [
     {
@@ -13,14 +13,14 @@
       "claim_type_precision": 0.5,
       "claim_type_recall": 1.0,
       "claim_type_f1": 0.6666666666666666,
-      "outcome_correct": true,
-      "outcome_predicted": "favorable",
+      "outcome_correct": false,
+      "outcome_predicted": null,
       "outcome_actual": "tenant_win",
-      "remedy_recall": 1.0,
+      "remedy_recall": 0.0,
       "claims_predicted": [
-        "BREACH_OF_WARRANTY_OF_HABITABILITY",
-        "HABITABILITY_VIOLATION",
-        "HP_ACTION_REPAIRS"
+        "breach_warranty_habitability",
+        "habitability_violation",
+        "hp_action_repairs"
       ],
       "claims_actual": [
         "HABITABILITY_VIOLATION"
@@ -39,14 +39,15 @@
       "claim_type_precision": 0.0,
       "claim_type_recall": 0.0,
       "claim_type_f1": 0.0,
-      "outcome_correct": true,
-      "outcome_predicted": "favorable",
+      "outcome_correct": false,
+      "outcome_predicted": null,
       "outcome_actual": "tenant_win",
       "remedy_recall": 0.0,
       "claims_predicted": [
-        "BREACH_OF_WARRANTY_OF_HABITABILITY",
-        "HABITABILITY_VIOLATION",
-        "HP_ACTION_REPAIRS"
+        "breach_warranty_habitability",
+        "habitability_violation",
+        "illegal_apartment",
+        "retaliatory_eviction"
       ],
       "claims_actual": [
         "ILLEGAL_ALTERATIONS_NO_C_OF_O"
@@ -57,9 +58,10 @@
       ],
       "claims_extra": [
         "HABITABILITY_VIOLATION",
-        "HP_ACTION_REPAIRS"
+        "ILLEGAL_APARTMENT",
+        "RETALIATORY_EVICTION"
       ],
-      "num_matches": 3
+      "num_matches": 4
     },
     {
       "case_name": "13 East 124 LLC v Jessica Taylor",
@@ -67,13 +69,13 @@
       "claim_type_recall": 0.5,
       "claim_type_f1": 0.5714285714285715,
       "outcome_correct": true,
-      "outcome_predicted": "favorable",
+      "outcome_predicted": "tenant_win",
       "outcome_actual": "tenant_win",
       "remedy_recall": 0.5,
       "claims_predicted": [
-        "DEREGULATION_CHALLENGE",
-        "RENT_OVERCHARGE",
-        "RETALIATORY_EVICTION"
+        "deregulation_challenge",
+        "rent_stabilization_violation",
+        "retaliatory_eviction"
       ],
       "claims_actual": [
         "HARASSMENT",
@@ -82,12 +84,12 @@
         "RETALIATORY_EVICTION"
       ],
       "claims_matched": [
-        "RENT_OVERCHARGE",
+        "RENT_STABILIZATION_VIOLATION",
         "RETALIATORY_EVICTION"
       ],
       "claims_missed": [
         "HARASSMENT",
-        "RENT_STABILIZATION_VIOLATION"
+        "RENT_OVERCHARGE"
       ],
       "claims_extra": [
         "DEREGULATION_CHALLENGE"
@@ -96,16 +98,17 @@
     },
     {
       "case_name": "304-306 E 83 Realty, LLC v Mason",
-      "claim_type_precision": 1.0,
+      "claim_type_precision": 0.6666666666666666,
       "claim_type_recall": 1.0,
-      "claim_type_f1": 1.0,
+      "claim_type_f1": 0.8,
       "outcome_correct": true,
-      "outcome_predicted": "favorable",
+      "outcome_predicted": "tenant_win",
       "outcome_actual": "tenant_win",
-      "remedy_recall": 1.0,
+      "remedy_recall": 0.5,
       "claims_predicted": [
-        "DEREGULATION_CHALLENGE",
-        "RENT_OVERCHARGE"
+        "deregulation_challenge",
+        "rent_overcharge",
+        "rent_stabilization_violation"
       ],
       "claims_actual": [
         "DEREGULATION_CHALLENGE",
@@ -117,21 +120,24 @@
         "RENT_OVERCHARGE"
       ],
       "claims_missed": [],
-      "claims_extra": [],
-      "num_matches": 2
+      "claims_extra": [
+        "RENT_STABILIZATION_VIOLATION"
+      ],
+      "num_matches": 3
     },
     {
       "case_name": "3505 BWAY Owner LLC v McNeely",
-      "claim_type_precision": 0.5,
+      "claim_type_precision": 0.3333333333333333,
       "claim_type_recall": 0.5,
-      "claim_type_f1": 0.5,
+      "claim_type_f1": 0.4,
       "outcome_correct": false,
-      "outcome_predicted": "favorable",
+      "outcome_predicted": "mixed",
       "outcome_actual": "landlord_win",
       "remedy_recall": 1.0,
       "claims_predicted": [
-        "DEREGULATION_CHALLENGE",
-        "RENT_OVERCHARGE"
+        "deregulation_challenge",
+        "high_rent_vacancy_challenge",
+        "rent_overcharge"
       ],
       "claims_actual": [
         "DEREGULATION_CHALLENGE",
@@ -144,23 +150,23 @@
         "RENT_STABILIZATION_VIOLATION"
       ],
       "claims_extra": [
+        "HIGH_RENT_VACANCY_CHALLENGE",
         "RENT_OVERCHARGE"
       ],
-      "num_matches": 2
+      "num_matches": 3
     },
     {
       "case_name": "41-47 Nick LLC v Odumosu",
-      "claim_type_precision": 0.3333333333333333,
+      "claim_type_precision": 0.5,
       "claim_type_recall": 1.0,
-      "claim_type_f1": 0.5,
+      "claim_type_f1": 0.6666666666666666,
       "outcome_correct": false,
-      "outcome_predicted": "favorable",
+      "outcome_predicted": "tenant_win",
       "outcome_actual": "landlord_win",
       "remedy_recall": 1.0,
       "claims_predicted": [
-        "DEREGULATION_CHALLENGE",
-        "RENT_OVERCHARGE",
-        "RETALIATORY_EVICTION"
+        "rent_overcharge",
+        "rent_stabilization_violation"
       ],
       "claims_actual": [
         "FRAUDULENT_OVERCHARGE",
@@ -171,24 +177,22 @@
       ],
       "claims_missed": [],
       "claims_extra": [
-        "DEREGULATION_CHALLENGE",
-        "RETALIATORY_EVICTION"
+        "RENT_STABILIZATION_VIOLATION"
       ],
-      "num_matches": 3
+      "num_matches": 2
     },
     {
       "case_name": "5712 Realty LLC v Ricketts",
       "claim_type_precision": 0.0,
       "claim_type_recall": 0.0,
       "claim_type_f1": 0.0,
-      "outcome_correct": true,
-      "outcome_predicted": "unfavorable",
+      "outcome_correct": false,
+      "outcome_predicted": "tenant_win",
       "outcome_actual": "landlord_win",
       "remedy_recall": 1.0,
       "claims_predicted": [
-        "HARASSMENT",
-        "OTHER",
-        "RETALIATORY_EVICTION"
+        "procedural_defect",
+        "retaliatory_eviction"
       ],
       "claims_actual": [
         "CLAIM_FOR_DAMAGES",
@@ -200,25 +204,24 @@
         "MOTION_TO_VACATE"
       ],
       "claims_extra": [
-        "HARASSMENT",
-        "OTHER",
+        "DEFECTIVE_PREDICATE_NOTICE",
         "RETALIATORY_EVICTION"
       ],
-      "num_matches": 3
+      "num_matches": 2
     },
     {
       "case_name": "Arnold Rossman v Windermere Owners LLC et al.",
       "claim_type_precision": 0.6666666666666666,
       "claim_type_recall": 0.6666666666666666,
       "claim_type_f1": 0.6666666666666666,
-      "outcome_correct": false,
-      "outcome_predicted": "favorable",
+      "outcome_correct": true,
+      "outcome_predicted": "mixed",
       "outcome_actual": "mixed",
-      "remedy_recall": 0.5,
+      "remedy_recall": 0.0,
       "claims_predicted": [
-        "DEREGULATION_CHALLENGE",
-        "OTHER",
-        "RENT_OVERCHARGE"
+        "deregulation_challenge",
+        "high_rent_vacancy_challenge",
+        "rent_overcharge"
       ],
       "claims_actual": [
         "DEREGULATION_CHALLENGE",
@@ -233,22 +236,23 @@
         "RENT_STABILIZATION_VIOLATION"
       ],
       "claims_extra": [
-        "OTHER"
+        "HIGH_RENT_VACANCY_CHALLENGE"
       ],
       "num_matches": 3
     },
     {
       "case_name": "Elise Downing et al. v First Lenox Terrace Associates et al.",
-      "claim_type_precision": 1.0,
+      "claim_type_precision": 0.6666666666666666,
       "claim_type_recall": 0.6666666666666666,
-      "claim_type_f1": 0.8,
-      "outcome_correct": true,
-      "outcome_predicted": "favorable",
+      "claim_type_f1": 0.6666666666666666,
+      "outcome_correct": false,
+      "outcome_predicted": "mixed",
       "outcome_actual": "tenant_win",
-      "remedy_recall": 0.6666666666666666,
+      "remedy_recall": 0.0,
       "claims_predicted": [
-        "DEREGULATION_CHALLENGE",
-        "RENT_OVERCHARGE"
+        "deregulation_challenge",
+        "high_rent_vacancy_challenge",
+        "rent_overcharge"
       ],
       "claims_actual": [
         "DEREGULATION_CHALLENGE",
@@ -262,22 +266,24 @@
       "claims_missed": [
         "RENT_STABILIZATION_VIOLATION"
       ],
-      "claims_extra": [],
-      "num_matches": 2
+      "claims_extra": [
+        "HIGH_RENT_VACANCY_CHALLENGE"
+      ],
+      "num_matches": 3
     },
     {
       "case_name": "Four Thirty Realty LLC v Kamal",
       "claim_type_precision": 0.0,
       "claim_type_recall": 0.0,
       "claim_type_f1": 0.0,
-      "outcome_correct": true,
-      "outcome_predicted": "favorable",
+      "outcome_correct": false,
+      "outcome_predicted": null,
       "outcome_actual": "tenant_win",
       "remedy_recall": 0.0,
       "claims_predicted": [
-        "BREACH_OF_WARRANTY_OF_HABITABILITY",
-        "HABITABILITY_VIOLATION",
-        "HP_ACTION_REPAIRS"
+        "breach_warranty_habitability",
+        "habitability_violation",
+        "hp_action_repairs"
       ],
       "claims_actual": [
         "RENT_COLLECTION_BAR_DEFENSE"
@@ -294,17 +300,17 @@
     },
     {
       "case_name": "Jocelyn Nolte v Bridgestone Associates LLC",
-      "claim_type_precision": 0.6666666666666666,
-      "claim_type_recall": 0.6666666666666666,
-      "claim_type_f1": 0.6666666666666666,
+      "claim_type_precision": 1.0,
+      "claim_type_recall": 1.0,
+      "claim_type_f1": 1.0,
       "outcome_correct": true,
-      "outcome_predicted": "favorable",
+      "outcome_predicted": "tenant_win",
       "outcome_actual": "tenant_win",
       "remedy_recall": 0.5,
       "claims_predicted": [
-        "DEREGULATION_CHALLENGE",
-        "OTHER",
-        "RENT_OVERCHARGE"
+        "deregulation_challenge",
+        "rent_overcharge",
+        "rent_stabilization_violation"
       ],
       "claims_actual": [
         "DEREGULATION_CHALLENGE",
@@ -313,59 +319,55 @@
       ],
       "claims_matched": [
         "DEREGULATION_CHALLENGE",
-        "RENT_OVERCHARGE"
-      ],
-      "claims_missed": [
+        "RENT_OVERCHARGE",
         "RENT_STABILIZATION_VIOLATION"
       ],
-      "claims_extra": [
-        "OTHER"
-      ],
+      "claims_missed": [],
+      "claims_extra": [],
       "num_matches": 3
     },
     {
       "case_name": "John Bradbury v 342 West 30th Street Corp.",
-      "claim_type_precision": 0.3333333333333333,
-      "claim_type_recall": 0.5,
-      "claim_type_f1": 0.4,
-      "outcome_correct": true,
-      "outcome_predicted": "favorable",
+      "claim_type_precision": 0.5,
+      "claim_type_recall": 1.0,
+      "claim_type_f1": 0.6666666666666666,
+      "outcome_correct": false,
+      "outcome_predicted": "mixed",
       "outcome_actual": "tenant_win",
       "remedy_recall": 0.5,
       "claims_predicted": [
-        "DEREGULATION_CHALLENGE",
-        "OTHER",
-        "RENT_OVERCHARGE"
+        "deregulation_challenge",
+        "high_rent_vacancy_challenge",
+        "rent_overcharge",
+        "rent_stabilization_violation"
       ],
       "claims_actual": [
         "RENT_OVERCHARGE",
         "RENT_STABILIZATION_VIOLATION"
       ],
       "claims_matched": [
-        "RENT_OVERCHARGE"
-      ],
-      "claims_missed": [
+        "RENT_OVERCHARGE",
         "RENT_STABILIZATION_VIOLATION"
       ],
+      "claims_missed": [],
       "claims_extra": [
         "DEREGULATION_CHALLENGE",
-        "OTHER"
+        "HIGH_RENT_VACANCY_CHALLENGE"
       ],
-      "num_matches": 3
+      "num_matches": 4
     },
     {
       "case_name": "Kuzmich v 50 Murray Street Acquisition LLC",
-      "claim_type_precision": 0.3333333333333333,
+      "claim_type_precision": 0.5,
       "claim_type_recall": 0.5,
-      "claim_type_f1": 0.4,
-      "outcome_correct": true,
-      "outcome_predicted": "favorable",
+      "claim_type_f1": 0.5,
+      "outcome_correct": false,
+      "outcome_predicted": "mixed",
       "outcome_actual": "tenant_win",
-      "remedy_recall": 0.5,
+      "remedy_recall": 0.0,
       "claims_predicted": [
-        "DEREGULATION_CHALLENGE",
-        "OTHER",
-        "RENT_OVERCHARGE"
+        "deregulation_challenge",
+        "high_rent_vacancy_challenge"
       ],
       "claims_actual": [
         "DEREGULATION_CHALLENGE",
@@ -378,10 +380,9 @@
         "RENT_STABILIZATION_VIOLATION"
       ],
       "claims_extra": [
-        "OTHER",
-        "RENT_OVERCHARGE"
+        "HIGH_RENT_VACANCY_CHALLENGE"
       ],
-      "num_matches": 3
+      "num_matches": 2
     },
     {
       "case_name": "Lakr Kaal Rock, LLC v Paul",
@@ -389,12 +390,11 @@
       "claim_type_recall": 0.0,
       "claim_type_f1": 0.0,
       "outcome_correct": false,
-      "outcome_predicted": "favorable",
+      "outcome_predicted": null,
       "outcome_actual": "landlord_win",
       "remedy_recall": 1.0,
       "claims_predicted": [
-        "OTHER",
-        "RETALIATORY_EVICTION"
+        "retaliatory_eviction"
       ],
       "claims_actual": [
         "GOOD_CAUSE_EVICTION_DEFENSE"
@@ -404,23 +404,23 @@
         "GOOD_CAUSE_EVICTION_DEFENSE"
       ],
       "claims_extra": [
-        "OTHER",
         "RETALIATORY_EVICTION"
       ],
-      "num_matches": 2
+      "num_matches": 1
     },
     {
       "case_name": "Matter of AEJ 534 East 88th, LLC v New York State Division of Housing & Community Renewal",
-      "claim_type_precision": 1.0,
+      "claim_type_precision": 0.6666666666666666,
       "claim_type_recall": 1.0,
-      "claim_type_f1": 1.0,
+      "claim_type_f1": 0.8,
       "outcome_correct": false,
-      "outcome_predicted": "favorable",
+      "outcome_predicted": "tenant_win",
       "outcome_actual": "mixed",
       "remedy_recall": 1.0,
       "claims_predicted": [
-        "DEREGULATION_CHALLENGE",
-        "RENT_OVERCHARGE"
+        "deregulation_challenge",
+        "rent_overcharge",
+        "rent_stabilization_violation"
       ],
       "claims_actual": [
         "DEREGULATION_CHALLENGE",
@@ -431,21 +431,23 @@
         "RENT_OVERCHARGE"
       ],
       "claims_missed": [],
-      "claims_extra": [],
-      "num_matches": 2
+      "claims_extra": [
+        "RENT_STABILIZATION_VIOLATION"
+      ],
+      "num_matches": 3
     },
     {
       "case_name": "Matter of Regina Metropolitan Co., LLC v New York State Division of Housing and Community Renewal",
       "claim_type_precision": 1.0,
       "claim_type_recall": 0.6666666666666666,
       "claim_type_f1": 0.8,
-      "outcome_correct": false,
-      "outcome_predicted": "favorable",
+      "outcome_correct": true,
+      "outcome_predicted": "landlord_win",
       "outcome_actual": "landlord_win",
       "remedy_recall": 1.0,
       "claims_predicted": [
-        "DEREGULATION_CHALLENGE",
-        "RENT_OVERCHARGE"
+        "deregulation_challenge",
+        "rent_overcharge"
       ],
       "claims_actual": [
         "DEREGULATION_CHALLENGE",
@@ -464,28 +466,31 @@
     },
     {
       "case_name": "Peter Poyck v Stan Bryant et al.",
-      "claim_type_precision": 1.0,
-      "claim_type_recall": 1.0,
-      "claim_type_f1": 1.0,
-      "outcome_correct": true,
-      "outcome_predicted": "favorable",
+      "claim_type_precision": 0.5,
+      "claim_type_recall": 0.5,
+      "claim_type_f1": 0.5,
+      "outcome_correct": false,
+      "outcome_predicted": null,
       "outcome_actual": "tenant_win",
       "remedy_recall": 1.0,
       "claims_predicted": [
-        "BREACH_OF_WARRANTY_OF_HABITABILITY",
-        "CONSTRUCTIVE_EVICTION",
-        "HABITABILITY_VIOLATION"
+        "breach_warranty_habitability",
+        "habitability_violation",
+        "hp_action_repairs"
       ],
       "claims_actual": [
         "CONSTRUCTIVE_EVICTION",
         "HABITABILITY_VIOLATION"
       ],
       "claims_matched": [
-        "CONSTRUCTIVE_EVICTION",
         "HABITABILITY_VIOLATION"
       ],
-      "claims_missed": [],
-      "claims_extra": [],
+      "claims_missed": [
+        "CONSTRUCTIVE_EVICTION"
+      ],
+      "claims_extra": [
+        "HP_ACTION_REPAIRS"
+      ],
       "num_matches": 3
     },
     {
@@ -494,12 +499,12 @@
       "claim_type_recall": 0.5,
       "claim_type_f1": 0.5,
       "outcome_correct": false,
-      "outcome_predicted": "favorable",
+      "outcome_predicted": "mixed",
       "outcome_actual": "landlord_win",
       "remedy_recall": 1.0,
       "claims_predicted": [
-        "DEREGULATION_CHALLENGE",
-        "RENT_OVERCHARGE"
+        "deregulation_challenge",
+        "high_rent_vacancy_challenge"
       ],
       "claims_actual": [
         "DEREGULATION_CHALLENGE",
@@ -512,93 +517,89 @@
         "RENT_STABILIZATION_VIOLATION"
       ],
       "claims_extra": [
-        "RENT_OVERCHARGE"
+        "HIGH_RENT_VACANCY_CHALLENGE"
       ],
       "num_matches": 2
     },
     {
       "case_name": "South Brooklyn Railway Company v Heung Man Lau",
-      "claim_type_precision": 0.0,
-      "claim_type_recall": 0.0,
-      "claim_type_f1": 0.0,
+      "claim_type_precision": 0.5,
+      "claim_type_recall": 1.0,
+      "claim_type_f1": 0.6666666666666666,
       "outcome_correct": true,
-      "outcome_predicted": "favorable",
+      "outcome_predicted": "tenant_win",
       "outcome_actual": "tenant_win",
-      "remedy_recall": 1.0,
+      "remedy_recall": 0.0,
       "claims_predicted": [
-        "OTHER"
+        "improper_service",
+        "procedural_defect"
       ],
       "claims_actual": [
         "DEFECTIVE_PREDICATE_NOTICE",
         "IMPROPER_SERVICE_OF_NOTICE",
         "INSUFFICIENT_NOTICE_PERIOD"
       ],
-      "claims_matched": [],
-      "claims_missed": [
+      "claims_matched": [
         "DEFECTIVE_PREDICATE_NOTICE"
       ],
+      "claims_missed": [],
       "claims_extra": [
-        "OTHER"
+        "IMPROPER_SERVICE"
       ],
-      "num_matches": 1
+      "num_matches": 2
     },
     {
       "case_name": "Stuyvesant Town—Peter Cooper Village Tenants' Association et al. v BPP ST Owner LLC et al.",
-      "claim_type_precision": 0.3333333333333333,
-      "claim_type_recall": 0.5,
-      "claim_type_f1": 0.4,
+      "claim_type_precision": 1.0,
+      "claim_type_recall": 1.0,
+      "claim_type_f1": 1.0,
       "outcome_correct": true,
-      "outcome_predicted": "favorable",
+      "outcome_predicted": "tenant_win",
       "outcome_actual": "tenant_win",
       "remedy_recall": 0.5,
       "claims_predicted": [
-        "DEREGULATION_CHALLENGE",
-        "HARASSMENT",
-        "RENT_OVERCHARGE"
+        "deregulation_challenge",
+        "rent_stabilization_violation"
       ],
       "claims_actual": [
         "DEREGULATION_CHALLENGE",
         "RENT_STABILIZATION_VIOLATION"
       ],
       "claims_matched": [
-        "DEREGULATION_CHALLENGE"
-      ],
-      "claims_missed": [
+        "DEREGULATION_CHALLENGE",
         "RENT_STABILIZATION_VIOLATION"
       ],
-      "claims_extra": [
-        "HARASSMENT",
-        "RENT_OVERCHARGE"
-      ],
-      "num_matches": 3
+      "claims_missed": [],
+      "claims_extra": [],
+      "num_matches": 2
     },
     {
       "case_name": "Thurman v Sullivan Properties L.P.",
-      "claim_type_precision": 0.5,
-      "claim_type_recall": 0.5,
-      "claim_type_f1": 0.5,
-      "outcome_correct": true,
-      "outcome_predicted": "favorable",
+      "claim_type_precision": 0.6666666666666666,
+      "claim_type_recall": 1.0,
+      "claim_type_f1": 0.8,
+      "outcome_correct": false,
+      "outcome_predicted": "mixed",
       "outcome_actual": "tenant_win",
       "remedy_recall": 0.0,
       "claims_predicted": [
-        "DEREGULATION_CHALLENGE",
-        "RENT_OVERCHARGE"
+        "deregulation_challenge",
+        "high_rent_vacancy_challenge",
+        "rent_stabilization_violation"
       ],
       "claims_actual": [
         "DEREGULATION_CHALLENGE",
         "RENT_STABILIZATION_VIOLATION"
       ],
       "claims_matched": [
-        "DEREGULATION_CHALLENGE"
-      ],
-      "claims_missed": [
+        "DEREGULATION_CHALLENGE",
         "RENT_STABILIZATION_VIOLATION"
       ],
+      "claims_missed": [],
       "claims_extra": [
-        "RENT_OVERCHARGE"
+        "HIGH_RENT_VACANCY_CHALLENGE"
       ],
-      "num_matches": 2
+      "num_matches": 3
     }
   ]
 }

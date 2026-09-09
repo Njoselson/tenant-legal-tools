@@ -47,6 +47,23 @@
     - warranty of habitability
     - unsafe conditions
     - lack of heat
+    - mold
+    - habitability violation for mold
+
+- id: good_cause_eviction_defense
+  name: Good Cause Eviction Defense
+  description: >-
+    Tenant in a non-rent-stabilized unit asserts Good Cause Eviction Act
+    coverage as an affirmative defense to a nonpayment or holdover proceeding
+    — landlord must plead and prove the unit is exempt or that a valid § 216
+    ground exists; rent increases above the Local Rent Standard are
+    presumptively unreasonable absent landlord rebuttal.
+  jurisdiction: NYS
+  status: canonical
+  aliases:
+    - Good Cause Eviction
+    - GCE defense
+    - good cause defense
 
 - id: hp_action_repairs
   name: HP Action — Repairs
@@ -136,6 +153,7 @@
   aliases:
     - defective service
     - service of process defect
+    - improper service defense
 
 - id: procedural_defect
   name: Procedural Defect
@@ -148,12 +166,13 @@
 
 - id: succession_rights
   name: Succession Rights
-  description: Family member or co-occupant asserts right to succeed to a rent-stabilized lease after the named tenant vacates.
+  description: Family member or co-occupant asserts right to succeed to a rent-stabilized lease after the named tenant vacates or dies.
   jurisdiction: NYC
   status: canonical
   aliases:
     - lease succession
     - succession claim
+    - succession rights violation
 
 - id: primary_residence_challenge
   name: Primary Residence Challenge
@@ -253,10 +272,13 @@
 - id: criminal_harassment
   name: Criminal Harassment
   description: Conduct that impairs habitability, endangers safety or health, or causes
-    physical injury to a tenant or third person.
+    physical injury to a tenant or third person. Intentionally harassing a rent-regulated
+    tenant (threats, repeated interruption of services, or other conduct intended to
+    force vacatur) is a specific instance of this offense under Penal Law § 241.05.
   jurisdiction: NYS
   status: proposed
-  aliases: []
+  aliases:
+    - harassment of a rent regulated tenant
 - id: dhcr_determination_challenge
   name: DHCR Determination Challenge
   description: A claim challenging an order or determination issued by the New York
@@ -388,21 +410,6 @@
   jurisdiction: NYC
   status: proposed
   aliases: []
-- id: habitability_violation_mold
-  name: Habitability Violation for Mold
-  description: A claim that the landlord failed to maintain the premises in a habitable
-    condition by not addressing mold and its underlying causes.
-  jurisdiction: NYC
-  status: proposed
-  aliases: []
-- id: harassment_of_rent_regulated_tenant
-  name: Harassment of a Rent Regulated Tenant
-  description: A criminal offense for intentionally harassing a tenant in a rent regulated
-    dwelling, including acts like threats, repeated interruptions of services, or
-    other conduct intended to force the tenant to vacate.
-  jurisdiction: NYS
-  status: proposed
-  aliases: []
 - id: heat_violation
   name: Heat Violation
   description: A claim that a landlord failed to provide adequate heat during the
@@ -419,12 +426,15 @@
   aliases: []
 - id: illegal_eviction
   name: Illegal Eviction (Self-Help Eviction)
-  description: A claim that the landlord removed the tenant without a court order,
-    such as by changing locks or removing belongings.
+  description: A claim that the landlord removed the tenant from the premises without
+    a court order or following proper legal procedures, such as by changing locks
+    or removing belongings.
   jurisdiction: NYS
   status: proposed
   aliases:
   - Unlawful Self-Help Eviction
+  - Unlawful Eviction
+  - Wrongful Eviction
 - id: illegal_eviction_roommate
   name: Illegal Eviction of Roommate
   description: A prime tenant cannot evict a roommate by changing locks or other self-help
@@ -440,13 +450,6 @@
   status: proposed
   aliases:
   - Unlawful Rent Increase
-- id: improper_service_defense
-  name: Improper Service Defense
-  description: A defense that the court papers were not served on the tenant in the
-    correct manner, such as lacking personal, substitute, or conspicuous service.
-  jurisdiction: NYC
-  status: proposed
-  aliases: []
 - id: lease_violation
   name: Lease Violation
   description: A claim that a landlord failed to comply with lease terms or rent stabilization
@@ -476,6 +479,7 @@
   status: proposed
   aliases:
   - Relocation Payment Claim
+  - Unlawful Eviction Claim
 - id: rent_abatement
   name: Rent Abatement
   description: A claim for reduction or refund of rent due to the landlord's failure
@@ -525,13 +529,6 @@
   jurisdiction: NYS
   status: proposed
   aliases: []
-- id: succession_rights_violation
-  name: Succession Rights Violation
-  description: A claim that a landlord denied a family member the right to take over
-    a rent-stabilized lease after the tenant's death or move-out.
-  jurisdiction: NYC
-  status: proposed
-  aliases: []
 - id: tenant_rights_roommate
   name: Tenant Rights for Roommates
   description: A roommate who has lived in the unit for at least 30 days or has a
@@ -552,22 +549,6 @@
   description: A claim that a landlord improperly charged or attempted to collect
     fees for air conditioning units, including fees not authorized by lease or waived
     by delay.
-  jurisdiction: NYC
-  status: proposed
-  aliases: []
-- id: unlawful_eviction
-  name: Unlawful Eviction
-  description: A claim that the landlord removed the tenant from the premises without
-    following proper legal procedures, such as obtaining a court order.
-  jurisdiction: NYS
-  status: proposed
-  aliases:
-  - Illegal Eviction
-  - Wrongful Eviction
-- id: unlawful_eviction_claim
-  name: Unlawful Eviction Claim
-  description: A claim arising from displacement without proper relocation services
-    or payments as required by law.
   jurisdiction: NYC
   status: proposed
   aliases: []

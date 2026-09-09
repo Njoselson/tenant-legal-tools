@@ -2,6 +2,19 @@
 # critical: true  → missing this evidence is likely fatal to the claim
 # critical: false → helpful but not necessarily required
 
+# ── Good Cause Eviction Defense ──────────────────────────────────────────────
+- claim_type_id: good_cause_eviction_defense
+  evidence_id: lease_agreement
+  critical: true
+
+- claim_type_id: good_cause_eviction_defense
+  evidence_id: rent_increase_notices
+  critical: false
+
+- claim_type_id: good_cause_eviction_defense
+  evidence_id: building_ownership_records
+  critical: false
+
 # ── Rent Overcharge ──────────────────────────────────────────────────────────
 - claim_type_id: rent_overcharge
   evidence_id: dhcr_rent_history

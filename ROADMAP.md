@@ -48,18 +48,25 @@ M7 Web ingestion UI — independent, can slot in anytime (mostly done)
 
 ---
 
-## 🔄 Active (2026-05-26)
+## 🔄 Active (2026-09-08)
 
-**Taxonomy refactor ✅ done (2026-05-25):** YAML-driven taxonomy, new ClaimMatcher, taxonomy-first ingestion pipeline.
+**Legal data audit (2026-09-08):** Compared `data/taxonomy/*.yaml` against Nate's NYC Tenant Law doctrinal notes. Canonical layer (~30 laws, ~14 procedures) is accurate. Two problems found, both block trustworthy grounding before the advocate demo:
 
-**Eval baseline established (2026-05-26):**
-- Claim F1: 55.6% (P=51.6%, R=64.3%)
-- Outcome accuracy: 33.3% (7/21 cases)
-- Remedy recall: 50%
+- [x] **Add Good Cause Eviction to taxonomy (2026-09-08)** — added `gce_rpl_article_6a` (RPL Art. 6-A) + `rpl_231c_232c_gce_notice` to `laws.yaml` (canonical), `good_cause_eviction_defense` to `claim_types.yaml` (canonical), `good_cause_eviction_defense_procedure` to `procedures.yaml` (canonical), plus `requires_evidence`/`typically_uses` edges (lease_agreement critical; rent_increase_notices + building_ownership_records supporting).
+- [x] **Fix `rpa_753` alias conflation in `laws.yaml` (2026-09-08)** — stripped the ~25 aliases that conflated it with RPAPL §711/§768 and RPL §223-b/§226/§227-b/§227-e, which already have correct canonical entries (`rpapl_711`, `rpapl_768`, `rpl_223_b`). Left `rpa_753` as a minimal proposed stub with a comment pointing future edits at the correct nodes instead. Also deleted `rpa_768`, a straight duplicate of canonical `rpapl_768`.
+- [x] **Dedupe `claim_types.yaml` (2026-09-08)** — 72 → 67 claim types. Merged `unlawful_eviction` → `illegal_eviction`; `unlawful_eviction_claim` → `relocation_services_claim`; `succession_rights_violation` → `succession_rights`; `improper_service_defense` → `improper_service`; `harassment_of_rent_regulated_tenant` → `criminal_harassment`; `habitability_violation_mold` → `habitability_violation`. Verified no `requires_evidence.yaml`/`typically_uses.yaml` edges referenced the deleted ids before removing them (all their evidence/procedure edges lived on the surviving canonical node already).
+- [ ] **Audit the rest of the "proposed" bucket** (~55 entries remaining in laws.yaml, plus proposed entries in claim_types/procedures/evidence_types) for similar conflation/duplication before promoting any more of it to canonical — the promotion pipeline appears under-curated. Not done in this pass; scope it as its own session.
 
-**Blocker for 80% outcome accuracy:** Only 11 court cases in DB have known outcomes. 62/75 CourtListener cases have no API text (paywalled). Need ~40+ diverse court cases with outcomes. Best path: source from nycourts.gov/reporter (free, worked in M2/M3 sessions).
+**Corpus expansion ✅ done (2026-06-14):** Added 3 new scrapers — Fordham FLASH (~2,000 NYC Housing Court decisions with structured Winner/Disposition metadata), nycourts.gov reporter (Appellate Term + trial-level archives), and HCR PAR quarterly PDFs. Also fixed CourtListener to check all 6 text fields (xml_harvard etc.) instead of just plain_text. Ingested +381 case_documents (97 → 478).
 
-> ⚠️ Exit criterion for Phase 1: eval outcome accuracy ≥ 80%. Current: 33.3%. Next action: ingest more court opinions from nycourts.gov/reporter to build a richer outcome corpus.
+**Eval after corpus expansion (2026-06-14):**
+- Claim F1: 54.5% (flat vs 55.6% baseline)
+- **Outcome accuracy: 66.7% (14/21) — doubled from 33.3%**
+- **Remedy recall: 66.7% — up from 50%**
+
+**Remaining gap to 80% outcome accuracy:** 7 misses, mostly "tenant_win" predicted when actual is "landlord_win" or "mixed". Looks like a calibration/prompt issue rather than a coverage one — the corpus is now rich enough; the LLM is overconfident on tenant wins.
+
+> Next action: investigate outcome calibration. Compare LLM rationale on the 7 misses; possibly add a "consider both sides" step or weight similar-case outcomes by their actual distribution.
 
 ---
 

@@ -2,6 +2,9 @@
 # These are the typical procedural paths used to pursue each claim type.
 # Multiple procedures may apply; order is not significant.
 
+- claim_type_id: good_cause_eviction_defense
+  procedure_id: good_cause_eviction_defense_procedure
+
 - claim_type_id: rent_overcharge
   procedure_id: dhcr_overcharge_complaint
 

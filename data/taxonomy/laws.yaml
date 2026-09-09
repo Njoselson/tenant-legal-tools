@@ -292,6 +292,46 @@
     - 2019 rent reform
   citation: L. 2019, c. 36
 
+# ── Good Cause Eviction Act (2024) ───────────────────────────────────────────
+
+- id: gce_rpl_article_6a
+  name: Good Cause Eviction Act — RPL Article 6-A (§§ 210–218)
+  description: >-
+    NYS law protecting most non-rent-stabilized tenants from eviction without a
+    specified "good cause" and capping rent increases. Enacted in the FY2025 NYS
+    Budget; applies automatically in NYC as of April 20, 2024. § 212: NYC
+    applicability. § 214: covered accommodations. § 215: necessity for good
+    cause. § 216: grounds for removal (mirrors traditional holdover grounds,
+    plus a rebuttable "unreasonable rent increase" ground — presumptively
+    unreasonable above the lesser of 5% + regional CPI or 10% annually). § 218:
+    waiver of rights is void. Exemptions: small landlords (≤10 units
+    statewide), small owner-occupied buildings, co-ops/condos, new construction
+    (occupied within the last 30 years, rolling), high-rent units (above 245%
+    of HUD Fair Market Rent), plus categorical exclusions and units already
+    covered by rent stabilization/control or other subsidized housing.
+  jurisdiction: NYS
+  status: canonical
+  aliases:
+    - Good Cause Eviction
+    - GCE
+    - Good Cause Eviction Act
+    - RPL Article 6-A
+  citation: NY Real Property Law Article 6-A (§§ 210–218)
+
+- id: rpl_231c_232c_gce_notice
+  name: RPL §§ 231-c–232-c — Good Cause Eviction Notice Requirements
+  description: >-
+    Notice provisions accompanying the Good Cause Eviction Act. Since Feb 19,
+    2025, landlords must give tenants a specific GCE notice disclosing
+    coverage/exemption status, typically with lease renewals or termination
+    notices; improper notice can bar the proceeding or shift burdens.
+  jurisdiction: NYS
+  status: canonical
+  aliases:
+    - GCE notice requirement
+    - Good Cause Eviction notice
+  citation: NY Real Property Law §§ 231-c through 232-c
+
 # ── NY General Obligations Law ───────────────────────────────────────────────
 
 - id: gol_7_105
@@ -685,44 +725,12 @@
     conjunction with warranty of habitability claims.
   jurisdiction: NYS
   status: proposed
-  aliases:
-  - NY Real Property Actions and Proceedings Law § 711
-  - NYC Administrative Code § 27-2013
-  - NYC Retaliation Law
-  - New York Real Property Actions and Proceedings Law Article 7
-  - New York Real Property Actions and Proceedings Law § 711
-  - New York Real Property Law § 227-b
-  - RPAPL Article 7
-  - RPAPL Article 7 (Summary Proceedings)
-  - RPAPL § 711
-  - RPAPL § 711(2) - Nonpayment Grounds
-  - Real Property Actions and Proceedings Law § 223-b
-  - Real Property Actions and Proceedings Law § 711
-  - Real Property Actions and Proceedings Law § 711 (Grounds for Eviction)
-  - Real Property Actions and Proceedings Law § 711(2)
-  - Real Property Actions and Proceedings Law § 711(2) (Retaliatory Eviction Defense)
-  - Real Property Actions and Proceedings Law § 711(2) (Retaliatory Eviction)
-  - Real Property Actions and Proceedings Law § 713
-  - Real Property Actions and Proceedings Law § 741 (Retaliatory Eviction Defense)
-  - Real Property Actions and Proceedings Law § 753 (Retaliatory Eviction Defense)
-  - Real Property Actions and Proceedings Law § 768
-  - Real Property Law § 223-b
-  - Real Property Law § 223-b (Retaliatory Eviction)
-  - Real Property Law § 226
-  - Real Property Law § 226 (Retaliation)
-  - Real Property Law § 226-c (Retaliation)
-  - Real Property Law § 227-b
-  - Real Property Law § 227-b (Retaliation)
-  - Real Property Law § 227-b (Retaliatory Eviction)
-  - Real Property Law § 227-e
-  - Retaliatory Eviction Protection (Real Property Law § 223-b)
-- id: rpa_768
-  name: Real Property Actions and Proceedings Law § 768
-  description: A statute providing a cause of action for tenants who have been illegally
-    locked out of their premises.
-  jurisdiction: NYS
-  status: proposed
   aliases: []
+  # 2026-09-08: stripped ~25 aliases that conflated this node with 5 distinct
+  # statutes (RPAPL §711, §768, RPL §223-b, §226, §227-b/e) which already have
+  # their own correct canonical entries elsewhere in this file
+  # (rpapl_711, rpapl_768, rpl_223_b). Do not re-add citation strings for
+  # those statutes here — extend the correct node instead.
 - id: rpl_226-c
   name: Real Property Law § 226-c
   description: Allows tenants to withhold rent or repair and deduct costs if a landlord

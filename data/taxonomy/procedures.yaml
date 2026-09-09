@@ -14,6 +14,17 @@
   filing_body: NYC Housing Court — Housing Part
   typical_duration: 1–6 months
 
+- id: good_cause_eviction_defense_procedure
+  name: Good Cause Eviction Defense (Raised in Housing Court)
+  description: Tenant raises Good Cause Eviction Act coverage as an affirmative defense within an active nonpayment or holdover proceeding; not a standalone filing.
+  jurisdiction: NYC
+  status: canonical
+  aliases:
+    - GCE affirmative defense
+    - good cause eviction defense
+  filing_body: NYC Housing Court (raised as answer/defense in an existing nonpayment or holdover case)
+  typical_duration: Duration of underlying case (adds to litigation timeline)
+
 - id: dhcr_overcharge_complaint
   name: DHCR Overcharge Complaint
   description: Tenant files a rent overcharge complaint with DHCR seeking refund of overcharged amounts and penalties.

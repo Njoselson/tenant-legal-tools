@@ -1,11 +1,11 @@
 {
   "summary": {
     "cases_evaluated": 21,
-    "claim_type_f1": 0.556,
-    "claim_type_precision": 0.516,
-    "claim_type_recall": 0.643,
-    "outcome_accuracy": 0.333,
-    "remedy_recall": 0.5
+    "claim_type_f1": 0.545,
+    "claim_type_precision": 0.524,
+    "claim_type_recall": 0.619,
+    "outcome_accuracy": 0.667,
+    "remedy_recall": 0.667
   },
   "per_case": [
     {
@@ -13,10 +13,10 @@
       "claim_type_precision": 0.5,
       "claim_type_recall": 1.0,
       "claim_type_f1": 0.6666666666666666,
-      "outcome_correct": false,
-      "outcome_predicted": null,
+      "outcome_correct": true,
+      "outcome_predicted": "tenant_win",
       "outcome_actual": "tenant_win",
-      "remedy_recall": 0.0,
+      "remedy_recall": 1.0,
       "claims_predicted": [
         "breach_warranty_habitability",
         "habitability_violation",
@@ -39,10 +39,10 @@
       "claim_type_precision": 0.0,
       "claim_type_recall": 0.0,
       "claim_type_f1": 0.0,
-      "outcome_correct": false,
-      "outcome_predicted": null,
+      "outcome_correct": true,
+      "outcome_predicted": "tenant_win",
       "outcome_actual": "tenant_win",
-      "remedy_recall": 0.0,
+      "remedy_recall": 1.0,
       "claims_predicted": [
         "breach_warranty_habitability",
         "habitability_violation",
@@ -71,7 +71,7 @@
       "outcome_correct": true,
       "outcome_predicted": "tenant_win",
       "outcome_actual": "tenant_win",
-      "remedy_recall": 0.5,
+      "remedy_recall": 0.0,
       "claims_predicted": [
         "deregulation_challenge",
         "rent_stabilization_violation",
@@ -104,7 +104,7 @@
       "outcome_correct": true,
       "outcome_predicted": "tenant_win",
       "outcome_actual": "tenant_win",
-      "remedy_recall": 0.5,
+      "remedy_recall": 1.0,
       "claims_predicted": [
         "deregulation_challenge",
         "rent_overcharge",
@@ -131,7 +131,7 @@
       "claim_type_recall": 0.5,
       "claim_type_f1": 0.4,
       "outcome_correct": false,
-      "outcome_predicted": "mixed",
+      "outcome_predicted": "tenant_win",
       "outcome_actual": "landlord_win",
       "remedy_recall": 1.0,
       "claims_predicted": [
@@ -191,6 +191,7 @@
       "outcome_actual": "landlord_win",
       "remedy_recall": 1.0,
       "claims_predicted": [
+        "improper_service",
         "procedural_defect",
         "retaliatory_eviction"
       ],
@@ -205,19 +206,20 @@
       ],
       "claims_extra": [
         "DEFECTIVE_PREDICATE_NOTICE",
+        "IMPROPER_SERVICE",
         "RETALIATORY_EVICTION"
       ],
-      "num_matches": 2
+      "num_matches": 3
     },
     {
       "case_name": "Arnold Rossman v Windermere Owners LLC et al.",
       "claim_type_precision": 0.6666666666666666,
       "claim_type_recall": 0.6666666666666666,
       "claim_type_f1": 0.6666666666666666,
-      "outcome_correct": true,
-      "outcome_predicted": "mixed",
+      "outcome_correct": false,
+      "outcome_predicted": "tenant_win",
       "outcome_actual": "mixed",
-      "remedy_recall": 0.0,
+      "remedy_recall": 0.5,
       "claims_predicted": [
         "deregulation_challenge",
         "high_rent_vacancy_challenge",
@@ -245,8 +247,8 @@
       "claim_type_precision": 0.6666666666666666,
       "claim_type_recall": 0.6666666666666666,
       "claim_type_f1": 0.6666666666666666,
-      "outcome_correct": false,
-      "outcome_predicted": "mixed",
+      "outcome_correct": true,
+      "outcome_predicted": "tenant_win",
       "outcome_actual": "tenant_win",
       "remedy_recall": 0.0,
       "claims_predicted": [
@@ -276,8 +278,8 @@
       "claim_type_precision": 0.0,
       "claim_type_recall": 0.0,
       "claim_type_f1": 0.0,
-      "outcome_correct": false,
-      "outcome_predicted": null,
+      "outcome_correct": true,
+      "outcome_predicted": "tenant_win",
       "outcome_actual": "tenant_win",
       "remedy_recall": 0.0,
       "claims_predicted": [
@@ -331,10 +333,10 @@
       "claim_type_precision": 0.5,
       "claim_type_recall": 1.0,
       "claim_type_f1": 0.6666666666666666,
-      "outcome_correct": false,
-      "outcome_predicted": "mixed",
+      "outcome_correct": true,
+      "outcome_predicted": "tenant_win",
       "outcome_actual": "tenant_win",
-      "remedy_recall": 0.5,
+      "remedy_recall": 0.0,
       "claims_predicted": [
         "deregulation_challenge",
         "high_rent_vacancy_challenge",
@@ -361,10 +363,10 @@
       "claim_type_precision": 0.5,
       "claim_type_recall": 0.5,
       "claim_type_f1": 0.5,
-      "outcome_correct": false,
-      "outcome_predicted": "mixed",
+      "outcome_correct": true,
+      "outcome_predicted": "tenant_win",
       "outcome_actual": "tenant_win",
-      "remedy_recall": 0.0,
+      "remedy_recall": 0.5,
       "claims_predicted": [
         "deregulation_challenge",
         "high_rent_vacancy_challenge"
@@ -389,8 +391,8 @@
       "claim_type_precision": 0.0,
       "claim_type_recall": 0.0,
       "claim_type_f1": 0.0,
-      "outcome_correct": false,
-      "outcome_predicted": null,
+      "outcome_correct": true,
+      "outcome_predicted": "landlord_win",
       "outcome_actual": "landlord_win",
       "remedy_recall": 1.0,
       "claims_predicted": [
@@ -441,8 +443,8 @@
       "claim_type_precision": 1.0,
       "claim_type_recall": 0.6666666666666666,
       "claim_type_f1": 0.8,
-      "outcome_correct": true,
-      "outcome_predicted": "landlord_win",
+      "outcome_correct": false,
+      "outcome_predicted": "mixed",
       "outcome_actual": "landlord_win",
       "remedy_recall": 1.0,
       "claims_predicted": [
@@ -466,17 +468,16 @@
     },
     {
       "case_name": "Peter Poyck v Stan Bryant et al.",
-      "claim_type_precision": 0.5,
+      "claim_type_precision": 1.0,
       "claim_type_recall": 0.5,
-      "claim_type_f1": 0.5,
-      "outcome_correct": false,
-      "outcome_predicted": null,
+      "claim_type_f1": 0.6666666666666666,
+      "outcome_correct": true,
+      "outcome_predicted": "tenant_win",
       "outcome_actual": "tenant_win",
       "remedy_recall": 1.0,
       "claims_predicted": [
         "breach_warranty_habitability",
-        "habitability_violation",
-        "hp_action_repairs"
+        "habitability_violation"
       ],
       "claims_actual": [
         "CONSTRUCTIVE_EVICTION",
@@ -488,10 +489,8 @@
       "claims_missed": [
         "CONSTRUCTIVE_EVICTION"
       ],
-      "claims_extra": [
-        "HP_ACTION_REPAIRS"
-      ],
-      "num_matches": 3
+      "claims_extra": [],
+      "num_matches": 2
     },
     {
       "case_name": "Richard Altman v 285 West Fourth LLC",
@@ -499,7 +498,7 @@
       "claim_type_recall": 0.5,
       "claim_type_f1": 0.5,
       "outcome_correct": false,
-      "outcome_predicted": "mixed",
+      "outcome_predicted": "tenant_win",
       "outcome_actual": "landlord_win",
       "remedy_recall": 1.0,
       "claims_predicted": [
@@ -529,7 +528,7 @@
       "outcome_correct": true,
       "outcome_predicted": "tenant_win",
       "outcome_actual": "tenant_win",
-      "remedy_recall": 0.0,
+      "remedy_recall": 1.0,
       "claims_predicted": [
         "improper_service",
         "procedural_defect"
@@ -575,29 +574,31 @@
     },
     {
       "case_name": "Thurman v Sullivan Properties L.P.",
-      "claim_type_precision": 0.6666666666666666,
-      "claim_type_recall": 1.0,
-      "claim_type_f1": 0.8,
-      "outcome_correct": false,
-      "outcome_predicted": "mixed",
+      "claim_type_precision": 0.3333333333333333,
+      "claim_type_recall": 0.5,
+      "claim_type_f1": 0.4,
+      "outcome_correct": true,
+      "outcome_predicted": "tenant_win",
       "outcome_actual": "tenant_win",
       "remedy_recall": 0.0,
       "claims_predicted": [
         "deregulation_challenge",
         "high_rent_vacancy_challenge",
-        "rent_stabilization_violation"
+        "rent_overcharge"
       ],
       "claims_actual": [
         "DEREGULATION_CHALLENGE",
         "RENT_STABILIZATION_VIOLATION"
       ],
       "claims_matched": [
-        "DEREGULATION_CHALLENGE",
+        "DEREGULATION_CHALLENGE"
+      ],
+      "claims_missed": [
         "RENT_STABILIZATION_VIOLATION"
       ],
-      "claims_missed": [],
       "claims_extra": [
-        "HIGH_RENT_VACANCY_CHALLENGE"
+        "HIGH_RENT_VACANCY_CHALLENGE",
+        "RENT_OVERCHARGE"
       ],
       "num_matches": 3
     }

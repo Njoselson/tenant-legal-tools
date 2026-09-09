@@ -24,6 +24,24 @@ _CL_HEADERS = {"Accept": "application/json"}
 if _COURTLISTENER_TOKEN:
     _CL_HEADERS["Authorization"] = f"Token {_COURTLISTENER_TOKEN}"
 
+# CourtListener stores opinion text in different fields depending on data source
+# (direct scrape vs. Columbia donation vs. Harvard CAP vs. Lawbox). Try in
+# priority order — many state-court opinions only have text in xml_harvard.
+_CL_TEXT_FIELDS = (
+    "plain_text",
+    "html_with_citations",
+    "html",
+    "html_lawbox",
+    "html_columbia",
+    "xml_harvard",
+)
+
+
+def _strip_markup(raw: str) -> str:
+    """Strip HTML/XML tags and collapse whitespace."""
+    no_tags = re.sub(r"<[^>]+>", " ", raw)
+    return re.sub(r"\s+", " ", no_tags).strip()
+
 
 def _fetch_courtlistener_text(cluster_id: str) -> str | None:
     """
@@ -56,17 +74,15 @@ def _fetch_courtlistener_text(cluster_id: str) -> str | None:
             return None
         op = op_resp.json()
 
-        # Prefer plain_text; fall back to stripping html_with_citations
-        text = op.get("plain_text") or ""
-        if not text:
-            html = op.get("html_with_citations") or op.get("html") or op.get("html_lawbox") or ""
-            text = re.sub(r"<[^>]+>", " ", html)
-            text = re.sub(r"\s+", " ", text).strip()
+        for field in _CL_TEXT_FIELDS:
+            raw = op.get(field) or ""
+            if not raw:
+                continue
+            text = raw if field == "plain_text" else _strip_markup(raw)
+            if len(text) >= 200:
+                return text
 
-        # Don't return stub text shorter than a meaningful opinion
-        if len(text.strip()) < 200:
-            return None
-        return text
+        return None
     except Exception:
         return None
 

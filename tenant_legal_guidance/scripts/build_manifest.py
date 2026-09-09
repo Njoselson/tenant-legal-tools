@@ -440,6 +440,140 @@ async def build_courtlistener_manifest(
     return stats
 
 
+def build_hcr_manifest(
+    output_path: Path,
+    case_types: list[str],
+) -> dict[str, Any]:
+    """
+    Generate one manifest entry per HCR quarterly PAR PDF.
+
+    NOTE: HCR publishes quarterly aggregated PDFs (many decisions concatenated
+    into one file), not per-decision PDFs. The entries this produces are useful
+    for corpus enrichment but do NOT give per-decision outcome ground truth.
+
+    Args:
+        output_path: where to write the manifest JSONL
+        case_types: which case-type buckets to enumerate (see
+            HCRScraper._CASE_TYPES keys — e.g., ["overcharge"])
+
+    Returns:
+        Stats dict
+    """
+    from tenant_legal_guidance.services.hcr_scraper import HCRScraper
+
+    logger = logging.getLogger(__name__)
+    logger.info("[HCR] enumerating quarterly PDFs for case types: %s", case_types)
+
+    scraper = HCRScraper()
+    pdfs = scraper.list_quarterly_pdfs(case_types=case_types)
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with output_path.open("w", encoding="utf-8") as f:
+        for pdf in pdfs:
+            f.write(json.dumps(pdf.to_manifest_entry(), ensure_ascii=False) + "\n")
+
+    stats = {"total": len(pdfs), "entries_written": len(pdfs), "failed": 0}
+    logger.info("[HCR] wrote %d entries → %s", len(pdfs), output_path)
+    return stats
+
+
+def build_fordham_manifest(
+    output_path: Path,
+    max_results: int | None = None,
+    rate_limit_seconds: float = 0.5,
+    filter_housing_types: list[str] | None = None,
+    filter_case_types: list[str] | None = None,
+) -> dict[str, Any]:
+    """
+    Scrape the Fordham FLASH housing court decisions project.
+
+    Args:
+        output_path: where to write the manifest JSONL
+        max_results: stop after this many articles (None = all ~2,000)
+        rate_limit_seconds: per-request throttle
+        filter_housing_types: keep only cases whose housing_type is in this list
+            (e.g., ["Rent Stabilized", "Rent Controlled"])
+        filter_case_types: keep only cases whose case_type is in this list
+            (e.g., ["Holdover", "Nonpayment"])
+
+    Returns:
+        Stats dict
+    """
+    from tenant_legal_guidance.services.fordham_scraper import FordhamScraper
+
+    logger = logging.getLogger(__name__)
+    logger.info("[Fordham] scraping FLASH (max=%s)", max_results or "all")
+
+    scraper = FordhamScraper(rate_limit_seconds=rate_limit_seconds)
+    cases = scraper.scrape_all(max_results=max_results)
+
+    if filter_housing_types:
+        keep = set(filter_housing_types)
+        before = len(cases)
+        cases = [c for c in cases if c.housing_type in keep]
+        logger.info("[Fordham] housing_type filter %s → %d/%d", keep, len(cases), before)
+    if filter_case_types:
+        keep = set(filter_case_types)
+        before = len(cases)
+        cases = [c for c in cases if c.case_type in keep]
+        logger.info("[Fordham] case_type filter %s → %d/%d", keep, len(cases), before)
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with output_path.open("w", encoding="utf-8") as f:
+        for case in cases:
+            f.write(json.dumps(case.to_manifest_entry(), ensure_ascii=False) + "\n")
+
+    stats = {"total": len(cases), "entries_written": len(cases), "failed": 0}
+    logger.info("[Fordham] wrote %d entries → %s", len(cases), output_path)
+    return stats
+
+
+def build_nycourts_manifest(
+    courts: list[str],
+    years: list[int],
+    output_path: Path,
+    max_results: int = 50,
+    rate_limit_seconds: float = 1.0,
+) -> dict[str, Any]:
+    """
+    Scrape nycourts.gov/reporter monthly archives for landlord/tenant cases.
+
+    Args:
+        courts: bucket keys from NYCourtsScraper._ARCHIVE_TEMPLATES — e.g.
+            "other_courts", "appellate_term_1", "appellate_term_2"
+        years: year range to enumerate (whole calendar years)
+        output_path: where to write the manifest JSONL
+        max_results: stop after this many matches
+        rate_limit_seconds: per-request throttle
+
+    Returns:
+        Stats dict
+    """
+    from tenant_legal_guidance.services.nycourts_scraper import NYCourtsScraper
+
+    logger = logging.getLogger(__name__)
+    logger.info(
+        "[NYCourts] scraping %s for years=%s (max=%d)",
+        ",".join(courts), years, max_results,
+    )
+
+    scraper = NYCourtsScraper(rate_limit_seconds=rate_limit_seconds)
+    matches = scraper.find_landlord_tenant_cases(
+        courts=courts,
+        years=years,
+        max_results=max_results,
+    )
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with output_path.open("w", encoding="utf-8") as f:
+        for dec in matches:
+            f.write(json.dumps(dec.to_manifest_entry(), ensure_ascii=False) + "\n")
+
+    stats = {"total": len(matches), "entries_written": len(matches), "failed": 0}
+    logger.info("[NYCourts] wrote %d entries → %s", len(matches), output_path)
+    return stats
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Build manifest from existing database sources or Justia URLs",
@@ -470,6 +604,21 @@ def main():
         help="Search CourtListener API for NY court opinions matching keywords",
     )
     input_group.add_argument(
+        "--nycourts-search",
+        action="store_true",
+        help="Scrape nycourts.gov/reporter monthly archives for landlord/tenant cases",
+    )
+    input_group.add_argument(
+        "--fordham-search",
+        action="store_true",
+        help="Scrape the Fordham FLASH housing court decisions project",
+    )
+    input_group.add_argument(
+        "--hcr-search",
+        action="store_true",
+        help="Enumerate HCR PAR quarterly PDFs (corpus enrichment, not per-decision eval)",
+    )
+    input_group.add_argument(
         "--from-db",
         action="store_true",
         help="Extract sources from database (default if no --justia provided)",
@@ -495,6 +644,63 @@ def main():
         default=20,
         metavar="N",
         help="Max CourtListener results per search (default: 20)",
+    )
+
+    # nycourts.gov-specific options
+    parser.add_argument(
+        "--ny-courts",
+        nargs="+",
+        default=["other_courts", "appellate_term_1", "appellate_term_2"],
+        metavar="BUCKET",
+        help="nycourts.gov archive buckets (default: other_courts appellate_term_1 appellate_term_2)",
+    )
+    parser.add_argument(
+        "--ny-years",
+        nargs="+",
+        type=int,
+        default=None,
+        metavar="YEAR",
+        help="Years to enumerate (default: last 3 years)",
+    )
+    parser.add_argument(
+        "--ny-max",
+        type=int,
+        default=80,
+        metavar="N",
+        help="Max nycourts.gov matches to write (default: 80)",
+    )
+
+    # Fordham FLASH-specific options
+    parser.add_argument(
+        "--fordham-max",
+        type=int,
+        default=200,
+        metavar="N",
+        help="Max Fordham articles to scrape (default: 200; the full set is ~2,000)",
+    )
+    parser.add_argument(
+        "--fordham-housing-types",
+        nargs="+",
+        default=None,
+        metavar="TYPE",
+        help="Filter Fordham cases by housing_type (e.g., 'Rent Stabilized' 'Rent Controlled')",
+    )
+    parser.add_argument(
+        "--fordham-case-types",
+        nargs="+",
+        default=None,
+        metavar="TYPE",
+        help="Filter Fordham cases by case_type (e.g., Holdover Nonpayment)",
+    )
+
+    # HCR-specific options
+    parser.add_argument(
+        "--hcr-case-types",
+        nargs="+",
+        default=["overcharge"],
+        metavar="TYPE",
+        help="HCR case-type buckets (default: overcharge; options: overcharge "
+             "decrease_service lease_renewal mci miscellaneous rent_restoration)",
     )
 
     parser.add_argument(
@@ -552,6 +758,57 @@ def main():
 
     try:
         output_path = Path(args.output)
+
+        # Mode -3: HCR PAR quarterly PDF enumeration
+        if args.hcr_search:
+            logger.info("=== HCR PAR ENUMERATION ===")
+            logger.info("Case types: %s", args.hcr_case_types)
+
+            stats = build_hcr_manifest(
+                output_path=output_path,
+                case_types=args.hcr_case_types,
+            )
+            print(f"\n✓ HCR PAR manifest: {stats['entries_written']} entries → {output_path}")
+            return 0 if stats["entries_written"] > 0 else 1
+
+        # Mode -2: Fordham FLASH project scrape
+        if args.fordham_search:
+            logger.info("=== FORDHAM FLASH SCRAPE ===")
+            logger.info("Max results: %d", args.fordham_max)
+            if args.fordham_housing_types:
+                logger.info("Housing types: %s", args.fordham_housing_types)
+            if args.fordham_case_types:
+                logger.info("Case types: %s", args.fordham_case_types)
+
+            stats = build_fordham_manifest(
+                output_path=output_path,
+                max_results=args.fordham_max,
+                filter_housing_types=args.fordham_housing_types,
+                filter_case_types=args.fordham_case_types,
+            )
+            print(f"\n✓ Fordham manifest: {stats['entries_written']} entries → {output_path}")
+            return 0 if stats["entries_written"] > 0 else 1
+
+        # Mode -1: nycourts.gov reporter scrape
+        if args.nycourts_search:
+            logger.info("=== NYCOURTS.GOV REPORTER SCRAPE ===")
+            if args.ny_years:
+                years = args.ny_years
+            else:
+                this_year = datetime.utcnow().year
+                years = [this_year - 2, this_year - 1, this_year]
+            logger.info("Courts: %s", args.ny_courts)
+            logger.info("Years: %s", years)
+            logger.info("Max results: %d", args.ny_max)
+
+            stats = build_nycourts_manifest(
+                courts=args.ny_courts,
+                years=years,
+                output_path=output_path,
+                max_results=args.ny_max,
+            )
+            print(f"\n✓ nycourts.gov manifest: {stats['entries_written']} entries → {output_path}")
+            return 0 if stats["entries_written"] > 0 else 1
 
         # Mode 0: CourtListener search (preferred — API-based, no 403 issues)
         if args.courtlistener_search:

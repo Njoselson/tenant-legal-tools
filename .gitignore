@@ -66,3 +66,9 @@ data/*.graphml
 .specify/
 .cursor/
 .gitnexus
+
+# GitNexus reinstalls its skills into the project on every `analyze` run.
+# The canonical copies are global (~/.claude/skills -> Obsidian vault), so
+# ignore the per-repo duplicates rather than tracking them.
+# Use `gitnexus analyze --skip-skills` to avoid creating them at all.
+.claude/skills/gitnexus-*/

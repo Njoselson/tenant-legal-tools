@@ -48,7 +48,7 @@ M7 Web ingestion UI — independent, can slot in anytime (mostly done)
 
 ---
 
-## 🔄 Active (2026-09-08)
+## 🔄 Active (2026-09-10)
 
 **Legal data audit (2026-09-08):** Compared `data/taxonomy/*.yaml` against Nate's NYC Tenant Law doctrinal notes. Canonical layer (~30 laws, ~14 procedures) is accurate. Two problems found, both block trustworthy grounding before the advocate demo:
 
@@ -64,9 +64,68 @@ M7 Web ingestion UI — independent, can slot in anytime (mostly done)
 - **Outcome accuracy: 66.7% (14/21) — doubled from 33.3%**
 - **Remedy recall: 66.7% — up from 50%**
 
-**Remaining gap to 80% outcome accuracy:** 7 misses, mostly "tenant_win" predicted when actual is "landlord_win" or "mixed". Looks like a calibration/prompt issue rather than a coverage one — the corpus is now rich enough; the LLM is overconfident on tenant wins.
+**Post-dedupe eval (2026-09-10) — the taxonomy dedupe cost 2 cases on outcome.**
+Three consecutive runs, bit-identical on outcome and remedy (M4d Phase 2's "stable
+across 3 runs" criterion is satisfied):
 
-> Next action: investigate outcome calibration. Compare LLM rationale on the 7 misses; possibly add a "consider both sides" step or weight similar-case outcomes by their actual distribution.
+| | Baseline 2026-06-14 | Now 2026-09-10 |
+|---|---|---|
+| Claim F1 | 54.5% | 56.0–57.7% (+2) |
+| **Outcome** | **66.7% (14/21)** | **57.1% (12/21)** (−2 cases) |
+| Remedy | 66.7% | 64.3% |
+
+⚠️ Measured against a DB that still held the stale ids (see drift bug below), so
+this number is indicative, not honest. Re-measure after pruning.
+
+All 7 previously-known misses persist unchanged. Two NEW misses appeared, both
+returning **no prediction at all** rather than a wrong one — and both are
+**coverage, not calibration**:
+
+- **Lakr Kaal Rock v Paul** (was correct `landlord_win`) — re-tagged onto the new
+  `good_cause_eviction_defense` node, which has **0 tagged case_documents**.
+  Doctrinally right, evidentially empty: no similar cases to infer an outcome from.
+- **South Brooklyn Railway v Heung Man Lau** (was correct `tenant_win`) — predicted
+  claims went empty after `improper_service_defense` was merged away. The 478
+  case_documents were never re-tagged against the surviving ids.
+
+**Seed drift bug found + fixed (2026-09-10):** `seed_taxonomy.py` is upsert-only, so
+ids deleted from the YAML lingered in ArangoDB forever and stayed queryable — the
+claim_types dedupe (72 → 67) never took effect in the DB, which still carries all six
+merged ids plus `rpa_768`. `--prune` existed but was opt-in and silent. Drift is now
+reported on every run (including `--dry-run`), stale edges are pruned too, and a stale
+node still referenced by `case_documents` is kept rather than deleted — deleting it is
+exactly what stranded South Brooklyn Railway's tags. Verified: the 7 stale ids have 0
+references, so pruning them is safe.
+
+### Next actions, in order
+
+1. [ ] **`make seed-taxonomy PRUNE=1`, then re-run the eval.** Every number above was
+       measured against the polluted DB. Do this before tuning anything — 10 minutes,
+       and it unblocks honest measurement.
+2. [ ] **Re-tag the corpus** (`backfill_case_tags.py`) against the merged ids. Should
+       recover South Brooklyn Railway. Mechanical.
+3. [ ] **Source Good Cause Eviction case law.** `good_cause_eviction_defense` is
+       canonical with 0 tagged documents. Fordham FLASH is the best source — its
+       Winner/Disposition metadata gives outcome labels without LLM extraction.
+       Should recover Lakr Kaal Rock.
+4. [ ] **Outcome calibration** — the 7 long-standing misses, all over-predicting
+       `tenant_win`. This is the actual path from ~67% to the 80% gate. Ground truth is
+       13 tenant_win / 6 landlord_win / 2 mixed, so the model may just be learning the
+       prior. Compare rationale across misses; consider a "consider both sides" step or
+       weighting similar-case outcomes by their real distribution.
+5. [ ] **Expand the eval set from 21 to 50+ cases** (Phase 2 proper). At 21 cases each
+       one is worth 4.8 points, so the score is noisy by construction — this matters
+       more than it looks.
+
+> Steps 2–3 alone recover ~9.6 points, back to ~66.7%. On 21 cases the 80% gate means
+> 17/21, so 3 more after that.
+
+**Infrastructure (2026-09-10):** GitNexus was mandated by CLAUDE.md but never wired up —
+no MCP server registered anywhere, index 5 months stale on the pre-filter-repo remote
+lineage. Now registered (pinned to a global install, not the ephemeral npx cache path
+`setup` writes) and reindexed. `node .gitnexus/run.cjs impact|detect-changes` works
+without MCP. Also: local main had no upstream and was 118 commits unpushed since March —
+force-pushed and tracking set.
 
 ---
 

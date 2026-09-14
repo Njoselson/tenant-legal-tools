@@ -216,15 +216,20 @@ async def evaluate_single_case(
 
     predicted_claims = {ct.get("id", ct.get("_key", "")) for ct in matched_claim_types}
 
-    # Derive predicted outcome: majority vote over similar cases that have known outcomes
-    known_outcomes = [
-        c.get("outcome")
-        for c in similar_cases
-        if c.get("outcome") not in (None, "", "unknown")
-    ]
-    predicted_outcome: str | None = None
-    if known_outcomes:
-        predicted_outcome = Counter(known_outcomes).most_common(1)[0][0]
+    # Predicted outcome: the LLM outcome step (law + precedent) when it answered,
+    # else majority vote over similar cases that have known outcomes
+    llm_prediction = result_data.get("predicted_outcome") or {}
+    predicted_outcome: str | None = llm_prediction.get("outcome")
+    outcome_source = "llm" if predicted_outcome else None
+    if not predicted_outcome:
+        known_outcomes = [
+            c.get("outcome")
+            for c in similar_cases
+            if c.get("outcome") not in (None, "", "unknown")
+        ]
+        if known_outcomes:
+            predicted_outcome = Counter(known_outcomes).most_common(1)[0][0]
+            outcome_source = "majority_vote"
 
     # Collect predicted remedies from similar cases
     predicted_remedies: list[str] = []
@@ -247,6 +252,9 @@ async def evaluate_single_case(
         "claim_type_f1": claim_score["f1"],
         "outcome_correct": outcome_correct,
         "outcome_predicted": predicted_outcome,
+        "outcome_source": outcome_source,
+        "outcome_rationale": llm_prediction.get("rationale", ""),
+        "controlling_laws": llm_prediction.get("controlling_laws", []),
         "outcome_actual": actual_outcome,
         "remedy_recall": remedy_score["recall"],
         "claims_predicted": sorted(predicted_claims),
@@ -263,7 +271,9 @@ async def evaluate_single_case(
         print(f"    Claims predicted: {sorted(predicted_claims)}")
         print(f"    Claims actual:    {sorted(actual_claims)}")
         print(f"    Claim F1: {claim_score['f1']:.2f} (P={claim_score['precision']:.2f} R={claim_score['recall']:.2f})")
-        print(f"    Outcome: {predicted_outcome} vs {actual_outcome} → {status}")
+        print(f"    Outcome: {predicted_outcome} vs {actual_outcome} → {status} [{outcome_source}]")
+        if llm_prediction.get("rationale"):
+            print(f"    Rationale: {llm_prediction['rationale']}")
         print(f"    Remedy recall: {remedy_score['recall']:.2f} ({remedy_score['matched']}/{remedy_score['total']})")
 
     return result

@@ -179,6 +179,90 @@ Rules:
     )
 
 
+def _as_list(value) -> list:
+    """Case-document list fields may be stored as a list or a Python-repr string."""
+    if isinstance(value, list):
+        return value
+    if isinstance(value, str) and value.startswith("["):
+        import ast
+
+        try:
+            return list(ast.literal_eval(value))
+        except (ValueError, SyntaxError):
+            return []
+    return []
+
+
+def get_outcome_prediction_prompt(
+    narrative: str,
+    claim_types: list[dict],
+    laws: list[dict],
+    similar_cases: list[dict],
+) -> str:
+    """
+    Predict who wins from the governing law (with descriptions) plus similar-case precedent.
+
+    Returns JSON: {outcome: tenant_win|landlord_win|mixed, rationale, controlling_laws: [id]}
+    """
+    from tenant_legal_guidance.services.security import create_safe_prompt
+
+    sanitized = sanitize_for_llm(narrative[:10000])
+    claims_block = "\n".join(f"- {c.get('id')}: {c.get('name', '')}" for c in claim_types) or "(none)"
+    laws_block = (
+        "\n".join(
+            f"- [{law.get('id')}] {law.get('name', '')} ({law.get('citation') or 'no citation'}): "
+            f"{(law.get('description') or '').strip()[:800]}"
+            for law in laws
+        )
+        or "(none)"
+    )
+    case_lines = []
+    for c in similar_cases:
+        holdings = "; ".join(str(h)[:300] for h in _as_list(c.get("holdings"))[:3])
+        case_lines.append(
+            f"- {c.get('name') or c.get('case_name') or 'Unnamed case'} "
+            f"— outcome: {c.get('outcome') or 'unknown'}"
+            + (f"\n  Holdings: {holdings}" if holdings else "")
+        )
+    cases_block = "\n".join(case_lines) or "(none)"
+
+    system_instructions = f"""\
+You are a New York tenant law specialist predicting how a court would rule.
+
+The tenant's claims:
+{claims_block}
+
+GOVERNING LAW (from the knowledge graph):
+{laws_block}
+
+SIMILAR CASES (tagged with the same claim types; their facts may differ):
+{cases_block}
+
+Apply the governing law to the tenant's specific facts. Check every threshold rule
+first: statutes of limitations, lookback periods, and whether a statutory amendment
+applies to events that happened before it took effect. A claim barred by one of
+these loses even when the underlying grievance is sympathetic, unless the facts
+meet a stated exception (for example, a colorable claim of fraud). Use the similar
+cases as precedent, not as a vote: follow them only when their facts match.
+
+Rules:
+- outcome: exactly one of "tenant_win", "landlord_win", "mixed" (mixed = genuine split)
+- controlling_laws: IDs from the governing law list above that decide the outcome
+- Return ONLY valid JSON, no markdown."""
+
+    output_format = """{
+  "outcome": "tenant_win | landlord_win | mixed",
+  "rationale": "2-4 sentences applying the law to the facts",
+  "controlling_laws": ["law_id"]
+}"""
+
+    return create_safe_prompt(
+        system_instructions=system_instructions,
+        user_input=sanitized,
+        output_format=output_format,
+    )
+
+
 # ── Unified extraction (kept for claim_extractor.py / proof chains) ──────────
 
 # Output schema used by the 3 type-aware prompts below

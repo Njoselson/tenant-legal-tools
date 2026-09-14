@@ -793,11 +793,13 @@ class ArangoDBGraph:
             FOR doc IN case_documents
                 FILTER @cid IN doc.claim_types
                 FOR law IN 1..1 OUTBOUND doc cites
-                    COLLECT law_key = law._key, law_name = law.name, law_citation = law.citation
+                    COLLECT law_key = law._key, law_name = law.name, law_citation = law.citation,
+                            law_description = law.description
                     WITH COUNT INTO n
                     SORT n DESC
                     LIMIT 10
-                    RETURN {id: law_key, name: law_name, citation: law_citation, case_count: n}
+                    RETURN {id: law_key, name: law_name, citation: law_citation,
+                            description: law_description, case_count: n}
             """
             cursor = self.db.aql.execute(aql, bind_vars={"cid": claim_type_id})
             return list(cursor)

@@ -1,11 +1,11 @@
 {
   "summary": {
     "cases_evaluated": 21,
-    "claim_type_f1": 0.641,
-    "claim_type_precision": 0.552,
+    "claim_type_f1": 0.647,
+    "claim_type_precision": 0.56,
     "claim_type_recall": 0.81,
     "outcome_accuracy": 0.619,
-    "remedy_recall": 0.643
+    "remedy_recall": 0.667
   },
   "per_case": [
     {
@@ -102,16 +102,15 @@
     },
     {
       "case_name": "304-306 E 83 Realty, LLC v Mason",
-      "claim_type_precision": 0.5,
+      "claim_type_precision": 0.6666666666666666,
       "claim_type_recall": 1.0,
-      "claim_type_f1": 0.6666666666666666,
+      "claim_type_f1": 0.8,
       "outcome_correct": true,
       "outcome_predicted": "tenant_win",
       "outcome_actual": "tenant_win",
-      "remedy_recall": 0.5,
+      "remedy_recall": 1.0,
       "claims_predicted": [
         "deregulation_challenge",
-        "high_rent_vacancy_challenge",
         "rent_overcharge",
         "rent_stabilization_violation"
       ],
@@ -126,10 +125,9 @@
       ],
       "claims_missed": [],
       "claims_extra": [
-        "HIGH_RENT_VACANCY_CHALLENGE",
         "RENT_STABILIZATION_VIOLATION"
       ],
-      "num_matches": 4
+      "num_matches": 3
     },
     {
       "case_name": "3505 BWAY Owner LLC v McNeely",
@@ -193,13 +191,10 @@
       "claim_type_recall": 0.0,
       "claim_type_f1": 0.0,
       "outcome_correct": false,
-      "outcome_predicted": "tenant_win",
+      "outcome_predicted": null,
       "outcome_actual": "landlord_win",
       "remedy_recall": 1.0,
-      "claims_predicted": [
-        "improper_service",
-        "procedural_defect"
-      ],
+      "claims_predicted": [],
       "claims_actual": [
         "CLAIM_FOR_DAMAGES",
         "MOTION_TO_VACATE"
@@ -209,11 +204,8 @@
         "CLAIM_FOR_DAMAGES",
         "MOTION_TO_VACATE"
       ],
-      "claims_extra": [
-        "DEFECTIVE_PREDICATE_NOTICE",
-        "IMPROPER_SERVICE"
-      ],
-      "num_matches": 2
+      "claims_extra": [],
+      "num_matches": 0
     },
     {
       "case_name": "Arnold Rossman v Windermere Owners LLC et al.",

@@ -37,7 +37,13 @@ jobs:
       
       - name: Install dependencies
         run: uv sync --all-groups
-      
+
+      # spaCy + NER model for PII name detection; mirrors the Dockerfile install
+      - name: Install spaCy model
+        run: |
+          uv pip install "spacy>=3.7.2" \
+            https://github.com/explosion/spacy-models/releases/download/en_core_web_lg-3.8.0/en_core_web_lg-3.8.0-py3-none-any.whl
+
       - name: Create .env for tests
         run: |
           cat > .env << EOF

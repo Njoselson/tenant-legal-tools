@@ -68,14 +68,26 @@ M7 Web ingestion UI — independent, can slot in anytime (mostly done)
 Three consecutive runs, bit-identical on outcome and remedy (M4d Phase 2's "stable
 across 3 runs" criterion is satisfied):
 
-| | Baseline 2026-06-14 | Now 2026-09-10 |
-|---|---|---|
-| Claim F1 | 54.5% | 56.0–57.7% (+2) |
-| **Outcome** | **66.7% (14/21)** | **57.1% (12/21)** (−2 cases) |
-| Remedy | 66.7% | 64.3% |
+| | Baseline 2026-06-14 | 2026-09-10 (pre-prune) | **Post-prune 2026-09-13** |
+|---|---|---|---|
+| Claim F1 | 54.5% | 56.0–57.7% (+2) | **64.1–65.0%** (runs: 65.0 / 64.1 / 64.1) |
+| **Outcome** | **66.7% (14/21)** | **57.1% (12/21)** (−2 cases) | **61.9% (13/21)** (all 3 runs) |
+| Remedy | 66.7% | 64.3% | **64.3%** (all 3 runs) |
 
-⚠️ Measured against a DB that still held the stale ids (see drift bug below), so
-this number is indicative, not honest. Re-measure after pruning.
+⚠️ The 2026-09-10 column was measured against a DB that still held the stale ids
+(see drift bug below). **The 2026-09-13 column is the honest post-dedupe number:**
+`make seed-taxonomy PRUNE=1` removed the 7 stale nodes (0 edges), dry-run then
+reported "No drift", and 3 eval runs were bit-identical on outcome and remedy.
+Claim recall rose 64.7% → 81.0% once the matcher stopped returning merged-away ids.
+
+What the prune changed on outcome (+1 net):
+
+- **South Brooklyn Railway recovered** (no prediction → correct `tenant_win`): the
+  matcher now returns surviving `improper_service`, so step 2 below may no longer be
+  needed for this case.
+- **Regina Metropolitan** flipped `mixed` → `tenant_win` (actual `landlord_win`) —
+  wrong either way, now in the over-predict-`tenant_win` bucket of step 4.
+- **Lakr Kaal Rock** still returns no prediction (GCE coverage, step 3).
 
 All 7 previously-known misses persist unchanged. Two NEW misses appeared, both
 returning **no prediction at all** rather than a wrong one — and both are
@@ -99,9 +111,8 @@ references, so pruning them is safe.
 
 ### Next actions, in order
 
-1. [ ] **`make seed-taxonomy PRUNE=1`, then re-run the eval.** Every number above was
-       measured against the polluted DB. Do this before tuning anything — 10 minutes,
-       and it unblocks honest measurement.
+1. [x] **`make seed-taxonomy PRUNE=1`, then re-run the eval.** Done 2026-09-13 —
+       honest baseline is **61.9% outcome (13/21)**, see table above.
 2. [ ] **Re-tag the corpus** (`backfill_case_tags.py`) against the merged ids. Should
        recover South Brooklyn Railway. Mechanical.
 3. [ ] **Source Good Cause Eviction case law.** `good_cause_eviction_defense` is

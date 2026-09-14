@@ -116,6 +116,21 @@ case_documents whose text cites CPLR 213-a, the four-year lookback, or Regina
   outcome step. That's a `services/` change and a design decision, not a
   taxonomy fix.
 
+**LLM outcome step (atlas11, 2026-09-14): tried, parked.** `ClaimMatcher`
+now makes one more LLM call: the tenant's facts, the matched claim types,
+the top laws for those claim types *with descriptions*, and the similar
+cases' outcomes and holdings. The eval uses its answer and falls back to
+the majority vote. Outcome over 3 runs: **61.9 / 57.1 / 61.9%**, flat.
+
+- Nick: the reasoning is now right (4-year rule, fraud not colorable), but
+  the answer is `mixed` in all 3 runs.
+- Regina: still `tenant_win`. The model treats J-51 deregulation as
+  colorable fraud, which is the point *Regina* rejected.
+- Lakr Kaal Rock is now correct (no similar cases needed); Four Thirty
+  and Poyck became inconsistent between runs, which cancels the gain.
+- Parked: at 21 cases one flip is ~5 points. Revisit after the eval set
+  is bigger and the labels are clean, and fix the model temperature first.
+
 What the prune changed on outcome (+1 net):
 
 - **South Brooklyn Railway recovered** (no prediction → correct `tenant_win`): the

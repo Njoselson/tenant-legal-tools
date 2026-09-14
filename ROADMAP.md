@@ -80,6 +80,42 @@ across 3 runs" criterion is satisfied):
 reported "No drift", and 3 eval runs were bit-identical on outcome and remedy.
 Claim recall rose 64.7% → 81.0% once the matcher stopped returning merged-away ids.
 
+**Overcharge lookback doctrine (atlas10, 2026-09-14): encoded, but outcome didn't
+move.** Added canonical `cplr_213_a` (4-year statute of limitations and lookback,
+colorable-fraud exception, *Regina Metropolitan* 35 NY3d 332 [2020]: the HSTPA 2019
+overcharge amendments aren't retroactive). Corrected `hstpa_2019` so its 6-year
+lookback no longer reads as applying to pre-June 2019 overcharges.
+`scripts/link_lookback_citations.py` linked the 5 overcharge/deregulation
+case_documents whose text cites CPLR 213-a, the four-year lookback, or Regina
+(Gourin, Kostic, Aras, LESMHA, 654 Putnam) → `rent_overcharge` now retrieves
+`cplr_213_a` (rank 8, 5 cases). Eval, 3 runs:
+
+| | Post-prune 2026-09-13 | **atlas10 2026-09-14** |
+| --- | --- | --- |
+| Claim F1 | 64.1–65.0% | 62.5 / 64.7 / 64.7% |
+| **Outcome** | **61.9% (13/21)** | **61.9% (13/21)** (all 3 runs) |
+| Remedy | 64.3% | 64.3 / 66.7 / 66.7% |
+
+- **Nick and Regina Metropolitan still predict `tenant_win`** in all 3 runs.
+  This is structural, not a data gap: the eval's outcome is a majority vote
+  over the outcomes of the top-5 `get_cases_tagged_with` docs, ranked by
+  claim-type tag overlap (`ClaimMatcher.analyze`). No law, `cites` edge, or
+  law description is read anywhere on that path. `get_laws_for_claim_type`
+  only feeds the proof chain and the analyze-my-case megaprompt, and even
+  there it returns name/citation, not the description, and the prompt shows
+  only the top 3 law names.
+- **No overcorrection:** the other 19 cases are unchanged except **5712 Realty
+  v Ricketts** (`tenant_win` → no prediction, all 3 runs; actual
+  `landlord_win`, so wrong either way). `get_taxonomy_snapshot` feeds
+  canonical laws into the tenant-tag prompt, so adding a law node changed
+  that prompt and Ricketts now gets no claim tags. A reminder that taxonomy
+  edits perturb tagging for unrelated cases.
+- **Next:** for doctrine to change an outcome, the predictor has to consume
+  it, e.g. filter or down-weight similar cases whose claim falls outside the
+  lookback, or pass the top claim-type laws *with descriptions* to an LLM
+  outcome step. That's a `services/` change and a design decision, not a
+  taxonomy fix.
+
 What the prune changed on outcome (+1 net):
 
 - **South Brooklyn Railway recovered** (no prediction → correct `tenant_win`): the

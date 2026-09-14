@@ -303,13 +303,43 @@
 
 - id: hstpa_2019
   name: Housing Stability and Tenant Protection Act of 2019
-  description: Landmark 2019 NY law strengthening rent regulations, eliminating most deregulation paths, extending protections, and increasing overcharge look-back period to 6 years.
+  description: >-
+    Landmark 2019 NY law (effective June 14, 2019) strengthening rent regulation,
+    eliminating most deregulation paths, and extending the overcharge statute of
+    limitations and lookback to 6 years. The overcharge amendments are not
+    retroactive (Regina Metropolitan Co. v DHCR, 35 NY3d 332 [2020]): overcharges
+    that occurred before June 14, 2019 remain governed by the former 4-year rule of
+    CPLR § 213-a (see cplr_213_a).
   jurisdiction: NYS
   status: canonical
   aliases:
     - HSTPA
     - 2019 rent reform
   citation: L. 2019, c. 36
+
+- id: cplr_213_a
+  name: CPLR § 213-a — Rent Overcharge Statute of Limitations and Lookback
+  description: >-
+    Former CPLR § 213-a (pre-HSTPA): a rent overcharge claim must be brought within
+    4 years of the first overcharge alleged, and the legal rent is set from the rent
+    charged on the base date 4 years before the claim was filed. Rent history before
+    that date can't be examined. Fraud exception: when the tenant makes a colorable
+    claim that the landlord engaged in a fraudulent scheme to deregulate or inflate
+    the rent, the rent history can be examined further back to test whether the
+    base date rent is reliable. If it isn't, the default formula applies. Regina
+    Metropolitan Co. v DHCR, 35 NY3d 332 (2020) held that the HSTPA 2019 amendments
+    (6-year lookback, review of all records) are not retroactive. Overcharges before
+    June 14, 2019 therefore stay under this 4-year rule absent fraud, even in claims
+    that were pending. The rule limits the overcharge award, not the question of
+    whether a unit is rent-stabilized, which can be examined at any time.
+  jurisdiction: NYS
+  status: canonical
+  aliases:
+    - CPLR 213-a
+    - four-year lookback
+    - four-year rule
+    - Regina Metropolitan
+  citation: CPLR § 213-a
 
 # ── Good Cause Eviction Act (2024) ───────────────────────────────────────────
 

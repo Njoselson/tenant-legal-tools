@@ -211,7 +211,7 @@ def get_outcome_prediction_prompt(
     laws_block = (
         "\n".join(
             f"- [{law.get('id')}] {law.get('name', '')} ({law.get('citation') or 'no citation'}): "
-            f"{(law.get('description') or '').strip()[:800]}"
+            f"{(law.get('description') or '').strip()[:1500]}"
             for law in laws
         )
         or "(none)"
@@ -242,8 +242,10 @@ Apply the governing law to the tenant's specific facts. Check every threshold ru
 first: statutes of limitations, lookback periods, and whether a statutory amendment
 applies to events that happened before it took effect. A claim barred by one of
 these loses even when the underlying grievance is sympathetic, unless the facts
-meet a stated exception (for example, a colorable claim of fraud). Use the similar
-cases as precedent, not as a vote: follow them only when their facts match.
+meet a stated exception (for example, a colorable claim of fraud). An exception
+applies only when the facts described establish its elements. The tenant calling
+something fraud, or suspecting it, is not enough on its own. Use the similar cases
+as precedent, not as a vote: follow them only when their facts match.
 
 Rules:
 - outcome: exactly one of "tenant_win", "landlord_win", "mixed" (mixed = genuine split)

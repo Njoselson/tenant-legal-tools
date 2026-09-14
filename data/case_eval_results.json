@@ -1,11 +1,11 @@
 {
   "summary": {
     "cases_evaluated": 21,
-    "claim_type_f1": 0.647,
+    "claim_type_f1": 0.655,
     "claim_type_precision": 0.56,
-    "claim_type_recall": 0.81,
+    "claim_type_recall": 0.833,
     "outcome_accuracy": 0.619,
-    "remedy_recall": 0.667
+    "remedy_recall": 0.643
   },
   "per_case": [
     {
@@ -15,6 +15,13 @@
       "claim_type_f1": 0.6666666666666666,
       "outcome_correct": true,
       "outcome_predicted": "tenant_win",
+      "outcome_source": "llm",
+      "outcome_rationale": "The tenant's allegations of a persistent rodent infestation, broken facilities, and hazardous conditions, combined with proper notice to the landlord and the landlord's failure to repair, establish a breach of the statutory warranty of habitability under RPL § 235-b and the landlord's maintenance duties under NYC Admin Code § 27-2005 and MDL § 78. Similar cases such as NYC Hous. Auth. v Barrett and Diego Beekman v Hammond confirm that vermin infestations and uncorrected housing code violations render an apartment uninhabitable and entitle the tenant to relief, including an HP Action order to correct and rent abatement. No statute of limitations or lookback issue appears on these facts, as the conditions are ongoing and the tenant has provided notice.",
+      "controlling_laws": [
+        "rpl_235_b",
+        "nyc_admin_27_2005",
+        "mdl_78"
+      ],
       "outcome_actual": "tenant_win",
       "remedy_recall": 1.0,
       "claims_predicted": [
@@ -41,6 +48,15 @@
       "claim_type_f1": 0.0,
       "outcome_correct": true,
       "outcome_predicted": "tenant_win",
+      "outcome_source": "llm",
+      "outcome_rationale": "The landlord's non-payment eviction is defeated because the apartment lacks a valid certificate of occupancy and is an illegally converted SRO, making it an illegal apartment that cannot be legally rented; the landlord also breached the warranty of habitability under RPL § 235-b and MDL § 78 by maintaining unsafe, code-violating conditions. Under RPAPL § 711, a landlord cannot maintain a summary proceeding to collect rent on an illegal occupancy, and the tenant is entitled to an HP order to correct the violations under NYC Admin Code §§ 27-2005 and 27-2115. The tenant's evidence of illegal SRO conversion and open housing code violations establishes both the affirmative defense and the basis for repairs.",
+      "controlling_laws": [
+        "rpl_235_b",
+        "mdl_78",
+        "nyc_admin_27_2005",
+        "nyc_admin_27_2115",
+        "rpapl_711"
+      ],
       "outcome_actual": "tenant_win",
       "remedy_recall": 1.0,
       "claims_predicted": [
@@ -72,6 +88,14 @@
       "claim_type_f1": 0.5,
       "outcome_correct": true,
       "outcome_predicted": "tenant_win",
+      "outcome_source": "llm",
+      "outcome_rationale": "The landlord's high-rent vacancy deregulation claim fails because the DHCR rent history shows the legal regulated rent never exceeded $2,000, and under NYC Admin Code § 26-504.2 and § 26-504 the apartment remains rent-stabilized; the landlord bears the burden of proving lawful deregulation with documentary evidence, which is absent here (see 756 Liberty Realty LLC v. Garcia). The tenant may challenge the deregulated status at any time without being barred by the six-year lookback (63 St. Marks Place LLC v. Benedek), and the refusal to renew the lease, coupled with the timing after the tenant asserted rights, supports a retaliatory eviction claim. The landlord's unsupported claims cannot overcome the official rent history, and the tenant is entitled to a rent-stabilized renewal lease.",
+      "controlling_laws": [
+        "nyc_admin_26_504_2",
+        "nyc_admin_26_504",
+        "rsc_2523_5",
+        "hstpa_2019"
+      ],
       "outcome_actual": "tenant_win",
       "remedy_recall": 0.0,
       "claims_predicted": [
@@ -102,15 +126,25 @@
     },
     {
       "case_name": "304-306 E 83 Realty, LLC v Mason",
-      "claim_type_precision": 0.6666666666666666,
+      "claim_type_precision": 0.5,
       "claim_type_recall": 1.0,
-      "claim_type_f1": 0.8,
+      "claim_type_f1": 0.6666666666666666,
       "outcome_correct": true,
       "outcome_predicted": "tenant_win",
+      "outcome_source": "llm",
+      "outcome_rationale": "The landlord's deregulation of the apartment is invalid because the building received J-51 tax benefits, which requires the unit to remain rent-stabilized under NYC Admin Code § 26-504 and the Roberts v. Tishman Speyer line of cases; the landlord bears the burden of proving lawful deregulation and cannot rely on DHCR registrations alone (654 Putnam Owners LLC v. Humphries; 756 Liberty Realty LLC v. Garcia). The tenant may challenge the deregulated status at any time, and the full rent history beyond the six-year lookback is reviewable to determine whether deregulation was lawful (63 St. Marks Place LLC v. Benedek). The landlord's failure to file annual rent registrations further undermines any claim of lawful deregulation, and the tenant is entitled to a rent-stabilized lease and potential overcharge remedies under NYC Admin Code § 26-516 and RSC § 2526.1.",
+      "controlling_laws": [
+        "nyc_admin_26_504",
+        "nyc_admin_26_504_2",
+        "nyc_admin_26_516",
+        "rsc_2526_1",
+        "hstpa_2019"
+      ],
       "outcome_actual": "tenant_win",
-      "remedy_recall": 1.0,
+      "remedy_recall": 0.5,
       "claims_predicted": [
         "deregulation_challenge",
+        "high_rent_vacancy_challenge",
         "rent_overcharge",
         "rent_stabilization_violation"
       ],
@@ -125,9 +159,10 @@
       ],
       "claims_missed": [],
       "claims_extra": [
+        "HIGH_RENT_VACANCY_CHALLENGE",
         "RENT_STABILIZATION_VIOLATION"
       ],
-      "num_matches": 3
+      "num_matches": 4
     },
     {
       "case_name": "3505 BWAY Owner LLC v McNeely",
@@ -136,6 +171,15 @@
       "claim_type_f1": 0.6666666666666666,
       "outcome_correct": false,
       "outcome_predicted": "tenant_win",
+      "outcome_source": "llm",
+      "outcome_rationale": "The landlord bears the burden of proving lawful deregulation by a preponderance of the evidence, and DHCR registration records alone are insufficient to establish that the apartment was properly deregulated (654 Putnam Owners LLC v Humphries; 756 Liberty Realty LLC v Garcia). Because the apartment was registered as rent-stabilized and the landlord has not produced documentary evidence of a lawful high-rent vacancy deregulation, the apartment remains rent-stabilized and the tenant may challenge the deregulated status at any time, with the full rent history reviewable notwithstanding the lookback period (63 St. Marks Place LLC v Benedek). The tenant therefore prevails on the deregulation challenge and related overcharge and stabilization claims.",
+      "controlling_laws": [
+        "nyc_admin_26_504_2",
+        "nyc_admin_26_504",
+        "nyc_admin_26_516",
+        "rsc_2526_1",
+        "hstpa_2019"
+      ],
       "outcome_actual": "landlord_win",
       "remedy_recall": 1.0,
       "claims_predicted": [
@@ -165,7 +209,15 @@
       "claim_type_recall": 1.0,
       "claim_type_f1": 0.6666666666666666,
       "outcome_correct": false,
-      "outcome_predicted": "tenant_win",
+      "outcome_predicted": "mixed",
+      "outcome_source": "llm",
+      "outcome_rationale": "The tenant's overcharge claim is largely time-barred: under Regina Metropolitan Co. v DHCR, the HSTPA's 6-year lookback does not apply retroactively, so pre-June 14, 2019 overcharges are governed by the former 4-year rule of CPLR § 213-a, and the tenant's allegations of fraud are conclusory and unsupported by the specific facts needed to invoke the fraud exception. However, the tenant may still obtain discovery of the landlord's rent records and, if a timely overcharge within the lookback period is established, may recover under NYC Admin Code § 26-516 and RSC § 2526.1, and the pending nonpayment proceeding may be affected by the unresolved rent-stabilization status.",
+      "controlling_laws": [
+        "nyc_admin_26_516",
+        "hstpa_2019",
+        "rsc_2526_1",
+        "cplr_213_a"
+      ],
       "outcome_actual": "landlord_win",
       "remedy_recall": 1.0,
       "claims_predicted": [
@@ -192,6 +244,9 @@
       "claim_type_f1": 0.0,
       "outcome_correct": false,
       "outcome_predicted": null,
+      "outcome_source": null,
+      "outcome_rationale": "",
+      "controlling_laws": [],
       "outcome_actual": "landlord_win",
       "remedy_recall": 1.0,
       "claims_predicted": [],
@@ -214,6 +269,15 @@
       "claim_type_f1": 0.6666666666666666,
       "outcome_correct": false,
       "outcome_predicted": "tenant_win",
+      "outcome_source": "llm",
+      "outcome_rationale": "The landlord bears the burden of proving deregulation by a preponderance of the evidence, and DHCR registration records or bare claims of high-rent vacancy or major improvements are insufficient without documentary proof (654 Putnam Owners; 756 Liberty Realty). Because the tenant has old rent-stabilized leases and records showing a sudden, unjustified rent hike, the landlord cannot establish a lawful deregulation event, and the apartment remains rent-stabilized. The tenant's overcharge and deregulation challenges therefore succeed, with the lookback governed by HSTPA for post-June 14, 2019 overcharges and the pre-HSTPA four-year rule for earlier periods.",
+      "controlling_laws": [
+        "nyc_admin_26_516",
+        "hstpa_2019",
+        "rsc_2526_1",
+        "nyc_admin_26_504",
+        "nyc_admin_26_504_2"
+      ],
       "outcome_actual": "mixed",
       "remedy_recall": 0.5,
       "claims_predicted": [
@@ -249,6 +313,15 @@
       "claim_type_f1": 0.8571428571428571,
       "outcome_correct": true,
       "outcome_predicted": "tenant_win",
+      "outcome_source": "llm",
+      "outcome_rationale": "The tenant's J-51 claim directly challenges the apartment's deregulated status, and under 63 St. Marks Place LLC v. Benedek and 654 Putnam Owners LLC v. Humphries, a tenant may challenge deregulation at any time and the full rent history beyond the six-year lookback is reviewable to determine whether deregulation was lawful. The landlord bears the burden of proving lawful deregulation by a preponderance of the evidence, and DHCR registrations alone are insufficient; the tenant's lease and payment history showing high charges, combined with the building's J-51 participation, support a colorable claim that the apartment remained rent-stabilized. Because J-51 buildings were subject to rent stabilization during the relevant period, the high-rent vacancy deregulation was likely unlawful, entitling the tenant to a rent-stabilized lease and overcharge remedies.",
+      "controlling_laws": [
+        "nyc_admin_26_504",
+        "nyc_admin_26_504_2",
+        "nyc_admin_26_516",
+        "hstpa_2019",
+        "rsc_2526_1"
+      ],
       "outcome_actual": "tenant_win",
       "remedy_recall": 0.0,
       "claims_predicted": [
@@ -280,6 +353,13 @@
       "claim_type_f1": 0.0,
       "outcome_correct": true,
       "outcome_predicted": "tenant_win",
+      "outcome_source": "llm",
+      "outcome_rationale": "The tenant's allegations of serious DOB violations, if proven, establish a breach of the warranty of habitability under RPL § 235-b and the landlord's statutory duty to maintain the premises under NYC Admin Code § 27-2005 and MDL § 78. Under Park West Management Corp. v. Mitchell, breach of the warranty of habitability is a valid defense and counterclaim in a nonpayment proceeding, and the tenant may be entitled to a rent abatement. The tenant may also seek an order to correct under the HP Action remedy, as open violations are prima facie evidence of continuing conditions (Patbru Realty; Diego Beekman).",
+      "controlling_laws": [
+        "rpl_235_b",
+        "nyc_admin_27_2005",
+        "mdl_78"
+      ],
       "outcome_actual": "tenant_win",
       "remedy_recall": 0.0,
       "claims_predicted": [
@@ -307,6 +387,15 @@
       "claim_type_f1": 1.0,
       "outcome_correct": true,
       "outcome_predicted": "tenant_win",
+      "outcome_source": "llm",
+      "outcome_rationale": "The tenant's evidence of the building's rental history and the landlord's failure to properly register rents with DHCR rebuts any presumption of lawful deregulation, mirroring 756 Liberty Realty LLC v. Garcia, where the landlord's failure to prove lawful deregulation by documentary evidence kept the apartment rent-stabilized. Because the landlord cannot establish a valid deregulation event, the unit remains subject to the Rent Stabilization Law under NYC Admin Code § 26-504, and the tenant is entitled to a rent-regulated lease and overcharge relief under NYC Admin Code § 26-516 and RSC § 2526.1. The HSTPA's 6-year lookback applies to overcharges occurring on or after June 14, 2019, while pre-2019 overcharges are governed by the former 4-year rule, but the tenant's deregulation challenge and ongoing overcharge claims are timely.",
+      "controlling_laws": [
+        "nyc_admin_26_516",
+        "hstpa_2019",
+        "rsc_2526_1",
+        "nyc_admin_26_504",
+        "nyc_admin_26_504_2"
+      ],
       "outcome_actual": "tenant_win",
       "remedy_recall": 0.5,
       "claims_predicted": [
@@ -335,6 +424,15 @@
       "claim_type_f1": 0.6666666666666666,
       "outcome_correct": true,
       "outcome_predicted": "tenant_win",
+      "outcome_source": "llm",
+      "outcome_rationale": "The tenant's specific, non-conclusory allegations of forged signatures and false rent-history information in the landlord's deregulation filings state a colorable claim of fraud, which permits review of the full rent history beyond the ordinary lookback period and shifts the burden to the landlord to prove lawful deregulation by a preponderance of the evidence. Under 756 Liberty Realty LLC v. Garcia and 654 Putnam Owners LLC v. Humphries, DHCR registrations and paperwork alone are insufficient to establish deregulation where the tenant challenges their authenticity, and the HSTPA's elimination of high-rent vacancy decontrol further undermines any deregulation based on inflated rents. Because the landlord cannot rely on facially fraudulent filings to defeat stabilization, the apartment remains rent-stabilized and the tenant prevails on the overcharge, stabilization, deregulation, and high-rent vacancy claims.",
+      "controlling_laws": [
+        "nyc_admin_26_516",
+        "hstpa_2019",
+        "rsc_2526_1",
+        "nyc_admin_26_504",
+        "nyc_admin_26_504_2"
+      ],
       "outcome_actual": "tenant_win",
       "remedy_recall": 0.0,
       "claims_predicted": [
@@ -365,6 +463,13 @@
       "claim_type_f1": 0.8,
       "outcome_correct": true,
       "outcome_predicted": "tenant_win",
+      "outcome_source": "llm",
+      "outcome_rationale": "The building's participation in the 421-g tax benefit program subjects it to rent stabilization under NYC Admin Code § 26-504, and the landlord cannot deregulate the unit based on high-rent vacancy because HSTPA 2019 repealed that deregulation path and the pre-2019 threshold was not met. The tenant may challenge the deregulation at any time, and the landlord bears the burden of proving lawful deregulation with reliable documentary evidence, which is absent here. Therefore, the apartment remains rent-stabilized and the landlord must offer a proper rent-regulated lease.",
+      "controlling_laws": [
+        "nyc_admin_26_504",
+        "nyc_admin_26_504_2",
+        "hstpa_2019"
+      ],
       "outcome_actual": "tenant_win",
       "remedy_recall": 0.5,
       "claims_predicted": [
@@ -391,8 +496,11 @@
       "claim_type_precision": 1.0,
       "claim_type_recall": 1.0,
       "claim_type_f1": 1.0,
-      "outcome_correct": false,
-      "outcome_predicted": null,
+      "outcome_correct": true,
+      "outcome_predicted": "landlord_win",
+      "outcome_source": "llm",
+      "outcome_rationale": "The tenant invokes the City of Poughkeepsie's Good Cause Eviction Law, but no such local law is included in the governing law provided, and New York's statewide Good Cause Eviction Law (L. 2024, ch. 56) does not apply to the City of Poughkeepsie because it opted out. Nonpayment of rent is a statutorily recognized ground for eviction, so the tenant's good cause defense fails as a matter of law.",
+      "controlling_laws": [],
       "outcome_actual": "landlord_win",
       "remedy_recall": 1.0,
       "claims_predicted": [
@@ -410,14 +518,24 @@
     },
     {
       "case_name": "Matter of AEJ 534 East 88th, LLC v New York State Division of Housing & Community Renewal",
-      "claim_type_precision": 0.5,
-      "claim_type_recall": 0.5,
-      "claim_type_f1": 0.5,
+      "claim_type_precision": 0.6666666666666666,
+      "claim_type_recall": 1.0,
+      "claim_type_f1": 0.8,
       "outcome_correct": false,
       "outcome_predicted": "tenant_win",
+      "outcome_source": "llm",
+      "outcome_rationale": "The apartment's rent-stabilized status is established by DHCR's determination, and the landlord's failure to provide a proper stabilized lease and charging of market-rate rent constitutes a rent stabilization violation and overcharge under NYC Admin Code § 26-516 and RSC § 2526.1. Because the overcharge complaint was filed with DHCR and the agency agreed, the tenant is entitled to relief, including potential treble damages for willful overcharge, and the landlord cannot rely on a deregulation challenge given the absence of documentary evidence of lawful deregulation, consistent with 756 Liberty Realty LLC v. Garcia. The HSTPA's 6-year lookback applies to the overcharge calculation, and the pre-2019 4-year rule does not bar claims accruing within the applicable period.",
+      "controlling_laws": [
+        "nyc_admin_26_516",
+        "rsc_2526_1",
+        "hstpa_2019",
+        "nyc_admin_26_504",
+        "nyc_admin_26_504_2"
+      ],
       "outcome_actual": "mixed",
       "remedy_recall": 1.0,
       "claims_predicted": [
+        "deregulation_challenge",
         "rent_overcharge",
         "rent_stabilization_violation"
       ],
@@ -426,15 +544,14 @@
         "RENT_OVERCHARGE"
       ],
       "claims_matched": [
+        "DEREGULATION_CHALLENGE",
         "RENT_OVERCHARGE"
       ],
-      "claims_missed": [
-        "DEREGULATION_CHALLENGE"
-      ],
+      "claims_missed": [],
       "claims_extra": [
         "RENT_STABILIZATION_VIOLATION"
       ],
-      "num_matches": 2
+      "num_matches": 3
     },
     {
       "case_name": "Matter of Regina Metropolitan Co., LLC v New York State Division of Housing and Community Renewal",
@@ -443,6 +560,15 @@
       "claim_type_f1": 1.0,
       "outcome_correct": false,
       "outcome_predicted": "tenant_win",
+      "outcome_source": "llm",
+      "outcome_rationale": "The tenant's J-51 claim is a classic deregulation challenge: receipt of J-51 tax benefits during the relevant period generally bars high-rent vacancy deregulation and keeps the apartment rent-stabilized, and the landlord bears the burden of proving lawful deregulation with documentary evidence (756 Liberty Realty LLC v. Garcia). Because the improper deregulation occurred in 2003 and the overcharge is continuing, the tenant may challenge the deregulation and recover overcharges, with the HSTPA 6-year lookback applying only to overcharges occurring on or after June 14, 2019 and the former 4-year rule (CPLR § 213-a) governing earlier periods (Regina Metropolitan Co. v. DHCR). The tenant's discovery of the J-51 benefits supplies the colorable fraud/illegality basis needed to look behind the deregulation and the base rent, making the tenant likely to prevail on the deregulation and overcharge claims.",
+      "controlling_laws": [
+        "hstpa_2019",
+        "nyc_admin_26_516",
+        "nyc_admin_26_504_2",
+        "nyc_admin_26_504",
+        "rsc_2526_1"
+      ],
       "outcome_actual": "landlord_win",
       "remedy_recall": 1.0,
       "claims_predicted": [
@@ -469,8 +595,15 @@
       "claim_type_precision": 0.6666666666666666,
       "claim_type_recall": 1.0,
       "claim_type_f1": 0.8,
-      "outcome_correct": true,
-      "outcome_predicted": "tenant_win",
+      "outcome_correct": false,
+      "outcome_predicted": "landlord_win",
+      "outcome_source": "llm",
+      "outcome_rationale": "The warranty of habitability under RPL § 235-b and the repair duties under NYC Admin Code § 27-2005 and MDL § 78 apply to the tenant's own landlord and the conditions within the tenant's dwelling, not to a neighboring unit owner's conduct in a condominium. Secondhand smoke from a private neighbor is generally not a building-wide condition the landlord controls or is obligated to abate, and the tenant has not shown the landlord retained authority over the neighbor's unit or common ventilation sufficient to create liability. Absent evidence of a building-wide defect or the landlord's control over the source, the claims for habitability breach, HP action repairs, and constructive eviction fail.",
+      "controlling_laws": [
+        "rpl_235_b",
+        "nyc_admin_27_2005",
+        "mdl_78"
+      ],
       "outcome_actual": "tenant_win",
       "remedy_recall": 1.0,
       "claims_predicted": [
@@ -500,6 +633,15 @@
       "claim_type_f1": 0.6666666666666666,
       "outcome_correct": false,
       "outcome_predicted": "tenant_win",
+      "outcome_source": "llm",
+      "outcome_rationale": "The tenant's challenge to the 2005 high-rent vacancy deregulation is timely because a tenant may challenge an apartment's deregulated status at any time, and the full rent history beyond the four-year lookback is reviewable to determine whether deregulation was lawful (63 St. Marks Place LLC v. Benedek; 654 Putnam Owners LLC v. Humphries). The landlord bears the burden of proving by a preponderance of the evidence that the apartment was lawfully deregulated, and the tenant's claim that the 20% vacancy increase was improperly counted to reach the $2,000 threshold directly attacks the deregulation calculation. If the vacancy increase was not permissible for threshold purposes, the legal rent never reached $2,000, the apartment remained rent-stabilized, and the market rent charges constitute rent overcharges.",
+      "controlling_laws": [
+        "nyc_admin_26_504_2",
+        "nyc_admin_26_504",
+        "nyc_admin_26_516",
+        "rsc_2522_5",
+        "rsc_2526_1"
+      ],
       "outcome_actual": "landlord_win",
       "remedy_recall": 1.0,
       "claims_predicted": [
@@ -530,6 +672,12 @@
       "claim_type_f1": 0.6666666666666666,
       "outcome_correct": true,
       "outcome_predicted": "tenant_win",
+      "outcome_source": "llm",
+      "outcome_rationale": "The tenant's claims of improper service and procedural defect are threshold jurisdictional challenges that, if established, defeat the petition regardless of the merits. Under RPAPL § 735, service of the notice of petition must strictly comply with the statutory method and timing requirements, and under RPAPL § 741 the petition must contain the required allegations; a notice that is confusing or ambiguous and served improperly is a fatal defect. The similar case South Brooklyn Ry. Co. v. Heung Man Lau directly holds that a predicate notice must be clear, unambiguous, and unequivocal, and that failure to comply with RPAPL § 735 service requirements deprives the court of jurisdiction, so the tenant wins.",
+      "controlling_laws": [
+        "rpapl_735",
+        "rpapl_741"
+      ],
       "outcome_actual": "tenant_win",
       "remedy_recall": 1.0,
       "claims_predicted": [
@@ -557,6 +705,14 @@
       "claim_type_f1": 1.0,
       "outcome_correct": true,
       "outcome_predicted": "tenant_win",
+      "outcome_source": "llm",
+      "outcome_rationale": "Under NYC Admin Code § 26-504 and the HSTPA 2019, expiration of a J-51 tax benefit does not automatically deregulate units; the landlord must still prove lawful deregulation through documentary evidence, and the tenant may challenge deregulated status at any time without being limited to the six-year lookback (63 St. Marks Place LLC v. Benedek). Because the landlord relies solely on the J-51 program's end and the tenant has leases and rent history showing stabilized status, the landlord cannot meet its burden to prove the apartment is unregulated (756 Liberty Realty LLC v. Garcia). The apartment therefore remains rent-stabilized, and the landlord must offer a proper rent-regulated renewal lease under RSC § 2523.5.",
+      "controlling_laws": [
+        "hstpa_2019",
+        "nyc_admin_26_504",
+        "nyc_admin_26_504_2",
+        "rsc_2523_5"
+      ],
       "outcome_actual": "tenant_win",
       "remedy_recall": 0.5,
       "claims_predicted": [
@@ -582,6 +738,15 @@
       "claim_type_f1": 0.6666666666666666,
       "outcome_correct": true,
       "outcome_predicted": "tenant_win",
+      "outcome_source": "llm",
+      "outcome_rationale": "The tenant's challenge to deregulation is not barred by the statute of limitations because a tenant may challenge an apartment's deregulated status at any time, and the full rent history may be reviewed to determine whether deregulation was lawful (63 St. Marks Place LLC v. Benedek). The landlord bears the burden of proving by a preponderance of the evidence that the apartment was lawfully deregulated, and DHCR registration records alone are insufficient without supporting documentary evidence or a witness with personal knowledge (654 Putnam Owners LLC v. Humphries; 756 Liberty Realty LLC v. Garcia). Because the tenant has rental and registration history showing prior regulation and alleges improper deregulation through an illegal high-rent vacancy increase or false substantial rehabilitation claim, the landlord is unlikely to meet that burden, and the apartment should remain rent-stabilized under NYC Admin Code § 26-504 and § 26-504.2, with any overcharge determined under NYC Admin Code § 26-516 and RSC § 2526.1.",
+      "controlling_laws": [
+        "nyc_admin_26_504",
+        "nyc_admin_26_504_2",
+        "nyc_admin_26_516",
+        "rsc_2526_1",
+        "hstpa_2019"
+      ],
       "outcome_actual": "tenant_win",
       "remedy_recall": 0.0,
       "claims_predicted": [

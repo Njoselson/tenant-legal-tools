@@ -39,7 +39,6 @@
   status: canonical
   aliases:
     - apartment rent history
-    - rent ledger
   how_to_obtain: Request from DHCR or through attorney via FOIL
 
 - id: lease_agreement
@@ -60,6 +59,7 @@
   aliases:
     - payment records
     - rent payment history
+    - rent ledger
   how_to_obtain: Gather from bank records, money order stubs, or payment app exports
 
 - id: written_notice_to_landlord
@@ -395,7 +395,7 @@
   description: Information from WhoOwnsWhat or similar sources to identify building
     ownership and coverage status.
   jurisdiction: NYC
-  status: proposed
+  status: canonical
   aliases: []
 - id: certified_mail_letter
   name: Certified Mail Letter to Landlord

@@ -26,24 +26,33 @@
   citation: NYC Admin Code § 27-2005(d)
 
 - id: nyc_admin_27_2013
-  name: NYC Admin Code § 27-2013 — Heat and Hot Water
-  description: Requires landlords to provide heat (68°F day / 55°F night Oct–May; 62°F year-round at night) and hot water (120°F year-round).
+  name: NYC Admin Code § 27-2013 — Painting
+  description: Requires owners to paint or wallpaper public parts and dwelling units of multiple dwellings at least once every three years, and more often when needed.
   jurisdiction: NYC
   status: canonical
   aliases:
-    - heat requirement
-    - hot water law
+    - painting requirement
   citation: NYC Admin Code § 27-2013
 
 - id: nyc_admin_27_2028
-  name: NYC Admin Code § 27-2028 — Lead Paint
-  description: Requires owners of pre-1960 multiple dwellings to investigate and remediate lead paint hazards where children under 6 reside.
+  name: NYC Admin Code § 27-2028 — Central Heating
+  description: Requires multiple dwellings to have a central heating system, or an approved alternative, able to meet the minimum temperatures of § 27-2029.
+  jurisdiction: NYC
+  status: canonical
+  aliases:
+    - central heating requirement
+  citation: NYC Admin Code § 27-2028
+
+- id: nyc_admin_27_2056_1
+  name: NYC Admin Code § 27-2056.1 et seq. — Lead Paint (Local Law 1 of 2004)
+  description: Presumes lead paint in pre-1960 multiple dwellings where a child under 6 resides; owners must inspect annually, remediate lead paint hazards with safe work practices, and clean up on turnover.
   jurisdiction: NYC
   status: canonical
   aliases:
     - lead paint law
     - Local Law 1 (lead)
-  citation: NYC Admin Code § 27-2028
+    - Childhood Lead Poisoning Prevention Act
+  citation: NYC Admin Code §§ 27-2056.1 et seq.
 
 - id: nyc_admin_27_2115
   name: NYC Admin Code § 27-2115 — Civil Penalties (HPD Violations)
@@ -126,13 +135,23 @@
     - renewal offer timing
   citation: 9 NYCRR § 2523.5
 
-- id: rsc_2525_6
-  name: RSC § 2525.6 — Succession Rights
-  description: Governs the right of qualified family members and other occupants to succeed to a rent-stabilized lease.
+- id: rsc_2523_5_b
+  name: RSC § 2523.5(b) — Succession Rights
+  description: Lets a family member who lived in the unit as a primary residence with the tenant for at least two years (one year if 62+ or disabled) immediately before the tenant permanently vacated succeed to a rent-stabilized renewal lease.
   jurisdiction: NYC
   status: canonical
   aliases:
     - succession rights regulation
+  citation: 9 NYCRR § 2523.5(b)
+
+- id: rsc_2525_6
+  name: RSC § 2525.6 — Subletting
+  description: Governs a rent-stabilized tenant's right to sublet under RPL § 226-b — the tenant must keep the unit as a primary residence and intend to return, may sublet no more than two years in any four, and may charge at most the legal regulated rent (plus a 10% surcharge if furnished).
+  jurisdiction: NYC
+  status: canonical
+  aliases:
+    - sublet regulation
+    - subletting rules
   citation: 9 NYCRR § 2525.6
 
 - id: rsc_2526_1
@@ -623,20 +642,27 @@
   status: proposed
   aliases: []
 - id: nyc_admin_code_27_2029
-  name: NYC Admin Code § 27-2029
-  description: Sets minimum temperature requirements for heating season (Oct 1 - May
-    31) and prohibits devices that disable heating systems.
+  name: NYC Admin Code § 27-2029 — Heat
+  description: Sets heating-season (Oct 1 - May 31) minimums — 68°F from 6 a.m. to
+    10 p.m. when it is below 55°F outside, and 62°F from 10 p.m. to 6 a.m. regardless
+    of outside temperature — and prohibits devices that disable heating systems.
   jurisdiction: NYC
-  status: proposed
-  aliases: []
+  status: canonical
+  aliases:
+    - heat requirement
+    - heat law
+  citation: NYC Admin Code § 27-2029
 - id: nyc_admin_code_27_2031
-  name: NYC Admin Code § 27-2031
+  name: NYC Admin Code § 27-2031 — Hot Water
   description: Requires hot water supply at minimum 120°F (or 110°F with certain valves)
     from 6 a.m. to midnight in multiple dwellings and tenant-occupied one- or two-family
     dwellings.
   jurisdiction: NYC
-  status: proposed
-  aliases: []
+  status: canonical
+  aliases:
+    - hot water law
+    - hot water requirement
+  citation: NYC Admin Code § 27-2031
 - id: nyc_admin_code_27_2032
   name: NYC Admin Code § 27-2032
   description: Regulates gas-fueled or electric space or water heaters as alternatives

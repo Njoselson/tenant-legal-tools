@@ -14,6 +14,20 @@ uv run python -m ...       # run scripts
 uv run uvicorn ...         # run server
 ```
 
+## Git Workflow
+
+**Agents: every change lands through a pull request. Never commit or push directly to `main`.** That includes data and eval updates (`data/case_eval_results.json`, `ROADMAP.md` numbers). (Nate may push small changes directly; this rule is for AI agents.)
+
+```bash
+git fetch origin main && git checkout -b <type>/<short-description> origin/main
+# ...work, commit...
+git push -u origin HEAD && gh pr create --fill
+```
+
+- Branch from `origin/main`, not local `main`
+- Conventional commit prefixes (`feat:`, `fix:`, `chore:`, `data(eval):`, `docs(roadmap):`)
+- Agents dispatched from the Operon board open the PR and stop. Nate reviews and merges.
+
 ---
 
 ## AI Workflow Instructions

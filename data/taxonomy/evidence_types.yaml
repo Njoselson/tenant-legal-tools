@@ -10,6 +10,7 @@
   aliases:
     - HPD violations
     - HPD open violations
+    - HPD Violation Records
   how_to_obtain: Search HPD Online (hpd.nyc.gov/check-my-building)
 
 - id: hpd_inspection_report
@@ -20,6 +21,8 @@
   aliases:
     - inspection report
     - HPD inspector notes
+    - Inspection Reports
+    - Inspection Reports (e.g., HPD, DOB)
   how_to_obtain: Request after filing an HPD complaint or HP action
 
 - id: dhcr_rent_registration
@@ -30,6 +33,7 @@
   aliases:
     - rent registration history
     - DHCR registration
+    - Rent Stabilization Application
   how_to_obtain: Request via DHCR (hcr.ny.gov) or subpoena in proceeding
 
 - id: dhcr_rent_history
@@ -39,6 +43,11 @@
   status: canonical
   aliases:
     - apartment rent history
+    - Lease and Vacancy Documents
+    - Previous Tenant Rent Information
+    - Rent History
+    - Rent Threshold Records
+    - Vacancy Decontrol Records
   how_to_obtain: Request from DHCR or through attorney via FOIL
 
 - id: lease_agreement
@@ -49,6 +58,14 @@
   aliases:
     - lease
     - rental agreement
+    - First Lease for Rent Stabilized Tenants
+    - Lease Agreements
+    - Lease or Written Contract
+    - Most Recent Lease for Market Tenants
+    - Prior Lease Agreements
+    - Rent Regulated Lease
+    - Signed Rental Agreement
+    - Written Lease Agreement
   how_to_obtain: Tenant keeps original; request copy from landlord
 
 - id: rent_receipts
@@ -60,6 +77,18 @@
     - payment records
     - rent payment history
     - rent ledger
+    - Money Orders
+    - Receipts
+    - Rent Receipts and Ledgers
+    - Rent Receipts
+    - Rent Receipts and Cancelled Checks
+    - Rent Receipts and Payment Records
+    - Rent Receipts or Canceled Checks
+    - Rent Receipts or Cancelled Checks
+    - Rent Receipts or Ledger
+    - Rent Receipts or Ledgers
+    - Rent Receipts or Payment Proof
+    - Rent Receipts or Payment Records
   how_to_obtain: Gather from bank records, money order stubs, or payment app exports
 
 - id: written_notice_to_landlord
@@ -70,6 +99,20 @@
   aliases:
     - notice letter
     - tenant complaint letter
+    - Certified Mail Letter to Landlord
+    - Certified Mail Notices
+    - Complaint Correspondence
+    - Complaint Letters
+    - Complaint to Landlord
+    - Correspondence and Complaints
+    - Correspondence with Landlord
+    - Tenant Complaint Letters
+    - Tenant Correspondence and Complaints
+    - Written Complaints to Landlord
+    - Written Notices to Landlord
+    - Letter of Complaint
+    - Notice of Defects to Landlord
+    - Complaints to Landlord
   how_to_obtain: Tenant creates; send certified mail and retain copy
 
 - id: 311_complaint_record
@@ -80,6 +123,9 @@
   aliases:
     - 311 service request
     - 311 complaint
+    - Complaint to Government Agency
+    - Government Agency Complaints
+    - HPD Complaint Record
   how_to_obtain: Search nyc.gov/311 with service request number
 
 - id: photos_video_conditions
@@ -90,6 +136,13 @@
   aliases:
     - photographic evidence
     - condition photos
+    - Heating System Device Evidence
+    - Photographs of Conditions
+    - Apartment Photos
+    - Photographs and Videos
+    - Photographs or Video of Conditions
+    - Photographs or Videos
+    - Photos and Text Messages
   how_to_obtain: Tenant documents; metadata timestamps preferred
 
 - id: repair_request_communications
@@ -100,6 +153,9 @@
   aliases:
     - repair requests
     - maintenance requests
+    - Repair Requests and Correspondence
+    - Repair Request Logs
+    - Repair Request Log
   how_to_obtain: Tenant retains copies of all communications
 
 - id: landlord_non_response_evidence
@@ -110,6 +166,7 @@
   aliases:
     - proof of non-response
     - certified mail return receipt
+    - Certified Mail Receipt
   how_to_obtain: Certified mail return receipts; screenshots showing read/no response
 
 - id: medical_records
@@ -150,6 +207,7 @@
   aliases:
     - court stipulation
     - prior order
+    - Housing Court Filings
   how_to_obtain: Tenant retains; clerk of court if lost
 
 - id: witness_affidavits
@@ -160,6 +218,8 @@
   aliases:
     - neighbor affidavit
     - witness statement
+    - Tenant and Witness Testimony
+    - Witness Testimony
   how_to_obtain: Obtained from willing witnesses; notarized
 
 - id: contractor_estimates
@@ -208,6 +268,8 @@
   aliases:
     - DHCR determination
     - DHCR order
+    - DHCR Deregulation Orders
+    - DHCR Determination Order
   how_to_obtain: Copy kept by tenant; request from DHCR
 
 - id: succession_cohabitation_proof
@@ -228,6 +290,11 @@
   aliases:
     - incident log
     - harassment log
+    - Evidence of Harassing Conduct
+    - Harassment Logs
+    - Photos or Videos of Harassment
+    - Tenant Complaint Records
+    - Harassment Complaint or Record
   how_to_obtain: Tenant creates ongoing diary; corroborate with texts/emails
 
 - id: landlord_buyout_offer
@@ -257,6 +324,8 @@
   aliases:
     - engineering report
     - inspection expert
+    - Bedbug Inspection Report
+    - Expert Inspection Report
   how_to_obtain: Retained by tenant or counsel
 
 - id: rent_increase_notices
@@ -266,6 +335,7 @@
   status: canonical
   aliases:
     - rent increase letter
+    - RN-26 Notice
   how_to_obtain: Tenant retains; request copies from landlord
 
 - id: lease_non_renewal_notice
@@ -294,6 +364,7 @@
   aliases:
     - marshal notice
     - eviction notice
+    - Notice of Eviction
 
 - id: security_deposit_receipt
   name: Security Deposit Receipt
@@ -320,6 +391,7 @@
   aliases:
     - MCI records
     - capital improvement application
+    - MCI Cost Documentation
 
 - id: iai_documentation
   name: IAI Documentation
@@ -329,6 +401,7 @@
   aliases:
     - IAI records
     - improvement invoices
+    - Apartment Improvement Records
 
 - id: building_permit_records
   name: Building Permit Records
@@ -374,84 +447,77 @@
   aliases:
     - rent demand
     - three-day notice
+    - Court Papers or Demand Letter
+    - Rent Breakdown from Landlord
+
+# ── Promoted from bootstrap proposals (atlas06 audit, applied atlas08) ──
+
+- id: medical_letter_disability
+  name: Medical Letter for Disability Accommodation
+  description: A letter from a medical provider stating the tenant has a disability and needs a specific accommodation (e.g., an air conditioning unit), supporting a reasonable accommodation request.
+  jurisdiction: NYC
+  status: canonical
+  aliases: []
+
+- id: outside_temp_records
+  name: Outside Temperature Records
+  description: Official weather data showing the outside temperature fell below 55°F during the day, which triggers the 68°F daytime indoor minimum. The 62°F night minimum applies regardless of outside temperature.
+  jurisdiction: NYC
+  status: canonical
+  aliases: []
+
+- id: proof_of_future_rent_ability
+  name: Proof of Ability to Pay Future Rent
+  description: Evidence showing sufficient income to pay future rent, such as a job, third-party support, or public benefits.
+  jurisdiction: NYC
+  status: canonical
+  aliases: []
+
+- id: public_assistance_docs
+  name: Public Assistance Documents
+  description: Papers from public assistance, Section 8, or other rental assistance programs that help pay rent, used as evidence.
+  jurisdiction: NYC
+  status: canonical
+  aliases:
+    - Commitment Letters
+    - Public Assistance Breakdown
+    - Public Assistance Case Documents
+
+- id: tax_abatement_records
+  name: Tax Abatement Records
+  description: Government records showing J-51 or 421-a tax benefits for a building, indicating rent stabilization eligibility.
+  jurisdiction: NYC
+  status: canonical
+  aliases: []
+
+- id: temperature_logs
+  name: Temperature Logs
+  description: Records of indoor temperature readings taken at various times and locations within the dwelling unit.
+  jurisdiction: NYC
+  status: canonical
+  aliases:
+    - Hot Water Temperature Measurements
+    - Temperature Readings
+
+- id: utility_bills
+  name: Utility Bills
+  description: Bills for electricity, gas, or other utilities in the tenant's name at the unit; standard proof of primary residence and of co-residence in succession claims.
+  jurisdiction: NYC
+  status: canonical
+  aliases: []
+  how_to_obtain: Download past statements from the utility account (e.g., Con Edison, National Grid)
 
 # --- bootstrap proposals (status: proposed) ---
-- id: apartment_improvement_records
-  name: Apartment Improvement Records
-  description: Records of renovations or capital improvements claimed by the landlord
-    to justify rent increases, often challenged for accuracy.
-  jurisdiction: NYS
-  status: proposed
-  aliases: []
-- id: bedbug_inspection_report
-  name: Bedbug Inspection Report
-  description: A professional report documenting the presence or absence of bedbugs
-    in the premises, often used to support habitability claims.
-  jurisdiction: NYC
-  status: proposed
-  aliases: []
 - id: building_ownership_records
   name: Building Ownership Records
   description: Information from WhoOwnsWhat or similar sources to identify building
     ownership and coverage status.
   jurisdiction: NYC
   status: canonical
-  aliases: []
-- id: certified_mail_letter
-  name: Certified Mail Letter to Landlord
-  description: A written request for repairs sent to the landlord via certified mail,
-    serving as proof of notice before filing an HP action.
-  jurisdiction: NYC
-  status: proposed
-  aliases: []
-- id: certified_mail_notices
-  name: Certified Mail Notices
-  description: Proof of sending complaints or notices to the landlord via certified
-    mail, often required to establish notice of defects.
-  jurisdiction: NYC
-  status: proposed
-  aliases: []
-- id: certified_mail_receipt
-  name: Certified Mail Receipt
-  description: Proof of mailing via certified mail, return receipt requested, for
-    notice of surrender of possession.
-  jurisdiction: NYC
-  status: proposed
-  aliases: []
-- id: commitment_letters
-  name: Commitment Letters
-  description: Letters from agencies or organizations committing to provide assistance,
-    used as evidence in tenant cases.
-  jurisdiction: NYC
-  status: proposed
-  aliases: []
-- id: complaint_correspondence
-  name: Complaint Correspondence
-  description: Written communications (letters, emails, or texts) from the tenant
-    to the landlord or housing authorities documenting complaints about conditions
-    or harassment.
-  jurisdiction: NYS
-  status: proposed
   aliases:
-  - Communication Records
-  - Complaint Letters
-  - Complaint to Landlord
-  - Correspondence Between Parties
-  - Correspondence and Complaints
-  - Correspondence with Landlord
-  - Repair Requests
-  - Repair Requests and Correspondence
-  - Tenant Complaint Letters
-  - Tenant Correspondence and Complaints
-  - Written Complaints to Landlord
-  - Written Notices to Landlord
-- id: complaint_to_government_agency
-  name: Complaint to Government Agency
-  description: A written or recorded complaint made by the tenant to a government
-    agency, such as HPD or DHCR, regarding housing code violations or rent issues.
-  jurisdiction: NYS
-  status: proposed
-  aliases: []
+    - Landlord Name and Address
+    - Property Records from ACRIS
+    - Who Owns What Data
 - id: complaint_to_nycch
   name: Complaint to NYC Commission on Human Rights
   description: A formal complaint filed with the NYC Commission on Human Rights regarding
@@ -459,46 +525,10 @@
   jurisdiction: NYC
   status: proposed
   aliases: []
-- id: court_decision
-  name: Court Decision
-  description: A judicial ruling, such as from the Appellate Division or Court of
-    Appeals, that establishes or clarifies legal rights in a housing case.
-  jurisdiction: NYS
-  status: proposed
-  aliases: []
 - id: court_order_of_protection
   name: Court Order of Protection
   description: A legal order from a court protecting a tenant, used to support a domestic
     violence lease termination.
-  jurisdiction: NYC
-  status: proposed
-  aliases: []
-- id: court_papers_or_demand_letter
-  name: Court Papers or Demand Letter
-  description: Any court papers or a demand letter from the landlord showing the rent
-    owed.
-  jurisdiction: NYC
-  status: proposed
-  aliases: []
-- id: dhcr_deregulation_orders
-  name: DHCR Deregulation Orders
-  description: Orders from the DHCR authorizing deregulation based on rent or income
-    thresholds.
-  jurisdiction: NYS
-  status: proposed
-  aliases: []
-- id: dhcr_determination_order
-  name: DHCR Determination Order
-  description: A written decision by DHCR on a rent overcharge or service complaint,
-    including findings and calculations.
-  jurisdiction: NYS
-  status: proposed
-  aliases: []
-- id: documents_money_orders_applications
-  name: Documents, Money Orders, Applications
-  description: General evidence such as documents, money orders, applications, receipts,
-    commitment letters, or breakdowns from public assistance to support an order to
-    show cause.
   jurisdiction: NYC
   status: proposed
   aliases: []
@@ -509,35 +539,11 @@
   jurisdiction: NYC
   status: proposed
   aliases: []
-- id: eviction_notices
-  name: Eviction Notices
-  description: Written notices served by the landlord to the tenant, such as a rent
-    demand or notice to quit, which may be evidence in an unlawful eviction claim.
-  jurisdiction: NYC
-  status: proposed
-  aliases:
-  - Eviction Notice
-  - Notice of Eviction
 - id: fraud_evidence
   name: Evidence of Fraud
   description: Documents or testimony showing that the landlord made false statements
     or engaged in deceptive practices to deregulate a unit.
   jurisdiction: NYS
-  status: proposed
-  aliases: []
-- id: evidence_of_harassing_conduct
-  name: Evidence of Harassing Conduct
-  description: Records of threats, repeated service interruptions, or other actions
-    intended to disturb the tenant's quiet enjoyment, such as emails, letters, or
-    witness statements.
-  jurisdiction: NYS
-  status: proposed
-  aliases: []
-- id: expert_inspection_report
-  name: Expert Inspection Report
-  description: A report from a qualified inspector or engineer documenting the presence
-    of mold, structural issues, or other defects.
-  jurisdiction: NYC
   status: proposed
   aliases: []
 - id: explanation_of_rent_arrears_cause
@@ -547,160 +553,17 @@
   jurisdiction: NYC
   status: proposed
   aliases: []
-- id: first_lease_rent_stabilized
-  name: First Lease for Rent Stabilized Tenants
-  description: The initial lease governing a rent-stabilized tenancy, which may contain
-    rules about air conditioning installation and fees.
-  jurisdiction: NYC
-  status: proposed
-  aliases: []
-- id: government_agency_complaints
-  name: Government Agency Complaints
-  description: Records of complaints filed with government agencies such as HPD or
-    HCR.
-  jurisdiction: NYC
-  status: proposed
-  aliases: []
-- id: hpd_complaint_record
-  name: HPD Complaint Record
-  description: A record of a complaint made to the NYC Department of Housing Preservation
-    and Development (HPD) via 311, documenting repair issues.
-  jurisdiction: NYC
-  status: proposed
-  aliases: []
-- id: hpd_violation_records
-  name: HPD Violation Records
-  description: Official records from the NYC Department of Housing Preservation and
-    Development documenting building code violations, which can support claims of
-    habitability breaches or harassment.
-  jurisdiction: NYC
-  status: proposed
-  aliases:
-  - HPD Violation Record
-  - HPD Violations
-- id: harassment_logs
-  name: Harassment Logs
-  description: Personal records or logs documenting incidents of harassment by the
-    landlord.
-  jurisdiction: NYC
-  status: proposed
-  aliases: []
-- id: heating_system_device_evidence
-  name: Heating System Device Evidence
-  description: Photographs, videos, or inspection reports showing a device that disables
-    or limits the heating system.
-  jurisdiction: NYC
-  status: proposed
-  aliases: []
-- id: hot_water_temp_measurements
-  name: Hot Water Temperature Measurements
-  description: Records of hot water temperature at fixtures, showing failure to maintain
-    120°F (or 110°F with certain valves).
-  jurisdiction: NYC
-  status: proposed
-  aliases: []
-- id: housing_court_filings
-  name: Housing Court Filings
-  description: Court documents from prior or related housing court proceedings, such
-    as HP actions or eviction cases.
-  jurisdiction: NYC
-  status: proposed
-  aliases: []
 - id: income_threshold_records
   name: Income Threshold Records
   description: Documentation of tenant or household income to determine if high-income
     decontrol applied.
   jurisdiction: NYS
   status: proposed
-  aliases: []
-- id: inspection_reports
-  name: Inspection Reports
-  description: Reports from official inspections (e.g., by HPD or a court-appointed
-    expert) documenting the physical condition of the premises.
-  jurisdiction: NYC
-  status: proposed
   aliases:
-  - Inspection Reports (e.g., HPD, DOB)
+    - Tax Return Income Proof
 - id: landlord_letters_emails
   name: Landlord Letters or Emails
   description: Written correspondence from the landlord that may evidence harassment.
-  jurisdiction: NYC
-  status: proposed
-  aliases: []
-- id: landlord_name_and_address
-  name: Landlord Name and Address
-  description: The legal name and address of the landlord, required to file an HP
-    action, obtainable from HPD or ACRIS.
-  jurisdiction: NYC
-  status: proposed
-  aliases: []
-- id: lease_agreements
-  name: Lease Agreements
-  description: Copies of all leases, including initial and renewal leases, to prove
-    rent history and stabilization status.
-  jurisdiction: NYC
-  status: proposed
-  aliases: []
-- id: lease_and_vacancy_documents
-  name: Lease and Vacancy Documents
-  description: Leases, vacancy notices, or rent ledgers that document the rent at
-    vacancy and whether it exceeded the high rent deregulation threshold.
-  jurisdiction: NYC
-  status: proposed
-  aliases: []
-- id: lease_or_written_contract
-  name: Lease or Written Contract
-  description: A lease or other written contract that may modify owner responsibilities
-    for one- or two-family dwellings.
-  jurisdiction: NYC
-  status: proposed
-  aliases: []
-- id: letter_of_complaint
-  name: Letter of Complaint
-  description: A formal written notice to the landlord detailing repair issues and
-    potential legal consequences, used to demonstrate notice.
-  jurisdiction: NYC
-  status: proposed
-  aliases: []
-- id: mci_cost_documentation
-  name: MCI Cost Documentation
-  description: Records of major capital improvement costs and allocation, used to
-    challenge improper rent increases.
-  jurisdiction: NYC
-  status: proposed
-  aliases: []
-- id: medical_letter_disability
-  name: Medical Letter for Disability Accommodation
-  description: A letter from a medical clinician stating that a tenant has a disability
-    requiring an air conditioning unit, used to support a reasonable accommodation
-    request.
-  jurisdiction: NYC
-  status: proposed
-  aliases: []
-- id: money_orders
-  name: Money Orders
-  description: Money order receipts or copies as proof of rent payment.
-  jurisdiction: NYC
-  status: proposed
-  aliases: []
-- id: most_recent_lease_market
-  name: Most Recent Lease for Market Tenants
-  description: The most recent lease (even if expired) for non-stabilized tenants,
-    which governs rules about air conditioning.
-  jurisdiction: NYC
-  status: proposed
-  aliases: []
-- id: notice_of_defects_to_landlord
-  name: Notice of Defects to Landlord
-  description: Written or documented communication from the tenant to the landlord
-    informing them of specific conditions that violate the warranty of habitability.
-  jurisdiction: NYS
-  status: proposed
-  aliases: []
-- id: outside_temp_records
-  name: Outside Temperature Records
-  description: Official weather data showing outside temperature fell below the trigger
-    thresholds (55°F daytime, 40°F nighttime).
   jurisdiction: NYC
   status: proposed
   aliases: []
@@ -718,56 +581,10 @@
   jurisdiction: NYC
   status: proposed
   aliases: []
-- id: photographs_of_conditions
-  name: Photographs of Conditions
-  description: Visual documentation of the physical condition of the premises, such
-    as mold, leaks, or structural damage, used to support habitability claims.
-  jurisdiction: NYS
-  status: proposed
-  aliases:
-  - Apartment Photos
-  - Photographs and Videos
-  - Photographs or Video of Conditions
-  - Photographs or Videos
-- id: photos_and_text_messages
-  name: Photos and Text Messages
-  description: Visual or written evidence of the conditions, such as photos of defects
-    or text messages with the landlord.
-  jurisdiction: NYC
-  status: proposed
-  aliases: []
-- id: photos_videos_harassment
-  name: Photos or Videos of Harassment
-  description: Visual evidence capturing acts of harassment by the landlord.
-  jurisdiction: NYC
-  status: proposed
-  aliases: []
-- id: previous_tenant_rent_info
-  name: Previous Tenant Rent Information
-  description: Information about the rent paid by the prior tenant, which can help
-    determine if a rent increase was legal (e.g., 20% vacancy increase plus renovation
-    allowances).
-  jurisdiction: NYS
-  status: proposed
-  aliases: []
-- id: prior_lease_agreements
-  name: Prior Lease Agreements
-  description: Lease documents from before the alleged deregulation or overcharge
-    period, used to establish the legal regulated rent.
-  jurisdiction: NYS
-  status: proposed
-  aliases: []
 - id: proof_of_30_day_residence
   name: Proof of 30-Day Residence
   description: Evidence that the roommate has lived in the unit for at least 30 days,
     such as mail, utility bills, or witness statements.
-  jurisdiction: NYC
-  status: proposed
-  aliases: []
-- id: proof_of_future_rent_ability
-  name: Proof of Ability to Pay Future Rent
-  description: Evidence showing sufficient income to pay future rent, such as a job,
-    third-party support, or public benefits.
   jurisdiction: NYC
   status: proposed
   aliases: []
@@ -777,165 +594,8 @@
     sent to the marshal to delay eviction.
   jurisdiction: NYC
   status: proposed
-  aliases: []
-- id: proof_of_senior_status
-  name: Proof of Senior Status
-  description: Documentation such as age verification or physician certification to
-    support a senior lease termination.
-  jurisdiction: NYC
-  status: proposed
-  aliases: []
-- id: property_records_acris
-  name: Property Records from ACRIS
-  description: Property ownership records from the NYC Department of Finance's Automated
-    City Register Information System (ACRIS), used to identify the landlord.
-  jurisdiction: NYC
-  status: proposed
-  aliases: []
-- id: public_assistance_breakdown
-  name: Public Assistance Breakdown
-  description: A detailed statement from public assistance showing benefits or payments,
-    used as evidence.
-  jurisdiction: NYC
-  status: proposed
-  aliases: []
-- id: public_assistance_case_documents
-  name: Public Assistance Case Documents
-  description: Documents showing an open public assistance case with full cash assistance
-    for FHEPS eligibility.
-  jurisdiction: NYC
-  status: proposed
-  aliases: []
-- id: public_assistance_docs
-  name: Public Assistance Documents
-  description: Papers from public assistance, Section 8, or other rental assistance
-    programs that help pay rent, used as evidence.
-  jurisdiction: NYC
-  status: proposed
-  aliases: []
-- id: ra_89c_form
-  name: RA-89C Form
-  description: A form used by rent-controlled tenants to file an overcharge complaint
-    with DHCR.
-  jurisdiction: NYC
-  status: proposed
-  aliases: []
-- id: ra_94_form
-  name: RA-94 Form
-  description: A form filed by a rent-controlled tenant to challenge a rent increase,
-    serving as evidence of the challenge.
-  jurisdiction: NYC
-  status: proposed
-  aliases: []
-- id: rn_26_notice
-  name: RN-26 Notice
-  description: A notice from the landlord to the tenant regarding a rent increase
-    application, used as evidence to challenge the increase.
-  jurisdiction: NYC
-  status: proposed
-  aliases: []
-- id: receipts
-  name: Receipts
-  description: Receipts as evidence of payments or transactions, useful in tenant
-    defenses.
-  jurisdiction: NYC
-  status: proposed
-  aliases: []
-- id: record_of_willful_act_or_negligence
-  name: Record of Willful Act or Negligence
-  description: Evidence of a tenant's willful act, gross negligence, neglect, or abuse
-    causing a violation.
-  jurisdiction: NYC
-  status: proposed
-  aliases: []
-- id: relocation_payment_schedule
-  name: Relocation Payment Schedule
-  description: The official schedule of payments for relocation, including maximum
-    or minimum amounts, approved by the mayor.
-  jurisdiction: NYC
-  status: proposed
-  aliases: []
-- id: rent_breakdown_from_landlord
-  name: Rent Breakdown from Landlord
-  description: A breakdown from the landlord showing the months and amount of rent
-    you owe.
-  jurisdiction: NYC
-  status: proposed
-  aliases: []
-- id: rgb_guidelines
-  name: Rent Guidelines Board Increases
-  description: Official RGB annual adjustment rates for rent-stabilized lease renewals,
-    used to verify lawful increases.
-  jurisdiction: NYC
-  status: proposed
-  aliases: []
-- id: rent_history
-  name: Rent History
-  description: A record of a tenant's rent history, which can be used to verify rent
-    stabilization status and support claims.
-  jurisdiction: NYC
-  status: proposed
-  aliases: []
-- id: rent_receipts_and_ledgers
-  name: Rent Receipts and Ledgers
-  description: Documents showing rent payments made by the tenant, including receipts,
-    canceled checks, or landlord ledger entries, used to prove rent overcharge or
-    payment history.
-  jurisdiction: NYS
-  status: proposed
   aliases:
-  - Rent Receipts
-  - Rent Receipts and Cancelled Checks
-  - Rent Receipts and Payment Records
-  - Rent Receipts or Canceled Checks
-  - Rent Receipts or Cancelled Checks
-  - Rent Receipts or Ledger
-  - Rent Receipts or Ledgers
-  - Rent Receipts or Payment Proof
-  - Rent Receipts or Payment Records
-- id: rent_regulated_lease
-  name: Rent Regulated Lease
-  description: A lease showing the legal regulated rent for a rent-stabilized unit,
-    relevant to determining if the rent threshold for decontrol is met.
-  jurisdiction: NYC
-  status: proposed
-  aliases: []
-- id: rent_stabilization_application
-  name: Rent Stabilization Application
-  description: The official application or registration form filed with the DHCR or
-    city agency that documents a unit's rent stabilization status.
-  jurisdiction: NYC
-  status: proposed
-  aliases: []
-- id: rent_threshold_records
-  name: Rent Threshold Records
-  description: Documentation showing the legal regulated rent at vacancy or over time
-    to determine if high-rent vacancy deregulation applied.
-  jurisdiction: NYS
-  status: proposed
-  aliases: []
-- id: repair_request_logs
-  name: Repair Request Logs
-  description: Written or electronic records of tenant requests for repairs, including
-    dates and responses (or lack thereof).
-  jurisdiction: NYS
-  status: proposed
-  aliases:
-  - Repair Request Log
-- id: signed_rental_agreement
-  name: Signed Rental Agreement
-  description: A written agreement between the roommate and the prime tenant that
-    establishes tenancy rights.
-  jurisdiction: NYC
-  status: proposed
-  aliases: []
-- id: state_issued_id
-  name: State-Issued Photo Identification
-  description: A government-issued ID required for in-person requests for rent history
-    at DHCR borough offices.
-  jurisdiction: NYS
-  status: proposed
-  aliases: []
+    - Proof of Senior Status
 - id: surrender_letter
   name: Surrender Letter
   description: A written notice to the landlord stating the tenant has vacated and
@@ -943,89 +603,10 @@
   jurisdiction: NYC
   status: proposed
   aliases: []
-- id: tax_abatement_records
-  name: Tax Abatement Records
-  description: Government records showing J-51 or 421-a tax benefits for a building,
-    indicating rent stabilization eligibility.
-  jurisdiction: NYC
-  status: proposed
-  aliases: []
-- id: tax_return_income_proof
-  name: Tax Return Income Proof
-  description: Tax returns or other income documentation used to establish a tenant's
-    household income for high income decontrol purposes.
-  jurisdiction: NYC
-  status: proposed
-  aliases: []
-- id: temperature_logs
-  name: Temperature Logs
-  description: Records of indoor temperature readings taken at various times and locations
-    within the dwelling unit.
-  jurisdiction: NYC
-  status: proposed
-  aliases: []
-- id: temperature_readings
-  name: Temperature Readings
-  description: Records of indoor temperature measurements, relevant to heat or habitability
-    claims.
-  jurisdiction: NYC
-  status: proposed
-  aliases: []
-- id: tenant_complaint_records
-  name: Tenant Complaint Records
-  description: Copies of complaints made to the landlord or authorities regarding
-    the harassing behavior.
-  jurisdiction: NYS
-  status: proposed
-  aliases:
-  - Complaints to Landlord
-  - Harassment Complaint or Record
-- id: tenant_witness_testimony
-  name: Tenant and Witness Testimony
-  description: Oral or written statements from tenants or witnesses about harassment
-    incidents.
-  jurisdiction: NYC
-  status: proposed
-  aliases: []
-- id: utility_bills
-  name: Utility Bills
-  description: Bills for utilities such as electricity, gas, or water, which may show
-    whether services were interrupted or improperly charged.
-  jurisdiction: NYC
-  status: proposed
-  aliases: []
-- id: vacancy_decontrol_records
-  name: Vacancy Decontrol Records
-  description: Records showing whether the unit was subject to vacancy decontrol or
-    luxury deregulation.
-  jurisdiction: NYS
-  status: proposed
-  aliases: []
-- id: who_owns_what_data
-  name: Who Owns What Data
-  description: Data from JustFix's Who Owns What tool showing registered rent-stabilized
-    units and changes over time.
-  jurisdiction: NYC
-  status: proposed
-  aliases: []
-- id: witness_testimony
-  name: Witness Testimony
-  description: Oral statements from tenants, neighbors, or others with personal knowledge
-    of the conditions or events, given under oath.
-  jurisdiction: NYC
-  status: proposed
-  aliases: []
 - id: written_agreement_to_end_lease
   name: Written Agreement to End Lease
   description: A signed, notarized document from the landlord agreeing to terminate
     the lease early.
-  jurisdiction: NYC
-  status: proposed
-  aliases: []
-- id: written_lease_agreement
-  name: Written Lease Agreement
-  description: A written agreement with the landlord for at least one year, required
-    for unregulated apartments to get FHEPS.
   jurisdiction: NYC
   status: proposed
   aliases: []

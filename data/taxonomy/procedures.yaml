@@ -33,6 +33,7 @@
   aliases:
     - overcharge complaint
     - DHCR overcharge
+    - RA-89 form
   filing_body: NYS Division of Housing and Community Renewal (DHCR)
   typical_duration: 1–3 years
 
@@ -242,7 +243,8 @@
     Rent increase by filing an RA-94 within 35 days of receiving the RN-26.
   jurisdiction: NYC
   status: proposed
-  aliases: []
+  aliases:
+    - RA-94 form
 - id: charity_rent_assistance_application
   name: Charity Rent Assistance Application
   description: Application to private nonprofit organizations for emergency back rent

@@ -25,7 +25,7 @@
   {
     "tenant_situation": "My landlord is trying to evict me for not paying rent. The building I live in has been illegally converted into single room occupancy (SRO) units, and there is no valid certificate of occupancy for my apartment. The conditions are unsafe and violate housing codes. I have evidence that the units are illegal SROs and that the landlord has failed to obtain the proper permits and certificates.",
     "claim_types": [
-      "ILLEGAL_ALTERATIONS_NO_C_OF_O"
+      "illegal_apartment"
     ],
     "outcome": "tenant_win",
     "outcome_summary": "The court dismissed the landlord's nonpayment eviction proceeding because the landlord maintained illegal SRO units without a certificate of occupancy, which absolutely bars rent recovery under the law.",
@@ -74,8 +74,7 @@
     "tenant_situation": "I live in an apartment that my landlord claims is deregulated and not subject to rent stabilization. However, I discovered that the building has been receiving J-51 tax benefits, which I believe should mean my apartment is rent-stabilized. The landlord deregulated my apartment after a court decision that said you can't do that while getting these tax breaks, and they also stopped filing the required annual rent registration statements. I've been paying a market-rate rent that I think is illegal, and I believe the landlord is trying to avoid the rent stabilization laws.",
     "claim_types": [
       "DEREGULATION_CHALLENGE",
-      "RENT_OVERCHARGE",
-      "ILLEGAL_DEREGULATION_CHALLENGE"
+      "RENT_OVERCHARGE"
     ],
     "outcome": "tenant_win",
     "outcome_summary": "The court dismissed the landlord's eviction case and allowed the tenant's rent overcharge counterclaim to proceed to trial, finding the apartment was improperly deregulated and the tenant made a colorable claim of fraud.",
@@ -122,8 +121,7 @@
   {
     "tenant_situation": "My landlord is trying to evict me for nonpayment of rent. I believe I have been overcharged for years, possibly since 1993, and that the landlord has been fraudulently setting illegal rents. I have been trying to get documents from the landlord to prove this long history of overcharges, but they are resisting. The rent records from the DHCR might show inconsistencies, but I need the landlord's own records to uncover the full fraud.",
     "claim_types": [
-      "RENT_OVERCHARGE",
-      "FRAUDULENT_OVERCHARGE"
+      "RENT_OVERCHARGE"
     ],
     "outcome": "landlord_win",
     "outcome_summary": "The court denied the tenant's motion for discovery, holding that the tenant failed to plead the elements of common-law fraud with sufficient specificity to justify looking back beyond the standard four-year period for rent overcharge claims.",
@@ -141,16 +139,15 @@
     "source_url": "https://www.nycourts.gov/reporter/3dseries/2023/2023_23311.htm"
   },
   {
-    "tenant_situation": "My landlord is trying to evict me. I have filed motions to challenge this and to vacate the court's previous orders in my case. I believe the landlord's actions are wrongful, and I am seeking significant damages for the harm caused to me.",
+    "tenant_situation": "I lived in an apartment in Brooklyn and claimed succession rights to it after the tenant of record. The landlord brought an eviction case; earlier judges struck my succession-rights defense, the case went to trial and I lost, and I was evicted about two to three years ago. Since then I have filed several motions asking the court to vacate those earlier orders, and each was denied; I never appealed any of them to the Appellate Term. I am now filing new motions asking again to vacate the same orders and for $100 million in compensatory and punitive damages for the harm the eviction caused me.",
     "claim_types": [
-      "MOTION_TO_VACATE",
-      "CLAIM_FOR_DAMAGES"
+      "succession_rights"
     ],
     "outcome": "landlord_win",
-    "outcome_summary": "The court denied the tenant's motion to vacate prior orders and claim for damages, applying the law of the case doctrine as the issues had already been decided.",
+    "outcome_summary": "Civil Court denied both motions: prior judges had already struck the succession claim and denied vacatur, so the law of the case barred relitigating them (relief lay with the Appellate Term), and the court has no jurisdiction over the damages claim.",
     "remedies_granted": [],
     "key_laws": [
-      "Law of the Case Doctrine"
+      "Law of the case doctrine (Baron v Baron, 128 AD2d 821)"
     ],
     "evidence_that_mattered": [
       "Prior court orders and rulings on the same issues"
@@ -216,7 +213,7 @@
   {
     "tenant_situation": "My landlord is suing me for nonpayment of rent. However, the building has serious violations that the Department of Buildings issued in February 2022. I believe these violations mean the landlord is not allowed to collect rent until the problems are fixed. I want to raise this as a defense and counterclaim in the case.",
     "claim_types": [
-      "RENT_COLLECTION_BAR_DEFENSE"
+      "illegal_apartment"
     ],
     "outcome": "tenant_win",
     "outcome_summary": "The appellate court reversed the lower court and allowed the tenant to amend her answer to include a counterclaim that the landlord was barred from collecting rent due to Multiple Dwelling Law violations.",
@@ -417,9 +414,8 @@
   {
     "tenant_situation": "I have been using a parking and storage lot for my business. The company that owns the lot, South Brooklyn Railway, is trying to evict me. They sent me a notice to vacate, but it was confusing and didn't give me enough time. They also didn't serve the notice properly. Now they've started a court case to remove me, even though I believe their paperwork is wrong.",
     "claim_types": [
-      "DEFECTIVE_PREDICATE_NOTICE",
-      "INSUFFICIENT_NOTICE_PERIOD",
-      "IMPROPER_SERVICE_OF_NOTICE"
+      "procedural_defect",
+      "improper_service"
     ],
     "outcome": "tenant_win",
     "outcome_summary": "The court denied the licensor's motion for summary judgment, dismissing the holdover proceeding due to multiple jurisdictional defects in the termination notices.",

@@ -1,11 +1,11 @@
 {
   "summary": {
     "cases_evaluated": 21,
-    "claim_type_f1": 0.647,
-    "claim_type_precision": 0.56,
-    "claim_type_recall": 0.81,
-    "outcome_accuracy": 0.619,
-    "remedy_recall": 0.667
+    "claim_type_f1": 0.723,
+    "claim_type_precision": 0.635,
+    "claim_type_recall": 0.905,
+    "outcome_accuracy": 0.667,
+    "remedy_recall": 0.643
   },
   "per_case": [
     {
@@ -36,9 +36,9 @@
     },
     {
       "case_name": "1245 Stratford, LLC v Osbourne",
-      "claim_type_precision": 0.0,
-      "claim_type_recall": 0.0,
-      "claim_type_f1": 0.0,
+      "claim_type_precision": 0.25,
+      "claim_type_recall": 1.0,
+      "claim_type_f1": 0.4,
       "outcome_correct": true,
       "outcome_predicted": "tenant_win",
       "outcome_actual": "tenant_win",
@@ -51,17 +51,16 @@
         "procedural_defect"
       ],
       "claims_actual": [
-        "ILLEGAL_ALTERATIONS_NO_C_OF_O"
+        "illegal_apartment"
       ],
-      "claims_matched": [],
-      "claims_missed": [
-        "ILLEGAL_ALTERATIONS_NO_C_OF_O"
+      "claims_matched": [
+        "ILLEGAL_APARTMENT"
       ],
+      "claims_missed": [],
       "claims_extra": [
         "DEFECTIVE_PREDICATE_NOTICE",
         "HABITABILITY_VIOLATION",
-        "HP_ACTION_REPAIRS",
-        "ILLEGAL_APARTMENT"
+        "HP_ACTION_REPAIRS"
       ],
       "num_matches": 5
     },
@@ -102,21 +101,21 @@
     },
     {
       "case_name": "304-306 E 83 Realty, LLC v Mason",
-      "claim_type_precision": 0.6666666666666666,
+      "claim_type_precision": 0.5,
       "claim_type_recall": 1.0,
-      "claim_type_f1": 0.8,
+      "claim_type_f1": 0.6666666666666666,
       "outcome_correct": true,
       "outcome_predicted": "tenant_win",
       "outcome_actual": "tenant_win",
-      "remedy_recall": 1.0,
+      "remedy_recall": 0.5,
       "claims_predicted": [
         "deregulation_challenge",
+        "high_rent_vacancy_challenge",
         "rent_overcharge",
         "rent_stabilization_violation"
       ],
       "claims_actual": [
         "DEREGULATION_CHALLENGE",
-        "ILLEGAL_DEREGULATION_CHALLENGE",
         "RENT_OVERCHARGE"
       ],
       "claims_matched": [
@@ -125,9 +124,10 @@
       ],
       "claims_missed": [],
       "claims_extra": [
+        "HIGH_RENT_VACANCY_CHALLENGE",
         "RENT_STABILIZATION_VIOLATION"
       ],
-      "num_matches": 3
+      "num_matches": 4
     },
     {
       "case_name": "3505 BWAY Owner LLC v McNeely",
@@ -173,7 +173,6 @@
         "rent_stabilization_violation"
       ],
       "claims_actual": [
-        "FRAUDULENT_OVERCHARGE",
         "RENT_OVERCHARGE"
       ],
       "claims_matched": [
@@ -187,25 +186,25 @@
     },
     {
       "case_name": "5712 Realty LLC v Ricketts",
-      "claim_type_precision": 0.0,
-      "claim_type_recall": 0.0,
-      "claim_type_f1": 0.0,
-      "outcome_correct": false,
-      "outcome_predicted": null,
+      "claim_type_precision": 1.0,
+      "claim_type_recall": 1.0,
+      "claim_type_f1": 1.0,
+      "outcome_correct": true,
+      "outcome_predicted": "landlord_win",
       "outcome_actual": "landlord_win",
       "remedy_recall": 1.0,
-      "claims_predicted": [],
+      "claims_predicted": [
+        "succession_rights"
+      ],
       "claims_actual": [
-        "CLAIM_FOR_DAMAGES",
-        "MOTION_TO_VACATE"
+        "succession_rights"
       ],
-      "claims_matched": [],
-      "claims_missed": [
-        "CLAIM_FOR_DAMAGES",
-        "MOTION_TO_VACATE"
+      "claims_matched": [
+        "SUCCESSION_RIGHTS"
       ],
+      "claims_missed": [],
       "claims_extra": [],
-      "num_matches": 0
+      "num_matches": 1
     },
     {
       "case_name": "Arnold Rossman v Windermere Owners LLC et al.",
@@ -288,11 +287,11 @@
         "hp_action_repairs"
       ],
       "claims_actual": [
-        "RENT_COLLECTION_BAR_DEFENSE"
+        "illegal_apartment"
       ],
       "claims_matched": [],
       "claims_missed": [
-        "RENT_COLLECTION_BAR_DEFENSE"
+        "ILLEGAL_APARTMENT"
       ],
       "claims_extra": [
         "HABITABILITY_VIOLATION",
@@ -525,9 +524,9 @@
     },
     {
       "case_name": "South Brooklyn Railway Company v Heung Man Lau",
-      "claim_type_precision": 0.5,
+      "claim_type_precision": 1.0,
       "claim_type_recall": 1.0,
-      "claim_type_f1": 0.6666666666666666,
+      "claim_type_f1": 1.0,
       "outcome_correct": true,
       "outcome_predicted": "tenant_win",
       "outcome_actual": "tenant_win",
@@ -537,17 +536,15 @@
         "procedural_defect"
       ],
       "claims_actual": [
-        "DEFECTIVE_PREDICATE_NOTICE",
-        "IMPROPER_SERVICE_OF_NOTICE",
-        "INSUFFICIENT_NOTICE_PERIOD"
+        "improper_service",
+        "procedural_defect"
       ],
       "claims_matched": [
-        "DEFECTIVE_PREDICATE_NOTICE"
-      ],
-      "claims_missed": [],
-      "claims_extra": [
+        "DEFECTIVE_PREDICATE_NOTICE",
         "IMPROPER_SERVICE"
       ],
+      "claims_missed": [],
+      "claims_extra": [],
       "num_matches": 2
     },
     {

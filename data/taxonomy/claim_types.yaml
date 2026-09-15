@@ -11,6 +11,10 @@
   aliases:
     - overcharge
     - rent overcharge claim
+    - Excessive Rent Increase
+    - Illegal Rent Increase
+    - Unlawful Rent Increase
+    - Unlawful Air Conditioning Fees
 
 - id: rent_stabilization_violation
   name: Rent Stabilization Violation
@@ -19,6 +23,7 @@
   status: canonical
   aliases:
     - RSC violation
+    - Failure to Renew Lease
 
 - id: deregulation_challenge
   name: Deregulation Challenge
@@ -49,6 +54,10 @@
     - lack of heat
     - mold
     - habitability violation for mold
+    - Failure to Provide Essential Services
+    - Heat Violation
+    - Hot Water Violation
+    - Repair Neglect
 
 - id: good_cause_eviction_defense
   name: Good Cause Eviction Defense
@@ -74,6 +83,8 @@
     - housing part action
     - HP proceeding
     - order to correct
+    - Emergency HP Action
+    - Group HP Action
 
 - id: breach_warranty_habitability
   name: Breach of Warranty of Habitability
@@ -83,6 +94,7 @@
   aliases:
     - warranty of habitability breach
     - WOH
+    - Rent Abatement
 
 - id: harassment
   name: Landlord Harassment
@@ -101,6 +113,12 @@
   aliases:
     - unlawful lockout
     - lockout
+    - Illegal Eviction (Self-Help Eviction)
+    - Unlawful Self-Help Eviction
+    - Unlawful Eviction
+    - Wrongful Eviction
+    - Illegal Eviction of Roommate
+    - Unlawful Eviction Claim
 
 - id: retaliatory_eviction
   name: Retaliatory Eviction
@@ -144,6 +162,7 @@
   aliases:
     - discrimination
     - fair housing violation
+    - Fair Housing Act Discrimination
 
 - id: improper_service
   name: Improper Service
@@ -244,6 +263,48 @@
     - IAI challenge
     - individual apartment improvement dispute
 
+# ── Promoted from bootstrap proposals (atlas06 audit, applied atlas08) ──
+
+- id: breach_of_quiet_enjoyment
+  name: Breach of Quiet Enjoyment
+  description: A claim that the landlord substantially interfered with the tenant's right to use and enjoy the rental property peacefully.
+  jurisdiction: NYS
+  status: canonical
+  aliases: []
+
+- id: failure_to_provide_reasonable_accommodation
+  name: Failure to Provide Reasonable Accommodation
+  description: Landlord's failure to provide reasonable accommodation to tenants with disabilities, which is a form of discrimination.
+  jurisdiction: NYC
+  status: canonical
+  aliases:
+    - Disability Accommodation for Air Conditioning
+
+- id: fair_market_rent_appeal
+  name: Fair Market Rent Appeal
+  description: A tenant's right to challenge the initial rent set at the start of rent stabilization, seeking a refund if the rent increased excessively.
+  jurisdiction: NYS
+  status: canonical
+  aliases: []
+
+- id: fraudulent_deregulation
+  name: Fraudulent Deregulation
+  description: A claim that a landlord improperly removed a unit from rent stabilization through fraud, such as false statements about vacancy or improvements.
+  jurisdiction: NYS
+  status: canonical
+  aliases:
+    - Fraudulent Rent Registration
+
+- id: service_reduction
+  name: Service Reduction
+  description: A claim that a landlord decreased essential building or apartment services, violating rent stabilization obligations.
+  jurisdiction: NYS
+  status: canonical
+  aliases:
+    - Failure to Maintain Cooling System
+    - Failure to Maintain Services
+    - Rent Freeze and Reduction
+
 # --- bootstrap proposals (status: proposed) ---
 - id: breach_of_lease
   name: Breach of Lease
@@ -254,13 +315,6 @@
   aliases:
   - Breach of Contract
   - Landlord Breach of Contract
-- id: breach_of_quiet_enjoyment
-  name: Breach of Quiet Enjoyment
-  description: A claim that the landlord substantially interfered with the tenant's
-    right to use and enjoy the rental property peacefully.
-  jurisdiction: NYS
-  status: proposed
-  aliases: []
 - id: challenge_rent_increase
   name: Challenge Rent Increase
   description: A claim that a rent-controlled tenant can challenge a landlord's application
@@ -279,82 +333,10 @@
   status: proposed
   aliases:
     - harassment of a rent regulated tenant
-- id: dhcr_determination_challenge
-  name: DHCR Determination Challenge
-  description: A claim challenging an order or determination issued by the New York
-    State Division of Housing and Community Renewal.
-  jurisdiction: NYS
-  status: proposed
-  aliases: []
-- id: disability_ac_accommodation
-  name: Disability Accommodation for Air Conditioning
-  description: A claim that a landlord must reasonably accommodate a tenant's disability
-    by allowing or facilitating air conditioning installation, including upgrading
-    electrical systems, unless it causes undue hardship.
-  jurisdiction: NYC
-  status: proposed
-  aliases: []
-- id: disability_rent_increase_exemption
-  name: Disability Rent Increase Exemption (DRIE)
-  description: A claim for exemption from rent increases for qualifying tenants with
-    disabilities in rent-controlled apartments.
-  jurisdiction: NYC
-  status: proposed
-  aliases: []
-- id: disability_or_elderly_protection
-  name: Disability or Elderly Protection
-  description: A claim that a disabled or elderly tenant can delay eviction by providing
-    proof to the marshal, who must notify Adult Protective Services.
-  jurisdiction: NYC
-  status: proposed
-  aliases: []
 - id: domestic_violence_lease_termination
   name: Domestic Violence Lease Termination
   description: A right for tenants with a court order of protection to break a lease
     if safety is jeopardized, with ten days' notice.
-  jurisdiction: NYC
-  status: proposed
-  aliases: []
-- id: emergency_hp_action
-  name: Emergency HP Action
-  description: An expedited HP action filed when there are serious, dangerous conditions
-    in the apartment requiring immediate court intervention.
-  jurisdiction: NYC
-  status: proposed
-  aliases: []
-- id: excessive_rent_increase
-  name: Excessive Rent Increase
-  description: A claim that a landlord has imposed an unjust or unreasonable rent
-    increase beyond what is permitted under rent stabilization.
-  jurisdiction: NYC
-  status: proposed
-  aliases: []
-- id: failure_to_maintain_cooling
-  name: Failure to Maintain Cooling System
-  description: A claim that a landlord failed to maintain a cooling system that was
-    present when the tenant moved in, potentially violating habitability or rent stabilization
-    obligations.
-  jurisdiction: NYC
-  status: proposed
-  aliases: []
-- id: failure_to_maintain_services
-  name: Failure to Maintain Services
-  description: A claim that a landlord has failed to provide essential services or
-    maintain the building in good repair, potentially affecting rent regulation.
-  jurisdiction: NYS
-  status: proposed
-  aliases: []
-- id: failure_to_provide_essential_services
-  name: Failure to Provide Essential Services
-  description: A claim that the landlord failed to provide heat, hot water, electricity,
-    or other essential services required by law.
-  jurisdiction: NYC
-  status: proposed
-  aliases: []
-- id: failure_to_provide_reasonable_accommodation
-  name: Failure to Provide Reasonable Accommodation
-  description: Landlord's failure to provide reasonable accommodation to tenants with
-    disabilities, which is a form of discrimination.
   jurisdiction: NYC
   status: proposed
   aliases: []
@@ -367,89 +349,6 @@
   aliases:
   - Failure to Register Rent
   - Failure to Register as Rent Stabilized
-- id: failure_to_renew_lease
-  name: Failure to Renew Lease
-  description: A claim that a landlord failed to offer a renewal lease to a rent-stabilized
-    tenant, entitling the tenant to withhold rent increases.
-  jurisdiction: NYC
-  status: proposed
-  aliases: []
-- id: fair_housing_act_discrimination
-  name: Fair Housing Act Discrimination
-  description: Discrimination in the sale, rental, financing, or other housing-related
-    transactions based on race, color, national origin, religion, sex, familial status,
-    or disability.
-  jurisdiction: NYC
-  status: proposed
-  aliases: []
-- id: fair_market_rent_appeal
-  name: Fair Market Rent Appeal
-  description: A tenant's right to challenge the initial rent set at the start of
-    rent stabilization, seeking a refund if the rent increased excessively.
-  jurisdiction: NYS
-  status: proposed
-  aliases: []
-- id: fraudulent_deregulation
-  name: Fraudulent Deregulation
-  description: A claim that a landlord improperly removed a unit from rent stabilization
-    through fraud, such as false statements about vacancy or improvements.
-  jurisdiction: NYS
-  status: proposed
-  aliases: []
-- id: fraudulent_rent_registration
-  name: Fraudulent Rent Registration
-  description: A claim that a landlord knowingly filed false or misleading rent registration
-    statements with DHCR to justify an illegal rent increase.
-  jurisdiction: NYS
-  status: proposed
-  aliases: []
-- id: group_hp_action
-  name: Group HP Action
-  description: A single HP action filed by multiple tenants in the same building against
-    the landlord, addressing individual apartment issues and common areas.
-  jurisdiction: NYC
-  status: proposed
-  aliases: []
-- id: heat_violation
-  name: Heat Violation
-  description: A claim that a landlord failed to provide adequate heat during the
-    required heating season, violating minimum temperature standards.
-  jurisdiction: NYC
-  status: proposed
-  aliases: []
-- id: hot_water_violation
-  name: Hot Water Violation
-  description: A claim that a landlord failed to supply hot water at the required
-    minimum temperature during specified hours.
-  jurisdiction: NYC
-  status: proposed
-  aliases: []
-- id: illegal_eviction
-  name: Illegal Eviction (Self-Help Eviction)
-  description: A claim that the landlord removed the tenant from the premises without
-    a court order or following proper legal procedures, such as by changing locks
-    or removing belongings.
-  jurisdiction: NYS
-  status: proposed
-  aliases:
-  - Unlawful Self-Help Eviction
-  - Unlawful Eviction
-  - Wrongful Eviction
-- id: illegal_eviction_roommate
-  name: Illegal Eviction of Roommate
-  description: A prime tenant cannot evict a roommate by changing locks or other self-help
-    measures if the roommate has tenancy rights.
-  jurisdiction: NYC
-  status: proposed
-  aliases: []
-- id: illegal_rent_increase
-  name: Illegal Rent Increase
-  description: A claim that a landlord has raised rent beyond allowed limits, such
-    as through false renovation claims or improper vacancy increases.
-  jurisdiction: NYC
-  status: proposed
-  aliases:
-  - Unlawful Rent Increase
 - id: lease_violation
   name: Lease Violation
   description: A claim that a landlord failed to comply with lease terms or rent stabilization
@@ -479,40 +378,11 @@
   status: proposed
   aliases:
   - Relocation Payment Claim
-  - Unlawful Eviction Claim
-- id: rent_abatement
-  name: Rent Abatement
-  description: A claim for reduction or refund of rent due to the landlord's failure
-    to provide essential services or maintain habitable conditions.
-  jurisdiction: NYS
-  status: proposed
-  aliases: []
-- id: rent_freeze_and_reduction
-  name: Rent Freeze and Reduction
-  description: A claim that a rent-regulated tenant is entitled to a rent freeze or
-    reduction if the landlord fails to provide essential services or make repairs.
-  jurisdiction: NYC
-  status: proposed
-  aliases: []
-- id: repair_neglect
-  name: Repair Neglect
-  description: A claim that a landlord failed to make necessary repairs to the rental
-    unit or common areas, causing harm or inconvenience.
-  jurisdiction: NYC
-  status: proposed
-  aliases: []
 - id: retaliation_for_housing_court_action
   name: Retaliation for Prior Housing Court Action
   description: Unlawful for a building owner to refuse to rent to a tenant because
     of prior action against the tenant in Housing Court.
   jurisdiction: NYS
-  status: proposed
-  aliases: []
-- id: senior_citizen_rent_increase_exemption
-  name: Senior Citizen Rent Increase Exemption (SCRIE)
-  description: A claim for exemption from rent increases for qualifying senior citizens
-    in rent-controlled apartments.
-  jurisdiction: NYC
   status: proposed
   aliases: []
 - id: senior_lease_termination
@@ -522,33 +392,11 @@
   jurisdiction: NYC
   status: proposed
   aliases: []
-- id: service_reduction
-  name: Service Reduction
-  description: A claim that a landlord decreased essential building or apartment services,
-    violating rent stabilization obligations.
-  jurisdiction: NYS
-  status: proposed
-  aliases: []
 - id: tenant_rights_roommate
   name: Tenant Rights for Roommates
   description: A roommate who has lived in the unit for at least 30 days or has a
     signed rental agreement has tenancy rights and cannot be evicted without proper
     legal process.
-  jurisdiction: NYC
-  status: proposed
-  aliases: []
-- id: treble_damages
-  name: Treble Damages
-  description: A claim for three times the amount of an overcharge as a penalty for
-    willful overcharging.
-  jurisdiction: NYC
-  status: proposed
-  aliases: []
-- id: unlawful_ac_fees
-  name: Unlawful Air Conditioning Fees
-  description: A claim that a landlord improperly charged or attempted to collect
-    fees for air conditioning units, including fees not authorized by lease or waived
-    by delay.
   jurisdiction: NYC
   status: proposed
   aliases: []

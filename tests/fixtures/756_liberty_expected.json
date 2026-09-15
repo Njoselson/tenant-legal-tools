@@ -50,7 +50,7 @@
       "linked_claim_ids": ["claim:756liberty:nonpayment", "claim:756liberty:deregulation", "claim:756liberty:overcharge"]
     },
     {
-      "id": "evid:lease_agreements",
+      "id": "evid:lease_agreement",
       "name": "Lease agreements",
       "evidence_type": "documentary",
       "description": "Leases showing rent history from 2004-2009 including Mora ($1,118), Perez ($1,508.06), Gordon ($1,800), Miller ($2,160)",
@@ -69,7 +69,7 @@
       "linked_claim_ids": ["claim:756liberty:deregulation"]
     },
     {
-      "id": "evid:witness_testimony",
+      "id": "evid:witness_affidavits",
       "name": "Witness testimony of Deodat Lowton",
       "evidence_type": "testimonial",
       "description": "Testimony admitting conflicting DHCR registrations, gut renovation claims without documentation, and errors in registration filings",
@@ -175,7 +175,7 @@
       "presented_evidence": [
         {"id": "evid:dhcr_registrations", "description": "Conflicting DHCR registrations"},
         {"id": "evid:discovery_response", "description": "Admission of no IAI documentation"},
-        {"id": "evid:witness_testimony", "description": "Testimony admitting errors and no documents"}
+        {"id": "evid:witness_affidavits", "description": "Testimony admitting errors and no documents"}
       ],
       "completeness_score": 0.0,
       "satisfied_count": 0,
@@ -193,16 +193,16 @@
   
   "relationships": [
     {"source_id": "claim:756liberty:nonpayment", "target_id": "evid:dhcr_registrations", "type": "HAS_EVIDENCE"},
-    {"source_id": "claim:756liberty:nonpayment", "target_id": "evid:lease_agreements", "type": "HAS_EVIDENCE"},
+    {"source_id": "claim:756liberty:nonpayment", "target_id": "evid:lease_agreement", "type": "HAS_EVIDENCE"},
     {"source_id": "claim:756liberty:nonpayment", "target_id": "evid:rent_ledger", "type": "HAS_EVIDENCE"},
     {"source_id": "claim:756liberty:deregulation", "target_id": "evid:dhcr_registrations", "type": "HAS_EVIDENCE"},
     {"source_id": "claim:756liberty:deregulation", "target_id": "evid:discovery_response", "type": "HAS_EVIDENCE"},
-    {"source_id": "claim:756liberty:deregulation", "target_id": "evid:witness_testimony", "type": "HAS_EVIDENCE"},
+    {"source_id": "claim:756liberty:deregulation", "target_id": "evid:witness_affidavits", "type": "HAS_EVIDENCE"},
     {"source_id": "claim:756liberty:deregulation", "target_id": "evid:req:iai_docs", "type": "REQUIRES"},
     {"source_id": "claim:756liberty:deregulation", "target_id": "evid:req:rent_rider", "type": "REQUIRES"},
     {"source_id": "evid:dhcr_registrations", "target_id": "outcome:756liberty:dismissed", "type": "SUPPORTS"},
     {"source_id": "evid:discovery_response", "target_id": "outcome:756liberty:dismissed", "type": "SUPPORTS"},
-    {"source_id": "evid:witness_testimony", "target_id": "outcome:756liberty:dismissed", "type": "SUPPORTS"},
+    {"source_id": "evid:witness_affidavits", "target_id": "outcome:756liberty:dismissed", "type": "SUPPORTS"},
     {"source_id": "outcome:756liberty:dismissed", "target_id": "damages:756liberty:unpaid_rent", "type": "IMPLY"},
     {"source_id": "outcome:756liberty:overcharge_found", "target_id": "damages:756liberty:rent_overcharge", "type": "IMPLY"},
     {"source_id": "outcome:756liberty:overcharge_found", "target_id": "damages:756liberty:renewal_lease", "type": "IMPLY"},

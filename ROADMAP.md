@@ -116,6 +116,27 @@ case_documents whose text cites CPLR 213-a, the four-year lookback, or Regina
   outcome step. That's a `services/` change and a design decision, not a
   taxonomy fix.
 
+**Ground-truth labels fixed (atlas09, 2026-09-15): claim F1 +8, outcome +1 case.**
+9 invented claim names in `data/case_ground_truth.json` were mapped to taxonomy ids,
+each checked against the decision itself (Stratford and Kamal → `illegal_apartment`
+under MDL §§ 301/302; South Brooklyn → `procedural_defect` + `improper_service`;
+2 duplicates dropped). *5712 Realty v Ricketts* was rewritten from the decision so its
+situation carries the law-of-the-case facts (succession defense struck, lost at trial,
+vacatur already denied and never appealed); its claim is `succession_rights`. No
+outcome label changed. `build_case_ground_truth.py` now lists only taxonomy ids and
+rejects unknown ones. Eval, 3 runs:
+
+| | atlas10 2026-09-14 | **atlas09 2026-09-15** |
+| --- | --- | --- |
+| Claim F1 | 62.5 / 64.7 / 64.7% (baseline 64.1%) | **72.3%** (all 3 runs; P 63.5%, R 90.5%) |
+| **Outcome** | **61.9% (13/21)** | **66.7% (14/21)** (all 3 runs) |
+| Remedy | 64.3 / 66.7 / 66.7% | 64.3% (all 3 runs) |
+
+- Per-case claim F1: Ricketts 0 → 1.0, South Brooklyn 0.67 → 1.0, Stratford 0 → 0.40.
+  Mason 0.80 → 0.67, only because its duplicate label left the denominator.
+- The outcome gain is **Ricketts** (no prediction → correct `landlord_win`): with
+  the real facts it now tags `succession_rights`. It's a label fix, not a model gain.
+
 What the prune changed on outcome (+1 net):
 
 - **South Brooklyn Railway recovered** (no prediction → correct `tenant_win`): the

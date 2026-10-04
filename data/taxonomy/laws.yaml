@@ -23,6 +23,7 @@
   aliases:
     - HMC 27-2005(d)
     - anti-harassment provision
+    - NYC Housing Code Harassment Violation
   citation: NYC Admin Code § 27-2005(d)
 
 - id: nyc_admin_27_2013
@@ -62,6 +63,7 @@
   aliases:
     - HPD penalties
     - HMC civil penalties
+    - NYC Housing Maintenance Code Subchapter 5
   citation: NYC Admin Code § 27-2115
 
 - id: nyc_admin_26_504
@@ -72,6 +74,7 @@
   aliases:
     - RSL coverage
     - rent stabilization coverage
+    - NYC Admin Code § 26-504
   citation: NYC Admin Code § 26-504
 
 - id: nyc_admin_26_504_2
@@ -82,6 +85,10 @@
   aliases:
     - HRVC statute
     - high rent vacancy decontrol provision
+    - High Rent Deregulation Law
+    - High-Rent Vacancy Decontrol
+    - Vacancy Decontrol
+    - NYC Admin Code § 26-504.2
   citation: NYC Admin Code § 26-504.2
 
 - id: nyc_admin_26_511
@@ -102,6 +109,7 @@
   aliases:
     - overcharge statute
     - treble damages provision
+    - NYC Admin Code § 26-516
   citation: NYC Admin Code § 26-516
 
 - id: nyc_admin_26_521
@@ -124,6 +132,7 @@
   aliases:
     - RSC annual increases
     - allowable rent increase
+    - Vacancy Increase Law
   citation: 9 NYCRR § 2522.5
 
 - id: rsc_2523_5
@@ -162,6 +171,7 @@
   aliases:
     - overcharge penalty
     - treble damages RSC
+    - Rent Stabilization Code (RSC) Rent Overcharge Provisions
   citation: 9 NYCRR § 2526.1
 
 # ── NY Real Property Law (RPL) ──────────────────────────────────────────────
@@ -315,6 +325,8 @@
   aliases:
     - HSTPA
     - 2019 rent reform
+    - Fuel Pass Along Prohibition
+    - Housing Stability and Tenant Protection Act of 2019 (Article 6)
   citation: L. 2019, c. 36
 
 - id: cplr_213_a
@@ -412,6 +424,8 @@
   aliases:
     - NYCHRL discrimination
     - NYC Human Rights Law housing
+    - New York City Human Rights Law
+    - NYC Human Rights Law
   citation: NYC Admin Code § 8-107
 
 # ── NYC Multiple Dwelling Law (MDL) ──────────────────────────────────────────
@@ -423,6 +437,7 @@
   status: canonical
   aliases:
     - multiple dwelling maintenance
+    - Multiple Dwelling Law § 78
   citation: NY Multiple Dwelling Law § 78
 
 - id: mdl_80
@@ -444,6 +459,7 @@
   aliases:
     - ETPA
     - Emergency Tenant Protection Act
+    - Emergency Tenant Protection Act § 5
   citation: L. 1974, c. 576
 
 # ── NYC Rent Guidelines Board ────────────────────────────────────────────────
@@ -456,131 +472,164 @@
   aliases:
     - RGB order
     - rent guidelines
+    - Rent Guidelines Board
+    - Rent Guidelines Board Determinations
   citation: NYC Rent Guidelines Board Order (current year)
 
-# --- bootstrap proposals (status: proposed) ---
+# ── Promoted from bootstrap proposals (atlas06 audit, applied atlas08) ──
+
 - id: 421a_tax_abatement
   name: 421-a Tax Abatement
-  description: A state tax incentive for new construction that requires rent-stabilization
-    protections for tenants during the abatement period.
+  description: A state tax incentive for new construction that requires rent-stabilization protections for tenants during the abatement period.
   jurisdiction: NYS
-  status: proposed
-  aliases: []
-- id: 421a_tax_exemption_law
-  name: 421-a Tax Exemption Law
-  description: A state tax exemption program that requires rent stabilization for
-    units in buildings receiving the benefit.
-  jurisdiction: NYS
-  status: proposed
-  aliases: []
-- id: dhcr_regulation_on_fraud
-  name: DHCR Regulation on Fraud
-  description: A regulation allowing the DHCR to examine the rental history of an
-    apartment for up to four years prior to a complaint if the landlord is found to
-    have committed fraud.
-  jurisdiction: NYS
-  status: proposed
-  aliases: []
-- id: dhcr_regulations
-  name: DHCR Rent Regulations
-  description: State regulations governing rent stabilization and rent control, including
-    procedures for overcharge complaints and service reductions.
-  jurisdiction: NYS
-  status: proposed
-  aliases: []
-- id: etpa_section_5
-  name: Emergency Tenant Protection Act § 5
-  description: Sets forth the applicability of rent stabilization to housing accommodations,
-    including exemptions and deregulation provisions.
-  jurisdiction: NYS
-  status: proposed
-  aliases: []
+  status: canonical
+  aliases:
+    - 421-a Tax Exemption Law
+  citation: RPTL § 421-a
+
 - id: fair_housing_act_title_viii
   name: Fair Housing Act (Title VIII of the Civil Rights Act of 1968)
-  description: Federal law prohibiting discrimination in the sale, rental, financing,
-    and other housing-related transactions based on race, color, national origin,
-    religion, sex, familial status, and disability.
+  description: Federal law prohibiting discrimination in the sale, rental, financing, and other housing-related transactions based on race, color, national origin, religion, sex, familial status, and disability.
   jurisdiction: NYC
-  status: proposed
+  status: canonical
   aliases:
-  - Fair Housing Act (42 U.S.C. § 3601 et seq.)
-  - Fair Housing Act (Federal)
-  - Federal Fair Housing Act
-- id: fheps_regulation
-  name: Family Homelessness and Eviction Prevention Supplement (FHEPS)
-  description: A rent supplement program for families on public assistance with children
-    under 18, paying a higher monthly shelter allowance and up to $7,000 in arrears.
+    - Fair Housing Act (42 U.S.C. § 3601 et seq.)
+    - Fair Housing Act (Federal)
+    - Federal Fair Housing Act
+  citation: 42 U.S.C. § 3601 et seq.
+
+- id: iai_cap_law
+  name: Individual Apartment Improvement (IAI) Cap Law
+  description: 'A law capping the amount landlords can increase rent for renovations, with two tiers: $30,000 for most apartments and $50,000 for certain vacant or long-term tenancies, amortized over 15 years.'
   jurisdiction: NYC
-  status: proposed
+  status: canonical
   aliases: []
-- id: fuel_pass_along_prohibition
-  name: Fuel Pass Along Prohibition
-  description: A law prohibiting landlords from adding fuel and labor pass along charges
-    to rent-controlled tenants as of June 14, 2019.
+  citation: RSL § 26-511(c)(13); 9 NYCRR § 2522.4
+
+- id: j51_tax_abatement
+  name: J-51 Tax Abatement
+  description: A city tax incentive for building upgrades that requires rent-stabilization protections for tenants during the abatement period.
   jurisdiction: NYC
-  status: proposed
-  aliases: []
-- id: hpd_mold_violation_classes
-  name: HPD Mold Violation Classes
-  description: NYC law classifying mold violations into Class A, B, and C based on
-    size, with specific cure periods (90, 60, or 24 hours).
-  jurisdiction: NYC
-  status: proposed
-  aliases: []
-- id: high_rent_deregulation_law
-  name: High Rent Deregulation Law
-  description: Former law allowing deregulation of apartments with high rents or high
-    tenant income, abolished for leases after June 14, 2019.
-  jurisdiction: NYC
-  status: proposed
-  aliases: []
-- id: high_rent_high_income_decontrol
-  name: High-Rent/High-Income Decontrol
-  description: A provision that allowed deregulation of rent-stabilized apartments
-    when the rent exceeded a threshold and the tenant's income was high, applicable
-    before June 2019.
+  status: canonical
+  aliases:
+    - J-51 Tax Abatement Law
+  citation: NYC Admin Code § 11-243; RPTL § 489
+
+- id: mci_regulations
+  name: Major Capital Improvement Regulations
+  description: DHCR rules letting landlords pass Major Capital Improvement costs to rent-stabilized tenants as permanent rent increases; HSTPA 2019 capped MCI increases at 2% per year and made them temporary (30 years).
   jurisdiction: NYS
-  status: proposed
-  aliases:
-  - High-Rent Vacancy Decontrol
-  - Vacancy Decontrol
-- id: hpd_code_27-2009
-  name: Housing Maintenance Code § 27-2009
-  description: Requires landlords to keep premises in good repair and fit for human
-    habitation.
-  jurisdiction: NYC
-  status: proposed
+  status: canonical
   aliases: []
+  citation: 9 NYCRR § 2522.4
+
+- id: nyc_admin_26_504_3
+  name: NYC Admin Code § 26-504.3 — High-Income Rent Decontrol
+  description: The former New York City law that allowed high income rent decontrol for rent-stabilized apartments, repealed by the Housing Stability and Tenant Protection Act of 2019 (HSTPA).
+  jurisdiction: NYC
+  status: canonical
+  aliases:
+    - high-income rent decontrol
+  citation: NYC Admin Code § 26-504.3
+
+- id: nyc_admin_code_27_2004
+  name: NYC Admin Code § 27-2004 — Definitions (incl. Harassment)
+  description: Housing Maintenance Code definitions; § 27-2004(a)(48) defines landlord harassment, the conduct prohibited by § 27-2005(d).
+  jurisdiction: NYC
+  status: canonical
+  aliases: []
+  citation: NYC Admin Code § 27-2004(a)(48)
+
+- id: nyc_hmc
+  name: NYC Housing Maintenance Code (HMC)
+  description: 'NYC Housing Maintenance Code (Admin Code Title 27, Ch. 2): minimum housing standards landlords must meet, enforced by HPD. Umbrella node for sources that cite "the HMC" without a section.'
+  jurisdiction: NYC
+  status: canonical
+  aliases:
+    - Housing Maintenance Code (HMC)
+    - Housing Maintenance Code
+    - HMC
+    - HPD code violations
+  citation: NYC Admin Code Title 27, Ch. 2
+
+- id: nyc_admin_27_2093_1
+  name: NYC Admin Code § 27-2093.1 — Certification of No Harassment (Pilot Program Buildings)
+  description: Requires owners of covered buildings to obtain an HPD Certification of No Harassment before getting DOB permits for substantial alteration or demolition; a harassment finding bars the permits. Applies to buildings on HPD's pilot program list (amended by Local Law 140 of 2021).
+  jurisdiction: NYC
+  status: canonical
+  aliases:
+    - Certification of No Harassment
+    - CONH
+    - No Harassment Pilot Program
+  citation: NYC Admin Code § 27-2093.1
+
+- id: penal_law_241_05
+  name: Penal Law § 241.05
+  description: Makes it a crime to intentionally harass a rent regulated tenant by engaging in conduct that interferes with quiet enjoyment, with intent to induce vacatur.
+  jurisdiction: NYS
+  status: canonical
+  aliases:
+    - NYS Penal Law Harassment
+  citation: NY Penal Law § 241.05
+
+- id: rpapl_article_7a
+  name: RPAPL Article 7-A — 7A Administrator
+  description: Lets tenants (or HPD) petition Housing Court to appoint a 7A administrator to collect rents and make repairs when a landlord fails to maintain the building.
+  jurisdiction: NYS
+  status: canonical
+  aliases:
+    - 7A administrator
+    - Article 7A proceeding
+  citation: RPAPL §§ 769–783
+
+- id: rent_control_law_nyc
+  name: Rent Control Law (NYC)
+  description: The older rent regulation system in NYC covering buildings built before February 1, 1947, with continuous tenancy since July 1, 1971 (or April 1, 1953 for smaller buildings).
+  jurisdiction: NYC
+  status: canonical
+  aliases:
+    - Rent Control Law
+    - NYC Rent and Rehabilitation Law
+    - State Enabling Authority (Chapter 21 of Laws of 1962)
+  citation: NYC Admin Code § 26-401 et seq.
+
+- id: rent_stabilization_code
+  name: Rent Stabilization Code (RSC)
+  description: State regulations implementing the Rent Stabilization Law, detailing rules on rent registration, overcharge calculations, and tenant protections.
+  jurisdiction: NYS
+  status: canonical
+  aliases:
+    - DHCR Rent Regulations
+    - Rent Stabilization Code § 2520
+    - Rent Stabilization Code
+    - Rent Stabilization Code (9 NYCRR Part 2520 et seq.)
+    - Rent Stabilization Code (9 NYCRR Part 2520)
+    - Rent Stabilization Code (9 NYCRR § 2520)
+    - Rent Stabilization Code § 2520 et seq.
+    - Rent Stabilization Code § 2520.1 (et seq.)
+    - Rent Stabilization Code § 2520.11
+    - Rent Stabilization Code § 2520.6
+  citation: 9 NYCRR Parts 2520–2530
+
+- id: rent_stabilization_law
+  name: Rent Stabilization Law
+  description: 'The NYC Rent Stabilization Law (Admin Code Title 26, Ch. 4): limits rent increases and guarantees lease renewal for covered units, generally buildings of six or more units built before 1974, plus units stabilized through tax benefits.'
+  jurisdiction: NYC
+  status: canonical
+  aliases:
+    - NYC Rent Stabilization Law
+    - Rent Stabilization Law (RSL)
+    - NYC Admin Code Chapter 4 - Rent Stabilization
+    - NYC Admin Code § 26-501
+    - NYC Admin Code § 26-502
+  citation: NYC Admin Code § 26-501 et seq.
+
+# --- bootstrap proposals (status: proposed) ---
 - id: hstpa_2019_duty_to_mitigate
   name: Housing Stability and Tenant Protection Act of 2019 - Duty to Mitigate Damages
   description: A New York State law requiring landlords to make reasonable efforts
     to re-rent an apartment after a tenant vacates mid-lease, limiting the tenant's
     liability for remaining rent.
-  jurisdiction: NYS
-  status: proposed
-  aliases:
-  - Housing Stability and Tenant Protection Act of 2019
-  - Housing Stability and Tenant Protection Act of 2019 (Article 6)
-- id: iai_cap_law
-  name: Individual Apartment Improvement (IAI) Cap Law
-  description: 'A law capping the amount landlords can increase rent for renovations,
-    with two tiers: $30,000 for most apartments and $50,000 for certain vacant or
-    long-term tenancies, amortized over 15 years.'
-  jurisdiction: NYC
-  status: proposed
-  aliases: []
-- id: j51_tax_abatement
-  name: J-51 Tax Abatement
-  description: A city tax incentive for building upgrades that requires rent-stabilization
-    protections for tenants during the abatement period.
-  jurisdiction: NYC
-  status: proposed
-  aliases:
-  - J-51 Tax Abatement Law
-- id: mci_regulations
-  name: Major Capital Improvement Regulations
-  description: State regulations allowing landlords to pass MCI costs to tenants as
-    long-term rent increases, capped at 2% per year.
   jurisdiction: NYS
   status: proposed
   aliases: []
@@ -592,64 +641,14 @@
   jurisdiction: NYC
   status: proposed
   aliases: []
-- id: mdr_law_78
-  name: Multiple Dwelling Law § 78
-  description: Requires owners of multiple dwellings to keep the building and its
-    parts in good repair and fit for human habitation.
-  jurisdiction: NYS
-  status: proposed
-  aliases: []
-- id: nyc_admin_code_ch4_rent_stabilization
-  name: NYC Admin Code Chapter 4 - Rent Stabilization
-  description: The chapter of the NYC Administrative Code governing rent stabilization,
-    including sections 26-501 through 26-520.
-  jurisdiction: NYC
-  status: proposed
-  aliases: []
-- id: nyc_admin_code_title_26_ch2
-  name: NYC Admin Code Title 26 Chapter 2
-  description: Chapter governing relocation services for tenants in New York City,
-    including payments and procedures.
-  jurisdiction: NYC
-  status: proposed
-  aliases: []
 - id: nyc_admin_code_26_301
   name: NYC Admin Code § 26-301
   description: Establishes the commissioner's duty to provide relocation services
     and payments for displaced tenants in various circumstances.
   jurisdiction: NYC
   status: proposed
-  aliases: []
-- id: nyc_admin_code_26_504_2
-  name: NYC Admin Code § 26-504.2
-  description: Excludes from rent stabilization certain high-rent accommodations where
-    the legal regulated rent at vacancy exceeds a statutory threshold, subject to
-    vacancy decontrol rules.
-  jurisdiction: NYC
-  status: proposed
-  aliases: []
-- id: nyc_admin_code_26_504_3
-  name: NYC Admin Code § 26-504.3
-  description: The former New York City law that allowed high income rent decontrol
-    for rent-stabilized apartments, repealed by the Housing Stability and Tenant Protection
-    Act of 2019 (HSTPA).
-  jurisdiction: NYC
-  status: proposed
-  aliases: []
-- id: nyc_admin_code_26_516
-  name: NYC Admin Code § 26-516
-  description: The primary statute governing enforcement, procedures, and penalties
-    for rent overcharges in rent-stabilized units in New York City.
-  jurisdiction: NYC
-  status: proposed
-  aliases: []
-- id: nyc_admin_code_27_2004
-  name: NYC Admin Code § 27-2004
-  description: Contains definitions and provisions, including harassment definition
-    referenced in § 27-2005.
-  jurisdiction: NYC
-  status: proposed
-  aliases: []
+  aliases:
+    - NYC Admin Code Title 26 Chapter 2
 - id: nyc_admin_code_27_2006
   name: NYC Admin Code § 27-2006
   description: Defines duties of tenants regarding code violations and clarifies that
@@ -700,80 +699,6 @@
   jurisdiction: NYC
   status: proposed
   aliases: []
-- id: nyc_admin_code_27-2013
-  name: NYC Administrative Code § 27-2013
-  description: Provision of the NYC Housing Maintenance Code addressing bedbug infestations
-    and landlord obligations to remediate.
-  jurisdiction: NYC
-  status: proposed
-  aliases: []
-- id: nyc_housing_code_harassment
-  name: NYC Housing Code Harassment Violation
-  description: Tenant harassment is a housing code violation in New York City, allowing
-    tenants to sue in Housing Court.
-  jurisdiction: NYC
-  status: proposed
-  aliases: []
-- id: hpd_code_violations
-  name: NYC Housing Maintenance Code (HMC)
-  description: NYC code that sets minimum housing standards and requires landlords
-    to maintain buildings in a safe, clean, and habitable condition, enforced by HPD.
-  jurisdiction: NYC
-  status: proposed
-  aliases:
-  - Housing Maintenance Code (HMC)
-- id: nyc_hmc_subchapter_5
-  name: NYC Housing Maintenance Code Subchapter 5
-  description: Statutory provisions governing legal remedies and enforcement of housing
-    maintenance standards in New York City.
-  jurisdiction: NYC
-  status: proposed
-  aliases: []
-- id: nyc_rent_and_rehabilitation_law
-  name: NYC Rent and Rehabilitation Law
-  description: Prior local laws that extended rent regulation to certain housing accommodations
-    not previously covered.
-  jurisdiction: NYC
-  status: proposed
-  aliases: []
-- id: nys_penal_law_harassment
-  name: NYS Penal Law Harassment
-  description: Tenant harassment can be a felony or misdemeanor under New York State
-    law.
-  jurisdiction: NYS
-  status: proposed
-  aliases: []
-- id: nyc_human_rights_law
-  name: New York City Human Rights Law
-  description: A city law providing robust protections against discrimination, including
-    requiring landlords to make reasonable accommodations for tenants with disabilities,
-    such as for air conditioning.
-  jurisdiction: NYC
-  status: proposed
-  aliases:
-  - NYC Human Rights Law
-- id: no_harassment_pilot_program
-  name: No Harassment Pilot Program
-  description: A program requiring landlords found to have harassed tenants to obtain
-    special work permits before doing substantial work in the building.
-  jurisdiction: NYC
-  status: proposed
-  aliases: []
-- id: penal_law_241_05
-  name: Penal Law § 241.05
-  description: Makes it a crime to intentionally harass a rent regulated tenant by
-    engaging in conduct that interferes with quiet enjoyment, with intent to induce
-    vacatur.
-  jurisdiction: NYS
-  status: proposed
-  aliases: []
-- id: rpapl_article_7a
-  name: Real Property Actions and Proceedings Law Article 7A
-  description: New York law allowing tenants to seek court appointment of a receiver
-    or order repairs when a landlord fails to maintain the premises.
-  jurisdiction: NYS
-  status: proposed
-  aliases: []
 - id: rpa_753
   name: Real Property Actions and Proceedings Law § 753
   description: A New York law that allows a court to stay an eviction proceeding if
@@ -794,29 +719,6 @@
   jurisdiction: NYS
   status: proposed
   aliases: []
-- id: rent_control_law_nyc
-  name: Rent Control Law (NYC)
-  description: The older rent regulation system in NYC covering buildings built before
-    February 1, 1947, with continuous tenancy since July 1, 1971 (or April 1, 1953
-    for smaller buildings).
-  jurisdiction: NYC
-  status: proposed
-  aliases:
-  - Rent Control Law
-- id: rent_guidelines_board
-  name: Rent Guidelines Board
-  description: A board appointed by the mayor that sets annual rent increase percentages
-    for rent-stabilized apartments in New York City.
-  jurisdiction: NYC
-  status: proposed
-  aliases: []
-- id: rgb_guidelines
-  name: Rent Guidelines Board Determinations
-  description: Annual RGB orders setting maximum rent increases for rent-stabilized
-    lease renewals.
-  jurisdiction: NYC
-  status: proposed
-  aliases: []
 - id: rent_regulation_reform_act_1997
   name: Rent Regulation Reform Act of 1997
   description: State law that established high-rent vacancy and high-income decontrol
@@ -824,68 +726,10 @@
   jurisdiction: NYS
   status: proposed
   aliases: []
-- id: rent_stabilization_code
-  name: Rent Stabilization Code (RSC)
-  description: State regulations implementing the Rent Stabilization Law, detailing
-    rules on rent registration, overcharge calculations, and tenant protections.
-  jurisdiction: NYS
-  status: proposed
-  aliases:
-  - Rent Stabilization Code (RSC) Rent Overcharge Provisions
-- id: rsc_9_nycrr_2520
-  name: Rent Stabilization Code § 2520
-  description: The New York State Rent Stabilization Code, which governs rent stabilization
-    for certain residential units, including rent limits, eviction protections, and
-    registration requirements.
-  jurisdiction: NYS
-  status: proposed
-  aliases:
-  - NYC Admin Code § 26-501
-  - NYC Admin Code § 26-502
-  - NYC Admin Code § 26-504
-  - Rent Stabilization Code
-  - Rent Stabilization Code (9 NYCRR Part 2520 et seq.)
-  - Rent Stabilization Code (9 NYCRR Part 2520)
-  - Rent Stabilization Code (9 NYCRR § 2520)
-  - Rent Stabilization Code § 2520 et seq.
-  - Rent Stabilization Code § 2520.1 (et seq.)
-  - Rent Stabilization Code § 2520.11
-  - Rent Stabilization Code § 2520.6
 - id: rsc_2524-3
   name: Rent Stabilization Code § 2524.3
   description: Prohibition against landlord harassment of rent-stabilized tenants,
     including threats, service interruptions, and frivolous litigation.
   jurisdiction: NYS
-  status: proposed
-  aliases: []
-- id: rsc_section_2525_3
-  name: Rent Stabilization Code § 2525.3
-  description: Governs the documentation and approval process for individual apartment
-    improvements (IAIs) used to increase rent.
-  jurisdiction: NYS
-  status: proposed
-  aliases: []
-- id: rent_stabilization_law
-  name: Rent Stabilization Law
-  description: A New York State housing law that regulates rent increases and provides
-    lease renewal protections for tenants in certain buildings, primarily those built
-    before 1974 with six or more units.
-  jurisdiction: NYS
-  status: proposed
-  aliases:
-  - NYC Rent Stabilization Law
-  - Rent Stabilization Law (RSL)
-- id: state_enabling_authority_1962
-  name: State Enabling Authority (Chapter 21 of Laws of 1962)
-  description: State law authorizing the City of New York to administer rent regulation
-    locally.
-  jurisdiction: NYS
-  status: proposed
-  aliases: []
-- id: vacancy_increase_law
-  name: Vacancy Increase Law
-  description: A law allowing landlords to raise rent by up to 20% when a new tenant
-    moves into a rent-stabilized apartment, prior to June 2019.
-  jurisdiction: NYC
   status: proposed
   aliases: []

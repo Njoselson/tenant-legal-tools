@@ -4,7 +4,7 @@ Build ground truth for case outcome evaluation.
 
 For each CASE_DOCUMENT in the graph, uses the LLM to extract:
   - tenant_situation: the facts (what a tenant would describe, minus the ruling)
-  - claim_types: canonical claim types present (HABITABILITY_VIOLATION, RENT_OVERCHARGE, etc.)
+  - claim_types: taxonomy claim ids from data/taxonomy/claim_types.yaml (unknown ids are rejected)
   - outcome: who won (tenant_win, landlord_win, mixed, dismissed)
   - remedies_granted: what the court ordered
   - key_laws: statutes that were determinative
@@ -21,6 +21,8 @@ import logging
 import sys
 from pathlib import Path
 
+import yaml
+
 from tenant_legal_guidance.config import get_settings
 from tenant_legal_guidance.graph.arango_graph import ArangoDBGraph
 from tenant_legal_guidance.services.deepseek import DeepSeekClient
@@ -29,6 +31,23 @@ logging.basicConfig(level=logging.INFO, format="%(message)s", stream=sys.stdout)
 logger = logging.getLogger(__name__)
 
 OUTPUT_PATH = Path("data/case_ground_truth.json")
+CLAIM_TYPES_PATH = Path("data/taxonomy/claim_types.yaml")
+
+
+def load_claim_type_ids(path: Path = CLAIM_TYPES_PATH) -> set[str]:
+    """Taxonomy claim ids (lowercase) — the only values claim_types may hold."""
+    entries = yaml.safe_load(path.read_text()) or []
+    return {e["id"].lower() for e in entries if isinstance(e, dict) and "id" in e}
+
+
+def validate_claim_types(claim_types: list[str], allowed_ids: set[str]) -> list[str]:
+    """Normalize claim_types to lowercase taxonomy ids; raise on any unknown id."""
+    normalized = [c.strip().lower() for c in claim_types]
+    unknown = sorted({c for c in normalized if c not in allowed_ids})
+    if unknown:
+        raise ValueError(f"claim_types not in taxonomy: {unknown}")
+    return list(dict.fromkeys(normalized))
+
 
 EXTRACTION_PROMPT = """\
 You are a legal analyst. Given a court case summary, extract structured ground truth.
@@ -42,7 +61,7 @@ Extract the following as JSON:
 
 {{
   "tenant_situation": "<Rewrite the facts as a tenant would describe them BEFORE knowing the outcome. Include the specific problems, landlord conduct, and evidence available. Do NOT mention the court ruling or outcome. 3-5 sentences.>",
-  "claim_types": ["<canonical claim type>", ...],
+  "claim_types": ["<taxonomy claim id>", ...],
   "outcome": "<tenant_win | landlord_win | mixed | dismissed>",
   "outcome_summary": "<1-2 sentence description of what the court decided>",
   "remedies_granted": ["<specific remedy ordered>", ...],
@@ -51,11 +70,10 @@ Extract the following as JSON:
 }}
 
 IMPORTANT:
-- claim_types must use these canonical names where applicable:
-  HABITABILITY_VIOLATION, HP_ACTION_REPAIRS, HARASSMENT, DEREGULATION_CHALLENGE,
-  RENT_OVERCHARGE, SECURITY_DEPOSIT_RETURN, RETALIATORY_EVICTION, CONSTRUCTIVE_EVICTION,
-  ILLEGAL_LOCKOUT, RENT_STABILIZATION_VIOLATION
-- If a claim doesn't map to a canonical name, use a descriptive ALL_CAPS name
+- claim_types must be ids from this list, exactly as written. Do not invent names.
+  Motions and remedies (e.g. a motion to vacate, damages) are not claims.
+  If no id fits, return an empty list.
+  {claim_type_ids}
 - "tenant_win" means tenant prevailed on the main issue (even if landlord brought the case)
 - "mixed" means split results on different claims
 - tenant_situation should read naturally, as if the tenant is describing their problem to a lawyer
@@ -100,13 +118,12 @@ async def get_case_data(kg: ArangoDBGraph) -> list[dict]:
 
 
 async def extract_ground_truth(
-    deepseek: DeepSeekClient, case: dict
+    deepseek: DeepSeekClient, case: dict, allowed_ids: set[str]
 ) -> dict | None:
     """Use LLM to extract structured ground truth from a case."""
     claims_str = ", ".join(c["name"] for c in case.get("claims", []))
     outcomes_str = "; ".join(
-        f"{o['name']}: {o.get('description', '')[:150]}"
-        for o in case.get("outcomes", [])
+        f"{o['name']}: {o.get('description', '')[:150]}" for o in case.get("outcomes", [])
     )
 
     prompt = EXTRACTION_PROMPT.format(
@@ -114,6 +131,7 @@ async def extract_ground_truth(
         description=case.get("description", ""),
         claims=claims_str or "(none linked)",
         outcomes=outcomes_str or "(none linked)",
+        claim_type_ids=", ".join(sorted(allowed_ids)),
     )
 
     try:
@@ -123,6 +141,7 @@ async def extract_ground_truth(
         if raw.startswith("```"):
             raw = raw.split("\n", 1)[1].rsplit("```", 1)[0]
         data = json.loads(raw)
+        data["claim_types"] = validate_claim_types(data.get("claim_types", []), allowed_ids)
         data["case_name"] = case["name"]
         data["case_key"] = case["key"]
         data["source_url"] = case.get("source_url")
@@ -133,21 +152,22 @@ async def extract_ground_truth(
 
 
 async def main():
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("  Building Case Outcome Ground Truth")
-    print(f"{'='*60}\n")
+    print(f"{'=' * 60}\n")
 
     settings = get_settings()
     kg = ArangoDBGraph()
     deepseek = DeepSeekClient(api_key=settings.deepseek_api_key)
 
+    allowed_ids = load_claim_type_ids()
     cases = await get_case_data(kg)
     print(f"  Found {len(cases)} case documents in graph\n")
 
     ground_truth = []
     for i, case in enumerate(cases):
-        print(f"  [{i+1}/{len(cases)}] {case['name'][:60]}...", end=" ", flush=True)
-        result = await extract_ground_truth(deepseek, case)
+        print(f"  [{i + 1}/{len(cases)}] {case['name'][:60]}...", end=" ", flush=True)
+        result = await extract_ground_truth(deepseek, case, allowed_ids)
         if result:
             ground_truth.append(result)
             print(

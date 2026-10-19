@@ -1,0 +1,5 @@
+None	Solow v. Wellner	New York Court of Appeals	1995-10-31	['658 N.E.2d 1005', '86 N.Y.2d 582', '635 N.Y.S.2d 132', '1995 N.Y. LEXIS 3569']
+None	Solow v. Wellner	Appellate Terms of the Supreme Court of New York	1994-07-26	['162 Misc. 2d 565', '618 N.Y.S.2d 845', '1994 N.Y. Misc. LEXIS 521']
+None	Solow v. Wellner	Civil Court of the City of New York	1991-03-29	['150 Misc. 2d 642', '569 N.Y.S.2d 882', '1991 N.Y. Misc. LEXIS 169']
+None	Solow v. Wellner	Appellate Division of the Supreme Court of the State of New York	1994-06-09	['205 A.D.2d 339', '613 N.Y.S.2d 163', '1994 N.Y. App. Div. LEXIS 6065']
+None	Solow v. Wellner	Appellate Terms of the Supreme Court of New York	1992-12-29	['154 Misc. 2d 737', '595 N.Y.S.2d 619', '1992 N.Y. Misc. LEXIS 642']

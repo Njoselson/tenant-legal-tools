@@ -2,83 +2,64 @@
 
 ## Elements
 
-1. **A residential lease exists** (written or oral), so the warranty attaches. — RPL § 235-b (implied in every residential lease).
-2. **The premises are not fit for human habitation** — i.e., conditions affecting health, safety, or functional habitability (not mere aesthetics). — RPL § 235-b(1); Solow v. Wellner (three distinct covenants; aesthetic/amenity complaints excluded); Park West v. Mitchell (severity, duration, remedial promptness weighed).
-3. **The condition is dangerous, hazardous, or detrimental to life, health, or safety.** — RPL § 235-b(1); Solow.
-4. **The condition was not caused by the tenant or someone under the tenant's control.** — RPL § 235-b(1) exception; HMC § 27-2006.
-5. **The landlord had notice and failed to cure within a reasonable time.** — Park West (duty runs regardless of who caused diminished services, subject to strike carve-out); Haskins (notice and failure to repair timely mattered); Poyck (duty to take reasonable steps to abate after complaints).
-6. **The duty is nondelegable** — the landlord cannot shift blame to a super or managing agent. — RPL § 235-b (nondelegable duty).
-7. **Specific code standards for heat** (multiple dwelling): 68°F, 6 a.m.–10 p.m. when outside is below 55°F, and 62°F, 10 p.m.–6 a.m., Oct. 1–May 31. — HMC § 27-2029; general duty to maintain in good repair, § 27-2005; central heating required, § 27-2028.
-8. **A code violation is strong but not strictly required evidence of breach; de minimis violations may not breach.** — Park West; Eastside Exhibition (de minimis principle).
-9. **Damages = difference between fair market value as warranted and value during breach, in practice a percentage rent abatement, weighed by severity, duration, and remedial promptness/effectiveness.** — Park West; Solow (10% common-area plus 1–11% per-apartment); Haskins (40% for 14 months).
-10. **Habitability may be raised as a defense or counterclaim in a nonpayment case.** — Park West.
-11. **Waiver of the warranty is void.** — RPL § 235-b(2).
-12. **Strike/labor-dispute limitation on damages** (only to the extent of landlord's net savings, if good-faith cure efforts). — RPL § 235-b(3).
+1. **Existence of the warranty of habitability in the tenancy.** RPL § 235-b(1) — implied in every residential lease, written or oral. [repo + secondary]
+2. **A condition that breaches one of the three statutory covenants** — (a) unfit for human habitation, (b) unfit for uses reasonably intended, or (c) conditions dangerous, hazardous or detrimental to life, health or safety. RPL § 235-b(1); Park West, 47 N.Y.2d 316 (test: whether, "in the eyes of a reasonable person, defects ... deprive the tenant of those essential functions which a residence is expected to provide"). [opinion]
+3. **The condition is not de minimis / not merely aesthetic.** Park West (violation may be "de minimis or ha[ve] no impact upon habitability"); Solow v. Wellner, 86 N.Y.2d 582 (objective minimum standard tied to essential residential functions). [opinion]
+4. **The condition was not caused by the tenant or persons under the tenant's direction or control.** RPL § 235-b(1) exception; HMC § 27-2006. [opinion / repo]
+5. **A housing-code violation is prima facie evidence of breach** (not exclusive determinant). Park West; HMC § 27-2029 (heat: 68°F 6 a.m.–10 p.m. when outside below 55°F; 62°F 10 p.m.–6 a.m. regardless of outside temperature, Oct 1–May 31); violation classes (Class C immediately hazardous, 24 hours) [secondary].
+6. **Notice and a reasonable opportunity to repair** — part of what mattered in Haskins (notice given; landlord failed to repair timely); Jangla Realty (notice required for repair-and-deduct). [repo / opinion]
+7. **Damages measured as difference between value as warranted (measured by rent reserved) and value during breach**, weighed by severity, duration, and effectiveness of landlord's abatement steps; no expert testimony required. RPL § 235-b(3); Park West. [opinion]
 
 ## How the law applies
 
-- **Lease (Element 1):** The tenant pays $1,850 monthly rent and refers to "my apartment," "my building," and a super/management company — consistent with a residential tenancy. The narrative does not state whether the lease is written or oral, but § 235-b applies either way. **Helps.**
-- **Unfit for habitation / health-safety impact (Elements 2–3):** No heat from early December to mid-February, with morning readings of 52°F, is squarely a functional-habitability and health/safety condition, not an aesthetic one (Solow). The children's winter colds plus a pediatrician's note support a health impact. **Helps strongly.** Caveat: colds are common and causation to the cold apartment is not established by the note alone — this is a proof weakness, not a fatal one, since the heat failure itself is the core breach.
-- **Code standard (Element 7):** 52°F is far below both the 68°F daytime and 62°F nighttime minimums under § 27-2029, and the period (December–February) falls within Oct. 1–May 31. **Helps strongly.** The narrative does not state the outside temperature on the logged mornings; the daytime 68°F standard is conditioned on outside temp below 55°F, but the nighttime 62°F standard applies regardless — so the nighttime readings alone establish a violation.
-- **Tenant causation (Element 4):** Nothing in the narrative suggests the tenant caused the heat failure. **Helps** (absence of a defense fact).
-- **Notice and failure to cure (Element 5):** Six 311 calls, two HPD inspections with Class C violations, weekly texts to the super, and weekly emails to management, all preserved. This is strong notice evidence and shows a prolonged failure to cure. **Helps strongly.**
-- **Nondelegable duty (Element 6):** If management blames the super or a contractor, that is no defense. **Helps** (forecloses a likely landlord argument).
-- **Violation evidence (Element 8):** Class C no-heat violations on HPD Online are strong evidence (Park West) and are not de minimis on these facts. **Helps.**
-- **Strike carve-out (Element 12):** The narrative says nothing about a strike or labor dispute; if the landlord raises one, § 235-b(3) limits damages to net savings only if the landlord made good-faith cure efforts. **Unknown/neutral** on these facts.
-- **Procedural posture:** The tenant has paid every month, so there is no nonpayment case to defend at present. The habitability claim would be asserted affirmatively (e.g., HP proceeding or plenary action) or as a defense/counterclaim if the landlord later sues. **Helps** — no rent-withholding exposure on these facts.
+- **Element 1 (warranty exists):** Helps. The narrative describes a residential apartment with monthly rent ($1,850), so a residential lease is implied; the tenant did not state whether the lease is written or oral, but § 235-b covers both.
+- **Element 2 (breach of a covenant):** Strongly helps. No heat in winter directly implicates "fit for human habitation" and "conditions ... detrimental to life, health or safety." Park West lists "insufficient heat" among the conditions that materially affect health and safety. The tenant's logged 52°F mornings are far below the § 27-2029 thresholds (68°F daytime / 62°F nighttime).
+- **Element 3 (not de minimis):** Helps. A multi-month heat outage in winter is not aesthetic or trivial under Solow's essential-functions standard. Eastside is a commercial partial-eviction case and does not bear on this residential habitability claim.
+- **Element 4 (not tenant-caused):** Neutral/unknown. The tenant says nothing about the cause of the heat failure. Nothing in the narrative suggests tenant misconduct, but the cause is unstated.
+- **Element 5 (code violation as prima facie evidence):** Strongly helps. Two HPD inspections produced Class C no-heat violations visible on HPD Online. Under Park West this is prima facie evidence of breach; the landlord may still contest extent and impact.
+- **Element 6 (notice and opportunity to repair):** Strongly helps. Six 311 calls, weekly texts to the super, weekly emails to management, and two HPD inspections over roughly ten weeks. Jangla's "reasonable opportunity" standard is easily met on these facts.
+- **Element 7 (damages):** Helps on severity and duration (December to mid-February, daily logs, pediatrician note, space-heater costs). Hurts slightly: the tenant has paid rent every month, so there is no nonpayment defense posture yet; if the landlord sues for nonpayment later, the tenant would raise breach as a defense/setoff. The space-heater electric bill is a consequential cost, not itself the abatement measure under Park West's fair-market-value test.
 
 ## Evidence present
 
 | Evidence | Element supported |
 |---|---|
-| Daily thermometer log (52°F most mornings) | Breach of habitation/health-safety (Elements 2–3); code standard (Element 7); severity and duration for abatement |
-| Six 311 calls | Notice (Element 5); corroborates HPD record |
-| Two HPD inspections with Class C no-heat violations, visible on HPD Online | Breach (Elements 2–3, 8); notice; severity (Class C = immediately hazardous) |
-| Weekly texts to super and emails to management, all kept | Notice and failure to cure (Element 5); remedial inaction for abatement |
-| Pediatrician's note re: children's colds | Health impact (Element 3); supports severity |
-| Space heaters and increased electric bill | Mitigation and out-of-pocket damages; severity |
-| Rent of $1,850/month, paid every month | Converts percentage abatement to dollars; establishes no nonpayment exposure |
+| Daily thermometer log (52°F mornings) | Breach (Element 2); severity/duration (Element 7) |
+| Six 311 calls; two HPD inspections; Class C no-heat violations on HPD Online | Prima facie breach (Element 5); notice (Element 6) |
+| Weekly texts to super and emails to management company, all kept | Notice and failure to repair (Element 6); landlord's ineffective response (Element 7) |
+| Pediatrician's note re: children's colds | Health impact (Element 2); severity (Element 7) |
+| Space heaters and raised electric bill | Mitigation and consequential cost (Element 7) |
+| Rent of $1,850, paid every month | Rent reserved, to convert percentage to dollars (Element 7) |
 
 ## Evidence missing
 
-- **Lease or proof of tenancy terms** (written lease, or other proof of the rental relationship) — Element 1. The narrative implies but does not document it.
-- **Exact start and end dates of the heat outage** — duration for the abatement period (narrative gives "first week of December" to "mid-February" only approximately).
-- **Outside temperature on logged mornings** — needed to invoke the daytime 68°F standard under § 27-2029 (nighttime 62°F standard applies regardless).
-- **The HPD violation numbers / printouts** — the tenant says they are visible on HPD Online but does not state she has downloaded or preserved them.
-- **The actual 311 complaint records and inspection reports** — corroboration of notice and violation class.
-- **Copies of the texts and emails with dates** — the tenant says she "kept all of it," but the specific dates and content are not described.
-- **The pediatrician's note itself and any medical records** — the note is mentioned but not described or attached.
-- **Electric bills showing the increase** — to quantify out-of-pocket damages from space heaters.
-- **Photos/video of the thermometer readings with dates** — the log is described but not the format or whether it is date-stamped.
-- **Landlord's response (or documented silence) to each complaint** — remedial promptness/effectiveness, which drives the abatement percentage.
-- **Whether any repair was attempted and when** — same.
-- **Whether a strike or labor dispute exists** — potential § 235-b(3) limitation.
-- **Any comparable-case abatement data for this building/landlord** — not required but would inform the range.
+- **Cause of the heat failure** — needed to rule out the § 235-b(1) tenant-misconduct exception (Element 4). Not mentioned.
+- **Exact start and end dates of the outage** — "first week of December" to "mid-February" is approximate; the abatement period needs precise dates (Element 7 / abatement amount).
+- **Copies of the HPD violation notices and inspection reports** — the tenant says they are visible on HPD Online but did not mention possessing copies (Element 5).
+- **The landlord's written responses (or proof of silence)** — tenant kept texts/emails but did not describe any response or repair attempts (Element 6; effectiveness of abatement steps, Element 7).
+- **Electric bills showing the increase** — mentioned as raised but no bills cited (Element 7).
+- **Whether heat was lost in the whole building or only the apartment; whether hot water was also affected** — affects severity and scope (Element 7).
+- **Lease or rent records** — to confirm the $1,850 rent and lease terms (Element 1; Element 7).
+- **Medical records beyond the pediatrician's note** — the note is mentioned; fuller records would strengthen health impact (Element 7).
 
 ## Likely remedy
 
-**Breach of the warranty of habitability under RPL § 235-b, with a rent abatement.** The facts are strong: a total heat failure lasting roughly 2.5 months in winter, documented by daily temperature logs, six 311 calls, two HPD inspections yielding Class C (immediately hazardous) violations, and weekly written notice to both the super and management with no cure. This is not a de minimis or aesthetic condition (Solow, Eastside); it is a health-and-safety failure squarely within § 235-b(1) and below the § 27-2029 minimums.
+The most likely remedy is a **rent abatement for breach of the warranty of habitability**, raised as a defense/setoff if the landlord brings a nonpayment proceeding, or sought affirmatively. On these facts — a total heat outage lasting roughly 2.5 months in winter, Class C violations, documented daily temperatures far below code, notice and no apparent repair — the breach is well supported.
 
-**Abatement range:** The materials support a range of roughly **20%–40%**, with **30%–40%** most defensible on these facts.
-- **Floor (~10%):** Park West and Solow affirmed 10% abatements, but those involved partial service losses (doorman/elevator/garbage; common areas) — less severe than a total winter heat loss.
-- **Ceiling (40%):** Haskins awarded 40% for 14 months of severe, chronic conditions including hazardous violations, with notice and failure to repair — closely analogous in severity and notice, though Haskins involved multiple conditions over a longer period.
-- **Reasoning for 30%–40%:** Total loss of heat (not partial), affecting the whole apartment, during winter, for ~2.5 months, with Class C violations and documented health impact, but shorter duration than Haskins and no evidence (yet) of additional broken facilities. Severity is high; duration is moderate; remedial promptness is poor (no cure despite repeated notice). That combination places this above the Park West/Solow 10% baseline and near, but likely below, the Haskins 40% ceiling.
-- **Dollar conversion:** At $1,850/month, a 30%–40% abatement is roughly **$555–$740 per month** for the affected period (approximately 2.5 months), i.e., roughly **$1,390–$1,850 total** — subject to the exact dates.
-- **Additional recoverable items:** Out-of-pocket electric-cost increase from space heaters (if documented) may be recoverable as consequential damages; the materials do not expressly address this, so treat as uncertain.
-- **Procedural remedy:** An HP proceeding (Housing Part) seeking an Order to Correct and civil penalties under HMC § 27-2115 is available; a 7-A Administrator is theoretically available but not supported as likely on these facts. Because the tenant has paid rent, there is no nonpayment defense to assert now, but the habitability claim would serve as a defense/counterclaim if the landlord later sues (Park West).
+**Abatement range:** The materials support a range of roughly **20%–40%**, with the higher end more likely given the severity. Reasoning:
+- Park West affirmed **10%** for 17 days of garbage/vermin conditions — a shorter, less health-critical outage than no heat in winter.
+- Haskins awarded **40% for 14 months** for chronic rodent infestation and hazardous conditions with notice and failure to repair — the closest analogue for severity and duration, though Haskins is a trial-level decision [repo] and persuasive only.
+- Solow's percentages (10% common areas; 1–11% individual units) were **not endorsed** by the Court of Appeals and were remanded; they are not a reliable benchmark.
+- A total loss of heat in winter is among the conditions Park West expressly lists as materially affecting health and safety, and the tenant has health-impact evidence (pediatrician note) and daily temperature logs. That pushes above Park West's 10%. The absence of stated repair efforts by the landlord (as described) supports the higher end; the unknown cause and the fact that the tenant has not yet withheld rent are the main uncertainties.
+
+The tenant may also pursue an **HP proceeding** (Order to Correct, civil penalties) under RPAPL §§ 110, 117 and CCA § 110(a) [secondary], and **repair-and-deduct** is not clearly available here because the tenant did not state that she arranged a heat repair herself (Jangla).
 
 ## Cannot determine
 
-- **Whether the tenancy is written or oral and the lease terms** — not stated; § 235-b applies either way, but the lease itself is not in the narrative.
-- **The exact dates of the heat outage** — needed to fix the abatement period and dollar amount.
-- **The outside temperature on the logged mornings** — needed to apply the daytime 68°F standard under § 27-2029 (the nighttime 62°F standard applies regardless).
-- **Whether a strike or labor dispute caused the outage** — would trigger the § 235-b(3) damages limitation; not mentioned.
-- **Whether the landlord made any repair attempts and when** — drives remedial-promptness weighting and the abatement percentage.
-- **The precise content and dates of the texts/emails and the landlord's responses** — not described.
-- **Whether the tenant has preserved the HPD Online records, 311 records, pediatrician's note, and electric bills** — mentioned but not confirmed as in hand.
-- **Whether the children's colds are causally linked to the cold apartment** — the pediatrician's note is mentioned but not described; medical causation is not established on these facts.
-- **Whether the electric-bill increase is recoverable as damages** — the materials do not address consequential damages for mitigation costs; this authority is not in the materials.
-- **The court level and precedential weight of Haskins and Poyck** — the materials state the court level is not given; treat as unverified.
-- **The exact abatement percentage a court would award** — the materials support only a range, not a fixed figure.
-- **Whether an HP proceeding, plenary action, or defense posture is procedurally best** — depends on facts not stated (e.g., whether the landlord has threatened a nonpayment case).
-- **Authority outside the materials:** The specific HPD violation-class definitions and § 27-2115 penalty amounts are marked [secondary] and unverified; the mold/pest sections (§§ 27-2017.3–.4) are not relevant here. Any authority on recovery of utility/mitigation costs is not in the materials and cannot be cited as support.
+- **Cause of the heat outage** — whether the § 235-b(1) tenant-misconduct exception could apply; the narrative is silent.
+- **Exact dates of the outage** — needed to fix the abatement period and dollar amount.
+- **Whether the landlord made any repair attempts** — the narrative describes notice but not any response; this affects the abatement percentage under Park West's "effectiveness of steps taken" factor.
+- **Scope of the outage** (building-wide vs. single apartment; hot water status) — affects severity.
+- **Whether a nonpayment proceeding is pending or threatened** — determines whether the remedy is a defense/setoff or an affirmative claim.
+- **The lease terms and rent records** — not provided.
+- **Authority outside the materials:** The tenant's situation may also implicate **RPAPL § 755** (stay of eviction for heat/hot water emergencies) and **NYC Admin Code § 27-2115(h)** (heat-specific penalties), but these are **not in the materials** and I cannot cite them as support. Similarly, any case law on heat-outage abatement percentages beyond Park West, Solow, and Haskins is not in the materials.

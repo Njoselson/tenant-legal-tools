@@ -1,0 +1,5 @@
+None	Park West Management Corp. v. Mitchell	Supreme Court of the United States	1979-12-10	['444 U.S. 992', '100 S. Ct. 523']
+None	Park West Management Corp. v. Mitchell	New York Court of Appeals	1979-06-07	['47 N.Y.2d 316', '391 N.E.2d 1288', '418 N.Y.S.2d 310', '1979 N.Y. LEXIS 2078']
+None	Park West Management Corp. v. Mitchell	Appellate Division of the Supreme Court of the State of New York	1978-05-02	['62 A.D.2d 291', '404 N.Y.S.2d 115', '1978 N.Y. App. Div. LEXIS 10453']
+None	Park West Management Corp. v. Mitchell	Appellate Division of the Supreme Court of the State of New York	1978-07-13	['64 A.D.2d 567', '1978 N.Y. App. Div. LEXIS 12321']
+None	Walling v. Holman	Court of Appeals for the Second Circuit	1988-09-19	['858 F.2d 79']

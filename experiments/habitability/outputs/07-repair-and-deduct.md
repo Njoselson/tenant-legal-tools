@@ -2,61 +2,57 @@
 
 ## Elements
 
-1. **Existence of the warranty of habitability in the tenancy.** RPL § 235-b(1) — implied in every residential lease, written or oral.
-2. **A condition within the warranty's scope** — premises/common areas not fit for human habitation, not fit for reasonably intended uses, or conditions dangerous/hazardous/detrimental to life, health or safety. RPL § 235-b(1); the three distinct covenants are separated in *Solow v. Wellner*.
-3. **The condition was not caused by the tenant or someone under the tenant's control.** RPL § 235-b(1) exception; HMC § 27-2006.
-4. **The condition is not de minimis or merely aesthetic.** *Park West Management Corp. v. Mitchell* (de minimis principle); *Solow* (aesthetic/amenity complaints excluded); *Eastside Exhibition Corp.* (not every technical violation is a substantive breach).
-5. **Notice to the landlord and failure to repair within a reasonable time** — the repair-and-deduct conditions drawn from *Jangla Realty Co. v. Gravagna* (persuasive only): notice, no repair within a reasonable time, a necessary repair (ideally of a code violation), reasonable cost, kept bids/receipts/communications. Notice and failure to timely repair also mattered in *100 W 174 LLC v Haskins*.
-6. **Landlord's nondelegable duty** — the landlord cannot shift blame to an agent or contractor. RPL § 235-b (nondelegable duty).
-7. **Owner's general duty to maintain in good repair and habitable condition.** HMC § 27-2005.
-8. **Remedy framework** — breach may be raised as a defense or counterclaim in a nonpayment case; damages measured as the difference between warranted and actual value, in practice a percentage abatement. *Park West*; *Solow*.
+1. **Existence of the warranty of habitability in the tenancy.** RPL § 235-b(1) — implied in every residential lease, written or oral. [repo + secondary]
+2. **A condition within the warranty's scope** — premises not fit for habitation, not fit for reasonably intended uses, or conditions dangerous/hazardous/detrimental to life, health or safety. RPL § 235-b(1); Park West, 47 N.Y.2d 316 (test: whether, in the eyes of a reasonable person, defects deprive the tenant of essential functions a residence is expected to provide). [opinion]
+3. **Not caused by the tenant's own misconduct.** RPL § 235-b(1) exception ("caused by the misconduct of the tenant or lessee or persons under his direction or control"); HMC § 27-2006. [opinion/repo]
+4. **For repair-and-deduct specifically:** (a) the condition creates an emergency seriously affecting habitability; (b) the landlord refused or did not repair within a reasonable time after reasonable opportunity; (c) the condition cannot reasonably continue until code enforcement runs its course; (d) notice to the landlord; (e) the cost is reasonable. Jangla Realty Co. v. Gravagna, 112 Misc. 2d 642 (Civ. Ct. N.Y. Co. 1981) (persuasive only). [opinion]
+5. **For a rent-abatement defense/setoff:** breach of the warranty, with damages measured as the difference between fair market value as warranted (measured by rent reserved) and value during the breach; the fact-finder weighs severity, duration, and the landlord's remedial efforts. Park West. [opinion]
 
 ## How the law applies
 
-- **Element 1 (warranty exists):** Helps. The narrative describes an apartment and a landlord, consistent with a residential lease. The materials do not state whether the lease is written or oral, but § 235-b covers both, so this element is likely satisfied on the stated facts.
-- **Element 2 (scope):** Mixed. A door lock that will not latch is a security/access condition that plausibly falls under the "dangerous, hazardous or detrimental to life, health or safety" covenant — the tenant says she was "afraid to sleep there." That is the strongest framing. However, the materials contain no case squarely holding a broken lock is a habitability breach; *Jangla* (persuasive only) treated unrepaired jimmied locks as a repair-and-deduct situation, which supports the theory but is the weakest authority in the materials.
-- **Element 3 (not tenant-caused):** Helps on the stated facts. The tenant says "someone broke in," i.e., a third party, not the tenant or anyone under her control. The materials do not describe any tenant conduct contributing to the break.
-- **Element 4 (not de minimis):** Uncertain. A single broken lock, repaired within two days, is a short-duration, single-item condition. *Park West* and *Eastside* warn that trivial conditions may not breach. The tenant's fear of sleeping there is the fact that pushes this away from de minimis, but the materials give no benchmark for a lock.
-- **Element 5 (notice and reasonable time):** Helps substantially. Same-day email plus a follow-up the next morning is documented notice. The landlord did nothing by the evening of the second day. Whether ~36–48 hours is a "reasonable time" to repair a lock is not resolved by the materials; *Jangla* treated about 18 hours as sufficient opportunity, which (if credited) supports the tenant, but *Jangla* is persuasive only and unverified.
-- **Element 6 (nondelegable):** Neutral/helps. Nothing in the narrative suggests the landlord blamed an agent; the duty is nondelegable regardless.
-- **Element 7 (HMC § 27-2005):** Helps as a general duty, but the materials do not identify a specific HMC provision classifying a broken lock as a violation, and *Park West* says a code violation is neither required nor automatically dispositive.
-- **Element 8 (remedy):** The tenant frames this as repair-and-deduct, not an abatement. The materials treat repair-and-deduct (*Jangla*) and percentage abatement (*Park West*, *Solow*, *Haskins*) as distinct mechanisms. The tenant's $240 deduction is a cost-recovery theory, not a value-of-premises theory.
+- **Element 1 (warranty exists):** The narrative describes an apartment and a monthly rent of $2,050, consistent with a residential tenancy. The tenant did not state whether the lease is written or oral, but § 235-b applies either way. **Helps.**
+- **Element 2 (scope):** A door lock that will not latch is a security defect affecting safety — arguably within the "dangerous, hazardous or detrimental to life, health or safety" prong and the "essential functions" test. The tenant's stated fear of sleeping there supports impact on safety. **Helps**, though the materials do not contain a case squarely holding a broken lock breaches the warranty; Jangla treats an inoperable lock as an "exigent" condition seriously affecting habitability, which is supportive but only persuasive.
+- **Element 3 (tenant misconduct):** The narrative says "someone broke in" — a third party, not the tenant. Park West holds acts of third parties are within the warranty's scope. **Helps**, but the tenant did not say who broke in or whether anyone under the tenant's control was involved; that is unknown.
+- **Element 4 (repair-and-deduct, Jangla):**
+  - *Emergency seriously affecting habitability:* a non-latching entry door plausibly qualifies (Jangla treated an inoperable lock as exigent). **Helps.**
+  - *Notice:* tenant emailed the same day and again the next morning. **Helps** — notice is documented.
+  - *Reasonable opportunity / refusal or failure to repair:* landlord did nothing by the evening of the second day; tenant hired a locksmith. Jangla found 18 hours after notice sufficient for an exigent lock. Here roughly two days elapsed. **Helps**, though "reasonable time" is fact-specific and the materials give no fixed rule.
+  - *Cannot reasonably wait for code enforcement:* not stated by the tenant. **Unknown/hurts** — the tenant did not explain why she could not await an HPD inspection.
+  - *Reasonable cost:* $240 with a receipt. Jangla found $120 reasonable in 1981; $240 today is not facially unreasonable, but the materials give no benchmark. **Neutral/helps.**
+- **Element 5 (abatement):** If the tenant instead (or also) pleads breach as a defense/setoff in a nonpayment proceeding, Park West supplies the framework. Severity (security/safety) and duration (about two days before self-help repair) are the key variables. **Mixed** — the short duration cuts against a large abatement.
 
 ## Evidence present
 
-- **Dated emails to the landlord (same day and next morning)** → Element 5 (notice) and Element 2 (duration/awareness).
-- **Receipt for the $240 locksmith payment** → Element 5 (reasonable cost; repair-and-deduct) and the abatement/deduction amount.
-- **Photo of the broken lock** → Element 2 (condition existed and its nature) and Element 4 (severity).
-- **Tenant's own account that she was afraid to sleep there** → Element 2 (health/safety impact) and Element 4 (not de minimis); *Poyck* indicates testimony and complaints can suffice.
-- **Rent amount ($2,050)** → context for the deduction, though not itself proof of breach.
+- **Emails to the landlord (same day and next morning)** → notice element (Jangla; Haskins notice-and-failure-to-repair).
+- **Photo of the broken lock** → existence and nature of the condition (Element 2).
+- **Locksmith receipt ($240)** → reasonable cost and repair-and-deduct amount (Jangla Element 4(e)).
+- **Tenant's own account of fear of sleeping there** → impact on health/safety (Element 2; Poyck: testimony sufficed).
+- **Rent amount ($2,050)** → basis for converting any percentage abatement to dollars.
 
 ## Evidence missing
 
-- **Proof the lock was not repaired by the landlord before the tenant hired the locksmith** (e.g., no landlord response, or a response showing inaction) → Element 5. The narrative says "he had not done anything," but no landlord reply is described.
-- **The locksmith invoice describing the work and cost breakdown** → Element 5 (reasonable cost) and the deduction amount. Only a receipt is mentioned.
-- **Any HPD/311 complaint or violation record** → Element 2/7. None mentioned; *Park West* says this is strong but not required evidence.
-- **Lease terms** (whether repair-and-deduct or self-help is addressed; any waiver — void under § 235-b(2)) → Element 1 and remedy.
-- **Dates the condition began and ended / when the lock was fixed** → abatement amount and duration.
-- **Whether the apartment was rendered unusable or only the entry door affected** (whole apartment vs. one item) → severity for any abatement percentage.
-- **Any landlord remedial efforts after the locksmith** → Element 5 and abatement amount.
-- **Whether the tenant actually withheld the $240 or paid full rent** → procedural posture (nonpayment exposure).
+- **Proof the landlord refused or failed to respond** beyond silence by the evening of day two — e.g., any reply, or evidence of no reply. Maps to Jangla Element 4(b).
+- **Why the condition could not await code enforcement** (no 311 complaint/HPD inspection mentioned). Maps to Jangla Element 4(c).
+- **Who broke in and whether any person under the tenant's control was involved.** Maps to Element 3 (misconduct exception).
+- **Dates the condition began and was cured** (exact duration). Maps to the abatement amount (Park West duration factor).
+- **Whether the lock was restored to code-compliant condition / any inspection.** Maps to Element 2 and to whether the breach persisted.
+- **Lease terms and any landlord rules on repairs.** Maps to Element 1 and to whether deduction is contractually addressed (though § 235-b(2) voids waivers of habitability rights).
+- **Whether a nonpayment proceeding has been filed or a rent demand served.** Maps to the procedural posture and the availability of setoff versus affirmative claim.
 
 ## Likely remedy
 
-The remedy most supportable from the materials is **repair-and-deduct of the $240 locksmith cost**, not a percentage rent abatement. The *Jangla* conditions line up on the stated facts: notice (same-day and next-morning emails), no repair within a short period, a necessary security repair, a stated cost with a receipt, and kept communications. But *Jangla* is the weakest authority in the materials (trial-level, persuasive only, unverified), and the materials do not confirm that a broken lock is a code violation, which the repair-and-deduct guidance prefers.
+The strongest remedy supported by the materials is **repair-and-deduct under Jangla** (persuasive only): the tenant may deduct the reasonable $240 locksmith cost from rent where an exigent lock condition existed, notice was given, the landlord had a reasonable opportunity and failed to repair, and the cost was reasonable. The facts line up well on emergency, notice, and cost; the weaker points are the "cannot await code enforcement" element and the exact reasonableness of the two-day window.
 
-A **percentage abatement is not supportable on these facts.** The materials' abatement benchmarks are *Park West* (10%), *Solow* (10% plus 1–11%), and *Haskins* (40% for 14 months of chronic, severe conditions). This tenant describes a single condition lasting roughly two days before self-help. Nothing in the materials supports assigning a percentage to a two-day, single-item repair, and the tenant is not seeking an abatement — she seeks a $240 deduction. I therefore cannot state a supportable abatement range; the materials do not supply one for this fact pattern.
-
-Procedurally, if the landlord sues for nonpayment over the $240, the tenant can raise breach as a defense/counterclaim (*Park West*), and full payment of arrears before the hearing would moot the case (RPAPL § 731/§ 749(3), per materials). Withholding without documentation risks judgment for full rent (*Park West* materials on defenses), but here the tenant has emails and a receipt.
+A **rent-abatement setoff under Park West** is also available if the landlord sues for nonpayment, but the materials support only a **small** abatement here: the breach was a single security defect lasting roughly two days before the tenant cured it. The cases in the materials range from about 1% to 40%, with 40% reserved for over a year of severe chronic conditions (Haskins) and 10% for a 17-day building-wide health emergency (Park West). On these facts a supportable range is roughly **1%–5% of one month's rent** (about $20–$103), reflecting short duration and a single serious-but-quickly-cured defect. The materials do not support a higher percentage on these facts. The $240 deduction is the more concrete and better-supported remedy.
 
 ## Cannot determine
 
-- Whether a broken door lock is a condition within RPL § 235-b or an HMC violation — no authority in the materials addresses locks specifically; *Jangla* is persuasive only and unverified.
-- Whether ~36–48 hours is a "reasonable time" to repair under *Jangla*'s standard — the materials give only the ~18-hour *Jangla* example and no rule.
-- Whether the lease permits or bars self-help/repair-and-deduct — lease not in the materials.
-- Whether the tenant actually withheld the $240 and the current procedural posture (any rent demand or petition) — not stated.
-- The exact dates and duration of the condition and when it was cured — not stated.
-- Whether any HPD violation exists — not mentioned.
-- The court level and precedential weight of *Haskins* and *Poyck* — the materials say the court level is not stated.
-- The specific HMC section classifying locks/pests/mold — the materials flag § 27-2017.3/.4 as secondary and unverified, and no lock provision is identified.
-- Any authority outside the materials that might address lock/security habitability or repair-and-deduct reasonableness — not in the materials, so not relied on.
+- Whether the tenant's lease is written or oral and whether it contains any repair/deduction clause (Element 1; though § 235-b(2) voids habitability waivers).
+- Who broke in and whether any person under the tenant's direction or control was involved (misconduct exception, Element 3).
+- Whether the tenant filed a 311 complaint or whether HPD violations exist (Element 2 and abatement weight).
+- The exact dates and total duration of the condition (abatement amount).
+- Whether the landlord ever responded to the emails after the tenant's repair (Jangla Element 4(b)).
+- Whether a nonpayment proceeding or rent demand is pending, which determines whether the $240 is asserted as a setoff/defense or an affirmative claim (procedure).
+- Whether $240 is a reasonable market cost for the repair (Jangla Element 4(e)); the materials give no current benchmark.
+- The precise legal status of repair-and-deduct in the current Housing Maintenance Code — Jangla cites former Admin Code § D26-20.05, and the materials do not include the current codified repair-and-deduct provision; that authority is **not in the materials** and cannot be cited as support.
+- The court level and precedential weight of Haskins and Poyck (the repo does not state the court level), which affects how much weight their percentages carry.

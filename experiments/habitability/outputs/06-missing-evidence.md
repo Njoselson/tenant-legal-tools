@@ -2,59 +2,57 @@
 
 ## Elements
 
-1. **A condition affecting habitability, intended use, or health/safety** — RPL § 235-b(1) (three covenants: fit for human habitation; fit for uses reasonably intended; no conditions dangerous, hazardous, or detrimental to life, health or safety). Solow v. Wellner confirms the three covenants are distinct and that protection covers health, safety, and functional habitability, not aesthetics.
-2. **The condition is not tenant-caused** — RPL § 235-b(1) exception (condition caused by tenant or someone under tenant's control); HMC § 27-2006 (tenant duties do not relieve owner).
-3. **Notice to the landlord and failure to repair within a reasonable time** — Park West (duty runs to tenant; fact-finder weighs severity, duration, remedial promptness); Haskins (notice and failure to timely repair among facts that mattered); Poyck (repeated complaints and landlord's failure to act supported breach).
-4. **The condition is not de minimis or merely aesthetic** — Park West (trivial violations may not breach); Eastside Exhibition (not every technical code violation is a substantive breach); Solow.
-5. **Duration and severity sufficient to measure damages** — Park West (difference between warranted value and value during breach, expressed as percentage abatement; severity, duration, remedial promptness weighed); Solow (1%–11% individual-apartment abatements plus 10% common-area); Haskins (40% for 14 months).
-6. **For repair-and-deduct (if pursued): notice, no repair within reasonable time, necessary repair, reasonable cost, receipts** — Jangla Realty (persuasive only; weakest authority).
-7. **For an HP proceeding: Housing Part jurisdiction and remedies** — RPAPL §§ 110, 117; CCA § 110(a); RPAPL Art. 7-A §§ 769–783 (Order to Correct, civil penalties, 7-A Administrator).
-8. **Code standards if framed as violations** — HMC § 27-2005 (general duty to maintain); § 27-2031 (hot water at least 120°F, 6 a.m.–midnight); § 27-2017.3 (mold) and § 27-2017.4 (pests) [secondary, section numbers unverified]; violation classes [secondary].
+1. **Existence of a residential lease (written or oral).** The warranty of habitability is implied in every residential lease. *RPL § 235-b* [repo + secondary].
+2. **A condition that breaches one of the three § 235-b(1) covenants:** (a) premises/common areas not fit for human habitation; (b) not fit for uses reasonably intended; or (c) occupants subjected to conditions dangerous, hazardous, or detrimental to life, health, or safety. *RPL § 235-b(1)* [opinion, as quoted in *Park West*].
+3. **The condition is not caused by the tenant's own misconduct or persons under the tenant's direction/control.** *RPL § 235-b(1)* statutory exception [opinion, *Park West* n.1].
+4. **The condition is material, not de minimis or merely aesthetic** — it must deprive the tenant of essential residential functions in the eyes of a reasonable person. *Park West*, 47 N.Y.2d 316 [opinion]; *Solow v. Wellner*, 86 N.Y.2d 582 [opinion].
+5. **A housing-code violation is prima facie evidence of breach but not dispositive** — the parties must still produce evidence on extent, impact, and the landlord's measures. *Park West* [opinion]; HMC §§ 27-2005, 27-2029, 27-2031, 27-2017.3/.4 [repo/secondary].
+6. **For the abatement amount:** difference between fair market value as warranted (measured by rent reserved) and value during breach, weighing severity, duration, and the landlord's remedial efforts. *Park West* [opinion]; *Solow* [opinion]; *100 W 174 LLC v Haskins* [repo]; *Poyck v Bryant* [repo].
+7. **For repair-and-deduct (if pursued):** emergency seriously affecting habitability, notice to landlord, refusal or failure to repair within a reasonable time after reasonable opportunity, and reasonable cost. *Jangla Realty Co. v. Gravagna* [opinion, persuasive only].
 
 ## How the law applies
 
-- **Condition affecting habitability/health (Element 1):** Helps — tenant describes a persistent bad smell for about six months, suspected pipe/mold problem, intermittently brownish water, and symptoms (headaches, coughing). Odor, possible mold, and discolored water plausibly touch the habitation and health/safety covenants under § 235-b(1) and Solow. Hurts — the tenant is "not sure if the smell is from the building or from me," which undercuts causation and the "condition in the premises" showing; brown water onset is unknown, so duration of that condition is unestablished. No HPD violation or inspection is mentioned (Park West: violations are strong but not required evidence).
-- **Not tenant-caused (Element 2):** Hurts — the tenant's own uncertainty about the smell's source leaves open the § 235-b(1) tenant-caused exception and HMC § 27-2006. Nothing in the narrative rules out a tenant-side cause.
-- **Notice and failure to repair (Element 3):** Hurts significantly — the tenant expressly has **not reported** the condition, citing fear of retaliation. Under Park West/Haskins/Poyck, notice and the landlord's failure to act are central; with no notice, the landlord has had no opportunity to cure, and the remedial-promptness factor cannot favor the tenant. This is the biggest gap.
-- **Not de minimis/aesthetic (Element 4):** Mixed — a smell alone might be argued aesthetic under Solow, but the combination with brownish water and reported illness moves it toward health/safety. The tenant's symptoms are self-described and undocumented.
-- **Duration/severity for abatement (Element 5):** Partly helps — "about six months" gives a rough duration for the smell; rent of $2,100 allows conversion of a percentage into dollars. Hurts — brown-water duration unknown; scope (whole apartment vs. one room) unstated; no evidence of landlord remedial efforts (none requested).
-- **Repair-and-deduct (Element 6):** Not available on these facts — no notice, no repair undertaken, no receipts or costs mentioned (Jangla requires notice, reasonable time, necessary repair, reasonable cost, receipts).
-- **HP proceeding (Element 7):** Theoretically available under RPAPL §§ 110, 117 and CCA § 110(a), but the tenant has not filed a 311 complaint or sought inspection, so no violation record exists.
-- **Code standards (Element 8):** Brownish water is not clearly tied in the materials to a specific code section; § 27-2031 addresses hot-water temperature, not color. Mold and pest provisions are [secondary] and unverified. No heat or hot-water failure is described.
+- **Element 1 (lease):** The tenant pays $2,100 rent, which implies a residential tenancy. The narrative does not state whether the lease is written or oral, but § 235-b applies either way. **Helps.**
+- **Element 2 (breach condition):** A persistent bad smell, possible mold, possible pipe problem, and intermittently brownish water could, if proven, fall within "insufficient plumbing," "inadequate sanitation," or conditions "detrimental to life, health or safety" under *Park West* and § 235-b(1). Brownish water may implicate hot-water/plumbing standards (HMC § 27-2031) and mold may implicate § 27-2017.3 [secondary, unverified]. **Helps if proven, but the tenant's own uncertainty ("I think," "maybe," "not sure if the smell is from the building or from me") weakens causation and identification of the condition.**
+- **Element 3 (not tenant-caused):** The tenant expressly says she is "not sure if the smell is from the building or from me." This is the biggest vulnerability — the statutory exception for tenant-caused conditions could defeat the claim if the source is within her control. **Hurts.**
+- **Element 4 (materiality):** Six months' duration and reported sickness (headaches, coughing) support materiality if linked to the condition. But the tenant has not established the condition is more than aesthetic or de minimis; *Solow* requires an objective, essential-function standard. **Mixed.**
+- **Element 5 (code violation):** No HPD complaint or inspection is mentioned, so there is no prima facie code-violation evidence. **Hurts.**
+- **Element 6 (abatement):** Duration (~six months) is stated, and rent ($2,100) is known, so a percentage could be converted to dollars. But severity, scope (whole apartment vs. one room), and the landlord's response are unknown. **Mixed.**
+- **Element 7 (repair-and-deduct):** The tenant has not reported the condition, so the notice element of *Jangla* is not met. **Hurts** — and this also undercuts the "failure to repair" factor that mattered in *Haskins* and *Poyck*.
+- **Retaliation fear:** The narrative explains non-reporting, but the materials contain no anti-retaliation statute or authority, so this cannot be analyzed as a legal defense here (see *Cannot determine*).
 
 ## Evidence present
 
-- **Tenant's own testimony** about the smell, suspected pipe/mold problem, brownish water, and symptoms (headaches, coughing) — supports Element 1 (condition and health impact); Poyck indicates testimony can suffice, but here it is hedged.
-- **Duration statement ("about six months")** for the smell — supports Element 5 (duration for abatement period).
-- **Rent amount ($2,100)** — supports Element 5 / abatement calculation (converting percentage to dollars).
-- No other evidence is described in the narrative.
+- **Tenant's own testimony** about the smell, possible mold/pipes, brownish water, duration (~six months), and symptoms (headaches, coughing) — supports Elements 2 and 4 (*Poyck*: testimony and complaints can suffice).
+- **Rent amount ($2,100)** — supports converting any percentage abatement to dollars (Element 6).
+- **Approximate duration (~six months)** — supports the abatement period (Element 6).
+- **Statement of non-reporting and fear of retaliation** — explains the absence of notice evidence but does not itself prove breach.
 
 ## Evidence missing
 
-- **Notice to landlord (dated letters, texts, emails, portal messages) and any response or silence** — Element 3; also needed for repair-and-deduct (Element 6) and to rebut any claim of no opportunity to cure.
-- **311 complaint and HPD inspection/violations (HPD Online record)** — Element 1 and Element 8; strong evidence per Park West.
-- **Dated photos/video of the brown water and any visible mold; inspector or expert report identifying the source** — Element 1 and Element 2 (to rule out tenant-caused source).
-- **Medical records documenting the headaches and coughing and any link to the conditions** — Element 1 (health impact) and Element 5 (severity).
-- **Dates the brown water began and whether it is ongoing; whether the smell/water affect the whole apartment or one area** — Element 5 (duration and scope for abatement).
-- **Any landlord remedial efforts or lack thereof after notice** — Element 5 (remedial promptness factor).
-- **Repair receipts/costs, if any repair was done** — Element 6 (repair-and-deduct).
-- **Witness statements** (e.g., neighbors experiencing the same smell) — Element 1 and Element 2.
+- **Notice to landlord/agent (dated complaints, texts, emails, portal messages) and any response or silence** — Element 7 and the "failure to repair" factor in *Haskins*/*Poyck*; also relevant to Element 6 (landlord's remedial efforts).
+- **HPD/311 complaint and inspection record, HPD violations** — Element 5 (prima facie breach under *Park West*).
+- **Dated photos/video, inspector or expert reports** — Element 2 (identifying the condition and its source).
+- **Medical records linking symptoms to the condition** — Element 4 (health impact).
+- **Evidence ruling out a tenant-caused source** (e.g., inspection showing building-side origin) — Element 3.
+- **Dates the brown water began and whether it is ongoing; scope of affected areas** — Element 6 (duration and severity for abatement).
+- **Lease and rent ledger** — Element 1 and Element 6 (rent actually charged for the breach period).
+- **Any repair receipts** — Element 7 (only if repair-and-deduct is pursued).
 
 ## Likely remedy
 
-The most supportable remedy on the stated facts is a **rent-abatement defense or counterclaim under RPL § 235-b** in any nonpayment proceeding (Park West permits habitability as defense or counterclaim), and potentially an **HP proceeding** for an Order to Correct once violations are documented (RPAPL §§ 110, 117; CCA § 110(a)).
+The most supportable remedy is a **rent abatement as a defense/setoff in a nonpayment proceeding** (or a plenary claim), under *Park West* and § 235-b. Repair-and-deduct under *Jangla* is **not** currently available because notice was never given.
 
-**Abatement range:** A percentage abatement is supportable in principle, but the materials do not support a specific range on these facts. The comparable awards are Park West 10%, Solow 10% plus 1%–11% for individual-apartment issues, and Haskins 40% for 14 months of severe, chronic, documented conditions with notice and failed repair. This tenant's facts are materially weaker than Haskins: no notice, no violations, uncertain source, undocumented symptoms, and unknown duration for the brown water. If the tenant documents notice, an HPD violation, and the source, a modest abatement in the low single digits to roughly 10% for the smell period could be argued by analogy to Park West/Solow; absent notice and documentation, **no abatement is reliably supportable**, because the tenant cannot show the landlord had an opportunity to cure and the condition's source and scope are unestablished. The six-month smell period, if proven, would set the abatement period; the brown-water period cannot be set because its start date is unknown.
+A percentage range is **not reliably supportable** on these facts. The materials show abatements from roughly 1% to 40% (*Park West* 10%; *Solow* percentages not endorsed by the Court of Appeals; *Haskins* 40% for 14 months of chronic, documented, noticed conditions). Here, the tenant has **no notice, no code violations, no documentation, and an unresolved causation question** — the very factors that drove the higher awards are absent. If breach were proven, a **low-end abatement (roughly 5–10%)** is the most defensible anchor by analogy to *Park West*, but even that is speculative because severity and scope are unknown. I would advise the reviewer that **no specific percentage should be promised**; the range depends on facts not yet established.
 
 ## Cannot determine
 
-- Whether the smell or brown water originates in the building/premises or from a tenant-caused source (affects Elements 1 and 2).
-- When the brown water began and whether it continues (affects duration and abatement period).
-- Whether the tenant has any documentation of the conditions (photos, medical records) beyond her own account.
-- Whether any 311 complaint or HPD inspection has occurred.
-- Whether the landlord has ever been on notice through any channel (e.g., building-wide complaints by other tenants).
-- The scope of the affected area (whole apartment vs. one room), which affects the abatement percentage.
-- Whether a specific code provision covers brownish water; the materials do not supply one, and the mold provision (§ 27-2017.3) is [secondary] with unverified section numbers.
-- Whether the tenant faces a pending nonpayment proceeding or rent demand (RPAPL § 711(2), § 735, 14-day demand) — not stated.
-- Whether retaliation concerns are well-founded; the materials contain no anti-retaliation authority, and any such authority (e.g., Real Property Law § 223-b) is **not in the materials** and is not cited as support here.
-- The court level of Haskins and Poyck, which affects their precedential weight (not stated in the repo).
+- Whether the smell/mold/water condition originates in the building or the tenant's unit (causation and the § 235-b(1) tenant-misconduct exception).
+- Whether the condition is material or de minimis/aesthetic (*Solow*, *Park West*).
+- Whether any notice was given and when, which affects both breach proof and repair-and-deduct (*Jangla*, *Haskins*, *Poyck*).
+- Whether any HPD violations exist.
+- The scope of affected areas and exact duration of the brown water.
+- Whether a nonpayment proceeding is pending or a rent demand has issued (RPAPL §§ 711(2), 735) — not stated.
+- **Anti-retaliation protections** (e.g., RPL § 223-b or HMC provisions) — these are **not in the materials**; I cannot cite them as support.
+- **Mold/pest section numbers** (§§ 27-2017.3/.4) are flagged [secondary; unverified] in the materials.
+- The court level of *Haskins* and *Poyck* is not stated in the repo, affecting their precedential weight.

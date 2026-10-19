@@ -3,6 +3,10 @@
 Source key: **[repo]** = text held in this repo (`data/taxonomy/laws.yaml`, `data/case_ground_truth.json`).
 **[secondary]** = summarized from the maintainer's notes and general knowledge; the opinion was not fetched or read.
 Treat every [secondary] holding as unverified.
+**[opinion]** = checked against the full opinion text fetched from CourtListener (`opinions/`) or Cornell LII.
+
+v2 (corrected): the first run's materials had errors found by reading the opinions: the Solow holding, the Park West
+facts, the § 235-b(3) text, the Eastside description and citation. See RUN.md.
 
 ## Statutes and code
 
@@ -12,10 +16,12 @@ Treat every [secondary] holding as unverified.
 - Subdivision 1: the landlord warrants that (1) the premises and common areas are fit for human habitation,
   (2) the premises are fit for the uses reasonably intended by the parties, and (3) occupants will not be
   subjected to conditions that are dangerous, hazardous or detrimental to life, health or safety.
-  Exception: the condition was caused by the tenant or someone under the tenant's control.
-- Subdivision 2: any waiver of the warranty is void as against public policy.
-- Subdivision 3: damages are limited where the condition results from a strike or labor dispute not primarily
-  caused by the landlord, to the extent of the landlord's net savings, if the landlord made good-faith efforts to cure.
+  Exception (statutory text as quoted in Park West, 47 N.Y.2d at 325 n.1): a condition "caused by the misconduct of the
+  tenant or lessee or persons under his direction or control" is not a breach. [opinion]
+- Subdivision 2: any waiver or modification of the tenant's rights is void as contrary to public policy. [opinion]
+- Subdivision 3: in determining the tenant's damages, the court need not require expert testimony. [opinion]
+  (The first version of this file wrongly described subdivision 3 as a strike/labor-dispute damages limit. The statute
+  text quoted in Park West has no such provision.)
 - The duty is nondelegable (the landlord cannot blame a managing agent or contractor).
 
 ### NYC Housing Maintenance Code (Admin Code Title 27, Ch. 2) [repo + secondary]
@@ -50,35 +56,64 @@ Treat every [secondary] holding as unverified.
 
 All six are binding or persuasive only as described. Court and year are given for each.
 
-### 1. Park West Management Corp. v. Mitchell, 47 N.Y.2d 316 (1979), NY Court of Appeals [secondary]
+### 1. Park West Management Corp. v. Mitchell, 47 N.Y.2d 316 (1979), NY Court of Appeals [opinion]
 
-Foundational. A building-employee strike left tenants without doorman, elevator and garbage services. Held: the
-§ 235-b duty runs to the tenant regardless of who caused the diminished services (subject to the strike carve-out in
-subdivision 3). Habitability can be raised as a defense or counterclaim in a nonpayment case. Damages are the
-difference between the fair market value of the premises as warranted and their value during the breach, in practice a
-percentage rent abatement. The fact-finder weighs severity, duration, and the landlord's remedial promptness and
-effectiveness. A Housing Maintenance Code violation is not strictly required to prove breach and does not automatically
-establish breach; it is strong evidence, but trivial (de minimis) violations may not breach. A 10% abatement was affirmed.
+Chief Judge Cooke, unanimous. Facts: for 17 days in May 1976 the entire maintenance and janitorial staff of a seven-building
+Manhattan complex struck. Incinerators were wired shut, uncollected trash piled to the first-floor windows, the city declared
+a health emergency, extermination stopped and rats, roaches and vermin flourished. (Doorman and elevator were not at issue.)
+The parties stipulated the facts for about 400 tenants. Civil Court found a breach and reduced the June rent bill by 10%;
+Appellate Term and Appellate Division affirmed; the Court of Appeals affirmed ("The record here amply supports the 10%
+reduction ... Given the severity of the conditions ... and the feeble attempts by petitioner to alleviate the dangers").
+Holdings: the statute "places an unqualified obligation on the landlord to keep the premises habitable"; conditions from
+"ordinary deterioration, work stoppages by employees, acts of third parties or natural disaster are within the scope of the
+warranty"; the duty is nondelegable and nonwaivable. A landlord is not required to ensure "perfect or even aesthetically
+pleasing condition", but warrants that there are no conditions that "materially affect the health and safety of tenants",
+e.g. insect or rodent infestation, insufficient heat and plumbing, dangerous wiring, inadequate sanitation. Test: "If, in the
+eyes of a reasonable person, defects in the dwelling deprive the tenant of those essential functions which a residence is
+expected to provide, a breach ... has occurred." Housing code: substantial violation is "prima facie evidence" that the
+premises are not habitable, but a violation may be "de minimis or ha[ve] no impact upon habitability", so once shown the
+parties must produce evidence on the extent of the breach, its impact on health, safety or welfare, and the landlord's
+measures; code violation is not the exclusive determinant, since threats to health and safety "determine the reach" of the
+warranty. Damages: the difference between the fair market value as warranted (measured by the rent reserved) and the value
+during the breach; a sum in a plenary action or a percentage reduction of rent as a setoff in a nonpayment proceeding
+where the tenant counterclaims or pleads breach as a defense. The fact-finder "must weigh the severity of the violation and
+duration of the conditions ... as well as the effectiveness of steps taken by the landlord to abate"; no expert testimony
+needed. The opinion does not discuss tenant notice as an element.
 
-### 2. Solow v. Wellner, 86 N.Y.2d 582 (1995), NY Court of Appeals [secondary]
+### 2. Solow v. Wellner, 86 N.Y.2d 582 (1995), NY Court of Appeals [opinion, via Cornell LII text]
 
-Clarified that § 235-b(1) contains three distinct covenants (habitation, intended use, no danger to life, health or
-safety). Protection covers conditions affecting health, safety or functional habitability, not aesthetic or amenity
-complaints. Applying the Park West method, upheld a 10% abatement for common-area failures plus additional abatements of
-1% to 11% for individual apartment issues, within a six-year limitations period.
+Judge Levine. About 65 tenants of a Manhattan building withheld rent; the landlord sued for nonpayment (Oct 1987 to May 1988).
+Civil Court (trial level) applied a "reasonable expectations" standard from lease terms and building rents and awarded 10% for
+common areas plus 1% to 11% for individual apartments. Appellate Term rejected that standard, found only elevator service
+problems warranted abatement, cut the common-area abatement to 5%, denied additional abatements for 16 apartments and
+remanded the rest for recalculation. The Appellate Division modified the remand in part and otherwise affirmed. The Court of
+Appeals AFFIRMED that order. It rejected the lease-based reasonable-expectations standard: the warranty is a minimum, objective
+standard tied to essential residential functions, and operable elevator service is essential in a high-rise. The Court of
+Appeals did NOT review or endorse any percentage (10%, 1-11% or 5%); those were left to be recalculated on remand. The
+three covenants of § 235-b(1) (habitation, intended use, no danger to life, health or safety) are quoted from the statute.
 
-### 3. Eastside Exhibition Corp. v. 210 East 86th St. Corp., 18 N.Y.3d 1035 (2012), NY Court of Appeals [secondary]
+### 3. Eastside Exhibition Corp. v. 210 East 86th St. Corp., 18 N.Y.3d 617 (2012), NY Court of Appeals [opinion]
 
-A commercial lease case, frequently cited for the Park West de minimis principle: not every technical code violation
-is a substantive breach of the warranty if it has no real impact on use.
+(Corrected citation; the first version cited 18 N.Y.3d 1035.) Judge Ciparick. A COMMERCIAL lease case about actual partial
+eviction, not the warranty of habitability. A movie-theater tenant stopped paying rent after the landlord installed about
+12 square feet of cross-bracing in a 15,000-19,000 sq ft premises. Held: a minimal intrusion with no demonstrable effect on
+the tenant's use is de minimis and does not warrant the traditional remedy of total rent abatement; damages are the remedy.
+It does not address RPL § 235-b, housing code violations or residential habitability. It is a general de minimis case, not
+authority for the Park West code-violation de minimis point.
 
-### 4. Jangla Realty Co. v. Gravagna, 112 Misc. 2d 642, 447 N.Y.S.2d 338 (Civ. Ct. Queens Co. 1981) [secondary, weakest]
+### 4. Jangla Realty Co. v. Gravagna, 112 Misc. 2d 642, 447 N.Y.S.2d 338 (Civ. Ct. N.Y. Co. 1981), Milano, J. [opinion]
 
-Trial-level decision, persuasive only. The standard citation for repair-and-deduct. A burglar jimmied the tenant's door
-locks; the landlord had not repaired them about 18 hours after notice; the court treated that as sufficient opportunity to
-repair and allowed the tenant to deduct the locksmith's cost. Summarized from secondary sources; the opinion has not been read.
-Repair-and-deduct conditions drawn from it and from guidance: notice to the landlord, no repair within a reasonable time,
-a necessary repair (ideally of a code violation), a reasonable cost, and kept bids, receipts and communications.
+Trial-level decision, persuasive only. Facts: on Sept 3, 1981 a burglar jimmied both locks of a senior tenant's door in a
+Maspeth, Queens building. She told the superintendent about 7 p.m.; he said replacement would take two to three days. About
+noon the next day she called a locksmith; the landlord's office employee told her to make the repair and send the bill. The
+landlord's agents never said they would repair. The tenant claimed $120 for a replacement lock and installation. Issue: whether
+18 hours after notice is a sufficient opportunity to repair for an "exigent" inoperable lock. The court, drawing on Jackson v
+Rivera (65 Misc 2d 468), held a tenant may repair and deduct the reasonable cost when (1) the condition creates an emergency
+seriously affecting habitability, (2) the landlord has refused or not repaired in reasonable time after reasonable
+opportunity, and (3) the condition cannot reasonably continue until code enforcement runs its course; notice to the landlord
+is required; the cost must be reasonable. It found an emergency, notice to the super, ample opportunity, and $120 reasonable,
+and set off $120 against $203.83 owed. The decision cites Park West at 329 for the rent-abatement remedy and notes other
+remedies "were not excluded". The statutory basis cited is former Admin Code § D26-20.05 (door locks).
 
 ### 5. 100 W 174 LLC v Haskins, 2014 NY Slip Op 51673(U) [repo: `data/case_ground_truth.json`]
 

@@ -2,54 +2,50 @@
 
 ## Elements
 
-1. **A condition affecting habitability, intended use, or health/safety** — RPL § 235-b(1) (three covenants: fit for human habitation; fit for uses reasonably intended; no conditions dangerous, hazardous, or detrimental to life, health or safety). The condition must affect health, safety, or functional habitability, not mere aesthetics or amenities — Solow v. Wellner; Park West Management Corp. v. Mitchell.
-2. **Not de minimis / not merely cosmetic** — Park West (trivial violations may not breach); Eastside Exhibition Corp. (not every technical violation is a substantive breach if it has no real impact on use); Solow (aesthetic/amenity complaints excluded).
-3. **Notice to the landlord and failure to repair within a reasonable time** — Haskins (notice and failure to timely repair mattered); Poyck v Bryant (repeated complaints and landlord's failure to act); Jangla Realty (notice, reasonable time, necessary repair) [secondary, weakest].
-4. **Condition not caused by the tenant** — RPL § 235-b(1) exception; HMC § 27-2006.
-5. **Duration and severity of the breach** — Park West (fact-finder weighs severity, duration, remedial promptness/effectiveness); Solow (Park West method).
-6. **Damages measured as difference between warranted and actual value (percentage abatement)** — Park West; Solow.
-7. **If repair-and-deduct is contemplated: notice, no repair within reasonable time, necessary repair (ideally a code violation), reasonable cost, kept bids/receipts/communications** — Jangla Realty [secondary, weakest].
+1. **A condition within the warranty's scope** — the premises or common areas are not fit for human habitation, not fit for the uses reasonably intended, or occupants are subjected to conditions dangerous, hazardous, or detrimental to life, health, or safety. *RPL § 235-b(1); Park West, 47 N.Y.2d 316.*
+2. **The condition is not de minimis / not merely aesthetic** — the warranty does not require "perfect or even aesthetically pleasing condition"; the test is whether, "in the eyes of a reasonable person, defects … deprive the tenant of those essential functions which a residence is expected to provide." *Park West; Solow v. Wellner, 86 N.Y.2d 582 (objective minimum standard tied to essential residential functions).*
+3. **A code violation may be prima facie evidence of breach, but is not dispositive** — a substantial violation is prima facie evidence of uninhabitability, yet a violation may be de minimis or have no impact on habitability. *Park West.* (HMC §§ 27-2005, 27-2013 (painting) supply the underlying duties.)
+4. **The condition was not caused by the tenant's misconduct.** *RPL § 235-b(1) exception; HMC § 27-2006.*
+5. **Damages measured as the difference between the value as warranted (measured by rent reserved) and value during the breach**, weighing severity, duration, and the landlord's remedial efforts; no expert testimony required. *Park West; RPL § 235-b(3).*
+6. **If raised defensively in a nonpayment proceeding**, breach may be pleaded as a defense or counterclaim and applied as a percentage setoff. *Park West; RPAPL § 711(2) (proper written rent demand required).*
 
 ## How the law applies
 
-- **Element 1 (habitability/health/safety):** The tenant's facts hurt. Peeling paint in a couple of spots, stained hallway carpet, worn cabinet finish, and a dated lobby are described by the tenant as appearance issues ("stained and ugly," "looks dated," "bothers me"). The tenant affirmatively states "Everything works and nothing is leaking or broken." Under Solow, aesthetic and amenity complaints are outside § 235-b. No fact stated shows an effect on health, safety, or functional habitability.
-- **Element 2 (not de minimis):** Facts hurt. These are the paradigm of cosmetic/de minimis conditions under Park West and Eastside. No code violation is stated (and even a violation would not be dispositive — Park West).
-- **Element 3 (notice/failure to repair):** Facts help somewhat. The tenant asked about three months ago and the landlord said "maybe next year." That is notice and non-repair. But notice only matters if the underlying condition is actionable; here it likely is not.
-- **Element 4 (tenant-caused):** No facts indicate tenant causation; neutral. The tenant did not state who caused the peeling or staining — unknown.
-- **Element 5 (duration/severity):** Duration is roughly three months since the request, but the start date of the conditions is not stated. Severity is low on the stated facts.
-- **Element 6 (abatement):** Even if a breach were found, the stated facts (cosmetic, whole-apartment use unaffected) would place any abatement at the very bottom of the range or below it. The materials' low end is roughly 1% (Solow individual-apartment issues) and 10% (Park West, Solow common areas); Haskins' 40% involved chronic severe conditions over 14 months, which these facts do not resemble.
-- **Element 7 (repair-and-deduct):** Not supported. The tenant performed no repair and mentioned no cost or receipts; and the conditions are not stated to be code violations.
+- **Element 1 (scope):** The facts hurt the tenant. Peeling paint in "a couple of spots," stained/ugly hallway carpet, worn cabinet finish, and a "dated" lobby are appearance and cosmetic conditions. The tenant expressly states "everything works and nothing is leaking or broken." Under *Park West*'s essential-functions test and *Solow*'s objective minimum standard, these facts do not show deprivation of essential residential functions or danger to health, safety, or welfare. The tenant states no health or safety impact.
+- **Element 2 (de minimis/aesthetic):** Strongly against the tenant. *Park West* expressly disclaims any warranty of "aesthetically pleasing condition." *Eastside Exhibition* (a commercial, actual-partial-eviction case, not a § 235-b case) reinforces only the general de minimis principle — a minimal intrusion with no demonstrable effect on use does not support abatement. It is not habitability authority, but its de minimis logic is consistent with *Park West*/*Solow* here.
+- **Element 3 (code violations):** The tenant mentions no HPD violations, no 311 complaint, and no inspection. HMC § 27-2013 (painting) is listed in the materials by title only, so its substantive standard cannot be applied. Even if a painting violation existed, *Park West* allows that a violation may be de minimis or have no habitability impact — which is the likely characterization here.
+- **Element 4 (tenant causation):** No facts suggest tenant-caused conditions; neutral. The tenant does not describe the cause of the peeling or stains.
+- **Element 5 (damages):** Even if breach were found, severity is minimal (a couple of spots; cosmetic), duration is at most about three months (request made three months ago; the tenant does not state when conditions began), and the landlord's response ("maybe next year") is a refusal/delay but not shown to be unreasonable for cosmetic work. These factors point to a very low or zero abatement.
+- **Element 6 (procedural posture):** The tenant is not in a nonpayment proceeding on these facts; the tenant asks whether rent may be reduced unilaterally. Withholding rent without a documented, meritorious breach risks a nonpayment suit and judgment for full rent plus eviction exposure (materials, "Defenses and limits"). The tenant's rent is $2,400, but no arrears or demand facts are given.
 
 ## Evidence present
 
-- **Tenant's own description of conditions** (peeling paint, stained carpet, worn cabinets, dated lobby) — supports Element 1 only insofar as it describes conditions; on these facts it undercuts the element because the descriptions are aesthetic.
-- **Notice:** tenant's request about three months ago and landlord's "maybe next year" response — supports Element 3 (notice and non-repair).
-- **Rent amount ($2,400)** — relevant to converting any percentage abatement to dollars (abatement-amount evidence), not to breach.
-- **Tenant's statement that everything works and nothing is leaking or broken** — this is adverse evidence on Elements 1 and 2.
+- **Tenant's own account** of peeling paint (living room, "a couple of spots"), stained hallway carpet, worn cabinet finish, dated lobby — supports Element 1 only weakly (describes appearance, not habitability).
+- **Tenant's statement that "everything works and nothing is leaking or broken"** — this is evidence *against* Elements 1 and 2 (no functional or safety defect).
+- **Notice:** request to landlord about three months ago — supports notice timing (relevant to Element 5 duration and to any repair-and-deduct theory, though *Jangla* requires an emergency, which is absent).
+- **Landlord's response** ("maybe next year") — evidence of delay/refusal, relevant to Element 5 weighing of remedial efforts.
 
 ## Evidence missing
 
-- **Photos/video with dates** of the peeling paint, carpet, cabinets, lobby — Element 1/2 (and would likely confirm cosmetic nature).
-- **Dated written complaints** (letters, texts, emails, portal messages) and the landlord's response — Element 3 (the tenant mentioned only an oral-seeming request; no writing stated).
-- **HPD/311 complaint and inspection record or violations** — Element 1/2 (none mentioned; on these facts unlikely to yield hazardous violations).
-- **Dates the conditions began and ended** — Element 5 and abatement amount (duration).
-- **Any evidence of health, safety, or functional impact** (medical records, expert/inspector report, witness statements) — Element 1.
-- **Which parts of the premises are affected and how severely** — abatement amount.
-- **Landlord's remedial efforts beyond the "maybe next year" statement** — Element 5 and abatement amount.
-- **Repair receipts/costs** — Element 7 (repair-and-deduct), if pursued.
-- **Lease and rent payment history** — relevant if a nonpayment proceeding arises (defense posture), not mentioned.
+- **HPD violations / 311 complaint and inspection record** — Element 3 (none mentioned).
+- **Dated photos or video** — Element 1 (none mentioned).
+- **Dates the conditions began and any change over time** — Element 5 duration (only the three-month-old request is dated).
+- **Any health, safety, or functional impact** (e.g., paint dust, mold, inability to use a room) — Elements 1–2 (tenant affirmatively says nothing is broken).
+- **Written complaints, texts, emails, or rent-portal messages** documenting the request and response — Element 5 and notice (tenant says only that he "asked").
+- **Rent ledger / proof of rent actually charged for the period** — abatement amount (tenant states $2,400 but no period or payment history).
+- **Any inspection or expert report** — Element 1 (not required under § 235-b(3), but absent).
+- **Whether a nonpayment proceeding exists or a rent demand was served** — Element 6 (unknown).
 
 ## Likely remedy
 
-On the stated facts, **no abatement is supportable**. The conditions described are aesthetic/amenity complaints expressly outside § 235-b under Solow, and are de minimis under Park West and Eastside; the tenant's own statement that everything works and nothing is leaking or broken negates any health, safety, or functional-habitability impact. Notice and non-repair (Element 3) do not cure the absence of an actionable condition. Because no breach is supportable, there is no percentage range to give; the materials' ranges (roughly 1%–40%, with 10% common in Park West/Solow and 40% in Haskins for severe chronic conditions over 14 months) are inapplicable to cosmetic conditions. Repair-and-deduct under Jangla is also unavailable: no repair was made, no cost stated, and no code violation identified. The tenant's practical posture is that withholding rent on these facts risks a nonpayment judgment for full rent and eviction exposure (materials, Defenses and limits).
+**No supportable abatement on these facts.** The conditions described are cosmetic and aesthetic; the tenant concedes everything works and nothing is leaking or broken. Under *Park West* and *Solow*, the warranty is an objective minimum tied to essential residential functions and does not guarantee an aesthetically pleasing condition. No code violation is alleged, and even a painting violation would likely be de minimis under *Park West*. The materials' abatement range (roughly 1% to 40%) comes from cases involving rodent infestation, broken facilities, hazardous conditions, loss of elevator service, and secondhand smoke causing health problems (*Park West* 10%; *Solow* 1–11% individual / 5% common area, none endorsed by the Court of Appeals; *Haskins* 40% over 14 months; *Poyck* no amount). None resembles peeling paint spots and worn finishes. Because severity is minimal and duration unproven, any percentage would be at or near zero; the materials do not support a nonzero range here. The tenant should also be cautioned that unilaterally paying less rent without a meritorious breach risks a nonpayment proceeding for the full amount.
 
 ## Cannot determine
 
-- Whether any condition not described (e.g., mold behind the peeling paint, a code violation tied to the carpet or cabinets) exists — the tenant did not state it, and the materials' mold/pest provisions (§§ 27-2017.3, 27-2017.4) are [secondary] with unverified section numbers.
-- The exact dates the conditions began and their current status — not stated.
-- Whether the tenant's request was in writing — not stated.
-- Whether any HPD violations or 311 complaints exist — not stated.
-- Whether the tenant is currently in a nonpayment proceeding or has received a rent demand — not stated; RPAPL §§ 711(2), 735, 731, 749(3) and the 14-day demand rules are [secondary] and their application depends on unknown facts.
-- The court level and precise holdings of Haskins and Poyck — the repo does not state the court level; treat as stated in the materials only.
-- The reliability of Park West, Solow, Eastside, and Jangla holdings — these are [secondary] and unverified; Jangla is expressly the weakest and trial-level/persuasive only.
-- Any authority outside the materials that might apply (e.g., other habitability or cosmetic-repair cases) — not in the materials; cannot be cited as support.
+- Whether any HPD violation exists (no 311 complaint or inspection mentioned) — would require HPD Online records not in the narrative.
+- The substantive standard of HMC § 27-2013 (painting) — the materials list it by title only; the text is not in the materials.
+- The exact dates the conditions began and whether they persist — duration for any abatement is unknown.
+- Whether the tenant is currently in a nonpayment proceeding or has received a rent demand — procedural posture unknown.
+- Whether the peeling paint or carpet stains have any health or safety impact (e.g., lead paint, mold) — not stated; if lead paint were involved, NYC lead-paint statutes and HMC provisions on lead would be relevant, but they are **not in the materials** and cannot be cited as support.
+- The court level and precedential weight of *Haskins* and *Poyck* — the materials state the court level is not stated in the repo.
+- Whether *Jangla*'s repair-and-deduct doctrine could apply — it requires an emergency seriously affecting habitability, which the tenant's facts do not show; and *Jangla* is persuasive only.
